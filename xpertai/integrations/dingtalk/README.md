@@ -172,7 +172,7 @@ corepack pnpm -C xpertai exec nx build @xpert-ai/plugin-dingtalk --skipSync
 
 The Redis suite launches three independent Node processes and exercises the real processor, renderer and state service.
 The host queue adapter and DingTalk HTTP endpoint are test doubles; production callback delivery remains a separate
-acceptance check. Without the test URL, only the Redis suite is skipped. The dedicated CI workflow supplies Redis.
+acceptance check. Without the test URL, only the Redis suite is skipped.
 
 Release all API replicas together or drain in-flight callbacks before switching versions: old processors do not participate
 in the new lease protocol. This update does not replay historical failed conversations. Redis fencing and completion receipts
