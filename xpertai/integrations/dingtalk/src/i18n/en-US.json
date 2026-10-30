@@ -6,6 +6,8 @@
     "MissingCredentials": "Authorization completed without robot credentials. Please retry."
   },
   "Error": {
+    "ReplyRecoveryUnavailable": "The complete reply could not be recovered. Please check the conversation in Xpert.",
+    "ReplyRecoveryPrefixMismatch": "Reply recovery could not verify the already delivered text. Please check the full reply in Xpert.",
     "CredentialsFailed": "Credentials verification failed",
     "BotPermission": "Maybe the bot capabilities or permissions have not been added",
     "DingTalkConfigurationRequired": "DingTalk configuration is required"

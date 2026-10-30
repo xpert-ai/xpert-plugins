@@ -135,7 +135,7 @@ export class DingTalkChatDispatchService {
 			message: this.toMessageSnapshot(dingtalkMessage, input.input)
 		}
 
-		await this.runStateService.save({
+		await this.runStateService.initialize({
 			sourceMessageId: runId,
 			nextSequence: 1,
 			responseMessageContent: '',

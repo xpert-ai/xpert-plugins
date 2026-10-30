@@ -2,7 +2,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => {
 	const { createLarkPluginSdkMock } = require('../../../../../test-utils/larkPluginSdkMock.cjs')
 	return createLarkPluginSdkMock(jest, {
 		AGENT_CHAT_DISPATCH_MESSAGE_TYPE: 'agent.chat.dispatch',
-		HandoffProcessorStrategy: () => (target: unknown) => target
+		HandoffProcessorStrategy: () => (target: unknown) => target,
+		PluginJobProcessor: () => (target: unknown) => target
 	})
 })
 
@@ -47,7 +48,12 @@ describe('DingTalkChatStreamCallbackProcessor', () => {
 	function createProcessor(dingtalkChannel: Record<string, unknown> = {}) {
 		const processor = new DingTalkChatStreamCallbackProcessor(
 			dingtalkChannel as any,
-			{} as any
+			{} as any,
+			{
+				module: undefined, config: {},
+				logger: { child() { return this }, debug() {}, log() {}, warn() {}, error() {} },
+				resolve() { throw new Error('Host queue is not used by renderer unit tests') }
+			}
 		) as any
 		processor.conversationService = {
 			setActiveMessage: jest.fn().mockResolvedValue(undefined)

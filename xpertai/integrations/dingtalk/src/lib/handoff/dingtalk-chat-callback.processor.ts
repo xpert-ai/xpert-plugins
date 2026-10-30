@@ -5,6 +5,11 @@ import {
 	IHandoffProcessor,
 	ProcessContext,
 	ProcessResult,
+	MANAGED_QUEUE_SERVICE_TOKEN,
+	PluginJobProcessor,
+	type ManagedQueueService,
+	type ManagedQueueJob,
+	type PluginContext,
 } from '@xpert-ai/plugin-sdk'
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { ChatDingTalkMessage, cloneStructuredElement } from '../message.js'
@@ -19,9 +24,13 @@ import {
 	DingTalkEventRenderItem,
 	DingTalkRenderItem,
 } from './dingtalk-chat.types.js'
-import { DingTalkChatRunState, DingTalkChatRunStateService } from './dingtalk-chat-run-state.service.js'
+import { DingTalkChatRunState, DingTalkChatRunStateService, type DingTalkRunLease } from './dingtalk-chat-run-state.service.js'
+import { createHash } from 'node:crypto'
+import { DINGTALK_PLUGIN_CONTEXT } from '../tokens.js'
+import { DINGTALK_CALLBACK_QUEUE, DINGTALK_CALLBACK_RECOVERY_DELAY_MS, finalMessageSnapshot, isTerminalCallback, lifecycleEvent } from './dingtalk-callback-recovery.js'
 import { DingTalkCardElement, DingTalkStructuredElement } from '../types.js'
 import { messageContentText, XpertAgentExecutionStatusEnum } from '@xpert-ai/contracts'
+import { translate } from '../i18n.js'
 
 /**
  * Callback processor for DingTalk stream events.
@@ -35,6 +44,8 @@ import { messageContentText, XpertAgentExecutionStatusEnum } from '@xpert-ai/con
  * - apply stream/event callbacks to DingTalk message
  * - finalize run and clear run state on completion
  */
+@PluginJobProcessor({ ...DINGTALK_CALLBACK_QUEUE, jobName: 'apply', concurrency: 8 })
+@PluginJobProcessor({ ...DINGTALK_CALLBACK_QUEUE, jobName: 'recover', concurrency: 2 })
 @Injectable()
 @HandoffProcessorStrategy(DINGTALK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE, {
 	types: [DINGTALK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE],
@@ -44,92 +55,178 @@ import { messageContentText, XpertAgentExecutionStatusEnum } from '@xpert-ai/con
 })
 export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<DingTalkChatStreamCallbackPayload> {
 	private readonly logger = new Logger(DingTalkChatStreamCallbackProcessor.name)
-	private readonly sourceLocks = new Map<string, Promise<unknown>>()
 
 	@Inject(forwardRef(() => DingTalkConversationService))
 	private readonly conversationService: DingTalkConversationService
 	
 	constructor(
 		private readonly dingtalkChannel: DingTalkChannelStrategy,
-		private readonly runStateService: DingTalkChatRunStateService
+		private readonly runStateService: DingTalkChatRunStateService,
+		@Inject(DINGTALK_PLUGIN_CONTEXT) private readonly pluginContext: PluginContext
 	) {}
+
+	private get queue(): ManagedQueueService {
+		return this.pluginContext.resolve<ManagedQueueService>(MANAGED_QUEUE_SERVICE_TOKEN)
+	}
 
 	async process(
 		message: HandoffMessage<DingTalkChatStreamCallbackPayload>,
 		_ctx: ProcessContext
 	): Promise<ProcessResult> {
 		const payload = message.payload
-		if (!payload?.sourceMessageId) {
-			return {
-				status: 'dead',
-				reason: 'Missing sourceMessageId in DingTalk callback payload'
-			}
+		if (!payload?.sourceMessageId || !Number.isSafeInteger(payload.sequence) || payload.sequence <= 0) {
+			return { status: 'dead', reason: 'Invalid DingTalk callback sequence or source' }
 		}
-		if (!payload?.sequence || payload.sequence <= 0) {
-			return {
-				status: 'dead',
-				reason: 'Missing sequence in DingTalk callback payload'
-			}
+		const context = payload.context
+		if (
+			!context ||
+			context.tenantId !== message.tenantId ||
+			!context.userId ||
+			!context.xpertId ||
+			context.organizationId !== message.headers?.organizationId
+		) {
+			return { status: 'dead', reason: 'Invalid DingTalk callback scope' }
 		}
+		// Acknowledge Handoff only after the retryable plugin job is durable.
+		await this.queue.enqueue({
+			...DINGTALK_CALLBACK_QUEUE,
+			jobName: 'apply',
+			payload: message,
+			scopeKey: this.pluginContext.scopeKey,
+			tenantId: context.tenantId,
+			organizationId: context.organizationId,
+			userId: context.userId,
+			jobId: this.jobId(message, 'apply', payload.sequence),
+			attempts: 8,
+			backoffMs: 1000,
+			removeOnComplete: { age: 86400 },
+			removeOnFail: { age: 86400 }
+		})
+		return { status: 'ok' }
+	}
 
-		return this.runWithSourceLock(payload.sourceMessageId, async () => {
-			let state = await this.runStateService.get(payload.sourceMessageId)
-			if (!state) {
-				if (!payload.context) {
-					return {
-						status: 'dead',
-						reason: `Run state not found for source message "${payload.sourceMessageId}"`
-					}
+	async handle(job: ManagedQueueJob<HandoffMessage<DingTalkChatStreamCallbackPayload>>): Promise<void> {
+		const message = job.data,
+			payload = message.payload,
+			context = payload.context
+		if (
+			!context ||
+			context.tenantId !== message.tenantId ||
+			context.organizationId !== message.headers?.organizationId
+		) {
+			throw new Error('Invalid DingTalk callback job scope')
+		}
+		await this.runStateService.withRun(payload.sourceMessageId, context, async (lease) => {
+			if (lease.completed) return
+			let state = lease.state
+			if (job.name === 'recover') {
+				if (!state) return
+				state = this.ensureRunStateDefaults(state)
+				if (await this.processPendingEvents(state, lease)) {
+					await lease.finish()
+					return
 				}
-				state = this.createRunState(payload.sourceMessageId, payload.context)
+				await this.recoverRun(state, lease)
+				return
 			}
-			state = this.ensureRunStateDefaults(state)
-
-			if (payload.sequence < state.nextSequence) {
-				return { status: 'ok' }
+			state = this.ensureRunStateDefaults(state ?? this.createRunState(payload.sourceMessageId, context))
+			if (payload.sequence >= state.nextSequence) {
+				state.pendingEvents[String(payload.sequence)] ??= payload
+				const snapshot = finalMessageSnapshot(payload)
+				if (snapshot && (!state.finalMessage || snapshot.sequence > state.finalMessage.sequence))
+					state.finalMessage = snapshot
+				// Persist before any sends, so another worker can retry after this worker exits.
+				await lease.save(state)
 			}
-
-			if (!state.pendingEvents[String(payload.sequence)]) {
-				state.pendingEvents[String(payload.sequence)] = payload
+			if (isTerminalCallback(payload)) {
+				await this.queue.enqueue({
+					...DINGTALK_CALLBACK_QUEUE,
+					jobName: 'recover',
+					payload: message,
+					scopeKey: this.pluginContext.scopeKey,
+					tenantId: context.tenantId,
+					organizationId: context.organizationId,
+					userId: context.userId,
+					jobId: this.jobId(message, 'recover', payload.sequence),
+					delayMs: DINGTALK_CALLBACK_RECOVERY_DELAY_MS,
+					attempts: 8,
+					backoffMs: 1000,
+					removeOnComplete: { age: 86400 },
+					removeOnFail: { age: 86400 }
+				})
 			}
-
-			const completed = await this.processPendingEvents(state)
-			if (completed) {
-				await this.runStateService.clear(state.sourceMessageId)
-			} else {
-				await this.runStateService.save(state)
-			}
-
-			return { status: 'ok' }
+			if (await this.processPendingEvents(state, lease)) await lease.finish()
+			else await lease.save(state)
 		})
 	}
 
-	private async runWithSourceLock(
-		sourceMessageId: string,
-		task: () => Promise<ProcessResult>
-	): Promise<ProcessResult> {
-		const previous = this.sourceLocks.get(sourceMessageId) ?? Promise.resolve()
-		const current = previous
-			.catch(() => undefined)
-			.then(task)
-		this.sourceLocks.set(sourceMessageId, current)
-
-		try {
-			return await current
-		} finally {
-			if (this.sourceLocks.get(sourceMessageId) === current) {
-				this.sourceLocks.delete(sourceMessageId)
-			}
-		}
+	private jobId(message: HandoffMessage<DingTalkChatStreamCallbackPayload>, kind: string, sequence: number): string {
+		const context = message.payload.context
+		const scope = JSON.stringify([
+			message.tenantId,
+			context?.organizationId,
+			context?.integrationId,
+			context?.xpertId,
+			message.payload.sourceMessageId,
+			sequence,
+			kind
+		])
+		return `dingtalk-callback-${createHash('sha256').update(scope).digest('hex')}`
 	}
 
+	private async recoverRun(state: DingTalkChatRunState, lease: DingTalkRunLease): Promise<void> {
+		if (state.context.message?.status === 'error' || state.context.message?.status === 'interrupted') {
+			await lease.finish()
+			return
+		}
+		const pending = Object.values(state.pendingEvents).sort((a, b) => a.sequence - b.sequence)
+		const failure = pending.find((payload) => payload.kind === 'error')
+		const terminal = pending.find((payload) => {
+			const end = lifecycleEvent(payload)
+			return end?.name === 'on_conversation_end'
+		})
+		const snapshot = state.finalMessage
+		const end = terminal ? lifecycleEvent(terminal) : null
+		const endData = end?.data
+		if (failure || snapshot?.status === 'error') {
+			await this.failRun(state, failure?.error ?? snapshot?.error, lease.ensureOwned)
+		} else if (
+			endData &&
+			typeof endData === 'object' &&
+			'status' in endData &&
+			(endData.status === 'error' || endData.status === 'interrupted')
+		) {
+			await this.applyStreamEvent(state, terminal.event, lease.ensureOwned)
+		} else if (snapshot?.status === 'success') {
+			const delivered = state.deliveredText ?? ''
+			if ((state.deliveredSegmentCount > 0 && !state.deliveredText) || !snapshot.text.startsWith(delivered)) {
+				await this.failRun(
+					state,
+					translate('Error.ReplyRecoveryPrefixMismatch', { lng: this.resolveMessageLanguage(state.context) }),
+					lease.ensureOwned
+				)
+			} else {
+				state.responseMessageContent = snapshot.text
+				state.pendingSegmentText = snapshot.text.slice(delivered.length)
+				state.renderItems = []
+				await this.completeRun(state, lease.ensureOwned)
+			}
+		} else {
+			await this.failRun(
+				state,
+				translate('Error.ReplyRecoveryUnavailable', { lng: this.resolveMessageLanguage(state.context) }),
+				lease.ensureOwned
+			)
+		}
+		await lease.finish()
+	}
 	/**
 	 * Flush pending callbacks strictly by nextSequence.
 	 *
 	 * We process only when the expected sequence exists; out-of-order messages
 	 * stay buffered in pendingEvents until earlier sequence arrives.
 	 */
-	private async processPendingEvents(state: DingTalkChatRunState): Promise<boolean> {
+	private async processPendingEvents(state: DingTalkChatRunState, lease: DingTalkRunLease): Promise<boolean> {
 		this.logger.debug(
 			`Processing pending events for source message "${state.sourceMessageId}": nextSequence=${state.nextSequence}, pendingCount=${Object.keys(state.pendingEvents).length}`
 		)
@@ -143,15 +240,15 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 
 			switch (payload.kind) {
 				case 'stream': {
-					await this.applyStreamEvent(state, payload.event)
+					await this.applyStreamEvent(state, payload.event, lease.ensureOwned)
 					break
 				}
 				case 'complete': {
-					await this.completeRun(state)
+					await this.completeRun(state, lease.ensureOwned)
 					return true
 				}
 				case 'error': {
-					await this.failRun(state, payload.error)
+					await this.failRun(state, payload.error, lease.ensureOwned)
 					return true
 				}
 				default: {
@@ -162,6 +259,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			}
 
 			state.nextSequence += 1
+			await lease.save(state)
 		}
 
 		return false
@@ -178,12 +276,12 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 	 * EVENT:
 	 * - apply conversation/message lifecycle events
 	 */
-	private async applyStreamEvent(state: DingTalkChatRunState, event: unknown) {
+	private async applyStreamEvent(state: DingTalkChatRunState, event: unknown, ensureOwned: () => Promise<void> = async () => {}) {
 		const context = state.context
 		let dingtalkMessage: ChatDingTalkMessage | undefined
 		const ensureDingTalkMessage = (): ChatDingTalkMessage => {
 			if (!dingtalkMessage) {
-				dingtalkMessage = this.createDingTalkMessage(context)
+				dingtalkMessage = this.createDingTalkMessage(context, ensureOwned)
 				const fallbackLanguage = this.resolveMessageLanguage(context)
 				if (!dingtalkMessage.language && fallbackLanguage) {
 					dingtalkMessage.language = fallbackLanguage
@@ -207,7 +305,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			const textDelta = this.extractMessageTextDelta(messageData)
 
 			if (this.isToolCallStartMessage(structuredMessageData)) {
-				await this.flushPendingTextSegment(state)
+				await this.flushPendingTextSegment(state, ensureOwned)
 			}
 
 			if (textDelta) {
@@ -307,7 +405,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE:
 			case ChatMessageEventTypeEnum.ON_CHAT_EVENT: {
 				if (eventPayload.event === ChatMessageEventTypeEnum.ON_TOOL_START) {
-					await this.flushPendingTextSegment(state)
+					await this.flushPendingTextSegment(state, ensureOwned)
 				}
 				const data = (eventPayload.data ?? {}) as Record<string, unknown>
 				const toolName = this.resolveManagedEventTool(data)
@@ -338,9 +436,9 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		}
 	}
 
-	private async completeRun(state: DingTalkChatRunState) {
+	private async completeRun(state: DingTalkChatRunState, ensureOwned: () => Promise<void> = async () => {}) {
 		const context = state.context
-		const dingtalkMessage = this.createDingTalkMessage(context)
+		const dingtalkMessage = this.createDingTalkMessage(context, ensureOwned)
 		const currentStatus = context.message?.status
 		const keepTerminalState =
 			currentStatus === XpertAgentExecutionStatusEnum.INTERRUPTED ||
@@ -374,14 +472,17 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		await this.syncActiveMessageCache(context)
 	}
 
-	private async failRun(state: DingTalkChatRunState, error?: string) {
-		const dingtalkMessage = this.createDingTalkMessage(state.context)
+	private async failRun(state: DingTalkChatRunState, error?: string, ensureOwned: () => Promise<void> = async () => {}) {
+		const dingtalkMessage = this.createDingTalkMessage(state.context, ensureOwned)
 		await dingtalkMessage.error(error || 'Internal Error')
 		state.context.message = this.toMessageSnapshot(dingtalkMessage, state.context.message?.text)
 		await this.syncActiveMessageCache(state.context)
 	}
 
-	private createDingTalkMessage(context: DingTalkChatCallbackContext): ChatDingTalkMessage {
+	private createDingTalkMessage(
+		context: DingTalkChatCallbackContext,
+		ensureOwned: () => Promise<void>
+	): ChatDingTalkMessage {
 		const language = this.resolveMessageLanguage(context)
 		if (language && context.message?.language !== language) {
 			context.message = {
@@ -390,32 +491,45 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			}
 		}
 
-			return new ChatDingTalkMessage(
-				{
-					tenant: null,
-					organizationId: context.organizationId,
-					integrationId: context.integrationId,
-					userId: context.userId,
-					chatId: context.chatId,
-					senderOpenId: context.senderOpenId,
-					senderRecipient: context.senderRecipient,
-					chatType: context.chatType,
-					sessionWebhook: context.sessionWebhook,
-					dingtalkChannel: this.dingtalkChannel
-				},
-				{
-					id: context.message?.id,
-					messageId: context.message?.messageId,
-					status: context.message?.status as any,
-					language,
-					header: context.message?.header,
-					elements: [...(context.message?.elements ?? [])],
-					text: context.message?.text,
-					degradedWithoutMessageId: context.message?.degradedWithoutMessageId === true,
-					terminalDelivered: context.message?.terminalDelivered === true
+		return new ChatDingTalkMessage(
+			{
+				tenant: null,
+				organizationId: context.organizationId,
+				integrationId: context.integrationId,
+				userId: context.userId,
+				chatId: context.chatId,
+				senderOpenId: context.senderOpenId,
+				senderRecipient: context.senderRecipient,
+				chatType: context.chatType,
+				sessionWebhook: context.sessionWebhook,
+				dingtalkChannel: {
+					interactiveMessage: async (...args) => {
+						await ensureOwned()
+						return this.dingtalkChannel.interactiveMessage(...args)
+					},
+					patchInteractiveMessage: async (...args) => {
+						await ensureOwned()
+						return this.dingtalkChannel.patchInteractiveMessage(...args)
+					},
+					deleteMessage: async (...args) => {
+						await ensureOwned()
+						return this.dingtalkChannel.deleteMessage(...args)
+					}
 				}
-			)
-		}
+			},
+			{
+				id: context.message?.id,
+				messageId: context.message?.messageId,
+				status: context.message?.status as ChatDingTalkMessage['status'],
+				language,
+				header: context.message?.header,
+				elements: [...(context.message?.elements ?? [])],
+				text: context.message?.text,
+				degradedWithoutMessageId: context.message?.degradedWithoutMessageId === true,
+				terminalDelivered: context.message?.terminalDelivered === true
+			}
+		)
+	}
 
 	private createRunState(sourceMessageId: string, context: DingTalkChatCallbackContext): DingTalkChatRunState {
 		const renderItems = Array.isArray(context?.message?.renderItems)
@@ -446,26 +560,28 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		}
 	}
 
-	private async flushPendingTextSegment(state: DingTalkChatRunState): Promise<void> {
+	private async flushPendingTextSegment(state: DingTalkChatRunState, ensureOwned: () => Promise<void>): Promise<void> {
 		const content = state.pendingSegmentText.trim()
 		if (!content) {
 			state.pendingSegmentText = ''
 			return
 		}
 
-		await this.sendStandaloneTextSegment(state, content)
+		await this.sendStandaloneTextSegment(state, content, ensureOwned)
 		state.pendingSegmentText = ''
 	}
 
 	private async sendStandaloneTextSegment(
 		state: DingTalkChatRunState,
-		content: string
+		content: string,
+		ensureOwned: () => Promise<void>
 	): Promise<void> {
 		const context = state.context
 		if (!context.integrationId || !context.chatId) {
 			throw new Error('DingTalk stream segment requires integrationId and chatId')
 		}
 
+		await ensureOwned()
 		await this.dingtalkChannel.createMessage(context.integrationId, {
 			recipient: {
 				type: 'chat_id',
@@ -482,6 +598,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		})
 
 		state.deliveredSegmentCount += 1
+		state.deliveredText = state.responseMessageContent
 		this.logger.debug(
 			`Delivered DingTalk stream segment for source message "${state.sourceMessageId}", segment=${state.deliveredSegmentCount}, length=${content.length}`
 		)
@@ -721,6 +838,9 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 				header: message.header,
 				elements: [...(message.elements ?? [])]
 			}
+		}).catch(() => {
+			// A cache outage must not replay an already accepted DingTalk send.
+			this.logger.warn('Could not refresh DingTalk active message cache')
 		})
 	}
 
