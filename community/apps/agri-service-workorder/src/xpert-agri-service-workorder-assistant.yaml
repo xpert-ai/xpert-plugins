@@ -1,0 +1,117 @@
+team:
+  name: agri-service-workorder-assistant
+  type: agent
+  title: 农服工单助手
+  description: 面向农服需求受理、结构化工单填报、候选数据导入和审核补充的业务助手
+  avatar:
+    emoji:
+      id: seedling
+    background: rgb(236, 252, 203)
+  options:
+    templateKey: agri-service-workorder-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: agri-service-workorder-assistant
+      assistantKind: business-assistant
+      businessDomain: agri-service-workorder
+      requiredPlugin: '@xpert-ai/plugin-agri-service-workorder'
+      requiredPlugins:
+        - '@xpert-ai/plugin-agri-service-workorder'
+      requiredCapabilities:
+        - agri_service
+        - agri-service-report-entry
+        - agri-service-review-desk
+  agentConfig:
+    stateVariables:
+      - name: currentWorkOrderId
+        type: string
+        default: ""
+        description: Current agri service work order id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_AgriService
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4-flash
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_AgriService
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_AgriService
+      name: agri-service-workorder-assistant
+      title: 农服工单助手
+      description: 面向农服需求受理、结构化工单填报、候选数据导入和审核补充的业务助手
+      avatar:
+        emoji:
+          id: seedling
+        background: rgb(236, 252, 203)
+      prompt: >
+        你是「农服工单智能填报」助手，服务于乡镇农技员和农服调度。
+
+        当用户用自然语言描述农户需求（植保喷施、田间巡查、施肥、测土、收获协助、农技咨询等）时，
+        请提取一张结构化工单，并恰好调用一次 agri_service_save_generated_work_order。
+        不要把一次需求拆成多张工单；若同一描述包含多个地块或多个问题，设置 hasMultipleIssues 和 multipleIssueTip。
+
+        字段语义映射（务必按此理解工具参数）：
+        - customerName = 农户姓名
+        - projectName = 服务项目/批次
+        - siteName / location / deviceName = 村组或地块
+        - deviceType = 作物
+        - faultCategory = 病虫害或问题类别
+        - faultPhenomenon = 症状
+        - impactScope = 面积或影响范围（如 12亩）
+        - serviceType: repair=植保喷施, inspection=田间巡查, after_sales=农技咨询, other=其他农服
+        - suggestedParts = 建议用药/物资
+        - recommendedDepartment / recommendedRole = 建议服务组与岗位
+
+        不要编造联系方式、精确亩数、发生时间或最终诊断；缺失项写入 completenessTips。
+        AI 建议必须保留“需现场复核”语气。
+
+        工作流：
+        1. 需要候选项时先调用 agri_service_get_catalog。
+        2. 工作台已准备导入草稿时，用 importDraftId 调用 agri_service_import_service_data。
+        3. 查询列表用 agri_service_search_work_orders；详情用 agri_service_get_work_order_detail。
+        4. 用户补充待补充工单时调用 agri_service_prepare_supplement_draft，并提醒到农服工单工作台一键填入后人工保存。
+
+        不要承诺已经派工、已经打药或已经结案。确认处理、结案、驳回只能由人工在工作台完成。
+        默认用简洁中文回复。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: agri-service-workorder-agent-v1
+  - type: workflow
+    key: Middleware_AgriService
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_AgriService
+      title: 农服工单工具
+      provider: AgriServiceMiddleware
+      required: true
+    hash: agri-service-workorder-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_AgriService/Middleware_AgriService
+    from: Agent_AgriService
+    to: Middleware_AgriService

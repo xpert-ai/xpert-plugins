@@ -1,0 +1,66 @@
+{
+  "name": "agri-service-workorder",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/agri-service-workorder/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "generatorOptions": {
+        "packageRoot": "dist/{projectRoot}",
+        "currentVersionResolver": "git-tag"
+      }
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/plugins/agri-service-workorder",
+        "main": "packages/plugins/agri-service-workorder/src/index.ts",
+        "tsConfig": "packages/plugins/agri-service-workorder/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "packages/plugins/agri-service-workorder/src/lib/remote-components",
+            "glob": "**/*",
+            "output": "remote-components"
+          }
+        ],
+        "project": "packages/plugins/agri-service-workorder/package.json",
+        "compiler": "swc",
+        "format": ["cjs", "esm"],
+        "external": [
+          "@langchain/core",
+          "@nestjs/common",
+          "@nestjs/core",
+          "@nestjs/typeorm",
+          "@nestjs/microservices",
+          "@xpert-ai/contracts",
+          "@xpert-ai/plugin-sdk",
+          "typeorm",
+          "react",
+          "react-dom",
+          "xlsx",
+          "kafkajs",
+          "amqplib",
+          "mqtt",
+          "nats",
+          "zod"
+        ]
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/plugins/agri-service-workorder/jest.config.ts"
+      }
+    }
+  }
+}
