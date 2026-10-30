@@ -1,0 +1,42 @@
+---
+title: "Build and install"
+description: "Reproduce the build and install the native plugin"
+---
+
+Use Node 22 and the package managers declared by each workspace. No public npm publication is needed.
+
+```sh
+# From xpert-plugins
+cd packages/shadcn-ui
+corepack pnpm@8.15.8 --ignore-workspace install
+corepack pnpm@8.15.8 --ignore-workspace run build
+cd ../../community/apps/support-triage
+corepack pnpm --ignore-workspace install --frozen-lockfile
+corepack pnpm --ignore-workspace run build
+corepack pnpm --ignore-workspace test
+corepack pnpm --ignore-workspace run verify:dist
+```
+
+The shared UI source belongs to this repository and is linked for development only. The emitted iframe HTML bundles its JavaScript, CSS and React, and needs no frontend CDN. Build emits `dist/index.js`, declarations, `dist/assistant.yaml`, and `dist/remote/inbox.html`.
+
+In a healthy Xpert source checkout, configure deployment credentials through the process environment or a local ignored configuration. Use a Default-tenant account permitted to install system plugins. A personal `sk-user-` API key is not a super-admin login JWT.
+
+```sh
+corepack pnpm plugin:deploy:local --help
+corepack pnpm plugin:deploy:local \
+  --plugin-dir <plugin-repo-root>/community/apps/support-triage \
+  --scope tenant --api-url http://localhost:3000
+```
+
+Use the current CLI help for the config-file option and provide `config.example.json`, replacing only model endpoint/name and, if required, the credential via platform secret configuration. Never put a real key in the example or PR. A host in a container must use an endpoint reachable from the container, such as `http://host.docker.internal:11434/v1` for local Ollama.
+
+Restart the selected API when deployment requests it; verify the loaded descriptor. Open Assistant templates, select **Support Triage Assistant**, create an Assistant, select an available platform model, and verify the `support_triage.tools` middleware plus **Support triage** Workbench View are bound. Publish the Assistant, open its runtime conversation and Workbench, then follow the README demonstration. Installation alone does not create an Assistant.
+
+For UI development only:
+
+```sh
+corepack pnpm --ignore-workspace run preview
+# http://127.0.0.1:4318
+```
+
+This loopback development host uses the production iframe and domain service with an auto-saved SQL.js database. Its identities are fixed synthetic fixtures; it does not validate platform authentication or installation. Do not expose its port publicly.
