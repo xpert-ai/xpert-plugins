@@ -4,6 +4,8 @@ import {
   isOpenAIGPT5ProModel,
   normalizeOpenAIMaxTokens,
   normalizeOpenAIBaseUrl,
+  normalizeOpenAIReasoningEffort,
+  getSupportedOpenAIReasoningEfforts,
   OpenAICredentials,
   OpenAIDefaultBaseUrl,
   OpenAIResponsesMinOutputTokens,
@@ -78,4 +80,40 @@ describe('OpenAI credential kwargs', () => {
   it('keeps custom-endpoint max_tokens unchanged', () => {
     expect(normalizeOpenAIMaxTokens(5, 'https://gateway.example.com/v1')).toBe(5)
   })
+
+  it.each(['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-sol'])(
+    'applies the explicit reasoning and sampling contract for %s', (model) => {
+      expect(normalizeOpenAIReasoningEffort(model)).toBe('medium')
+      expect(normalizeOpenAIReasoningEffort(model, 'max')).toBe('max')
+      expect(normalizeOpenAIReasoningEffort(model, 'minimal')).toBe('low')
+      expect(shouldEnableSamplingParameters('auto', undefined, model)).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', undefined, model, 'high')).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', 'https://gateway.example.com/v1', model, 'high')).toBe(true)
+    }
+  )
+
+  it.each(['gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-sol'])('allows sampling without reasoning for %s', (model) => {
+    expect(getSupportedOpenAIReasoningEfforts(model)).toContain('none')
+    expect(shouldEnableSamplingParameters('auto', undefined, model, 'none')).toBe(true)
+    expect(shouldEnableSamplingParameters('disabled', undefined, model, 'none')).toBe(false)
+  })
+
+  it.each(['gpt-6-astra', 'gpt-6.1-sol'])('does not silently disable reasoning for %s', (model) => {
+    expect(getSupportedOpenAIReasoningEfforts(model)).not.toContain('none')
+    expect(normalizeOpenAIReasoningEffort(model, 'none')).toBe('low')
+    expect(shouldEnableSamplingParameters('enabled', undefined, model, 'none')).toBe(false)
+  })
+
+  it('does not infer capabilities for an unknown model from a name prefix', () => {
+    expect(getSupportedOpenAIReasoningEfforts('gpt-6-future')).toBeUndefined()
+    expect(normalizeOpenAIReasoningEffort('gpt-6-future', 'high')).toBeUndefined()
+  })
+
+  it.each(['gpt-5', 'gpt-5.2-pro', 'gpt-5.4-pro', 'gpt-5.3-codex'])(
+    'suppresses official sampling for reasoning-only legacy model %s even when enabled', (model) => {
+      expect(shouldEnableSamplingParameters('enabled', undefined, model)).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', undefined, model, 'high')).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', 'https://gateway.example.com/v1', model, 'high')).toBe(true)
+    }
+  )
 })

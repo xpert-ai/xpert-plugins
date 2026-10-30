@@ -76,12 +76,13 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
     const model = copilotModel.model
     const hasCustomEndpoint = !!credentials?.endpoint_url?.trim()
     const streaming = modelOptions?.streaming ?? !hasCustomEndpoint
+    const reasoningEffort = normalizeOpenAIReasoningEffort(model, modelOptions?.reasoning_effort)
     const supportsSamplingParams = shouldEnableSamplingParameters(
       credentials?.sampling_parameters,
       params.configuration?.baseURL,
-      model
+      model,
+      reasoningEffort
     )
-    const reasoningEffort = normalizeOpenAIReasoningEffort(model, modelOptions?.reasoning_effort)
     const reasoning = this.getReasoningOptions(model, reasoningEffort)
     const langChainReasoning = this.toLangChainReasoning(reasoning)
     const supportsResponseFormat = shouldEnableResponseFormat(params.configuration?.baseURL, model)
@@ -103,11 +104,6 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
         maxRetries: modelOptions?.maxRetries,
         useResponsesApi: true,
         reasoning: langChainReasoning,
-        responses: new OpenAIReasoningResponsesModel({
-          ...params,
-          model,
-          reasoning: langChainReasoning
-        }),
         streamUsage: streaming,
       },
       isNil
@@ -115,6 +111,8 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
 
     const chatModel = new ChatOpenAI({
       ...fields,
+      // Custom Responses instances do not inherit ChatOpenAI constructor fields.
+      responses: new OpenAIReasoningResponsesModel(fields),
       verbose: options?.verbose,
       callbacks: [
         ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),

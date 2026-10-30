@@ -7,13 +7,13 @@ import {
   ModelProvider,
 } from '@xpert-ai/plugin-sdk'
 import { AiModelTypeEnum } from '@xpert-ai/contracts'
+import { OpenAIClient } from '@langchain/openai'
 import {
   OpenAIProvider,
   OpenAICredentials,
   toCredentialKwargs,
+  isOpenAIOfficialBaseUrl,
 } from './types.js'
-
-const OpenAIValidationModels = ['gpt-5.4', 'gpt-5', 'gpt-5.2'] as const
 
 const OpenAIValidationFallbackPatterns = [
   'model is not supported',
@@ -62,39 +62,43 @@ export class OpenAIProviderStrategy extends ModelProvider {
   }
 
   async validateProviderCredentials(credentials: OpenAICredentials): Promise<void> {
-    const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
-    let lastError: unknown
+    const params = toCredentialKwargs(credentials)
+    if (isOpenAIOfficialBaseUrl(params.configuration.baseURL)) {
+      // Authentication must not depend on access to an older generation's probe model.
+      try {
+        const client = new OpenAIClient({ apiKey: params.apiKey, ...params.configuration })
+        await client.models.list()
+        return
+      } catch (error) {
+        throw new CredentialsValidateFailedError(error instanceof Error ? error.message : 'OpenAI credentials verification failed')
+      }
+    }
 
-    for (const model of OpenAIValidationModels) {
+    const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
+    const models = this.getProviderModels(AiModelTypeEnum.LLM)
+    let lastError: CredentialsValidateFailedError | undefined
+
+    for (const { model } of models) {
       try {
         await modelInstance.validateCredentials(model, credentials)
         return
       } catch (ex: unknown) {
-        lastError = ex
-
         if (!shouldRetryWithNextValidationModel(ex)) {
           if (ex instanceof CredentialsValidateFailedError) {
             throw ex
           } else {
-            this.logger.error(`${this.getProviderSchema().provider}: credentials verification failed`, (ex as any)?.stack)
+            this.logger.error(`${this.getProviderSchema().provider}: credentials verification failed`, ex instanceof Error ? ex.stack : undefined)
             throw ex
           }
         }
 
+        if (ex instanceof CredentialsValidateFailedError) lastError = ex
         this.logger.warn(
           `${this.getProviderSchema().provider}: validation model '${model}' unavailable, trying next candidate`
         )
       }
     }
 
-    if (lastError instanceof CredentialsValidateFailedError) {
-      throw lastError
-    } else {
-      this.logger.error(
-        `${this.getProviderSchema().provider}: credentials verification failed`,
-        (lastError as any)?.stack
-      )
-      throw lastError
-    }
+    throw lastError ?? new CredentialsValidateFailedError('No OpenAI models are available for credentials verification')
   }
 }
