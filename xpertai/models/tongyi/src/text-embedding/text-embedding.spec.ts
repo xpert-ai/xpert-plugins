@@ -1,6 +1,6 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
 import { AiProviderRole } from '@xpert-ai/contracts'
-import { CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
+import { CredentialsValidateFailedError, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 import { TongyiCredentials } from '../types.js'
 import { TONGYI_MULTIMODAL_EMBEDDING_MODEL, TongyiMultimodalEmbeddings } from './multimodal-embeddings.js'
@@ -49,8 +49,45 @@ describe('Tongyi embedding routing', () => {
 
   it('preserves OpenAI-compatible text models and configured batch sizes', () => {
     const embedding = manager.getEmbeddingInstance(copilotModel('text-embedding-v3', { max_chunks: 7 }))
-    expect(embedding).toBeInstanceOf(OpenAIEmbeddings)
+    expect(embedding).toBeInstanceOf(OpenAICompatibleEmbeddings)
     expect(embedding).toMatchObject({ model: 'text-embedding-v3', batchSize: 7 })
+  })
+
+  it('passes runtime callbacks to the shared SDK adapter for every text batch', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const request: { input: string[]; encoding_format?: string } = JSON.parse(String(init?.body))
+      return new Response(
+        JSON.stringify({
+          object: 'list',
+          model: 'text-embedding-v4',
+          data: request.input.map((_text, index) => ({
+            object: 'embedding',
+            index,
+            embedding:
+              request.encoding_format === 'base64'
+                ? Buffer.from(new Float32Array([index, 1]).buffer).toString('base64')
+                : [index, 1]
+          })),
+          usage: { prompt_tokens: 7, total_tokens: 7 }
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    })
+    const runtime: TChatModelOptions = {
+      verbose: false,
+      modelProperties: {},
+      handleLLMTokens: jest.fn(),
+      handleModelUsage: jest.fn()
+    }
+    const embeddings = manager.getEmbeddingInstance(copilotModel('text-embedding-v4', { max_chunks: 2 }), runtime)
+    await expect(embeddings.embedDocuments(['one', 'two', 'three'])).resolves.toEqual([
+      [0, 1],
+      [1, 1],
+      [0, 1]
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(runtime.handleModelUsage).toHaveBeenCalledTimes(2)
+    expect(runtime.handleLLMTokens).not.toHaveBeenCalled()
   })
 
   it('sends credential validation through the native endpoint', async () => {

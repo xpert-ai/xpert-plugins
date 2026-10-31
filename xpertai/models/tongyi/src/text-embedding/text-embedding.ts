@@ -1,8 +1,7 @@
-import { OpenAIEmbeddings } from '@langchain/openai'
 import { Embeddings } from '@langchain/core/embeddings'
 import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
-import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
+import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { toCredentialKwargs, TongyiCredentials, TongyiTextEmbeddingModelOptions } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 import { TONGYI_MULTIMODAL_EMBEDDING_MODEL, TongyiMultimodalEmbeddings } from './multimodal-embeddings.js'
@@ -13,14 +12,15 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 		super(modelProvider, AiModelTypeEnum.TEXT_EMBEDDING)
 	}
 
-	getEmbeddingInstance(copilotModel: ICopilotModel): Embeddings {
+	getEmbeddingInstance(copilotModel: ICopilotModel, runtime?: TChatModelOptions): Embeddings {
 		const { copilot } = copilotModel
 		const { modelProvider } = copilot
 		const options = copilotModel.options as TongyiTextEmbeddingModelOptions
 		return this.createEmbeddings(
 			copilotModel.model || copilot.copilotModel?.model,
 			modelProvider.credentials as TongyiCredentials,
-			options?.max_chunks ?? 10
+			options?.max_chunks ?? 10,
+			runtime
 		)
 	}
 
@@ -33,10 +33,10 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 		}
 	}
 
-	private createEmbeddings(model: string, credentials: TongyiCredentials, batchSize = 10): Embeddings {
+	private createEmbeddings(model: string, credentials: TongyiCredentials, batchSize = 10, runtime?: TChatModelOptions): Embeddings {
 		if (model === TONGYI_MULTIMODAL_EMBEDDING_MODEL) {
 			return new TongyiMultimodalEmbeddings({ credentials, batchSize })
 		}
-		return new OpenAIEmbeddings({ ...toCredentialKwargs(credentials), model, batchSize })
+		return new OpenAICompatibleEmbeddings({ ...toCredentialKwargs(credentials), model, batchSize }, runtime)
 	}
 }
