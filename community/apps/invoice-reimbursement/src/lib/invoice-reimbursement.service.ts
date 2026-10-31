@@ -47,9 +47,9 @@ export class InvoiceReimbursementService {
 
     // 正则与特征抽取
     const invoiceCodeMatch = rawText.match(/(?:发票代码|代码)[:：\s]*([0-9]{10,12})/)
-    const invoiceNumberMatch = rawText.match(/(?:发票号码|号码|NO)[:：\s]*([0-9]{8,12})/i)
+    const invoiceNumberMatch = rawText.match(/(?:发票号码|号码|NO)[:：\s]*([0-9]{8,24})/i)
     const dateMatch = rawText.match(/(?:开票日期|日期)[:：\s]*([0-9]{4}[-年/][0-9]{1,2}[-月/][0-9]{1,2})/)
-    const buyerNameMatch = rawText.match(/(?:购买方名称|购买方|抬头)[:：\s]*([^\n\r,，;]+)/)
+    const buyerNameMatch = rawText.match(/(?:购买方名称|购买方|抬头|名称)[:：\s]*([^\n\r,，;]+)/)
     const taxNoMatch = rawText.match(/(?:统一社会信用代码|纳税人识别号|税号)[:：\s]*([0-9A-Z]{15,20})/i)
     const sellerNameMatch = rawText.match(/(?:销售方名称|销售方|开票单位)[:：\s]*([^\n\r,，;]+)/)
 
@@ -88,6 +88,8 @@ export class InvoiceReimbursementService {
       category = '办公耗材'
     } else if (/(软件|云服务|服务器|技术服务|订阅)/.test(rawText)) {
       category = '云服务/软件'
+    } else if (/(纺织|袜子|男袜|衣服|服装|生活|日用)/.test(rawText)) {
+      category = '其他综合'
     }
 
     const buyerName = buyerNameMatch ? buyerNameMatch[1].trim() : targetCompanyName
@@ -99,7 +101,12 @@ export class InvoiceReimbursementService {
     let riskLevel: 'PASS' | 'WARN' | 'FAIL' = 'PASS'
     let title = '合规自检通过'
 
-    if (isTaxNoMatched) {
+    // 抬头为个人特殊风控
+    if (buyerName === '个人' || /(个人|员工)/.test(buyerName)) {
+      riskLevel = 'WARN'
+      title = '发票抬头为个人风险预警'
+      messages.push('购买方抬头为【个人】，未体现企业法定全称，且缺少企业税号，无法在企业所得税前扣除，需财务复核')
+    } else if (isTaxNoMatched) {
       messages.push(`购买方税号与公司档案完全匹配 (${targetTaxNo})`)
     } else if (buyerTaxNo) {
       riskLevel = 'WARN'
@@ -116,6 +123,10 @@ export class InvoiceReimbursementService {
       riskLevel = 'WARN'
       title = '品目需补充材料'
       messages.push('餐饮招待品目根据财务报销制度，需随单附随行人员名单及业务招待说明')
+    } else if (category === '其他综合' && /(袜子|男袜|衣服)/.test(rawText)) {
+      riskLevel = 'WARN'
+      title = '个人日常用品品目风险预警'
+      messages.push('费用项目为日用纺织品（袜子），非公司业务经营常规开支，需补充劳保福利或特批业务说明')
     }
 
     // 计算平衡性校验
