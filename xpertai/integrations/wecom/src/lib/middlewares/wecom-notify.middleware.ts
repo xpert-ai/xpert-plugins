@@ -1,10 +1,15 @@
+import { requireWeComUsage } from '../integration-usage.js'
+import { WECOM_PLUGIN_CONTEXT } from '../tokens.js'
 import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput } from '@langchain/langgraph'
 import { getToolCallIdFromConfig, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import {
+  INTEGRATION_PERMISSION_SERVICE_TOKEN,
+  IntegrationPermissionService,
+  type PluginContext,
   AgentMiddleware,
   AgentMiddlewareStrategy,
   IAgentMiddlewareContext,
@@ -223,9 +228,8 @@ function resolveRuntimeContext(
 
   const timeoutInput = input.timeoutMs
   const timeoutValue = typeof timeoutInput === 'number' ? timeoutInput : Number(timeoutInput)
-  const timeoutMs = Number.isFinite(timeoutValue) && timeoutValue >= 100
-    ? Math.min(Math.floor(timeoutValue), 120000)
-    : undefined
+  const timeoutMs =
+    Number.isFinite(timeoutValue) && timeoutValue >= 100 ? Math.min(Math.floor(timeoutValue), 120000) : undefined
 
   return {
     senderId,
@@ -244,7 +248,10 @@ function toToolMessageContent(result: WeComNotifyResult) {
 @Injectable()
 @AgentMiddlewareStrategy(WECOM_NOTIFY_MIDDLEWARE_NAME)
 export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
-  constructor(private readonly wecomChannel: WeComChannelStrategy) {}
+  constructor(
+    private readonly wecomChannel: WeComChannelStrategy,
+    @Inject(WECOM_PLUGIN_CONTEXT) private readonly pluginContext: PluginContext
+  ) {}
 
   meta: TAgentMiddlewareMeta = {
     name: WECOM_NOTIFY_MIDDLEWARE_NAME,
@@ -259,8 +266,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
     description: {
       en_US:
         'Robot-only WeCom notification tools (short callback + long websocket). For normal conversation, reply directly with text.',
-      zh_Hans:
-        '仅机器人通道的企业微信通知工具（短连接回调 + 长连接 WebSocket）。普通对话请直接输出文本。'
+      zh_Hans: '仅机器人通道的企业微信通知工具（短连接回调 + 长连接 WebSocket）。普通对话请直接输出文本。'
     },
     configSchema: {
       type: 'object',
@@ -277,7 +283,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
           },
           'x-ui': {
             component: 'remoteSelect',
-            selectUrl: '/api/wecom/integration-select-options',
+            selectUrl: '/api/wecom/integration-select-options?usage=invoke',
             variable: false
           }
         }
@@ -286,10 +292,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
     } as TAgentMiddlewareMeta['configSchema']
   }
 
-  createMiddleware(
-    options: MiddlewareConfig,
-    _context: IAgentMiddlewareContext
-  ): PromiseOrValue<AgentMiddleware> {
+  createMiddleware(options: MiddlewareConfig, _context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const { data, error } = interopSafeParse(middlewareConfigSchema, options ?? {})
     if (error) {
       throw new Error(`WeComNotifyMiddleware configuration error: ${error.message}`)
@@ -301,6 +304,14 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
       throw new Error('WeComNotifyMiddleware requires integrationId')
     }
 
+    const usageScope = { tenantId: _context.tenantId, organizationId: _context.organizationId ?? null }
+    const authorize = () =>
+      requireWeComUsage(
+        this.pluginContext.resolve<IntegrationPermissionService>(INTEGRATION_PERMISSION_SERVICE_TOKEN),
+        integrationId,
+        'invoke',
+        usageScope
+      )
     const buildCommand = (toolName: string, toolCallId: string, result: WeComNotifyResult) => {
       const success = result.failureCount === 0
       return new Command({
@@ -332,6 +343,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
           }
 
           const runtime = resolveRuntimeContext(state, input)
+          await authorize()
           const result = await this.wecomChannel.sendRobotPayload({
             integrationId,
             senderId: runtime.senderId,
@@ -420,6 +432,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
             }
           }
 
+          await authorize()
           const result = await this.wecomChannel.sendRobotPayload({
             integrationId,
             senderId: runtime.senderId,
@@ -468,6 +481,7 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
           const runtime = resolveRuntimeContext(state, input)
           const templateCard = normalizeTemplateCard(input.templateCard || input.template_card || input.card)
 
+          await authorize()
           const result = await this.wecomChannel.updateRobotTemplateCard({
             integrationId,
             templateCard,

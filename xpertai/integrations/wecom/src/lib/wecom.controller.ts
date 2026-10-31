@@ -1,3 +1,6 @@
+import { weComSelectionLabels } from './wecom-selection-locales.js'
+import { z } from 'zod/v3'
+import { WeComTriggerStrategy } from './workflow/wecom-trigger.strategy.js'
 import { IIntegration, IUser } from '@xpert-ai/contracts'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
@@ -6,7 +9,7 @@ import {
   runWithRequestContext,
   TChatEventContext,
   TChatEventHandlers,
-  type PluginContext,
+  type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import {
   BadRequestException,
@@ -36,10 +39,21 @@ import {
   TWeComLongDisabledReason,
   TWeComLegacyLongConnectionStatus,
   TIntegrationWeComOptions,
-  verifyWeComSignature,
+  verifyWeComSignature
 } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
+
+const weComSelectOptionsSchema = z.array(
+  z.object({
+    value: z.string().min(1),
+    label: z.string(),
+    description: z.string().nullish(),
+    icon: z.preprocess((value) => (typeof value === 'string' ? value : undefined), z.string().optional()),
+    scopeLevel: z.enum(['tenant', 'organization'])
+  })
+)
+type WeComSelectOption = z.output<typeof weComSelectOptionsSchema>[number]
 
 @Controller('wecom')
 export class WeComHooksController {
@@ -50,6 +64,7 @@ export class WeComHooksController {
     private readonly conversation: WeComConversationService,
     private readonly wecomChannel: WeComChannelStrategy,
     private readonly longConnection: WeComLongConnectionService,
+    private readonly trigger: WeComTriggerStrategy,
     @Inject(WECOM_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -130,10 +145,7 @@ export class WeComHooksController {
   @Post('webhook/:id')
   @HttpCode(200)
   @Header('Content-Type', 'text/plain; charset=utf-8')
-  async webhook(
-    @Param('id') integrationId: string,
-    @Request() req: express.Request
-  ): Promise<string> {
+  async webhook(@Param('id') integrationId: string, @Request() req: express.Request): Promise<string> {
     try {
       const integration = await this.readShortIntegration(integrationId)
       const token = this.toSafeString(integration.options?.token)
@@ -163,9 +175,7 @@ export class WeComHooksController {
           aesKey: encodingAesKey
         })
         eventPayload = this.parsePayloadText(decrypted)
-        this.logger.debug(
-          `[webhook] integration=${integrationId} encrypted=true ${this.describePayload(decrypted)}`
-        )
+        this.logger.debug(`[webhook] integration=${integrationId} encrypted=true ${this.describePayload(decrypted)}`)
       } else {
         eventPayload = this.parseBodyToObject(req.body)
         this.logger.debug(
@@ -195,11 +205,12 @@ export class WeComHooksController {
       }
 
       const handler = this.wecomChannel.createEventHandler(ctx, handlers)
-      const contextUser = RequestContext.currentUser() ?? (req.user as IUser) ?? {
-        id: `wecom:${integration.id}:anonymous`,
-        tenantId: integration.tenantId,
-        organizationId: integration.organizationId
-      }
+      const contextUser = RequestContext.currentUser() ??
+        (req.user as IUser) ?? {
+          id: `wecom:${integration.id}:anonymous`,
+          tenantId: integration.tenantId,
+          organizationId: integration.organizationId
+        }
       const requestHeaders: Record<string, string> = {
         ['organization-id']: integration.organizationId,
         ['tenant-id']: integration.tenantId
@@ -259,11 +270,13 @@ export class WeComHooksController {
   @Get('integration-select-options')
   async getIntegrationSelectOptions(
     @Request() req: express.Request,
-    @Query('keyword') keyword?: string
+    @Query('keyword') keyword?: string,
+    @Query('usage') usage: string = 'invoke'
   ) {
+    if (usage !== 'invoke' && usage !== 'bind') throw new BadRequestException('Invalid integration usage')
     const [shortOptions, longOptions] = await Promise.all([
-      this.fetchProviderSelectOptions(req, INTEGRATION_WECOM),
-      this.fetchProviderSelectOptions(req, INTEGRATION_WECOM_LONG)
+      this.fetchProviderSelectOptions(req, INTEGRATION_WECOM, usage),
+      this.fetchProviderSelectOptions(req, INTEGRATION_WECOM_LONG, usage)
     ])
 
     const merged = [
@@ -271,7 +284,7 @@ export class WeComHooksController {
       ...this.decorateProviderOptions(longOptions, 'long')
     ]
 
-    const deduped = new Map<string, { value: string; label: string; description?: string; icon?: string }>()
+    const deduped = new Map<string, WeComSelectOption>()
     for (const item of merged) {
       if (!item.value) {
         continue
@@ -280,7 +293,23 @@ export class WeComHooksController {
     }
 
     const normalizedKeyword = this.toSafeString(keyword).toLowerCase()
-    const values = [...deduped.values()]
+    const labels = weComSelectionLabels(this.toSafeString(req.headers?.language))
+    const values = await Promise.all(
+      [...deduped.values()].map(async (item) => {
+        const occupied = usage === 'bind' && !!(await this.trigger.getBoundXpertId(item.value))
+        return {
+          ...item,
+          disabled: occupied,
+          description: [
+            item.description,
+            item.scopeLevel === 'tenant' ? labels.tenant : labels.organization,
+            occupied ? labels.occupied : ''
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        }
+      })
+    )
     if (!normalizedKeyword) {
       return values
     }
@@ -289,7 +318,11 @@ export class WeComHooksController {
       const label = item.label.toLowerCase()
       const value = item.value.toLowerCase()
       const description = this.toSafeString(item.description).toLowerCase()
-      return label.includes(normalizedKeyword) || value.includes(normalizedKeyword) || description.includes(normalizedKeyword)
+      return (
+        label.includes(normalizedKeyword) ||
+        value.includes(normalizedKeyword) ||
+        description.includes(normalizedKeyword)
+      )
     })
   }
 
@@ -431,72 +464,27 @@ export class WeComHooksController {
 
   private async fetchProviderSelectOptions(
     req: express.Request,
-    provider: string
-  ): Promise<Array<{ value: string; label: string; description?: string; icon?: string }>> {
-    try {
-      const host = this.toSafeString(req.get('host'))
-      if (!host) {
-        return []
-      }
-
-      const protocol = this.toSafeString(req.protocol) || 'http'
-      const url = new URL(`${protocol}://${host}/api/integration/select-options`)
-      url.searchParams.set('provider', provider)
-
-      const headers: Record<string, string> = {}
-      const authorization = this.toSafeString(req.headers?.authorization)
-      const organizationId = this.toSafeString(req.headers?.['organization-id'])
-      const tenantId = this.toSafeString(req.headers?.['tenant-id'])
-      const language = this.toSafeString(req.headers?.language)
-
-      if (authorization) {
-        headers.authorization = authorization
-      }
-      if (organizationId) {
-        headers['organization-id'] = organizationId
-      }
-      if (tenantId) {
-        headers['tenant-id'] = tenantId
-      }
-      if (language) {
-        headers.language = language
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers
-      })
-
-      if (!response.ok) {
-        return []
-      }
-
-      const payload = (await response.json().catch(() => null)) as unknown
-      if (!Array.isArray(payload)) {
-        return []
-      }
-
-      return payload
-        .map((item) => (item && typeof item === 'object' ? (item as Record<string, unknown>) : null))
-        .filter((item): item is Record<string, unknown> => Boolean(item))
-        .map((item) => {
-          return {
-            value: this.toSafeString(item.value),
-            label: this.toSafeString(item.label),
-            description: this.toSafeString(item.description) || undefined,
-            icon: this.toSafeString(item.icon) || undefined
-          }
-        })
-        .filter((item) => Boolean(item.value))
-    } catch {
-      return []
+    provider: string,
+    usage: 'invoke' | 'bind'
+  ): Promise<WeComSelectOption[]> {
+    const host = this.toSafeString(req.get('host'))
+    if (!host) throw new BadRequestException('Missing request host')
+    const url = new URL(`${this.toSafeString(req.protocol) || 'http'}://${host}/api/integration/available`)
+    url.searchParams.set('provider', provider)
+    url.searchParams.set('usage', usage)
+    const headers: Record<string, string> = {}
+    for (const key of ['authorization', 'organization-id', 'tenant-id', 'language', 'x-scope-level']) {
+      const value = this.toSafeString(req.headers?.[key])
+      if (value) headers[key] = value
     }
+    const response = await fetch(url.toString(), { method: 'GET', headers })
+    if (!response.ok) throw new HttpException('Integration discovery failed', response.status)
+    const parsed = weComSelectOptionsSchema.safeParse(await response.json())
+    if (!parsed.success) throw new BadRequestException('Invalid integration selection response')
+    return parsed.data
   }
 
-  private decorateProviderOptions(
-    options: Array<{ value: string; label: string; description?: string; icon?: string }>,
-    mode: 'short' | 'long'
-  ): Array<{ value: string; label: string; description?: string; icon?: string }> {
+  private decorateProviderOptions(options: WeComSelectOption[], mode: 'short' | 'long'): WeComSelectOption[] {
     return options.map((item) => {
       const label = item.label || item.value
       if (mode === 'short') {
@@ -566,7 +554,8 @@ export class WeComHooksController {
       FromUserName: this.matchXmlTag(text, 'FromUserName') || this.matchXmlTag(text, 'fromUserName'),
       ChatId: this.matchXmlTag(text, 'ChatId') || this.matchXmlTag(text, 'chatId'),
       chatid: this.matchXmlTag(text, 'chatid') || this.matchXmlTag(text, 'ChatId') || this.matchXmlTag(text, 'chatId'),
-      chattype: this.matchXmlTag(text, 'chattype') || this.matchXmlTag(text, 'ChatType') || this.matchXmlTag(text, 'chatType'),
+      chattype:
+        this.matchXmlTag(text, 'chattype') || this.matchXmlTag(text, 'ChatType') || this.matchXmlTag(text, 'chatType'),
       response_url:
         this.matchXmlTag(text, 'response_url') ||
         this.matchXmlTag(text, 'ResponseUrl') ||
@@ -575,7 +564,9 @@ export class WeComHooksController {
       msgid: this.matchXmlTag(text, 'msgid') || this.matchXmlTag(text, 'MsgId') || this.matchXmlTag(text, 'msgId'),
       CreateTime: this.matchXmlTag(text, 'CreateTime') || this.matchXmlTag(text, 'createTime'),
       create_time:
-        this.matchXmlTag(text, 'create_time') || this.matchXmlTag(text, 'CreateTime') || this.matchXmlTag(text, 'createTime')
+        this.matchXmlTag(text, 'create_time') ||
+        this.matchXmlTag(text, 'CreateTime') ||
+        this.matchXmlTag(text, 'createTime')
     }
   }
 

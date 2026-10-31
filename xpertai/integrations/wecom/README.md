@@ -63,12 +63,15 @@ The QR code expires after five minutes. Closing or refreshing the dialog cancels
 
 ## Routing to Xpert
 
-You can route inbound WeCom messages in either of these ways:
+Use `WeCom Trigger` in a published workflow to persist the `integrationId -> xpertId` binding. One integration can bind to one Assistant. A legacy `options.xpertId` alone is not a runtime routing grant.
 
-1. Set `xpertId` directly on the integration.
-2. Use `WeCom Trigger` in a workflow to bind `integrationId -> xpertId`.
+### Tenant-shared integrations
 
-The trigger-based binding is the recommended setup because it is explicit and aligns with the plugin workflow model.
+Tenant administrators explicitly grant organizations access to a tenant integration. The trigger requires the `bind` usage; notification tools require `invoke`. Selectors show the integration's scope and disable occupied trigger bindings. Sharing an integration with several organizations does not turn one bot into several independent Assistant entry points.
+
+Publication and inbound dispatch use the Assistant's persisted tenant/organization scope. Runtime authorization is checked again for inbound messages, buffered dispatch and each notification tool call. Revocation preserves configuration and binding records while denying subsequent consumption. It does not undo sent messages or cancel an already executing Assistant run.
+
+Deploy with a host and SDK supporting `IntegrationPermissionService.readForUsage` and `/api/integration/available`. Older hosts are rejected explicitly. Existing tenant integrations with no sharing policy need an administrator to grant the required organizations and usages before organization consumption resumes. User OAuth credentials are never shared by this policy.
 
 ## Middleware Configuration
 
@@ -198,6 +201,7 @@ After modifying the plugin, run the plugin lifecycle validation through `plugin-
 ```bash
 cd xpertai/integrations/wecom
 node ../../node_modules/typescript/bin/tsc -p tsconfig.lib.json
+node scripts/copy-assets.mjs
 cd ../../..
-node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @hxr222223323232323/plugin-wecom-xr --verbose
+node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @xpert-ai/plugin-wecom --verbose
 ```
