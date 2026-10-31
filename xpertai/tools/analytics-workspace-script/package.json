@@ -36,23 +36,23 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.26.1",
-    "@xpert-ai/contracts": "^3.26.1",
+    "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "zod": "3.25.67",
-    "@langchain/core": ">=0.3.0"
+    "@xpert-ai/contracts": "^3.29.1",
+    "@xpert-ai/plugin-sdk": "^3.29.1",
+    "zod": "3.25.67"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.26.1",
-    "@xpert-ai/contracts": "3.26.1",
+    "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "zod": "3.25.67",
-    "typescript": "^5.9.2",
     "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "^3.29.1",
+    "@xpert-ai/plugin-sdk": "^3.29.1",
     "reflect-metadata": "^0.2.2",
-    "@langchain/core": "0.3.72"
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
   },
   "repository": {
     "type": "git",

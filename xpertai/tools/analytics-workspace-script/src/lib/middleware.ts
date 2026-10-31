@@ -1,11 +1,11 @@
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod/v3'
-import { AgentMiddlewareStrategy, AnalyticsRuntimeCapability, RequestContext, WorkspaceFilesRuntimeCapability,
+import { AgentMiddlewareStrategy, AnalyticsRuntimeCapability, AnalyticsDefinitionAuthoringCapability, RequestContext, WorkspaceFilesRuntimeCapability,
   analyticsBindingSchema, jsonEncodedSchema, type AgentMiddleware, type IAgentMiddlewareContext, type IAgentMiddlewareStrategy } from '@xpert-ai/plugin-sdk'
 import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { ScriptDefinitions } from './definitions'
-import { registrationSchema, PROVIDER } from './schema'
+import { registrationSchema, PROVIDER, PUBLISHED_PROVIDER } from './schema'
 
 const registrationObject = registrationSchema.innerType()
 const registerToolSchema = registrationSchema.innerType().omit({ sources: true }).extend({
@@ -13,7 +13,7 @@ const registerToolSchema = registrationSchema.innerType().omit({ sources: true }
   sources: jsonEncodedSchema(z.array(z.object({ alias: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/), bindingJson: z.string().min(2).max(64000) }).strict()).max(4).default([]))
 }).strict()
 
-export const SCRIPT_GUIDANCE = `For Python/JavaScript data preparation, read the workspace-script-dataset skill with read_skill_file. Inspect real files using sandbox_read_file, create scripts with sandbox_write_file({file_path,content}) and edit using sandbox_edit_file/multi_edit_file. Then register with workspace_dataset_register and preview its returned canonical bindingJson through dashboard_discover and dashboard_preview_binding. A script file alone is not a registered Dataset or saved dashboard. Use live-dashboard skills/tools for the final dashboard. Never invent business data; preserve the user's requested execution language and use the script provider as the final Binding.`
+export const SCRIPT_GUIDANCE = `For Python/JavaScript data preparation, read the workspace-script-dataset skill with read_skill_file. Inspect real files using sandbox_read_file, create scripts with sandbox_write_file({file_path,content}) and edit using sandbox_edit_file/multi_edit_file. Then register with workspace_dataset_register and preview its returned canonical bindingJson through dashboard_discover and dashboard_preview_binding. A script file alone is not a registered Dataset or saved dashboard. Use live-dashboard skills/tools for the final dashboard. Private scripts cannot be shared directly. On an explicit publication request, use workspace_dataset_prepare_publication and the published provider; the human owner must review code/files and publish organization visibility in Analytics settings. Never invent business data; preserve the user's requested execution language and use the script provider as the final Binding.`
 
 @AgentMiddlewareStrategy('WorkspaceScriptDataset')
 export class WorkspaceScriptMiddleware implements IAgentMiddlewareStrategy {
@@ -32,6 +32,17 @@ export class WorkspaceScriptMiddleware implements IAgentMiddlewareStrategy {
     return { name: 'WorkspaceScriptDataset', wrapModelCall: (request, handler) => handler({ ...request,
       systemMessage: new SystemMessage({ content: [...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []), { type: 'text', text: SCRIPT_GUIDANCE }] }) }),
       tools: [
+        tool(async input => {
+          if (!context.workspaceId || !context.xpertId) throw new Error('WORKSPACE_SCRIPT_CONTEXT_REQUIRED')
+          const receipt = await capabilities.require(AnalyticsDefinitionAuthoringCapability).register({ actor,
+            workspaceId: context.workspaceId, xpertId: context.xpertId, files }, { providerId: PUBLISHED_PROVIDER,
+            connectionKey: 'workspace', requestId: input.requestId, name: input.name,
+            definition: { artifactId: input.artifactId, versionId: input.versionId, includeCodeAndFiles: input.includeCodeAndFiles } })
+          return JSON.stringify({ ...receipt, next: 'Prepared privately. Ask the owner to review code/files and publish Organization visibility in Settings → Analytics. Discover and preview this exact source with workspace_script.published_query, then update the existing dashboard binding. Do not share the original private script or impersonate its owner.' })
+        }, { name: 'workspace_dataset_prepare_publication', description: 'On explicit request, prepare a pinned private script as an immutable reusable dataset, including declared code/file snapshots. Stays private until the human owner publishes visibility in Analytics settings. Upstream sources must themselves support sharing; their current viewer ACLs still apply.',
+          schema: z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid(), requestId: z.string().min(1).max(128),
+            name: z.string().min(1).max(160), includeCodeAndFiles: z.literal(true) }).strict(),
+          metadata: { toolName: { en_US: 'Prepare reusable script dataset', zh_Hans: '准备可复用脚本数据集' } } }),
         tool(async (args: z.infer<typeof registerToolSchema>) => {
           const definition = args
           const input = registrationSchema.parse({ ...definition, sources: definition.sources.map(source => {

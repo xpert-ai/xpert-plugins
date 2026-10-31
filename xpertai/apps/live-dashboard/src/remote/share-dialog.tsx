@@ -43,7 +43,9 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
   const link = state?.link?.status === 'active' ? state.link : null
   const matches = link && link.versionMode === mode && (mode === 'latest' || link.versionId === selected)
   const issueText = (code: string) => code === 'DASHBOARD_PUBLISH_BEFORE_SHARING' ? t.publishBeforeShare :
-    code === 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' || code === 'DASHBOARD_PRIVATE_DEPENDENCY' ? t.privateDependencies : t.sourceUnavailable
+    code === 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' ? t.privateScriptPublication :
+    code === 'ANALYTICS_DEFINITION_PRIVATE' ? t.publishDefinitionAudience :
+    code === 'DASHBOARD_PRIVATE_DEPENDENCY' ? t.privateDependencies : t.sourceUnavailable
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
     <DialogContent><DialogHeader><DialogTitle>{t.share}</DialogTitle><DialogDescription>{t.shareHint}</DialogDescription></DialogHeader>
       <div className="grid gap-4 py-2">

@@ -37,7 +37,7 @@ async function setup(t) {
       if (kind === 'requestData') {
         const id = request.query.parameters.artifactId
         const response = { meta: { dashboards, sources: [], navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
-          ...(id ? { saved: dashboards.find(item => item.artifactId === id), versions: [] } : {}) } }
+          ...(id || dom.window.__DASHBOARD_READ_ONLY__ ? { saved: dashboards.find(item => item.artifactId === id) ?? dashboards[0], versions: [] } : {}) } }
         if (id && holdOpen) {
           holdOpen = false
           await new Promise(resolve => { releaseOpen = resolve })
@@ -92,13 +92,14 @@ async function setup(t) {
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }
     delete globalThis.ResizeObserver; delete globalThis.IS_REACT_ACT_ENVIRONMENT
   })
-  async function reset() {
+  async function reset(readOnly = false) {
     await act(async () => root?.unmount())
     modules.clear(); dashboards = [...items]; calls.length = 0; navigation.length = 0; selections.length = 0
     rejectDelete = false; holdOpen = false
+    dom.window.__DASHBOARD_READ_ONLY__ = readOnly
     document.body.innerHTML = '<div id="root"></div>'
     await act(async () => load('main.tsx'))
-    await act(async () => ready('en-US', { selectionId: items[0].artifactId }))
+    await act(async () => ready('en-US', readOnly ? {} : { selectionId: items[0].artifactId }))
     await flush()
   }
   return { reset, items, calls, navigation, selections, click, button, picker, dialog,
@@ -112,6 +113,13 @@ async function setup(t) {
 
 test('dashboard deletion UI', async t => {
   const harness = await setup(t)
+  await t.test('authenticated share opens the host-resolved target without editor context or navigation', async () => {
+    await harness.reset(true)
+    assert.equal(document.querySelector('h1').textContent, harness.items[0].title)
+    assert.equal(harness.picker(), null)
+    assert.deepEqual(harness.selections, [])
+    assert.deepEqual(harness.navigation, [])
+  })
   await t.test('picker deletion confirms identity, preserves failures, and clears only the deleted selection', async () => {
     await harness.reset()
     const { items, calls, navigation, selections, click, button, picker, dialog, failDelete, finishDelete, remaining } = harness
@@ -172,16 +180,16 @@ test('dashboard deletion UI', async t => {
       assert.ok(button('Delete “Dashboard 2”'))
     })
 
-    await t.test(`deletion preserves a different dashboard after an Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
+    await t.test(`deletion does not select another dashboard on a late Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
       await harness.reset()
       const { items, navigation, selections, click, button, picker, finishDelete, notify, finishOpen } = harness
       await click(picker()); await click(button('Delete “Dashboard 1”')); await click(button('Delete dashboard'))
       await notify(items[1].artifactId, hold)
       await finishDelete()
       if (hold) await finishOpen()
-      assert.match(picker().textContent, /Dashboard 2/)
-      assert.equal(selections.at(-1).artifactId, items[1].artifactId)
-      assert.equal(navigation.at(-1), items[1].artifactId)
+      assert.match(picker().textContent, /Choose a dashboard/)
+      assert.equal(selections.at(-1), null)
+      assert.equal(navigation.at(-1), undefined)
       await click(picker())
       assert.ok(!button('Delete “Dashboard 1”'), 'an older open response must not restore the deleted list entry')
       assert.ok(button('Delete “Dashboard 2”'))

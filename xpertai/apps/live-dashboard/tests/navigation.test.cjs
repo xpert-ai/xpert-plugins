@@ -94,9 +94,9 @@ test('deleting the selected dashboard clears Assistant context and stale catalog
   t.after(api.startBridge(() => {}, () => {}))
   receive({ type: 'init', initialQuery: { selectionId: randomUUID(), parameters: { contentId: randomUUID(), contentProvider: 'live-dashboard.content', versionId: randomUUID() } } })
   const clearContext = api.selectDashboard(null)
-  assert.deepEqual(messages.at(-1).payload, { key: 'live_dashboard', clear: true })
+  assert.deepEqual(messages.at(-1).payload, { key: 'live_dashboard', context: { schemaVersion: 1, mode: 'new' } })
   complete(); await clearContext
   const clearNavigation = api.navigateDashboard({ target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY })
-  assert.deepEqual(messages.at(-1).payload, { target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, parameters: {} })
+  assert.deepEqual(messages.at(-1).payload, { target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, parameters: { newDashboard: true } })
   complete(); await clearNavigation
 })

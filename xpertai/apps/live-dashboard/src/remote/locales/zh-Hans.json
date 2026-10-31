@@ -52,5 +52,9 @@
   "deleteDashboard": "删除看板",
   "deleteNamedDashboard": "删除“{{title}}”",
   "confirmDeleteDashboard": "确定删除“{{title}}”？看板将从列表移除，共享链接将失效。数据源和工作区文件会保留。",
-  "deleting": "正在删除…"
+  "deleting": "正在删除…",
+  "newDashboard": "新建看板",
+  "editingTarget": "正在编辑 {{title}} · 修订 {{revision}}",
+  "privateScriptPublication": "这是私有 Workspace 脚本。请让助手准备可复用数据集，在设置 → 分析中审核固定的代码和文件并发布为组织内可见，再将本看板更新为该数据集并发布新版本。",
+  "publishDefinitionAudience": "此数据集仍为私有。所有者可在设置 → 分析中发布为组织内可见；查看者仍须具备上游数据权限。"
 }

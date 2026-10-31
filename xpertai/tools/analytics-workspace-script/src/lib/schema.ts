@@ -3,6 +3,7 @@ import type { AnalyticsBinding } from '@xpert-ai/contracts'
 import { analyticsBindingObjectSchema, analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
 export const PLUGIN = '@xpert-ai/plugin-analytics-workspace-script'
 export const PROVIDER = 'workspace_script.query'
+export const PUBLISHED_PROVIDER = 'workspace_script.published_query'
 export const ACTION = 'workspace_script.execute'
 export const ACTION_VERSION = '1.0.0'
 // Keep the host validator and all its bounds. Anchor its inferred type to the public wire contract;
@@ -25,7 +26,7 @@ export const registrationSchema = z.object({
 }).strict().superRefine((value, context) => {
   if (new Set(value.files.map(f => f.alias)).size !== value.files.length || new Set(value.sources.map(s => s.alias)).size !== value.sources.length)
     context.addIssue({ code: 'custom', message: 'Duplicate aliases' })
-  if (value.sources.some(s => s.binding.providerId === PROVIDER)) context.addIssue({ code: 'custom', message: 'Recursive script sources are not supported' })
+  if (value.sources.some(s => [PROVIDER, PUBLISHED_PROVIDER].includes(s.binding.providerId))) context.addIssue({ code: 'custom', message: 'Recursive script sources are not supported' })
 })
 /** Versioned plugin definition. Authorization retains the original workspace reference even for pinned code. */
 export const definitionSchema = z.object({ schema: z.literal('xpert.analytics-script'), title: z.string(),

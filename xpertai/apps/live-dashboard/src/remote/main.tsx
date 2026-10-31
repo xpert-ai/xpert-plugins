@@ -124,13 +124,17 @@ function App() {
     document.addEventListener('visibilitychange', refresh)
     return () => { stopped = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh) }
   }, [refreshSeconds, saved?.artifactId, t.error])
-  async function openLatest() {
+  async function openPicker(explicitNew = false) {
     const sequence = ++requestSequence.current
     clearDocument()
     const result = await load()
     if (sequence !== requestSequence.current) return
-    const latest = [...result.dashboards].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
-    if (latest) await open(latest.artifactId, undefined, false)
+    // A share response already resolves one authorized immutable target; it is not a picker fallback.
+    if (readOnly && result.saved) {
+      await open(result.saved.artifactId, result.saved.versionId ?? undefined, false)
+      return
+    }
+    if (explicitNew && !readOnly) await selectDashboard(null)
   }
   React.useEffect(() => startBridge((locale, query) => {
     setMessages(messages(locale))
@@ -143,9 +147,12 @@ function App() {
     const target = parsed.data, key = dashboardNavigationKey(target)
     if (key === navigationKey.current) return
     navigationKey.current = key
-    void run(() => target.artifactId ? open(target.artifactId, target.versionId, false) : openLatest())
+    void run(() => target.artifactId ? open(target.artifactId, target.versionId, false) : openPicker(target.newDashboard))
   },
-    (artifactId) => { void run(() => open(artifactId)) }), [])
+    (artifactId) => {
+      if (editRef.current.dirty || activeArtifactId.current !== artifactId) { void load(); return }
+      void run(() => open(artifactId))
+    }, () => { ++requestSequence.current; navigationKey.current = undefined; clearDocument() }), [])
 
   async function save() {
     const manifest = dashboardSchema.parse(JSON.parse(editor ?? ''))
@@ -195,6 +202,7 @@ function App() {
       {!readOnly && <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy || deleting || editor !== null} label={t.select}
         searchLabel={t.search} emptyLabel={t.noResults} deleteLabel={title => i18n.t('deleteNamedDashboard', { title })}
         onDelete={id => { setDeleteError(''); setConfirmDelete(list.find(item => item.artifactId === id) ?? null) }} onChange={(id) => void run(() => open(id))}/>}
+      {!readOnly && saved && <span role="status" className="text-xs text-muted-foreground">{i18n.t('editingTarget', { title: saved.title ?? saved.manifest.title, revision: saved.draftRevision ?? saved.versionNumber ?? 0 })}</span>}
       {readOnly && saved && <span className="text-xs text-muted-foreground">{t.teamReadOnly} · {t.version} {saved.versionNumber}</span>}
       <span className="toolbar-loading text-muted-foreground" role="status" title={busy ? t.loading : undefined}>
         {busy && <><RefreshCw className="size-4 motion-safe:animate-spin" aria-hidden="true"/><span className="sr-only">{t.loading}</span></>}
@@ -209,6 +217,7 @@ function App() {
         <span className="toolbar-short-date">{new Date(status).toLocaleTimeString(document.documentElement.lang)}</span>
       </time>}
       <div className="toolbar-actions">
+        {!readOnly && <Button variant="outline" aria-label={t.newDashboard} title={t.newDashboard} disabled={busy || editor !== null} onClick={() => void run(async () => { await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current) })}><Plus/><span>{t.newDashboard}</span></Button>}
         {!readOnly && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
         {!readOnly && saved && <Button variant="outline" disabled={busy || editor !== null} aria-label={t.edit} title={t.edit} onClick={() => void run(async () => {
           const result = await load(saved.artifactId)
@@ -218,7 +227,7 @@ function App() {
         {!readOnly && <Button variant="outline" disabled={busy || editor !== null} aria-label={t.import} title={t.import} onClick={() => setEditor('')}><Plus/><span>{t.import}</span></Button>}
         {!readOnly && saved && <Button variant="outline" onClick={() => setSharing(true)} disabled={busy} aria-label={t.share} title={t.share}><Send/><span>{t.share}</span></Button>}
         <Select value={refreshSeconds} onValueChange={setRefreshSeconds} disabled={!saved || editor !== null}><SelectTrigger aria-label={t.autoRefresh}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="off">{t.off}</SelectItem><SelectItem value="30">{t.seconds30}</SelectItem><SelectItem value="60">{t.minute1}</SelectItem></SelectContent></Select>
-        <Button disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openLatest() }) }}><RefreshCw/><span>{t.refresh}</span></Button>
+        <Button disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openPicker() }) }}><RefreshCw/><span>{t.refresh}</span></Button>
       </div>
     </header>
   const filters = saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">

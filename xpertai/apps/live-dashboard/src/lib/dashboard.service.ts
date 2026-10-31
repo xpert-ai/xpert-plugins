@@ -68,7 +68,7 @@ export class DashboardService {
     for (const binding of parsed.bindings) await this.probeControls(context, binding,
       Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])))
     const htmlValidation = await this.htmlValidation.validate(context, parsed, preview, dependencies)
-    const artifact = existing ?? await artifacts.createArtifact({ source, kind: 'file', title: parsed.title,
+    const artifact = existing ?? await artifacts.createArtifact({ source, type: { pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE }, kind: 'file', title: parsed.title,
       scope: { ...scopedActor, ...(projectId(context) ? { projectId: projectId(context), userId: null } : { xpertId: context.hostId }) } })
     const files = this.runtime.require(WorkspaceFilesRuntimeCapability)
     const project = projectId(context)

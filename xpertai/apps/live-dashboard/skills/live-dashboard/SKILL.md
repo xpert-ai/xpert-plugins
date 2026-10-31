@@ -7,9 +7,12 @@ description: Create and continuously edit saved live dashboards, including free-
 
 Use the platform SandboxFile tools to author source files. Use the dashboard tools to validate and save the business document. This skill belongs to the Live Dashboard plugin; data-source-specific query formats remain owned by each provider.
 
+When `dashboard_open` or `dashboard_history` returns `selection_required`, display its message and wait for the user to select a dashboard. This is a normal empty-selection state: do not retry, restore a target from conversation history, or create a replacement.
+
 ## Avoid preventable retries
 
 - New independent dashboards use an unused source-file path. Inspect the target directory when needed; do not overwrite an existing candidate or switch to editing a historical Artifact merely because its title or filename matches.
+- Continue the selected or checkpointed Artifact across turns. Explicit Workbench selection and New override the checkpoint; never infer identity from title or recency. If a target exists, new/copy creation requires the user's explicit request and `creationIntent: "new"` or `"copy"`.
 - A successful save receipt already confirms persistence. Opening or reading the saved dashboard only prepares an unchanged copy; it does not require another save. Update only for an actual requested change or an observed defect. Never save an unchanged copy merely to verify that the previous save worked.
 
 - After preview, execute every `validation.checks[].suggestedCall` before writing HTML. These suggestions use observed rows; only a successful `dashboard_test_filter` is evidence. If no value is suggested, inspect the source for a real value. A changed Binding needs fresh evidence.
@@ -31,7 +34,7 @@ Read [data-validation.md](references/data-validation.md) when creating a dashboa
 ## One file editing interface
 
 - Create a new file with `sandbox_write_file({"file_path":"dashboards/sales.html","content":"<!doctype html>..."})`.
-- Read an existing file with `sandbox_read_file({"file_path":"..."})`.
+- Read an existing file with `sandbox_read_file({"file_path":"..."})`. If a long HTML line is truncated, use `dashboard_read_html` with the opened `editId` and follow `nextOffset` until `null` to inspect the saved source; do not repeat the same truncated read or overwrite the editing file with its preview. Apply exact replacements to the existing `htmlPath`.
 - Change existing text with `sandbox_edit_file({"file_path":"...","old_string":"exact old text","new_string":"replacement"})`; use `sandbox_multi_edit_file` for multiple changes.
 - `sandbox_write_file` does not overwrite existing files. Repair the current candidate with edits. If replacing an unsaved creation candidate with a new named file, include the earlier exact path in `supersedesPaths` on `dashboard_create_html` (or `dashboard_create` when choosing standard charts instead); only a successful save abandons that candidate, and files remain in Workspace. Do not abandon editing copies from `dashboard_open`. For a long new document, append subsequent complete segments with `sandbox_append_file` before saving the dashboard.
 - Paths are relative to the current sandbox working directory. Use a real filename (`dashboards/sales.html`), never `.html`, whitespace-only names, absolute paths or guessed host paths. Copy returned paths exactly.
@@ -49,7 +52,7 @@ Read [data-validation.md](references/data-validation.md) when creating a dashboa
 
 1. Call `dashboard_open({})` for the selected Workbench dashboard, or provide an exact Artifact ID from `dashboard_list`. Do not choose the most recent dashboard by guesswork or create a replacement Artifact.
 2. Inspect `presentation.type`. For a standard dashboard, update definition fields directly; a rename needs only `title`, `editId`, `expectedRevision` and `expectedCurrentVersionId`. No HTML file exists: omit `htmlPath` and `libraries`. For a current HTML dashboard, the result includes a new `htmlPath` editing copy of the latest saved draft, plus `editId`, `expectedRevision` and `expectedCurrentVersionId`. Read this copy with SandboxFile before editing. Each open prepares a separate copy, preserving any uncommitted earlier files.
-3. For HTML pages, apply requested changes with SandboxFile edits. Preserve data semantics, controls, query/subscription lifecycle and library locks unless the request changes them.
+3. For HTML pages, apply requested changes with SandboxFile edits. Preserve data semantics, controls, query/subscription lifecycle, existing element IDs and library locks unless the request changes them. Assign stable IDs to new KPI/chart/table/filter components. Standard arrays and preview Bindings upsert by stable ID: omitted components remain. Use `removals` with exact binding/control/view/HTML element IDs only for user-requested deletions. HTML ID preservation checks deletion, not arbitrary semantic equivalence.
 4. Automatically call `dashboard_update({"editId":"<returned ID>","expectedRevision":<returned revision>,"expectedCurrentVersionId":<returned UUID or null>,"title":"<new title if requested>"})` with the changed definition fields. When saving edited HTML, also supply the exact `htmlPath` of the editing file. Omit unchanged fields. Updating the visible heading does not rename the saved dashboard; pass `title` as well when renaming.
 5. Check the saved draft receipt; for HTML file updates also check its `sourceFile` path/hash. For another batch, reopen the latest draft and use its new revisions. If the save fails, correct the definition or editing file and retry; do not claim success. If a revision conflict occurs, keep the edited file, open/read the latest state and reconcile before saving.
 6. Historical `versionId` reads do not prepare an editable copy. Use `dashboard_read_html` to inspect historical source, then open the current draft to apply an intentional change.

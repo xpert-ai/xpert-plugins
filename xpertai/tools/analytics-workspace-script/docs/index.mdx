@@ -50,6 +50,14 @@ Runtime Provider 提供。插件不接受 Agent 传入 command、image、environ
 
 ## 当前约束
 
+### 显式发布与组织共享
+
+私有 `workspace_script.query` 保持 owner-only。用户明确要求共享时，调用 `workspace_dataset_prepare_publication`，指定固定版本与 `includeCodeAndFiles: true`。平台生成默认私有的分析定义，包含固定代码和声明文件的 UTF-8 字节及摘要，不包含查询结果或创建者的私有路径。`current` 代码须先固定版本。
+
+创建者在「设置 → 分析」审阅代码/文件，然后发布组织可见范围；用 `workspace_script.published_query` 的新 Binding 预览并更新看板。可见范围适用于该分析定义的全部历史版本，改回私有会撤销后续访问。已有页面每次调用（包括缓存文件）都会复验定义访问权，上游数据仍以当前访问者查询，不借用创建者身份。组织可见只授予读取/执行，编辑和范围修改仍归创建者。
+
+发布包代码上限 64 KB，每个文件上限 150 KB，整个定义上限 180 KB。最多 8 个文件、4 个上游来源；不允许递归脚本来源或 owner-only 上游。超限数据应使用受治理的数据库/本体来源，不自动放宽 Workspace ACL。执行仍使用相同 Sandbox 配额与实时上游查询。
+
 单文件脚本、标准库、UTF-8 输入；不安装 pandas/npm 包，不读取任意宿主文件。
 每个脚本 64 KB，最多 8 个文件别名和 4 个来源别名，每文件 1 MB。
 执行最多 16 次调用、8 MB 调用数据、4,000 行累计来源输入，输出最多 1,000 行和 2 MB。

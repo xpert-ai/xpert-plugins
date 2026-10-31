@@ -24,7 +24,7 @@ let sequence = 0
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number }>()
 function post(type: string, body: object = {}) { window.parent.postMessage({ channel: 'xpertai.remote_component', protocolVersion: 1, instanceId, scopeRevision, type, ...body }, '*') }
 /** Public navigation is reflected in every init; tool receipts separately invalidate saved content. */
-export function startBridge(onReady: (locale: string, initialQuery: unknown) => void, onCreated: (artifactId: string) => void) {
+export function startBridge(onReady: (locale: string, initialQuery: unknown) => void, onCreated: (artifactId: string) => void, onScopeReset: () => void = () => undefined) {
   let lastCreatedVersion: string | undefined
   const listener = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return
@@ -32,7 +32,7 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
     const message = parsed.data
     if (message.type === 'init') {
       if (instanceId && message.instanceId !== instanceId) return
-      if (scopeRevision !== message.scopeRevision) clearPending()
+      if (scopeRevision !== message.scopeRevision) { clearPending(); lastCreatedVersion = undefined; onScopeReset() }
       instanceId = message.instanceId; scopeRevision = message.scopeRevision; initialQuery = message.initialQuery
       hostVisible = message.visible ?? true
       document.documentElement.classList.toggle('dark', message.theme?.mode === 'dark')
@@ -45,7 +45,7 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
     }
     if (message.type === 'hostEvent' && instanceId && message.instanceId === instanceId && message.event?.type === 'view.context.changed') {
       const revision = message.event.data?.revision
-      if (revision !== undefined && revision > (scopeRevision ?? -1)) { clearPending(); scopeRevision = revision }
+      if (revision !== undefined && revision > (scopeRevision ?? -1)) { clearPending(); scopeRevision = revision; lastCreatedVersion = undefined; onScopeReset() }
       return
     }
     if (!instanceId || message.instanceId !== instanceId || message.scopeRevision !== scopeRevision && message.type !== 'error') return
@@ -78,7 +78,7 @@ export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClien
 }
 export function selectDashboard(target: { artifactId: string; versionId?: string; draftRevision?: number } | null) {
   return requestHost('invokeClientCommand', { commandKey: 'assistant.context.set',
-    payload: { key: 'live_dashboard', ...(target ? { context: { schemaVersion: 1, ...target } } : { clear: true }) } })
+    payload: { key: 'live_dashboard', context: target ? { schemaVersion: 1, ...target } : { schemaVersion: 1, mode: 'new' } } })
 }
 
 export async function navigateDashboard(target: DashboardNavigationTarget | undefined, artifactId?: string, versionId?: string) {
@@ -93,6 +93,6 @@ export async function navigateDashboard(target: DashboardNavigationTarget | unde
     }
   }
   return requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
-    ...destination, ...(artifactId ? { selectionId: artifactId } : {}), parameters: { ...parameters, ...(versionId ? { versionId } : {}) }
+    ...destination, ...(artifactId ? { selectionId: artifactId } : {}), parameters: { ...parameters, ...(versionId ? { versionId } : {}), ...(!artifactId ? { newDashboard: true } : {}) }
   } satisfies WorkbenchNavigationOpenPayload })
 }

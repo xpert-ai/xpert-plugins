@@ -18,13 +18,13 @@ export function dashboardNavigationTarget(context: XpertResolvedViewHostContext)
 }
 export const dashboardNavigationSchema = z.object({
   selectionId: z.string().uuid().optional(),
-  parameters: z.object({ contentProvider: z.string().optional(), contentId: z.string().uuid().optional(), contentTitle: z.string().optional(), contentEditor: z.string().optional(), artifactId: z.string().uuid().optional(), versionId: z.string().uuid().optional() }).strict().optional()
+  parameters: z.object({ contentProvider: z.string().optional(), contentId: z.string().uuid().optional(), contentTitle: z.string().optional(), contentEditor: z.string().optional(), artifactId: z.string().uuid().optional(), versionId: z.string().uuid().optional(), newDashboard: z.boolean().optional() }).strict().optional()
 }).transform((query, ctx) => {
   const artifactId = query.selectionId ?? query.parameters?.artifactId
   const versionId = query.parameters?.versionId
-  if (query.selectionId && query.parameters?.artifactId && query.selectionId !== query.parameters.artifactId || versionId && !artifactId)
+  if (query.parameters?.newDashboard && artifactId || query.selectionId && query.parameters?.artifactId && query.selectionId !== query.parameters.artifactId || versionId && !artifactId)
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'DASHBOARD_NAVIGATION_INVALID: provide one Artifact identity and an optional version' })
-  return { artifactId, versionId }
+  return { artifactId, versionId, ...(query.parameters?.newDashboard ? { newDashboard: true } : {}) }
 })
 export type DashboardNavigation = z.infer<typeof dashboardNavigationSchema>
-export const dashboardNavigationKey = (target: DashboardNavigation) => JSON.stringify([target.artifactId ?? null, target.versionId ?? null])
+export const dashboardNavigationKey = (target: DashboardNavigation) => JSON.stringify([target.artifactId ?? null, target.versionId ?? null, target.newDashboard ?? false])

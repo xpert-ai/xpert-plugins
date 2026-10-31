@@ -1,6 +1,7 @@
 import { createDefinitionTools, DEFINITION_GUIDANCE } from './definition-tools'
 import { sameAnalyticsResource } from './analytics-source'
 import { analyticsSourceKey } from '@xpert-ai/plugin-sdk/analytics'
+import { Command } from '@langchain/langgraph'
 import { AIMessage, SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import type { RunnableConfig } from '@langchain/core/runnables'
@@ -17,7 +18,8 @@ import { DashboardService } from './dashboard.service'
 import { dashboardSchema, type DashboardManifest } from './dashboard.schema'
 import { FEATURE } from './view.provider'
 import { createEditingTools, dashboardContextSchema, EDITING_GUIDANCE } from './editing'
-import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
+import { dashboardStateSchema, editingSession, selectionFromConfig } from './editing-session'
+import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { createFilterEvidence } from './filter-evidence'
 import { dashboardSaveEvidence } from './save-evidence'
 import { emitDashboardCard } from './resource-card'
@@ -49,6 +51,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       tenantId: context.tenantId ?? RequestContext.currentTenantId(), organizationId: context.organizationId ?? RequestContext.getOrganizationId(),
       userId: context.userId ?? RequestContext.currentUserId(), hostType: context.projectId ? 'project' : 'agent', hostId: context.projectId ?? context.xpertId, slots: []
     }
+    const editing = editingSession({ ...context, tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId })
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()
     const discovering = new Map<string, Promise<AnalyticsDiscoveryResult['queryContract']>>()
@@ -97,13 +100,13 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         if (!binding) throw new Error('DASHBOARD_PREVIEW_REQUIRED: use a previewId returned in this run')
         return binding
       })
-    const validateFinal = (manifest: DashboardManifest, requirePreviews: boolean) => {
+    const validateFinal = (manifest: DashboardManifest, requirePreviews: boolean, changedBindingIds?: string[]) => {
       const allowedProviders = options.allowedFinalProviders
       if (allowedProviders && manifest.bindings.some(binding => !allowedProviders.includes(binding.providerId)))
         throw new Error(`DASHBOARD_PROVIDER_REQUIRED: final bindings must use ${allowedProviders.join(', ')}`)
       if (requirePreviews) {
         const controls = Object.fromEntries(manifest.controls.filter(item => item.defaultValue !== undefined).map(item => [item.controlId, item.defaultValue ?? null]))
-        for (const binding of manifest.bindings) {
+        for (const binding of manifest.bindings.filter(binding => !changedBindingIds || changedBindingIds.includes(binding.id))) {
           const previewId = previewKey(binding, controls)
           if (!previews.has(previewId)) throw new Error('DASHBOARD_PREVIEW_REQUIRED: preview the exact binding and default controls before saving')
           filterEvidence.assert(binding, previewId)
@@ -111,13 +114,16 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }
     }
     const save = async (input: z.infer<typeof createToolSchema>, config?: RunnableConfig, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
-      const { previewIds, supersedesPaths, ...definition } = input
+      const { previewIds, supersedesPaths, creationIntent, ...definition } = input
       const bindings = resolvePreviews(previewIds)
       const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard', id: randomUUID(),
         ...(html ? { presentation: { type: 'html', html, ...(dependencies.length ? { dependencies } : {}) } } : {}) })
       validateFinal(manifest, true)
       const key = hash({ input: { ...definition, previewIds }, html, dependencies })
       const previous = created.get(key)
+      const active = editing.resolve(config)
+      if (active && !creationIntent && (!previous || previous.receipt.artifactId !== active.artifactId))
+        throw new Error('DASHBOARD_EDIT_TARGET_ACTIVE: use dashboard_open/update for the active dashboard. Creating a new Artifact requires an explicit user request and creationIntent=new or copy.')
       if (previous) {
         const receipt = await this.service.save(scope, previous.manifest, previous.receipt.baseVersionId, previous.receipt.draftRevision)
         created.set(key, { manifest: previous.manifest, receipt })
@@ -125,7 +131,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return JSON.stringify({ dashboard: receipt, resourceCard })
       }
       const sameTitle = [...created.values()].find(item => item.manifest.title === manifest.title)
-      if (sameTitle) throw new Error(`DASHBOARD_ALREADY_CREATED: this run already saved this dashboard. Use dashboard_open with artifactId ${sameTitle.receipt.artifactId}, then dashboard_update with fresh previewIds for data changes; preserve the Artifact instead of creating another one.`)
+      if (sameTitle && !creationIntent) throw new Error(`DASHBOARD_ALREADY_CREATED: this run already saved this dashboard. Use dashboard_open with artifactId ${sameTitle.receipt.artifactId}, then dashboard_update with fresh previewIds for data changes; preserve the Artifact instead of creating another one.`)
       const result = await this.service.save(scope, manifest, null)
       created.set(key, { manifest, receipt: result })
       const resourceCard = await emitDashboardCard(scope, { ...result, state: 'draft', revision: result.draftRevision }, config)
@@ -138,7 +144,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     })
     const previewRetries = createPreviewRetryGuard()
     let modelCalls = 0
-    return { name: 'LiveDashboard', contextSchema: dashboardContextSchema,
+    return { name: 'LiveDashboard', contextSchema: dashboardContextSchema, stateSchema: dashboardStateSchema,
+      // Platform execution scope and request context occupy different runtime fields.
+      beforeAgent: (state, runtime) => editing.restore(state, { live_dashboard: selectionFromConfig(runtime) }),
       wrapToolCall: async (request, handler) => {
         const name = request.toolCall.name
         const args = request.toolCall.args
@@ -149,6 +157,14 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const result = path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)
           ? await evidence.trackWrite(path, async () => handler(request)) : await previewRetries.run(request, handler)
         if (save && 'content' in result && (!('status' in result) || result.status !== 'error')) await evidence.accept(save, result.content)
+        if ('content' in result && (!('status' in result) || result.status !== 'error')) {
+          const receipt = createdDashboard(result.content)
+          if (receipt) return new Command({ update: { messages: [result], ...editing.select({ schemaVersion: 1, artifactId: receipt.artifactId, draftRevision: receipt.draftRevision }) } })
+          if (name === 'dashboard_open' && typeof result.content === 'string') {
+            const opened = z.object({ artifactId: z.string().uuid(), readVersionId: z.string().uuid().optional(), expectedRevision: z.number() }).safeParse(JSON.parse(result.content))
+            if (opened.success && !opened.data.readVersionId) return new Command({ update: { messages: [result], ...editing.select({ schemaVersion: 1, artifactId: opened.data.artifactId, ...(opened.data.expectedRevision > 0 ? { draftRevision: opened.data.expectedRevision } : {}) }) } })
+          }
+        }
         return result
       }, wrapModelCall: async (request, handler) => {
       if (previewRetries.exhausted) {
@@ -164,7 +180,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
       const result = await handler({ ...request, ...(evidence.pending ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
         ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
-        { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + DEFINITION_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
+        { type: 'text', text: DASHBOARD_GUIDANCE + (editing.current() ? `\nCurrent editing target: ${JSON.stringify(editing.current())}. Continue this Artifact with dashboard_open/update unless the user explicitly requests a new independent dashboard.` : '') + '\n' + DEFINITION_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
       ] }) })
       if (evidence.pending && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
       return result
@@ -186,7 +202,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources are listed separately under online, are not pinned in the Artifact, and must load successfully when saving and viewing.' }),
       { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries, exact versions and allowed HTTPS origins for online scripts, stylesheets and fonts. Read before using Tailwind CDN or ECharts/Three.js. Returns metadata, never library source.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
-      ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId)),
+      ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId), editing.resolve),
       tool(async () => {
         listedSources = await this.service.sources(scope)
         return JSON.stringify(listedSources)

@@ -52,5 +52,9 @@
   "deleteDashboard": "Delete dashboard",
   "deleteNamedDashboard": "Delete “{{title}}”",
   "confirmDeleteDashboard": "Delete “{{title}}”? It will be removed from the dashboard list and shared links will stop working. Source data and workspace files will be kept.",
-  "deleting": "Deleting…"
+  "deleting": "Deleting…",
+  "newDashboard": "New dashboard",
+  "editingTarget": "Editing {{title}} · revision {{revision}}",
+  "privateScriptPublication": "This is a private Workspace script. Ask the Assistant to prepare a reusable dataset, review its pinned code/files in Settings → Analytics, and publish Organization visibility. Then update this dashboard to that dataset and publish a new dashboard version.",
+  "publishDefinitionAudience": "This dataset is private. Its owner can publish Organization visibility in Settings → Analytics; each viewer still needs upstream access."
 }

@@ -211,7 +211,7 @@ test('script middleware exposes domain registration only; file tools belong to S
   const middleware = new WorkspaceScriptMiddleware({}).createMiddleware({}, {
     tenantId: 'tenant', organizationId: 'org', userId: 'user', xpertId: 'assistant', runtime: { capabilities: { require: () => ({}) } }
   })
-  assert.deepEqual(middleware.tools.map(t => t.name), ['workspace_dataset_register'])
+  assert.deepEqual(middleware.tools.map(t => t.name), ['workspace_dataset_prepare_publication', 'workspace_dataset_register'])
 })
 
 for (const language of ['python', 'javascript']) {
