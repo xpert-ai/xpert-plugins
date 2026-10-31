@@ -5,6 +5,7 @@ const { setup } = require('./service-fixture.cjs')
 const { DashboardViewProvider } = require('../dist/lib/view.provider')
 const { DashboardArtifactType } = require('../dist/lib/artifact-type.provider')
 const { DashboardProjectsService } = require('../dist/lib/projects.service')
+const { DashboardMonitor } = require('../dist/lib/monitor')
 const { dashboardApp, DASHBOARD_PROJECT_TYPE } = require('../dist/lib/project')
 const { dashboardTemplates } = require('../dist/lib/templates')
 const example = require('../examples/postgres-sales.json')
@@ -56,6 +57,36 @@ test('two project editors preserve one Artifact and stale revisions cannot overw
   assert.equal((await f.service.access(f.context)).canEdit, false)
   await assert.rejects(f.service.update(other, first.artifactId, 2, { title: 'Archived' }, null), /EDIT_DENIED/)
 })
+
+test('inspection reads only published bytes, reports availability and never claims business freshness', async () => {
+  const f = projectFixture(), first = await f.service.save(f.context, example, null)
+  const version = await f.service.publish(f.context, first.artifactId, 1, null)
+  await f.service.update(f.context, first.artifactId, 1, { title: 'Private unfinished edit' }, version.versionId)
+  f.role('member')
+  const monitor = new DashboardMonitor(f.service), report = await monitor.inspect(f.context, first.artifactId)
+  assert.equal(report.title, example.title)
+  assert.equal(report.versionId, version.versionId)
+  assert.equal(report.businessFreshness, 'not_asserted')
+  assert.ok(!('rows' in report.datasets[0]))
+  f.calls.denied = true
+  assert.equal((await monitor.inspect(f.context, first.artifactId)).status, 'attention')
+  f.archive()
+  await assert.rejects(monitor.inspect(f.context, first.artifactId), /ACTIVE_PROJECT_REQUIRED/)
+})
+
+
+test('freshness requires a declared business timestamp and complete valid results', () => {
+  const {assessFreshness}=require('../dist/lib/monitor')
+  const manifest={bindings:[{id:'sales',output:{datasetId:'sales',fields:[{id:'at',logicalType:'timestamp'}]}}]}
+  const now=Date.parse('2026-10-31T09:00:00Z'), rule={bindingId:'sales',fieldId:'at',maxAgeSeconds:120}
+  const dataset={datasetId:'sales',rows:[{at:'2026-10-31T08:59:00Z'}],completeness:{truncated:false}}
+  assert.equal(assessFreshness(manifest,[dataset],rule,now).status,'fresh')
+  assert.equal(assessFreshness(manifest,[dataset],{...rule,maxAgeSeconds:30},now).status,'stale')
+  for(const data of [{...dataset,rows:[]},{...dataset,rows:[{at:'invalid'}]},{...dataset,completeness:{truncated:true}},{...dataset,rows:[{at:'2026-11-01T00:00:00Z'}]}])
+    assert.equal(assessFreshness(manifest,[data],rule,now).status,'unknown')
+  assert.equal(assessFreshness(manifest,[dataset],{...rule,fieldId:'queryFetchedAt'},now).status,'unknown')
+})
+
 
 test('project picker paginates only active readable projects bound to the current Assistant', async () => {
   const { ForbiddenException } = require('@nestjs/common')

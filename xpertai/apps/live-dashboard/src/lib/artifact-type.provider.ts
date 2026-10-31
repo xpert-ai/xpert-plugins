@@ -5,7 +5,7 @@ import { ArtifactTypeProvider, ProjectAccessRuntimeCapability, XPERT_RUNTIME_CAP
 import { decodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY } from './dashboard-sharing'
 
-/** Drafts require Project edit access; Project membership and link audiences remain cumulative. */
+/** Drafts require Project edit access; explicit authenticated shares may expand formal-version readership. */
 @Injectable()
 @ArtifactTypeProvider('live-dashboard')
 export class DashboardArtifactType implements IArtifactTypeProvider {
@@ -15,7 +15,7 @@ export class DashboardArtifactType implements IArtifactTypeProvider {
     title: { en_US: 'Live dashboard', zh_Hans: '实时看板' },
     kinds: ['file'], content: { mimeTypes: ['application/json'], maxBytes: MAX_DASHBOARD_PACKAGE_BYTES },
     collection: { allowCopy: false },
-    sharing: { accessModes: ['organization_all'], versionModes: ['latest', 'version'],
+    sharing: { projectAccess: 'link-audience', accessModes: ['organization_all'], versionModes: ['latest', 'version'],
       allowDownload: false, mutableLinks: true, descriptor: true, shareKey: DASHBOARD_SHARE_KEY },
     presentation: { mode: 'authenticated' }
   }
