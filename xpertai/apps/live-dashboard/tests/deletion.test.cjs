@@ -16,14 +16,15 @@ function setup(project = false) {
   const capabilities = {
     'platform.artifacts': {
       getArtifact: async () => artifact,
-      listArtifacts: async input => { assert.equal(input.status, 'active'); return { items: artifact.status === 'active' ? [artifact] : [] } }
+      listArtifacts: async input => { assert.ok(['active', 'archived'].includes(input.status)); return { items: artifact.status === input.status ? [artifact] : [], total: artifact.status === input.status ? 1 : 0 } }
     },
     'platform.artifact-drafts': {
+      get: async (_id, options) => { assert.equal(options?.includeArchived, true); return draft },
       list: async () => draft.revision ? [draft] : [],
       setRecycled: async input => {
         calls.push(input)
         if (input.expectedRevision !== draft.revision) throw Error('ARTIFACT_DRAFT_CONFLICT')
-        artifact.status = 'archived'; draft.revision++
+        artifact.status = input.recycled ? 'archived' : 'active'; draft.revision++
         return draft
       }
     },

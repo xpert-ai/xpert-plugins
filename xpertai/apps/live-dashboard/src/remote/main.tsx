@@ -1,15 +1,17 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus, FileJson, Send } from '@xpert-ai/plugin-shadcn-ui'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Badge } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
 import { dashboardSummarySchema as summarySchema, dashboardSavedSchema as savedSchema, dashboardViewDataSchema as listSchema } from '../lib/dashboard-view.schema'
 import { startBridge, requestHost, selectDashboard, navigateDashboard, onPrepareClose, isViewVisible } from './bridge'
 import { messages, i18n } from './i18n'
 import { RemoteI18nProvider } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import { dashboardNavigationSchema, dashboardNavigationKey } from '../lib/dashboard-navigation'
+import type { DashboardMode } from '../lib/project'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
+import { ToolbarMenu } from './toolbar-menu'
 import { DashboardPicker } from './dashboard-picker'
 import { ShareDialog } from './share-dialog'
 import { ViewerControls } from './viewer-controls'
@@ -27,7 +29,17 @@ type ControlValue = string | number | boolean | null
 
 function App() {
   const [t, setMessages] = React.useState(() => messages('en-US'))
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+  const pickerNavigation = React.useRef(false)
   const [list, setList] = React.useState<Summary[]>([])
+  const [access, setAccess] = React.useState({ project: false, archived: false, canReadDraft: false, canEdit: false, canManage: false })
+  const [currentProject, setCurrentProject] = React.useState<z.infer<typeof listSchema>['meta']['currentProject']>(null)
+  const [mode, setMode] = React.useState<DashboardMode>('published')
+  const modeRef = React.useRef<DashboardMode>()
+  const [notice, setNotice] = React.useState('')
+  const [pagination, setPagination] = React.useState({ page: 1, pageSize: 50, hasMore: false })
+  const canEdit = !readOnly && access.canEdit
+  const canManage = !readOnly && access.canManage
   const [sources, setSources] = React.useState<z.infer<typeof listSchema>['meta']['sources']>([])
   const [saved, setSaved] = React.useState<Saved | null>(null)
   const [versions, setVersions] = React.useState<Summary[]>([])
@@ -60,15 +72,18 @@ function App() {
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
     activeArtifactId.current = undefined
-    setHtml(''); setUnavailableDatasets([]); setSaved(null); setEditor(null); setVersions([])
+    setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setEditor(null); setVersions([])
     setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
     setControls({}); setStatus(''); setPartial(false)
   }
-  async function load(artifactId?: string, versionId?: string) {
+  function selectEditorTarget(target: Parameters<typeof selectDashboard>[0]) {
+    return selectDashboard(target)
+  }
+  async function load(artifactId?: string, versionId?: string, requestedMode = modeRef.current, page = 1, draftRevision?: number) {
     const sequence = requestSequence.current
     const listRequest = ++listSequence.current
-    const result = listSchema.parse(await requestHost('requestData', { query: { parameters: artifactId ? { artifactId, ...(versionId ? { versionId } : {}) } : {} } })).meta
-    if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(result.dashboards); setSources(result.sources); navigationTarget.current = result.navigationTarget }
+    const result = listSchema.parse(await requestHost('requestData', { query: { page, pageSize: 50, parameters: { ...(draftRevision ? { draftRevision } : {}), ...(artifactId ? { artifactId } : {}), ...(versionId ? { versionId } : {}), ...(requestedMode ? { mode: requestedMode } : {}) } } })).meta
+    if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(previous => page === 1 ? result.dashboards : [...previous, ...result.dashboards.filter(item => !previous.some(old => old.artifactId === item.artifactId))]); setSources(result.sources); navigationTarget.current = result.navigationTarget; setCurrentProject(result.currentProject ?? null); if (result.access) setAccess(result.access); if (result.pagination) setPagination(result.pagination); if (result.mode) { modeRef.current = result.mode; setMode(result.mode) } }
     return result
   }
   async function query(target: Saved, values: Record<string, ControlValue>) {
@@ -82,28 +97,34 @@ function App() {
     setHtml(result.datasets.length ? rendererHtml(result.payload) : ''); setPartial(result.datasets.some((dataset) => dataset.completeness.truncated))
     setStatus(result.datasets.map((dataset) => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
   }
-  async function open(artifactId: string, versionId?: string, reflectNavigation = true) {
+  async function open(artifactId: string, versionId?: string, reflectNavigation = true, requestedMode = modeRef.current, draftRevision?: number) {
     const sequence = ++requestSequence.current
     clearDocument()
     activeArtifactId.current = artifactId
-    const result = await load(artifactId, versionId), target = result.saved
+    const result = await load(artifactId, versionId, requestedMode, 1, draftRevision), target = result.saved
     if (sequence !== requestSequence.current) return
+    if (result.notice === 'not_published') {
+      setNotice(t.notPublished)
+      if (!readOnly) { await selectEditorTarget(null); if (reflectNavigation) await navigateDashboard(result.navigationTarget, artifactId, undefined, result.mode) }
+      return
+    }
     if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
     const defaults = Object.fromEntries(target.manifest.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null]))
     setSaved(target); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
     if (!readOnly && reflectNavigation) {
-      navigationKey.current = dashboardNavigationKey({ artifactId, versionId })
-      await navigateDashboard(result.navigationTarget, artifactId, versionId)
+      navigationKey.current = dashboardNavigationKey({ artifactId, versionId, mode: result.mode })
+      await navigateDashboard(result.navigationTarget, artifactId, versionId, result.mode)
       if (sequence !== requestSequence.current) return
     }
-    if (!readOnly) await selectDashboard({ artifactId: target.artifactId, versionId: target.versionId ?? undefined, draftRevision: target.draftRevision })
+    if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
+      ...(result.mode === 'published' ? { versionId: target.versionId ?? undefined } : { draftRevision: target.draftRevision }) })
     if (sequence !== requestSequence.current) return
     if (!target.manifest.presentation && target.manifest.bindings.length) await query(target, defaults)
   }
   async function run(work: () => Promise<void>) {
     const operation = ++operationSequence.current
     setBusy(true); setError('')
-    try { await work() } catch (error) { if (operation === operationSequence.current) setError(error instanceof Error ? error.message : t.error) } finally { if (operation === operationSequence.current) setBusy(false) }
+    try { await work() } catch (error) { if (operation === operationSequence.current) setError(error instanceof Error && error.message === 'DASHBOARD_DRAFT_ACCESS_DENIED' ? t.draftAccessDenied : error instanceof Error ? error.message : t.error) } finally { if (operation === operationSequence.current) setBusy(false) }
   }
   const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete })
   autoRefresh.current = { saved, controls, busy, editor, confirmDelete }
@@ -127,14 +148,14 @@ function App() {
   async function openPicker(explicitNew = false) {
     const sequence = ++requestSequence.current
     clearDocument()
-    const result = await load()
+    const result = await load(undefined, undefined, explicitNew ? 'draft' : undefined)
     if (sequence !== requestSequence.current) return
     // A share response already resolves one authorized immutable target; it is not a picker fallback.
     if (readOnly && result.saved) {
       await open(result.saved.artifactId, result.saved.versionId ?? undefined, false)
       return
     }
-    if (explicitNew && !readOnly) await selectDashboard(null)
+    if (explicitNew && !readOnly) await selectEditorTarget(null)
   }
   React.useEffect(() => startBridge((locale, query) => {
     setMessages(messages(locale))
@@ -147,18 +168,20 @@ function App() {
     const target = parsed.data, key = dashboardNavigationKey(target)
     if (key === navigationKey.current) return
     navigationKey.current = key
-    void run(() => target.artifactId ? open(target.artifactId, target.versionId, false) : openPicker(target.newDashboard))
+    pickerNavigation.current = !!target.picker
+    setPickerOpen(!!target.picker)
+    void run(() => target.artifactId ? open(target.artifactId, target.versionId, false, target.mode, target.draftRevision) : openPicker(target.newDashboard))
   },
     (artifactId) => {
       if (editRef.current.dirty || activeArtifactId.current !== artifactId) { void load(); return }
-      void run(() => open(artifactId))
-    }, () => { ++requestSequence.current; navigationKey.current = undefined; clearDocument() }), [])
+      void run(() => open(artifactId, undefined, true, 'draft'))
+    }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
 
   async function save() {
     const manifest = dashboardSchema.parse(JSON.parse(editor ?? ''))
     const expectedVersionId = saved?.manifest.id === manifest.id ? saved.versionId ?? null : null
     const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'save', input: { manifest, expectedVersionId, expectedRevision: saved?.manifest.id === manifest.id ? saved.draftRevision ?? 0 : 0 } })).data)
-    await open(result.artifactId)
+    await open(result.artifactId, undefined, true, 'draft')
   }
   async function publish() {
     if (!confirmPublish?.draftRevision) return
@@ -172,7 +195,7 @@ function App() {
       throw error
     })).data)
     setConfirmPublish(null)
-    await open(result.artifactId, result.versionId ?? undefined)
+    await open(result.artifactId, result.versionId ?? undefined, true, 'published')
   }
   async function deleteDashboard() {
     const target = confirmDelete
@@ -189,7 +212,7 @@ function App() {
         ++requestSequence.current
         clearDocument()
         navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined })
-        await Promise.all([selectDashboard(null), navigateDashboard(navigationTarget.current)])
+        await Promise.all([selectEditorTarget(null), navigateDashboard(navigationTarget.current)])
       }
       await load()
     } catch (error) {
@@ -197,37 +220,44 @@ function App() {
       throw error
     } finally { setDeleting(false) }
   }
+  async function switchProject(projectId: string) {
+    if (projectId === currentProject?.id) return
+    const result = await requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
+      target: 'assistant.project', projectId, viewKey: 'live-dashboard__live-dashboard', parameters: { picker: 'dashboards' }
+    } })
+    if (!z.object({ success: z.literal(true) }).safeParse(result).success) throw new Error(t.projectSwitchFailed)
+  }
+  function togglePicker(open: boolean) {
+    setPickerOpen(open)
+    if (!open && pickerNavigation.current) {
+      pickerNavigation.current = false
+      navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined })
+      void requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: { ...navigationTarget.current, parameters: {} } }).catch(() => undefined)
+    }
+  }
   const toolbar = <header className="dashboard-toolbar border-b">
-      <h1 className="toolbar-title text-base font-semibold">{readOnly ? saved?.title ?? t.title : t.title}</h1>
-      {!readOnly && <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy || deleting || editor !== null} label={t.select}
-        searchLabel={t.search} emptyLabel={t.noResults} deleteLabel={title => i18n.t('deleteNamedDashboard', { title })}
-        onDelete={id => { setDeleteError(''); setConfirmDelete(list.find(item => item.artifactId === id) ?? null) }} onChange={(id) => void run(() => open(id))}/>}
-      {!readOnly && saved && <span role="status" className="text-xs text-muted-foreground">{i18n.t('editingTarget', { title: saved.title ?? saved.manifest.title, revision: saved.draftRevision ?? saved.versionNumber ?? 0 })}</span>}
-      {readOnly && saved && <span className="text-xs text-muted-foreground">{t.teamReadOnly} · {t.version} {saved.versionNumber}</span>}
-      <span className="toolbar-loading text-muted-foreground" role="status" title={busy ? t.loading : undefined}>
-        {busy && <><RefreshCw className="size-4 motion-safe:animate-spin" aria-hidden="true"/><span className="sr-only">{t.loading}</span></>}
-      </span>
-      {!readOnly && saved && <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy || editor !== null}>
-        <SelectTrigger className="toolbar-version" aria-label={t.history}><SelectValue placeholder={t.history}/></SelectTrigger>
-        <SelectContent><SelectItem value="draft">{t.draft}{saved.isDraft ? ` · r${saved.draftRevision}` : ''}</SelectItem>{versions.filter(item => item.versionId).map(item => <SelectItem key={item.versionId} value={item.versionId!}>{t.version} {item.versionNumber}</SelectItem>)}</SelectContent>
-      </Select>}
-      {saved && status && <time className="toolbar-updated text-xs text-muted-foreground" dateTime={status}
-        title={`${t.refreshed}: ${new Date(status).toLocaleString(document.documentElement.lang)}`}>
-        <span className="toolbar-full-date">{new Date(status).toLocaleString(document.documentElement.lang)}</span>
-        <span className="toolbar-short-date">{new Date(status).toLocaleTimeString(document.documentElement.lang)}</span>
-      </time>}
+      <h1 className={readOnly ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly ? saved?.title ?? t.title : t.title}</h1>
+      {!readOnly && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
+        open={pickerOpen} onOpenChange={togglePicker} t={t} onProjectChange={id => void run(() => switchProject(id))}
+        onChange={id => { setPickerOpen(false); pickerNavigation.current = false; void run(() => open(id)) }} onNew={canEdit ? () => { setPickerOpen(false); pickerNavigation.current = false; void run(async () => { await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current) }) } : undefined}/ >}
+      {saved && <Badge variant="secondary" className="toolbar-version" role="status">{saved.isDraft ? i18n.t('draftRevision', { revision: saved.draftRevision ?? '—' }) : i18n.t('publishedVersion', { version: saved.versionNumber ?? '—' })}</Badge>}
       <div className="toolbar-actions">
-        {!readOnly && <Button variant="outline" aria-label={t.newDashboard} title={t.newDashboard} disabled={busy || editor !== null} onClick={() => void run(async () => { await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current) })}><Plus/><span>{t.newDashboard}</span></Button>}
-        {!readOnly && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
-        {!readOnly && saved && <Button variant="outline" disabled={busy || editor !== null} aria-label={t.edit} title={t.edit} onClick={() => void run(async () => {
-          const result = await load(saved.artifactId)
-          if (!result.saved) throw new Error(t.error)
-          setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
-        })}><FileJson/><span>{t.edit}</span></Button>}
-        {!readOnly && <Button variant="outline" disabled={busy || editor !== null} aria-label={t.import} title={t.import} onClick={() => setEditor('')}><Plus/><span>{t.import}</span></Button>}
-        {!readOnly && saved && <Button variant="outline" onClick={() => setSharing(true)} disabled={busy} aria-label={t.share} title={t.share}><Send/><span>{t.share}</span></Button>}
-        <Select value={refreshSeconds} onValueChange={setRefreshSeconds} disabled={!saved || editor !== null}><SelectTrigger aria-label={t.autoRefresh}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="off">{t.off}</SelectItem><SelectItem value="30">{t.seconds30}</SelectItem><SelectItem value="60">{t.minute1}</SelectItem></SelectContent></Select>
-        <Button disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openPicker() }) }}><RefreshCw/><span>{t.refresh}</span></Button>
+        {canManage && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
+        <Button variant="ghost" size="icon" disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openPicker() }) }}>
+          <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
+        </Button>
+        <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
+          canDelete={canManage && !!saved && !!list.find(item => item.artifactId === saved.artifactId)?.canDelete} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
+          onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
+          onEdit={() => void run(async () => {
+            if (!saved) return
+            const result = await load(saved.artifactId, undefined, 'draft')
+            if (!result.saved) throw new Error(t.error)
+            await selectEditorTarget({ artifactId: result.saved.artifactId, draftRevision: result.saved.draftRevision }); setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
+          })}
+          onImport={() => setEditor('')} onShare={() => setSharing(true)}
+          onDelete={() => { setDeleteError(''); setConfirmDelete(list.find(item => item.artifactId === saved?.artifactId) ?? null) }}
+          refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}/>
       </div>
     </header>
   const filters = saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
@@ -236,7 +266,7 @@ function App() {
   </section>
   return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
     {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
-    {!readOnly && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
+    {canManage && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
     <AlertDialog open={!!confirmDelete} onOpenChange={open => { if (!open && !busy && !deleting) setConfirmDelete(null) }}>
       <AlertDialogContent><AlertDialogTitle>{t.deleteDashboard}</AlertDialogTitle>
         <AlertDialogDescription>{i18n.t('confirmDeleteDashboard', { title: confirmDelete?.title ?? confirmDelete?.artifactId ?? '' })}</AlertDialogDescription>
@@ -253,6 +283,7 @@ function App() {
           <Button disabled={busy} onClick={() => void run(publish)}>{t.confirm}</Button></AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    {notice && <p role="status" className="border-b px-4 py-3 text-muted-foreground">{notice}</p>}
     {error && <div role="alert" className="border-b px-4 py-3 text-destructive">{error}</div>}
     {editor !== null ? <section className="editor-panel p-4">
       <label className="text-sm font-medium" htmlFor="definition">{t.definition}</label>

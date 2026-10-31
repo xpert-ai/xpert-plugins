@@ -35,8 +35,8 @@ export class DashboardContentProvider implements IContentResourceProvider {
     },
     describe: input => this.describe(input),
     extract: async input => {
-      const saved = await this.service.open(context(input), input.sourceResourceId)
-      return dashboardSearchProjection(saved.manifest, String(saved.draftRevision ?? 0))
+      const saved = await this.service.open(context(input), input.sourceResourceId, undefined, undefined, 'published')
+      return dashboardSearchProjection(saved.manifest, saved.versionId ?? 'unpublished')
     },
     create: async input => {
       if (input.templateId) throw new BadRequestException('DASHBOARD_TEMPLATE_UNAVAILABLE')
@@ -99,6 +99,7 @@ export class DashboardContentProvider implements IContentResourceProvider {
     await this.service.authorizeProject(ctx, input.operation === 'read' ? 'read' : input.operation === 'manage' ? 'manage' : 'write')
     const access = (await this.runtime.require(ProjectAccessRuntimeCapability).listReadable({ actor: input.actor, projectIds: [artifact.projectId] }))[0]
     if (!access) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    if (access.role === 'member' && !artifact.currentVersionId) throw new ForbiddenException('DASHBOARD_NOT_PUBLISHED')
     return { providerKey: DASHBOARD_CONTENT_PROVIDER, resourceId: input.resourceId, title: artifact.title ?? '', role: access.role,
       canWrite: !access.archived && ['owner', 'manager', 'editor'].includes(access.role), canManage: access.canManage }
   }
@@ -108,13 +109,19 @@ export class DashboardContentProvider implements IContentResourceProvider {
     if (!access) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
     const artifact = await this.runtime.require(ArtifactsRuntimeCapability).getArtifact(input.sourceResourceId)
     if (artifact.projectId !== input.projectId || artifact.status === 'deleted') throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
-    const draft = await this.runtime.require(ArtifactDraftsRuntimeCapability).get(input.sourceResourceId, { includeArchived: true })
+    const draft = access.role !== 'member' ? await this.runtime.require(ArtifactDraftsRuntimeCapability).get(input.sourceResourceId, { includeArchived: true }) : null
+    if (access.role === 'member') {
+      const saved = await this.service.open(context(input), input.sourceResourceId, undefined, undefined, 'published')
+      return { ...MODEL, projectId: input.projectId, title: saved.manifest.title, revision: String(saved.versionNumber),
+        updatedAt: new Date(saved.updatedAt ?? 0).toISOString(), deleted: false, defaultEditorKey: EDITOR, allowedActions: [],
+        sourceSync: { status: 'synced', revision: String(saved.versionNumber) }, source: { kind: 'managed' } }
+    }
     if (!draft) throw new BadRequestException('DASHBOARD_VERSION_UNAVAILABLE')
     const deleted = artifact.status === 'archived'
     const saved = !deleted ? await this.service.open(context(input), input.sourceResourceId) : null
-    return { ...MODEL, offlineAccess: 'project', projectId: input.projectId, title: draft.title ?? artifact.title ?? '', revision: String(draft.revision),
+    return { ...MODEL, projectId: input.projectId, title: draft.title ?? artifact.title ?? '', revision: String(draft.revision),
       updatedAt: new Date(draft.updatedAt ?? artifact.updatedAt ?? 0).toISOString(), deleted, defaultEditorKey: EDITOR,
-      allowedActions: [...(!deleted ? ['rename' as const, 'duplicate' as const] : []), ...(access.canManage ? [deleted ? 'restore' as const : 'trash' as const] : [])],
+      allowedActions: [...(!deleted && !access.archived ? ['rename' as const, 'duplicate' as const] : []), ...(access.canManage ? [deleted ? 'restore' as const : 'trash' as const] : [])],
       ...(saved ? { preview: { kind: 'outline' as const, revision: String(draft.revision), lines: [saved.manifest.title, ...saved.manifest.charts.map(chart => chart.title), ...saved.manifest.tables.map(table => table.title)].slice(0, 6).map(line => line.slice(0, 160)) } } : {}),
       sourceSync: { status: 'synced', revision: String(draft.revision) },
       source: draft.workspaceFileRef?.workspacePath ? { kind: 'file', path: draft.workspaceFileRef.workspacePath } : { kind: 'managed' } }

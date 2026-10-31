@@ -42,12 +42,11 @@ test('refresh visibility follows scoped Workbench visibility, ignoring other fra
   assert.equal(api.isViewVisible(), false)
 })
 
-for (const hostType of ['agent', 'project']) test(`${hostType} dashboard navigation retains the authorized host for selections, versions and tool receipts`, async t => {
-  const scope = { hostType, hostId: randomUUID(), tenantId: 'tenant', organizationId: 'org', userId: 'owner', slots: [] }
-  const provider = new DashboardViewProvider({ list: async () => [], sources: async () => [] })
+for (const project of [false, true]) test(`Assistant dashboard navigation retains ${project ? 'Project' : 'personal'} scope for selections, versions and tool receipts`, async t => {
+  const scope = { hostType: 'agent', ...(project ? { runtimeScope: { projectId: randomUUID() } } : {}), hostId: randomUUID(), tenantId: 'tenant', organizationId: 'org', userId: 'owner', slots: [] }
+  const provider = new DashboardViewProvider({ access: async () => ({ project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }), listPage: async () => ({ items: [], page: 1, pageSize: 50, hasMore: false }), sources: async () => [] }, undefined, { current: async () => null })
   const data = await provider.getViewData(scope, 'live-dashboard', { navigationTarget: { target: 'assistant.project', projectId: randomUUID() } })
-  const expected = { target: hostType === 'project' ? 'assistant.project' : 'workbench.view',
-    ...(hostType === 'project' ? { projectId: scope.hostId } : {}), viewKey: DASHBOARD_VIEW_KEY }
+  const expected = { target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY }
   assert.deepEqual(data.meta.navigationTarget, expected, 'navigation must come from the resolved context, not request parameters')
   const { api, messages, receive, complete } = transport()
   let opening

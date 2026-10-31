@@ -1,3 +1,4 @@
+import { dashboardRuntimeContext } from './runtime-context'
 import { createDefinitionTools, DEFINITION_GUIDANCE } from './definition-tools'
 import { sameAnalyticsResource } from './analytics-source'
 import { analyticsSourceKey } from '@xpert-ai/plugin-sdk/analytics'
@@ -47,10 +48,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
   createMiddleware(_options: unknown, context: IAgentMiddlewareContext): AgentMiddleware {
     const options = middlewareOptionsSchema.parse(_options)
     if (!context.xpertId) throw new Error('DASHBOARD_ASSISTANT_REQUIRED')
-    const scope: XpertResolvedViewHostContext = {
-      tenantId: context.tenantId ?? RequestContext.currentTenantId(), organizationId: context.organizationId ?? RequestContext.getOrganizationId(),
-      userId: context.userId ?? RequestContext.currentUserId(), hostType: context.projectId ? 'project' : 'agent', hostId: context.projectId ?? context.xpertId, slots: []
-    }
+    const scope = dashboardRuntimeContext(context)
     const editing = editingSession({ ...context, tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId })
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()

@@ -14,8 +14,8 @@ for (const kind of ['data-source', 'definition', 'artifact']) {
     const saved = { artifactId: randomUUID(), title: manifest.title, manifest, isDraft,
       ...(isDraft ? { versionId: null, draftRevision: 1 } : { versionId: randomUUID(), versionNumber: 1 }) }
     const sources = [{ source, name: 'Authorized source', providers: [{ id: manifest.bindings[0].providerId }] }]
-    const view = new DashboardViewProvider({ list: async () => [saved], sources: async () => sources,
-      openDocument: async () => saved, history: async () => isDraft ? [] : [saved] })
+    const view = new DashboardViewProvider({ access: async () => ({ project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }), listPage: async () => ({ items: [saved], page: 1, pageSize: 50, hasMore: false }), sources: async () => sources,
+      openDocument: async () => saved, history: async () => isDraft ? [] : [saved] }, undefined, { current: async () => null })
     const response = await view.getViewData({ hostType: 'agent' }, 'live-dashboard', { parameters: { artifactId: saved.artifactId } })
     const parsed = dashboardViewDataSchema.parse(response).meta
     assert.deepEqual(parsed.sources[0], { source, name: 'Authorized source' })
@@ -30,4 +30,15 @@ test('viewer rejects a definition source without its pinned version', () => {
   assert.equal(dashboardViewDataSchema.safeParse({ meta: { dashboards: [], sources: [
     { source: { kind: 'definition', definitionId: randomUUID() }, name: 'Missing version' }
   ] } }).success, false)
+})
+
+test('only Assistant Workbench hosts expose the dashboard, with paginated selection', () => {
+  const view=new DashboardViewProvider({})
+  for(const [hostType,slot] of [['agent','agent.workbench'],['agent','agent.workbench.fixed'],['agent','agent.workbench.main']]) {
+    const manifest=view.getViewManifests({hostType},slot)[0]
+    assert.equal(manifest.dataSource.querySchema.supportsPagination,true)
+    assert.equal(manifest.dataSource.querySchema.defaultPageSize,50)
+  }
+  assert.equal(view.supports({hostType:'project'}),false)
+  assert.deepEqual(view.getViewManifests({hostType:'project'},'detail.sections'),[])
 })

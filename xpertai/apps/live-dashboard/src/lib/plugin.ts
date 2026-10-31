@@ -1,3 +1,4 @@
+import { DashboardProjectsService } from './projects.service'
 import { DashboardCapability } from './content-capability'
 import { DashboardContentProvider, DashboardContentEditor } from './content.provider'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -8,5 +9,5 @@ import { HtmlDashboardValidation } from './html-validation'
 import { DashboardPresentationProvider } from './presentation.provider'
 import { DashboardSharingService } from './sharing.service'
 import { DashboardArtifactType } from './artifact-type.provider'
-@XpertServerPlugin({ providers: [DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
+@XpertServerPlugin({ providers: [DashboardProjectsService, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
 export class LiveDashboardPlugin {}

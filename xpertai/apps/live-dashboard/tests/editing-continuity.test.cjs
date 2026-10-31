@@ -113,3 +113,24 @@ test('missing selection returns localized normal feedback without reads, writes 
   await assert.rejects(open.invoke({ artifactId: randomUUID() }), /MUST_NOT_RUN/)
   assert.deepEqual(calls, ['open'])
 })
+
+
+test('empty-input reads honor the selected published version and draft selection replaces it', async () => {
+  const artifactId = randomUUID(), versionId = randomUUID(), calls = []
+  const service = {open: async (_context, selected, version) => {
+    calls.push({artifactId:selected, versionId:version})
+    return {artifactId:selected, manifest:structuredClone(example), ...(version ? {versionId:version, versionNumber:2, isDraft:false} : {draftRevision:7, isDraft:true})}
+  }}
+  const middleware = new DashboardMiddleware(service).createMiddleware({}, {...scope, projectId:'project-a'})
+  const invoke = args => middleware.tools.find(tool => tool.name === 'dashboard_open').invoke(args)
+  middleware.beforeAgent({}, {configurable:{context:{live_dashboard:{schemaVersion:1, artifactId, versionId}}}})
+  const formal = JSON.parse(await invoke({}))
+  assert.equal(formal.readVersionId, versionId)
+  assert.match(formal.next, /Read-only published/)
+  assert.deepEqual(calls.at(-1), {artifactId, versionId})
+  const other = randomUUID(); await invoke({artifactId:other})
+  assert.deepEqual(calls.at(-1), {artifactId:other, versionId:undefined})
+  middleware.beforeAgent({}, {configurable:{context:{live_dashboard:{schemaVersion:1, artifactId, draftRevision:7}}}})
+  assert.equal(JSON.parse(await invoke({})).expectedRevision, 7)
+  assert.deepEqual(calls.at(-1), {artifactId, versionId:undefined})
+})
