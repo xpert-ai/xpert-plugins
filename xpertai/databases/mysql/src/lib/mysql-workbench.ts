@@ -1,7 +1,10 @@
+import { MysqlWorkbenchAdapter } from './mysql-adapter.js'
+import { DorisMetadataAdapter } from './doris-adapter.js'
+import type { WorkbenchTransport } from '@xpert-ai/sql-workbench'
 import { createRequire } from 'node:module'
 import type { ConnectionConfig } from 'mysql'
 import type { ConnectionOptions } from 'mysql2'
-import { SqlDatabaseWorkbenchAdapter, type DatabaseColumn, type DatabaseResult, type DatabaseValue, type WorkbenchTransport } from '@xpert-ai/plugin-sdk/data-workbench'
+import { type DatabaseLocation, type DatabaseColumn, type DatabaseResult, type DatabaseValue } from '@xpert-ai/plugin-sdk/data-workbench'
 import type { MysqlAdapterOptions } from './mysql.js'
 import { createDorisStreamLoad } from './doris-stream-load.js'
 
@@ -94,6 +97,15 @@ export function createMysqlTransport(options: MysqlAdapterOptions, engine: 'mysq
   return transport
 }
 
-export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysql' | 'doris', testDriver?:MysqlWireDriver) {
-  return new SqlDatabaseWorkbenchAdapter(engine, createMysqlTransport(options, engine, testDriver), { database: options.catalog, ...(engine === 'doris' ? { engineCatalog: 'internal' } : {}) })
+export function mysqlWorkbenchOptions(options: MysqlAdapterOptions, location: DatabaseLocation = {}): MysqlAdapterOptions {
+  if (location.engineCatalog && location.engineCatalog !== 'internal') throw new Error('external_catalog_not_supported')
+  if (location.schema) throw new Error('schema_not_supported')
+  return { ...options, catalog: location.database ?? options.catalog }
+}
+export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysql' | 'doris', testDriver?: MysqlWireDriver, location: DatabaseLocation = {}) {
+  const selected = mysqlWorkbenchOptions(options, location)
+  const transport = createMysqlTransport(selected, engine, testDriver)
+  return engine === 'mysql'
+    ? new MysqlWorkbenchAdapter(transport, { database: selected.catalog })
+    : new DorisMetadataAdapter(transport, { database: selected.catalog, engineCatalog: 'internal' })
 }

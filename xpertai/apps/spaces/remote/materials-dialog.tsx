@@ -17,6 +17,8 @@ export function MaterialsDialog({ root, items, parentId, editors, onClose, onDon
   const [tab, setTab] = useState('local'), [parent, setParent] = useState(parentId)
   const [files, setFiles] = useState<File[]>([]), [editor, setEditor] = useState('')
   const [artifacts, setArtifacts] = useState<z.infer<typeof artifactsSchema>['items']>([])
+  const [mode, setMode] = useState<'reference' | 'copy'>('reference')
+  const [copyAcknowledged, setCopyAcknowledged] = useState(false)
   const [chosen, setChosen] = useState<Record<string, string>>({}), [search, setSearch] = useState('')
   const [error, setError] = useMessage(''), [page, setPage] = useState(1), [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -45,11 +47,16 @@ export function MaterialsDialog({ root, items, parentId, editors, onClose, onDon
           <SelectTrigger aria-label={t('materials.artifactVersion', { title: item.title ?? t('materials.untitled') })}><SelectValue placeholder={t('materials.noVersion')} /></SelectTrigger><SelectContent position="popper">{item.versions.map((version, i) => <SelectItem key={version.id} value={version.id}>{t('common.version', { version: version.version ?? item.versions.length - i })}</SelectItem>)}</SelectContent></Select>
       </div>)}{!loading && !error && !artifacts.length && <p className="empty-message">{t('materials.empty')}</p>}</div>
       {total > 40 && <div className="row"><Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('common.previousPage')}</Button><span>{t('common.pageNumber', { page })}</span><Button variant="outline" disabled={page * 40 >= total} onClick={() => setPage(page + 1)}>{t('common.nextPage')}</Button></div>}
-      <p className="muted inline-note"><Info />{t('materials.versionNote')}</p></TabsContent></Tabs>
+      <Label htmlFor="artifact-collect-mode">{t('artifact.collectMode')}</Label>
+      <Select value={mode} onValueChange={v => { setMode(z.enum(['reference', 'copy']).parse(v)); setCopyAcknowledged(false) }}><SelectTrigger id="artifact-collect-mode"><SelectValue /></SelectTrigger><SelectContent>
+        <SelectItem value="reference">{t('artifact.addReference')}</SelectItem><SelectItem value="copy">{t('artifact.copyProject')}</SelectItem>
+      </SelectContent></Select>
+      <p className="muted inline-note"><Info />{t(mode === 'reference' ? 'artifact.referenceNotice' : 'artifact.copyNotice')}</p>
+      {mode === 'copy' && <Label className="flex items-start gap-2"><Checkbox checked={copyAcknowledged} onCheckedChange={value => setCopyAcknowledged(value === true)} />{t('artifact.copyAcknowledge')}</Label>}</TabsContent></Tabs>
     <FolderSelect items={items} value={parent} onChange={setParent} />
-    <DialogFooter><span className="muted mr-auto">{t('materials.selected', { count: tab === 'local' ? files.length : Object.keys(chosen).length })}</span><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button><Button disabled={busy || !(tab === 'local' ? files.length : Object.keys(chosen).length)} onClick={() => void run(async () => {
+    <DialogFooter><span className="muted mr-auto">{t('materials.selected', { count: tab === 'local' ? files.length : Object.keys(chosen).length })}</span><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button><Button disabled={busy || (tab === 'artifacts' && mode === 'copy' && !copyAcknowledged) || !(tab === 'local' ? files.length : Object.keys(chosen).length)} onClick={() => void run(async () => {
       if (tab === 'local') for (const file of files) await upload({ spaceId: root.id, parentId: parent || null, ...(editor ? { editorKey: editor } : {}) }, file, editor ? 'editor.import' : 'file.upload')
-      else for (const [artifactId, versionId] of Object.entries(chosen)) await action('artifact.collect', { spaceId: root.id, parentId: parent || null, artifactId, versionId })
+      else for (const [artifactId, versionId] of Object.entries(chosen)) await action('artifact.collect', { spaceId: root.id, parentId: parent || null, artifactId, versionId, mode, acknowledgeCopy: copyAcknowledged })
       await onDone(); onClose()
     })}>{t('materials.add')}</Button></DialogFooter>
   </DialogContent></Dialog>

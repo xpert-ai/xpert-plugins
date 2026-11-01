@@ -1,0 +1,68 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/glm-5-3-flashx-by-zhipu
+model: ZHIPU/GLM-5.3-FlashX
+label:
+  en_US: ZHIPU/GLM-5.3-FlashX
+  zh_Hans: ZHIPU/GLM-5.3-FlashX
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+    default: 1
+  - name: top_p
+    use_template: top_p
+    default: 0.95
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 131072
+    default: 65536
+  - name: reasoning_effort
+    label:
+      zh_Hans: 思考强度
+      en_US: Reasoning Effort
+    type: string
+    required: false
+    default: max
+    options:
+      - low
+      - high
+      - max
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    required: false
+    options:
+      - text
+      - json_object
+pricing:
+  input: "2"
+  output: "7"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/glm-5-3-flashx-by-zhipu
+  rules:
+    - component: input
+      unit_price: 2
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 7
+      unit_size: 1000000
+      region: cn
+    - component: cache_read_input
+      unit_price: 0.57
+      unit_size: 1000000
+      region: cn

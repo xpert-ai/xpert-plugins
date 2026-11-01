@@ -1,12 +1,10 @@
+import { createAdapter } from './adapter-fixture.js'
+import { requireReadStatement, splitWorkbenchSql, type WorkbenchTransport } from '@xpert-ai/sql-workbench'
+import { quoteDatabaseIdentifier } from '../src/sql.js'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  SqlDatabaseWorkbenchAdapter,
-  requireReadStatement,
-  splitWorkbenchSql,
-  quoteDatabaseIdentifier,
   type DatabaseResult,
-  type WorkbenchTransport,
 } from '@xpert-ai/plugin-sdk/data-workbench'
 import { parseStreamLoadReceipt } from '../../../databases/mysql/dist/lib/doris-stream-load.js'
 import { parseCsv, parseImport, exportResult } from '../src/lib/transfer.js'
@@ -80,7 +78,7 @@ for (const engine of ['mysql', 'postgres', 'doris'] as const)
         closed++
       },
     }
-    const adapter = new SqlDatabaseWorkbenchAdapter(engine, transport, {
+    const adapter = createAdapter(engine, transport, {
       database: 'db',
       schema: engine === 'postgres' ? 'public' : undefined,
     })
@@ -109,7 +107,7 @@ for (const engine of ['mysql', 'postgres', 'doris'] as const)
   })
 for (const version of ['doris-2.1.7', 'doris-3.0.8', 'doris-4.0.0', '5.7.99', 'unavailable'])
   test(`Doris version capability: ${version}`, async () => {
-    const adapter = new SqlDatabaseWorkbenchAdapter('doris', {
+    const adapter = createAdapter('doris', {
       execute: async (sql) => {
         assert.match(sql, /@@version_comment/)
         return result([[version]])
@@ -124,7 +122,7 @@ for (const version of ['doris-2.1.7', 'doris-3.0.8', 'doris-4.0.0', '5.7.99', 'u
 for (const engine of ['mysql', 'postgres'] as const)
   test(`${engine}: transaction uses one connection for bounded reads and writes`, async () => {
     const commands: string[] = []
-    const adapter = new SqlDatabaseWorkbenchAdapter(engine, {
+    const adapter = createAdapter(engine, {
       execute: async (sql) => {
         commands.push(sql)
         return result()
@@ -146,7 +144,7 @@ test('transaction reservations reject concurrent begins', async () => {
   const waiting = new Promise<void>((resolve) => {
     release = resolve
   })
-  const adapter = new SqlDatabaseWorkbenchAdapter('mysql', {
+  const adapter = createAdapter('mysql', {
     execute: async () => {
       await waiting
       return result()
@@ -159,7 +157,7 @@ test('transaction reservations reject concurrent begins', async () => {
   await first
 })
 test('Doris does not inherit generic transactions', async () => {
-  const adapter = new SqlDatabaseWorkbenchAdapter('doris', { execute: async () => result(), close: async () => {} })
+  const adapter = createAdapter('doris', { execute: async () => result(), close: async () => {} })
   await assert.rejects(() => adapter.transaction('begin'), /not_supported/)
 })
 test('stream load receipts distinguish commit visibility and duplicate labels', () => {

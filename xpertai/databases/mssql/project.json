@@ -1,0 +1,16 @@
+{
+  "name": "@xpert-ai/plugin-mssql",
+  "targets": {
+    "test": {
+      "dependsOn": ["^build", "test:esm"]
+    },
+    "test:esm": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "databases/mssql",
+        "command": "node --test tests/*.test.mjs"
+      }
+    }
+  }
+}

@@ -19,6 +19,7 @@ export const agentBindingSchema = analyticsBindingObjectSchema.omit({ payload: t
 }).strict()
 export const previewToolSchema = z.object({ binding: agentBindingSchema }).strict()
 export const createToolSchema = dashboardSchema.innerType().omit({ schema: true, id: true, bindings: true, presentation: true }).extend({
+  creationIntent: z.enum(['new', 'copy']).optional().describe('Required when an editing target exists. Use only when the user explicitly requests a new independent dashboard or a copy; ordinary refinements must use dashboard_open/update.'),
   title: dashboardSchema.innerType().shape.title.describe('Saved Artifact title. When renaming an HTML dashboard, include the new title in the SAME dashboard_update call as htmlPath; changing the HTML heading alone does not rename the saved Artifact.'),
   supersedesPaths: z.array(workspaceRelativeFilePathSchema).max(16).optional().describe('Explicitly abandon earlier unsaved HTML creation candidates after this dashboard saves successfully. Copy exact pending paths; never include an Artifact editing copy. Files are not deleted or claimed as saved. Also use when choosing a standard dashboard instead of an HTML prototype.'),
   controls: jsonEncodedSchema(agentControlsSchema),

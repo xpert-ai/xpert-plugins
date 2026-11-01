@@ -1,3 +1,4 @@
+import { requireWeComUsage } from '../integration-usage.js'
 import type { ChecklistItem, IIntegration } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -76,7 +77,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
           },
           'x-ui': {
             component: 'remoteSelect',
-            selectUrl: '/api/wecom/integration-select-options'
+            selectUrl: '/api/wecom/integration-select-options?usage=bind'
           } as any
         },
         sessionTimeoutSeconds: {
@@ -171,21 +172,24 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     }
 
     try {
-      const integration = await this.integrationPermissionService.read(config.integrationId)
-      if (!integration) {
-        items.push({
-          node: nodeKey,
-          ruleCode: 'TRIGGER_WECOM_INTEGRATION_NOT_FOUND',
-          field: 'integrationId',
-          value: config.integrationId,
-          message: {
-            en_US: `WeCom integration "${config.integrationId}" not found`,
-            zh_Hans: `企业微信集成 "${config.integrationId}" 不存在`
-          },
-          level: 'error'
-        })
-      }
+      await requireWeComUsage(
+        this.integrationPermissionService,
+        config.integrationId,
+        'bind',
+        payload.scope ?? RequestContext.getScope()
+      )
     } catch (error) {
+      items.push({
+        node: nodeKey,
+        ruleCode: 'TRIGGER_WECOM_INTEGRATION_DENIED',
+        field: 'integrationId',
+        value: config.integrationId,
+        message: {
+          en_US: 'Integration unavailable or not authorized for binding',
+          zh_Hans: '集成不可用或未授权当前组织绑定'
+        },
+        level: 'error'
+      })
       this.logger.warn(
         `Validate integration "${config.integrationId}" failed: ${
           error instanceof Error ? error.message : String(error)
@@ -215,41 +219,48 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     return items
   }
 
-  async publish(
-    payload: TWorkflowTriggerParams<TWeComTriggerConfig>,
-    callback: (payload: any) => void
-  ): Promise<void> {
+  async publish(payload: TWorkflowTriggerParams<TWeComTriggerConfig>, callback: (payload: any) => void): Promise<void> {
     const { xpertId, config } = payload
     if (!config?.enabled || !config.integrationId) {
       return
     }
 
     const integrationId = config.integrationId
+    const usageScope = payload.scope ?? RequestContext.getScope()
+    await requireWeComUsage(this.integrationPermissionService, integrationId, 'bind', usageScope)
     const existingXpertId = await this.getBoundXpertId(integrationId)
     if (existingXpertId && existingXpertId !== xpertId) {
-      throw new Error(`WeCom trigger integration "${integrationId}" is already bound to xpert "${existingXpertId}"`)
+      throw new Error(`WeCom trigger integration "${integrationId}" is already bound to another Assistant`)
     }
 
-    const context = await this.resolveBindingContext(integrationId)
-    await this.bindingRepository.upsert(
-      {
-        integrationId,
-        xpertId,
-        sessionTimeoutSeconds: this.normalizePositiveSeconds(
-          config.sessionTimeoutSeconds,
-          DEFAULT_SESSION_TIMEOUT_SECONDS
-        ),
-        summaryWindowSeconds: this.normalizeNonNegativeSeconds(
-          config.summaryWindowSeconds,
-          DEFAULT_SUMMARY_WINDOW_SECONDS
-        ),
-        tenantId: context.tenantId ?? null,
-        organizationId: context.organizationId ?? null,
-        createdById: context.createdById ?? null,
-        updatedById: context.updatedById ?? null
-      },
-      ['integrationId']
-    )
+    const context = {
+      ...usageScope,
+      createdById: RequestContext.currentUserId(),
+      updatedById: RequestContext.currentUserId()
+    }
+    const binding = {
+      integrationId,
+      xpertId,
+      sessionTimeoutSeconds: this.normalizePositiveSeconds(
+        config.sessionTimeoutSeconds,
+        DEFAULT_SESSION_TIMEOUT_SECONDS
+      ),
+      summaryWindowSeconds: this.normalizeNonNegativeSeconds(
+        config.summaryWindowSeconds,
+        DEFAULT_SUMMARY_WINDOW_SECONDS
+      ),
+      tenantId: context.tenantId ?? null,
+      organizationId: context.organizationId ?? null,
+      createdById: context.createdById ?? null,
+      updatedById: context.updatedById ?? null
+    }
+    if (existingXpertId) {
+      const updated = await this.bindingRepository.update({ integrationId, xpertId }, binding)
+      if (!updated.affected) throw new Error('WeCom trigger binding changed; retry publication')
+    } else {
+      // A unique constraint rejects concurrent claims; never overwrite another Assistant's binding.
+      await this.bindingRepository.insert(binding)
+    }
 
     this.callbacks.set(integrationId, callback)
     await this.syncLongConnectionIfNeeded(integrationId)
@@ -270,8 +281,8 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
       state: status.connected
         ? ('connected' as const)
         : status.state === 'unhealthy'
-        ? ('failed' as const)
-        : ('connecting' as const)
+          ? ('failed' as const)
+          : ('connecting' as const)
     }
   }
 
@@ -294,9 +305,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
       this.callbacks.delete(binding.integrationId)
     }
     await this.removeBindingsByXpertId(xpertId)
-    await Promise.allSettled(
-      persistedBindings.map((binding) => this.syncLongConnectionIfNeeded(binding.integrationId))
-    )
+    await Promise.allSettled(persistedBindings.map((binding) => this.syncLongConnectionIfNeeded(binding.integrationId)))
   }
 
   async getBinding(integrationId: string): Promise<WeComTriggerBindingEntity | null> {
@@ -342,6 +351,13 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
       return false
     }
 
+    await requireWeComUsage(this.integrationPermissionService, params.integrationId, 'bind', {
+      tenantId: binding.tenantId ?? '',
+      organizationId: binding.organizationId ?? null
+    })
+    if (params.tenantId !== binding.tenantId || (params.organizationId ?? null) !== (binding.organizationId ?? null)) {
+      throw new Error('WeCom dispatch scope does not match its binding')
+    }
     const aggregateKey = this.normalizeAggregateKey(params.conversationUserKey)
     if (!aggregateKey) {
       this.logger.warn(`[wecom-trigger] aggregation key missing integrationId=${params.integrationId}`)
@@ -383,11 +399,8 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
       conversationUserKey: aggregateKey,
       xpertId: binding.xpertId,
       version: nextVersion,
-      inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
-      files: [
-        ...(sameRoutingTarget ? currentState?.files ?? [] : []),
-        ...(params.files ?? [])
-      ],
+      inputParts: [...(sameRoutingTarget ? (currentState?.inputParts ?? []) : []), params.input || ''],
+      files: [...(sameRoutingTarget ? (currentState?.files ?? []) : []), ...(params.files ?? [])],
       lastMessageAt: Date.now(),
       conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
       tenantId: params.tenantId,
@@ -470,9 +483,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     return true
   }
 
-  private buildFlushMessage(
-    state: WeComTriggerAggregationState
-  ): HandoffMessage<WeComTriggerFlushPayload> {
+  private buildFlushMessage(state: WeComTriggerAggregationState): HandoffMessage<WeComTriggerFlushPayload> {
     return {
       id: `wecom-trigger-flush-${randomUUID()}`,
       type: WECOM_TRIGGER_FLUSH_MESSAGE_TYPE,
@@ -527,6 +538,12 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     dispatchMode: string
     dispatchPayload: TWeComChatDispatchInput
   }): Promise<void> {
+    const binding = await this.getBinding(params.integrationId)
+    if (!binding || binding.xpertId !== params.xpertId) throw new Error('WeCom trigger binding changed')
+    await requireWeComUsage(this.integrationPermissionService, params.integrationId, 'bind', {
+      tenantId: binding.tenantId ?? '',
+      organizationId: binding.organizationId ?? null
+    })
     const callback = this.callbacks.get(params.integrationId)
     if (!callback) {
       this.logger.debug(
@@ -549,34 +566,6 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     )
   }
 
-  private async resolveBindingContext(integrationId: string): Promise<{
-    tenantId: string | null
-    organizationId: string | null
-    createdById: string | null
-    updatedById: string | null
-  }> {
-    const tenantId = RequestContext.currentTenantId()
-    const organizationId = RequestContext.getOrganizationId()
-    const userId = RequestContext.currentUserId()
-
-    if (tenantId && organizationId) {
-      return {
-        tenantId,
-        organizationId,
-        createdById: userId,
-        updatedById: userId
-      }
-    }
-
-    const integration = await this.integrationPermissionService.read<any>(integrationId)
-    return {
-      tenantId: tenantId ?? integration?.tenantId ?? null,
-      organizationId: organizationId ?? integration?.organizationId ?? null,
-      createdById: userId ?? integration?.createdById ?? null,
-      updatedById: userId ?? integration?.updatedById ?? userId ?? null
-    }
-  }
-
   private async syncLongConnectionIfNeeded(integrationId: string): Promise<void> {
     const longConnectionService = this.longConnectionService
     if (!longConnectionService) {
@@ -584,12 +573,15 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     }
 
     try {
-      const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWeComLongOptions>>(
-        integrationId,
-        {
-          relations: ['tenant']
-        }
-      )
+      const binding = await this.getBinding(integrationId)
+      const integration = binding
+        ? await requireWeComUsage(this.integrationPermissionService, integrationId, 'bind', {
+            tenantId: binding.tenantId ?? '',
+            organizationId: binding.organizationId ?? null
+          })
+        : await this.integrationPermissionService.read<IIntegration<TIntegrationWeComLongOptions>>(integrationId, {
+            relations: ['tenant']
+          })
       if (!integration || integration.provider !== INTEGRATION_WECOM_LONG) {
         return
       }

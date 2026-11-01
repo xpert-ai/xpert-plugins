@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import { createHash } from 'node:crypto'
 import type { AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
-  ProjectAccessRuntimeCapability, AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  ArtifactContentRuntimeCapability, ProjectAccessRuntimeCapability, AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord
 } from '@xpert-ai/plugin-sdk'
 import { dashboardSchema, dashboardChangesSchema, type DashboardManifest, type DashboardChanges } from './dashboard.schema'
@@ -12,6 +12,7 @@ import { HtmlDashboardValidation } from './html-validation'
 import { resolveLibraryAssets } from './document-libraries'
 import { decodeDashboardPackage, encodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY, dashboardSharingIssues } from './dashboard-sharing'
+import type { DashboardAccess, DashboardMode } from './project'
 
 export const PLUGIN_NAME = '@xpert-ai/plugin-live-dashboard'
 const RESOURCE_TYPE = 'live-dashboard'
@@ -20,19 +21,57 @@ const MIME_TYPE = 'application/json'
 @Injectable()
 export class DashboardService {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly htmlValidation: HtmlDashboardValidation) {}
-  sources(context: XpertResolvedViewHostContext) { return this.runtime.require(AnalyticsRuntimeCapability).list(actor(context)) }
-  discover(context: XpertResolvedViewHostContext, input: AnalyticsDiscoveryRequest) { return this.runtime.require(AnalyticsRuntimeCapability).discover(actor(context), input) }
+  async sources(context: XpertResolvedViewHostContext) { await this.authorizeProject(context); return this.runtime.require(AnalyticsRuntimeCapability).list(actor(context)) }
+  async discover(context: XpertResolvedViewHostContext, input: AnalyticsDiscoveryRequest) { await this.authorizeProject(context); return this.runtime.require(AnalyticsRuntimeCapability).discover(actor(context), input) }
   async preview(context: XpertResolvedViewHostContext, input: AnalyticsQueryRequest) {
+    await this.authorizeProject(context)
     const dataset = await this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), input)
     await this.probeControls(context, input.binding, input.controls ?? {})
     return dataset
   }
   async list(context: XpertResolvedViewHostContext) {
-    await this.authorizeProject(context)
-    const result = await this.runtime.require(ArtifactsRuntimeCapability).listArtifacts({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceIdPrefix: hostPrefix(context), status: 'active', pageSize: 100, includeCurrentVersion: true })
+    return (await this.listPage(context)).items
+  }
+  async access(context: XpertResolvedViewHostContext): Promise<DashboardAccess> {
+    const access = await this.authorizeProject(context)
+    return { project: !!projectId(context), archived: access?.archived ?? false,
+      canReadDraft: !access || access.role !== 'member', canEdit: !access || !access.archived && access.role !== 'member',
+      canManage: !access || !access.archived && access.canManage }
+  }
+  async listPage(context: XpertResolvedViewHostContext, page = 1, pageSize = 50) {
+    const access = await this.access(context)
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
+      throw new BadRequestException('DASHBOARD_INVALID_CURSOR')
+    const result = await this.runtime.require(ArtifactsRuntimeCapability).listArtifacts({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceIdPrefix: hostPrefix(context), status: 'active', page, pageSize, includeCurrentVersion: true })
     const items = result.items.filter((item) => item.resourceId.startsWith(hostPrefix(context)) && (item.userId === context.userId || !item.userId && item.projectId === projectId(context)))
-    const drafts = new Map((await this.runtime.require(ArtifactDraftsRuntimeCapability).list(items.map(item => item.id))).map(draft => [draft.artifactId, draft]))
-    return items.map(item => ({ ...summary(item), ...(drafts.has(item.id) ? { title: drafts.get(item.id)!.title ?? item.title } : {}) }))
+    const drafts = new Map((access.canReadDraft ? await this.runtime.require(ArtifactDraftsRuntimeCapability).list(items.map(item => item.id)) : []).map(draft => [draft.artifactId, draft]))
+    return { page, pageSize, hasMore: page * pageSize < result.total, items: items.filter(item => access.canReadDraft || !!item.currentVersionId).map(item => {
+      const draft = drafts.get(item.id)
+      return { ...summary(item), canDelete: !!draft && access.canManage,
+        ...(draft ? { title: draft.title ?? item.title, draftRevision: draft.revision } : {}) }
+    }) }
+  }
+  async searchPage(context: XpertResolvedViewHostContext, input: { search: string; page: number }) {
+    // Search the authorized display titles, including editor drafts. Filtering a stored
+    // Artifact title in the host would miss renamed drafts or expose them to members.
+    const pageSize = 20, offset = (input.page - 1) * pageSize
+    const search = input.search.trim().toLocaleLowerCase()
+    const matches: Awaited<ReturnType<DashboardService['listPage']>>['items'] = []
+    for (let page = 1; ; page++) {
+      const batch = await this.listPage(context, page, 100)
+      matches.push(...batch.items.filter(item => `${item.title ?? ''} ${item.artifactId}`.toLocaleLowerCase().includes(search)))
+      if (!batch.hasMore || matches.length > offset + pageSize) break
+    }
+    return { items: matches.slice(offset, offset + pageSize), page: input.page, hasMore: matches.length > offset + pageSize }
+  }
+  async trash(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number) {
+    await this.authorizeProject(context, 'manage')
+    const artifact = await this.runtime.require(ArtifactsRuntimeCapability).getArtifact(artifactId)
+    assertOwned(context, artifact)
+    if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
+    // Reuse the platform's atomic revision check, recycle state and share revocation.
+    await this.runtime.require(ArtifactDraftsRuntimeCapability).setRecycled({ artifactId, expectedRevision, recycled: true })
+    return { artifactId }
   }
   async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0) {
     await this.authorizeProject(context, 'write')
@@ -55,36 +94,28 @@ export class DashboardService {
     for (const binding of parsed.bindings) await this.probeControls(context, binding,
       Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])))
     const htmlValidation = await this.htmlValidation.validate(context, parsed, preview, dependencies)
-    const artifact = existing ?? await artifacts.createArtifact({ source, kind: 'file', title: parsed.title,
+    const artifact = existing ?? await artifacts.createArtifact({ source, type: { pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE }, kind: 'file', title: parsed.title,
       scope: { ...scopedActor, ...(projectId(context) ? { projectId: projectId(context), userId: null } : { xpertId: context.hostId }) } })
-    const files = this.runtime.require(WorkspaceFilesRuntimeCapability)
-    const project = projectId(context)
-    // Shared definitions live in the Project volume; private legacy dashboards retain their user volume.
-    const privateScope = { tenantId: scopedActor.tenantId, userId: scopedActor.userId, catalog: 'users' as const }
-    const reference = project
-      ? (await files.writeRuntimeBuffer({ tenantId: scopedActor.tenantId, userId: scopedActor.userId,
-        catalog: 'projects', scopeId: project, projectId: project, buffer, originalName: 'dashboard.json',
-        fileName: `${digest}.json`, folder: `.xpert/live-dashboards/${parsed.id}`, mimeType: MIME_TYPE })).reference
-      : await files.uploadBuffer({ ...privateScope, buffer, originalName: 'dashboard.json', fileName: `${digest}.json`,
-        folder: `live-dashboards/${parsed.id}`, mimeType: MIME_TYPE }).then(file => ({
-        source: 'platform.workspace.files' as const, ...privateScope, filePath: file.filePath, workspacePath: file.workspacePath }))
+    const reference = await this.runtime.require(ArtifactContentRuntimeCapability).write({ artifactId: artifact.id, buffer })
     const result = await this.runtime.require(ArtifactDraftsRuntimeCapability).save({ artifactId: artifact.id, expectedRevision,
       expectedCurrentVersionId: expectedVersionId, mimeType: MIME_TYPE, title: parsed.title, fileName: 'dashboard.json', sha256: digest,
       ...(htmlValidation ? { metadata: { htmlValidation } } : {}), workspaceFileRef: reference })
     return { artifactId: artifact.id, draftId: result.id, draftRevision: result.revision, baseVersionId: result.baseVersionId, status: 'draft' as const, title: parsed.title }
   }
-  async open(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string, draftRevision?: number) {
-    const { dependencies, ...saved } = await this.openDocument(context, artifactId, versionId, draftRevision)
+  async open(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string, draftRevision?: number, mode: DashboardMode = 'draft') {
+    const { dependencies, ...saved } = await this.openDocument(context, artifactId, versionId, draftRevision, mode)
     return saved
   }
   /** Trusted View transport only. Agent read tools receive locks, never megabytes of library code. */
-  async openDocument(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string, draftRevision?: number) {
-    await this.authorizeProject(context)
+  async openDocument(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string, draftRevision?: number, mode: DashboardMode = 'draft') {
+    const access = await this.access(context)
+    const readDraft = draftRevision !== undefined || !versionId && mode === 'draft'
+    if (readDraft && !access.canReadDraft) throw new ForbiddenException('DASHBOARD_DRAFT_ACCESS_DENIED')
     const artifacts = this.runtime.require(ArtifactsRuntimeCapability)
     const artifact = await artifacts.getArtifact(artifactId)
     assertOwned(context, artifact)
     if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
-    const draft = !versionId || draftRevision !== undefined ? await this.runtime.require(ArtifactDraftsRuntimeCapability).get(artifactId) : null
+    const draft = readDraft ? await this.runtime.require(ArtifactDraftsRuntimeCapability).get(artifactId) : null
     if (draftRevision !== undefined && draft?.revision !== draftRevision) throw new ConflictException('DASHBOARD_DRAFT_CONFLICT')
     const version = draft ?? (versionId ? (await artifacts.listArtifactVersions({ artifactId, status: 'active' })).find((item) => item.id === versionId) : artifact.currentVersion)
     if (!version?.workspaceFileRef || version.mimeType !== MIME_TYPE) throw new BadRequestException('DASHBOARD_VERSION_UNAVAILABLE')
@@ -96,7 +127,7 @@ export class DashboardService {
     if (artifact.resourceId !== `${hostPrefix(context)}${manifest.id}`) throw new BadRequestException('DASHBOARD_IDENTITY_MISMATCH')
     return { ...summary(artifact, 'versionNumber' in version ? version : undefined),
       ...(draft ? { draftId: draft.id, draftRevision: draft.revision, baseVersionId: draft.baseVersionId,
-        isDraft: draft.revision !== draft.publishedRevision, title: draft.title, updatedAt: draft.updatedAt } : {}), manifest, dependencies }
+        isDraft: draft.revision !== draft.publishedRevision, title: draft.title, updatedAt: draft.updatedAt } : {}), manifest, dependencies, contentHash: version.sha256 }
   }
   async history(context: XpertResolvedViewHostContext, artifactId: string) {
     await this.authorizeProject(context)
@@ -116,6 +147,9 @@ export class DashboardService {
   }
   async publish(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
     await this.authorizeProject(context, 'manage')
+    return this.publishDraft(context, artifactId, expectedRevision, expectedCurrentVersionId)
+  }
+  async validatePublication(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
     const saved = await this.open(context, artifactId, undefined, expectedRevision)
     if (!saved.manifest.bindings.length) throw new BadRequestException('DASHBOARD_CONFIGURE_BEFORE_PUBLISHING')
     const share = await this.runtime.require(ArtifactsRuntimeCapability).getArtifactShare({ artifactId, shareKey: DASHBOARD_SHARE_KEY })
@@ -125,6 +159,9 @@ export class DashboardService {
     }
     // Revalidate current source access and bindings before publishing the exact reviewed bytes.
     await this.execute(context, saved.manifest, {})
+  }
+  private async publishDraft(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
+    await this.validatePublication(context, artifactId, expectedRevision, expectedCurrentVersionId)
     const version = await this.runtime.require(ArtifactDraftsRuntimeCapability).publish({ artifactId, expectedRevision, expectedCurrentVersionId })
     return { artifactId, versionId: version.id, versionNumber: version.versionNumber, title: version.title }
   }
@@ -144,9 +181,11 @@ export class DashboardService {
     const access = this.runtime.require(ProjectAccessRuntimeCapability)
     const input = { actor: scopedActor, projectId: project }
     if (context.hostType === 'agent') await access.assertAssistant({ ...input, assistantId: context.hostId })
-    if (operation === 'write') await access.assertEdit(input)
-    else if (operation === 'manage') await access.assertManage(input)
-    else if (!(await access.listReadable({ actor: scopedActor, projectIds: [project] })).length) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    if (operation === 'write') return access.assertEdit(input)
+    if (operation === 'manage') return access.assertManage(input)
+    const readable = (await access.listReadable({ actor: scopedActor, projectIds: [project] })).find(item => item.projectId === project)
+    if (!readable) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    return readable
   }
   private execute(context: XpertResolvedViewHostContext, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
     return queryDashboard(this.runtime, actor(context), manifest, input)

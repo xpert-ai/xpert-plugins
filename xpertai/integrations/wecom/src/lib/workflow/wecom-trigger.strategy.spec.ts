@@ -4,6 +4,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   WorkflowTriggerStrategy: () => () => undefined,
   defineChannelMessageType: (...parts: Array<string | number>) => parts.join('.'),
   RequestContext: {
+    getScope: jest.fn(() => ({tenantId: 'tenant-1', organizationId: 'org-1'})),
     currentTenantId: jest.fn(() => null),
     getOrganizationId: jest.fn(() => null),
     currentUserId: jest.fn(() => null)
@@ -39,6 +40,7 @@ describe('WeComTriggerStrategy', () => {
       (params?.dbBindings ?? []).map(([integrationId, value]) => [
         integrationId,
         {
+          tenantId: 'tenant-1', organizationId: 'org-1',
           xpertId: value.xpertId,
           sessionTimeoutSeconds: value.sessionTimeoutSeconds ?? 3600,
           summaryWindowSeconds: value.summaryWindowSeconds ?? 0
@@ -88,6 +90,7 @@ describe('WeComTriggerStrategy', () => {
         options: {}
       })
     }
+    integrationPermissionService['readForUsage'] = jest.fn().mockImplementation(() => integrationPermissionService.read())
     const bindingRepository = {
       findOne: jest.fn().mockImplementation(async ({ where }: { where: { integrationId: string } }) => {
         const binding = persistedBindings.get(where.integrationId)
@@ -110,8 +113,9 @@ describe('WeComTriggerStrategy', () => {
         }
         return rows
       }),
-      upsert: jest.fn().mockImplementation(async (payload: any) => {
+      insert: jest.fn().mockImplementation(async (payload: any) => {
         persistedBindings.set(payload.integrationId, {
+          tenantId: payload.tenantId, organizationId: payload.organizationId,
           xpertId: payload.xpertId,
           sessionTimeoutSeconds: payload.sessionTimeoutSeconds,
           summaryWindowSeconds: payload.summaryWindowSeconds
@@ -133,6 +137,10 @@ describe('WeComTriggerStrategy', () => {
         return { affected: 1 }
       })
     }
+    bindingRepository['update'] = jest.fn(async (_criteria, binding) => {
+      await bindingRepository.insert(binding)
+      return {affected: 1}
+    })
     const pluginContext = {
       resolve: jest.fn((token: unknown) => {
         if (token === 'INTEGRATION_PERMISSION_SERVICE_TOKEN') {
@@ -235,6 +243,7 @@ describe('WeComTriggerStrategy', () => {
     )
 
     expect(persistedBindings.get('integration-1')).toEqual({
+      tenantId: 'tenant-1', organizationId: 'org-1',
       xpertId: 'xpert-1',
       sessionTimeoutSeconds: 3600,
       summaryWindowSeconds: 0
@@ -259,6 +268,7 @@ describe('WeComTriggerStrategy', () => {
     )
 
     expect(persistedBindings.get('integration-1')).toEqual({
+      tenantId: 'tenant-1', organizationId: 'org-1',
       xpertId: 'xpert-1',
       sessionTimeoutSeconds: 3600,
       summaryWindowSeconds: 0
@@ -409,7 +419,7 @@ describe('WeComTriggerStrategy', () => {
   })
 
   it('flushes the current aggregate into a single dispatch payload', async () => {
-    const { strategy, aggregationService, dispatchService } = createStrategy()
+    const { strategy, aggregationService, dispatchService } = createStrategy({dbBindings: [['integration-1', {xpertId: 'xpert-1'}]]})
     aggregationService.get.mockResolvedValue({
       aggregateKey: 'integration-1:chat-1:sender-1',
       integrationId: 'integration-1',
@@ -452,6 +462,31 @@ describe('WeComTriggerStrategy', () => {
     expect(dispatchService.enqueueDispatch.mock.calls[0][0].wecomMessage.chatType).toBe('private')
     expect(dispatchService.enqueueDispatch.mock.calls[0][0].wecomMessage.reqId).toBe('req-2')
     expect(aggregationService.clear).toHaveBeenCalledWith('integration-1:chat-1:sender-1')
+  })
+
+  it('fails validation and publication when the host denies binding', async () => {
+    const { strategy, bindingRepository, integrationPermissionService } = createStrategy()
+    integrationPermissionService.read.mockResolvedValueOnce(null)
+    const payload = {xpertId: 'xpert-1', config: {enabled: true, integrationId: 'integration-1'}}
+    expect(await strategy.validate(payload)).toEqual(expect.arrayContaining([expect.objectContaining({ruleCode: 'TRIGGER_WECOM_INTEGRATION_DENIED', level: 'error'})]))
+    integrationPermissionService.read.mockResolvedValueOnce(null)
+    await expect(strategy.publish(payload, jest.fn())).rejects.toThrow('not authorized')
+    expect(bindingRepository.insert).not.toHaveBeenCalled()
+  })
+
+  it('never overwrites a binding claimed concurrently by another Assistant', async () => {
+    const { strategy, bindingRepository } = createStrategy()
+    bindingRepository.insert.mockRejectedValueOnce(new Error('unique constraint'))
+    await expect(strategy.publish({xpertId: 'xpert-1', config: {enabled: true, integrationId: 'integration-1'}}, jest.fn())).rejects.toThrow('unique constraint')
+    expect(bindingRepository['update']).not.toHaveBeenCalled()
+  })
+
+  it('rejects a revoked existing binding before accepting another message', async () => {
+    const { strategy, integrationPermissionService, dispatchService } = createStrategy({dbBindings: [['integration-1', {xpertId:'xpert-1'}]]})
+    integrationPermissionService.read.mockResolvedValueOnce(null)
+    await expect(strategy.handleInboundMessage({integrationId:'integration-1', tenantId:'tenant-1', organizationId:'org-1',
+      conversationUserKey:'integration-1:chat:user', wecomMessage: {} as never})).rejects.toThrow('not authorized')
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
   })
 
   it('re-evaluates long connection after removing a trigger binding', async () => {

@@ -23,6 +23,8 @@ supported_model_types:
   - text-embedding
   - rerank
   - image
+  - speech2text
+  - tts
 configurate_methods:
   - predefined-model
   - customizable-model
@@ -46,6 +48,33 @@ provider_credential_schema:
       placeholder:
         en_US: https://ai.ctaigw.cn/v1
         zh_Hans: https://ai.ctaigw.cn/v1
+    - variable: tts_app_id
+      label:
+        en_US: Speech AppID
+        zh_Hans: 语音合成 AppID
+      type: text-input
+      required: false
+      placeholder:
+        en_US: AppID for the separate speech service
+        zh_Hans: 独立语音服务的 AppID
+    - variable: tts_app_key
+      label:
+        en_US: Speech AppKey
+        zh_Hans: 语音合成 AppKey
+      type: secret-input
+      required: false
+      placeholder:
+        en_US: AppKey for the separate speech service
+        zh_Hans: 独立语音服务的 AppKey
+    - variable: tts_region
+      label:
+        en_US: Speech service region
+        zh_Hans: 语音合成区域
+      type: text-input
+      required: false
+      placeholder:
+        en_US: Provisioned service region code, e.g. QG or BJ
+        zh_Hans: 开通服务的区域代码，例如 QG 或 BJ
 model_credential_schema:
   model:
     label:
@@ -119,3 +148,67 @@ model_credential_schema:
       placeholder:
         en_US: Optional instruction for Qwen-compatible Rerank APIs
         zh_Hans: Qwen 兼容 Rerank 接口的可选指令
+    - variable: asr_protocol
+      label:
+        en_US: ASR protocol (leave unset for a preset)
+        zh_Hans: ASR 协议（预置模型可留空）
+      type: select
+      required: false
+      options:
+        - value: sync
+          label:
+            en_US: Synchronous recognition
+            zh_Hans: 同步识别
+        - value: async
+          label:
+            en_US: Asynchronous file transcription
+            zh_Hans: 异步文件转写
+      show_on:
+        - variable: __model_type
+          value: speech2text
+    - variable: asr_format
+      label:
+        en_US: Audio format for synchronous ASR
+        zh_Hans: 同步 ASR 音频格式
+      type: text-input
+      required: false
+      default: wav
+      show_on:
+        - variable: __model_type
+          value: speech2text
+    - variable: tts_app_id
+      label:
+        en_US: Speech AppID
+        zh_Hans: 语音合成 AppID
+      type: text-input
+      required: true
+      placeholder:
+        en_US: AppID for the separate speech service
+        zh_Hans: 独立语音服务的 AppID
+      show_on:
+        - variable: __model_type
+          value: tts
+    - variable: tts_app_key
+      label:
+        en_US: Speech AppKey
+        zh_Hans: 语音合成 AppKey
+      type: secret-input
+      required: true
+      placeholder:
+        en_US: AppKey for the separate speech service
+        zh_Hans: 独立语音服务的 AppKey
+      show_on:
+        - variable: __model_type
+          value: tts
+    - variable: tts_region
+      label:
+        en_US: Speech service region
+        zh_Hans: 语音合成区域
+      type: text-input
+      required: true
+      placeholder:
+        en_US: Provisioned service region code, e.g. QG or BJ
+        zh_Hans: 开通服务的区域代码，例如 QG 或 BJ
+      show_on:
+        - variable: __model_type
+          value: tts

@@ -331,7 +331,8 @@ describe('Seedream AIGC tools', () => {
       'doubao-seedream-4-0-250828',
       'doubao-seedream-4-5-251128',
       'doubao-seedream-5-0-260128',
-      'doubao-seedream-5-0-pro-260628'
+      'doubao-seedream-5-0-pro-260628',
+      'doubao-seedream-5-0-flash-260915'
     ])
     expect(textToImageSchema.properties.output_format.enum).toEqual(['jpeg', 'png'])
     expect(textToImageSchema.properties.sequential_image_generation.enum).toEqual(['disabled', 'auto'])
@@ -1174,7 +1175,7 @@ describe('Seedream AIGC tools', () => {
     )
   })
 
-  it('uses Seedream 5.0 Pro image parameters without unsupported sequential fields', async () => {
+  it.each(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915'])('uses %s image parameters without unsupported sequential fields', async (model) => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         data: [{ b64_json: Buffer.from('seedream-5-pro').toString('base64'), size: '2048x2048' }]
@@ -1189,7 +1190,7 @@ describe('Seedream AIGC tools', () => {
       name: 'seedream_image_to_image',
       type: 'tool_call',
       args: {
-        model: 'doubao-seedream-5-0-pro-260628',
+        model,
         prompt: 'cinematic lighting',
         input_image_file: `data:image/png;base64,${Buffer.from('reference').toString('base64')}`,
         output_format: 'png',

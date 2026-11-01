@@ -1,5 +1,17 @@
 # @xpert-ai/plugin-xirang
 
+## 0.3.0
+
+### Minor Changes
+
+- 3dd1793: Add explicit ASR and signed WebSocket TTS adapters, speech model definitions and manual credential fields. Preserve discovery contract boundaries and document the host manual-model type filtering issue.
+
+### Patch Changes
+
+- 1f3afbb: Omit unset LLM generation parameters so Tianyi can use its server defaults. Preserve saved assistant overrides, output limits and streaming usage reporting, and stop injecting generation defaults through model parameter schemas or credential validation.
+
+  Preserve the exact account API model ID during discovery while reusing matching built-in configuration metadata.
+
 ## 0.2.4
 
 ### Patch Changes

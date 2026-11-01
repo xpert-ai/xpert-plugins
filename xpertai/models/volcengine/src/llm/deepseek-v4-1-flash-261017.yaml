@@ -1,0 +1,70 @@
+# Verified 2026-10-27: https://docs.volcengine.com/docs/ark/deepseek-v4-1-flash?lang=zh
+model: deepseek-v4-1-flash-261017
+label:
+  en_US: deepseek-v4-1-flash-261017
+  zh_Hans: deepseek-v4-1-flash-261017
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+  - structured-output
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: reasoning_effort
+    label:
+      zh_Hans: 思考强度
+      en_US: Reasoning Effort
+    type: string
+    required: false
+    default: high
+    options:
+      - none
+      - low
+      - high
+      - max
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 393216
+    default: 131072
+pricing:
+  input: "1"
+  output: "4"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://docs.volcengine.com/docs/ark/model-pricing?lang=zh
+  rules:
+    - component: input
+      unit_price: 1
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: output
+      unit_price: 4
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: cache_read_input
+      unit_price: 0.02
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: input
+      unit_price: 2
+      unit_size: 1000000
+      mode: ark_peak
+    - component: output
+      unit_price: 8
+      unit_size: 1000000
+      mode: ark_peak
+    - component: cache_read_input
+      unit_price: 0.04
+      unit_size: 1000000
+      mode: ark_peak
+    - component: cache_storage
+      unit_price: 0.017
+      unit_size: 1000000

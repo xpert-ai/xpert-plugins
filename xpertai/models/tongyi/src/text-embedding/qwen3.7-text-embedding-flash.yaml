@@ -1,0 +1,28 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/embedding-interfaces-compatible-with-openai/
+model: qwen3.7-text-embedding-flash
+model_type: text-embedding
+model_properties:
+  context_size: 128000
+  max_chunks: 20
+parameter_rules:
+  - name: dimensions
+    label:
+      zh_Hans: 向量维度
+      en_US: Dimensions
+    type: int
+    default: 1024
+    options:
+      - "256"
+      - "512"
+      - "768"
+      - "1024"
+pricing:
+  input: "0.125"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/qwen3-7-text-embedding-flash
+  rules:
+    - component: input
+      unit_price: 0.125
+      unit_size: 1000000
+      region: cn

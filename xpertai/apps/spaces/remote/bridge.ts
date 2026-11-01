@@ -115,6 +115,9 @@ export async function download(fileKey: string) {
 }
 
 export const setAssistantContext = (payload: object) => request('invokeClientCommand', { commandKey: 'assistant.context.set', payload })
+// Authenticated host pages need their own origin/storage; keep the generic iframe sandbox intact.
+export const openArtifactUrl = (url: string, title: string) => clientCommand('workbench.browser.open', { url, title, target: 'external' })
+export const copyArtifactUrl = (text: string) => clientCommand('workbench.clipboard.write', { text })
 
 export async function openDocument(resourceId: string, providerKey?: string, editorKey?: string) {
   // Resolution is platform-owned; navigation is consumed by the nearest Workbench.

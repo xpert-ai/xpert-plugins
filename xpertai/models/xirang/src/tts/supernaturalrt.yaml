@@ -1,0 +1,201 @@
+{
+  "model": "supernaturalrt",
+  "label": {
+    "en_US": "Xirang Supernatural TTS",
+    "zh_Hans": "星辰超自然语音合成"
+  },
+  "model_type": "tts",
+  "model_properties": {
+    "default_voice": "cixingnan",
+    "voices": [
+      {
+        "mode": "cixingnan",
+        "name": "cixingnan"
+      },
+      {
+        "mode": "songchinan",
+        "name": "songchinan"
+      },
+      {
+        "mode": "surennan",
+        "name": "surennan"
+      },
+      {
+        "mode": "cixingnan2",
+        "name": "cixingnan2"
+      },
+      {
+        "mode": "zhubonan",
+        "name": "zhubonan"
+      },
+      {
+        "mode": "kefunan",
+        "name": "kefunan"
+      },
+      {
+        "mode": "zhuchinan",
+        "name": "zhuchinan"
+      },
+      {
+        "mode": "jilunan2",
+        "name": "jilunan2"
+      },
+      {
+        "mode": "surennv",
+        "name": "surennv"
+      },
+      {
+        "mode": "xianliaonv",
+        "name": "xianliaonv"
+      },
+      {
+        "mode": "mansunv",
+        "name": "mansunv"
+      },
+      {
+        "mode": "kefunv1",
+        "name": "kefunv1"
+      },
+      {
+        "mode": "huoponv",
+        "name": "huoponv"
+      },
+      {
+        "mode": "ruyanv",
+        "name": "ruyanv"
+      },
+      {
+        "mode": "xinwennv",
+        "name": "xinwennv"
+      },
+      {
+        "mode": "kefunv2",
+        "name": "kefunv2"
+      },
+      {
+        "mode": "luolinv",
+        "name": "luolinv"
+      },
+      {
+        "mode": "huoponv2",
+        "name": "huoponv2"
+      },
+      {
+        "mode": "qingtiannv",
+        "name": "qingtiannv"
+      },
+      {
+        "mode": "cixingnan3",
+        "name": "cixingnan3"
+      },
+      {
+        "mode": "gaojinv",
+        "name": "gaojinv"
+      },
+      {
+        "mode": "gushinan2",
+        "name": "gushinan2"
+      },
+      {
+        "mode": "jilunan1",
+        "name": "jilunan1"
+      },
+      {
+        "mode": "kejinan1",
+        "name": "kejinan1"
+      },
+      {
+        "mode": "kejinan2",
+        "name": "kejinan2"
+      },
+      {
+        "mode": "pingdannv",
+        "name": "pingdannv"
+      },
+      {
+        "mode": "zhiyin",
+        "name": "zhiyin"
+      },
+      {
+        "mode": "tuokouxiu",
+        "name": "tuokouxiu"
+      },
+      {
+        "mode": "xuanyinan",
+        "name": "xuanyinan"
+      },
+      {
+        "mode": "sarah",
+        "name": "sarah"
+      }
+    ],
+    "word_limit": 10000,
+    "audio_type": "pcm",
+    "max_workers": 1
+  },
+  "parameter_rules": [
+    {
+      "name": "voice",
+      "type": "string",
+      "label": {
+        "en_US": "Voice",
+        "zh_Hans": "音色"
+      },
+      "required": false,
+      "options": [
+        "cixingnan",
+        "songchinan",
+        "surennan",
+        "cixingnan2",
+        "zhubonan",
+        "kefunan",
+        "zhuchinan",
+        "jilunan2",
+        "surennv",
+        "xianliaonv",
+        "mansunv",
+        "kefunv1",
+        "huoponv",
+        "ruyanv",
+        "xinwennv",
+        "kefunv2",
+        "luolinv",
+        "huoponv2",
+        "qingtiannv",
+        "cixingnan3",
+        "gaojinv",
+        "gushinan2",
+        "jilunan1",
+        "kejinan1",
+        "kejinan2",
+        "pingdannv",
+        "zhiyin",
+        "tuokouxiu",
+        "xuanyinan",
+        "sarah"
+      ]
+    },
+    {
+      "name": "speech_rate",
+      "type": "float",
+      "label": {
+        "en_US": "Speed",
+        "zh_Hans": "语速"
+      },
+      "required": false,
+      "min": 0.5,
+      "max": 2
+    },
+    {
+      "name": "volume",
+      "type": "int",
+      "label": {
+        "en_US": "Volume",
+        "zh_Hans": "音量"
+      },
+      "required": false,
+      "min": 0,
+      "max": 100
+    }
+  ]
+}

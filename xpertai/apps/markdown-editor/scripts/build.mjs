@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { build } from 'esbuild'
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
@@ -10,6 +10,8 @@ const require = createRequire(import.meta.url)
 const prosemirror = createRequire(require.resolve('@tiptap/pm/model'))
 const result = await build({ entryPoints: [new URL('remote/main.tsx', root).pathname], bundle: true, write: false,
   format: 'iife', platform: 'browser', target: 'es2022', minify: true, jsx: 'automatic', legalComments: 'none', metafile: true,
+  // Shared UI can resolve a second React copy across pnpm workspaces; hooks require one runtime.
+  alias: { react: dirname(require.resolve('react/package.json')), 'react-dom': dirname(require.resolve('react-dom/package.json')) },
   define: { 'process.env.NODE_ENV': '"production"' },
   // Tiptap/Yjs dependencies can resolve different compatible ProseMirror versions under pnpm.
   // Node/Fragment identity must be shared by every editor extension in the browser bundle.
@@ -18,6 +20,8 @@ const result = await build({ entryPoints: [new URL('remote/main.tsx', root).path
   } }] })
 const modelInputs = Object.keys(result.metafile.inputs).filter((path) => /prosemirror-model\/dist\/index\.(cjs|js)$/.test(path))
 if (modelInputs.length !== 1) throw new Error('The editor must bundle exactly one ProseMirror model instance')
+const reactInputs = Object.keys(result.metafile.inputs).filter(path => /react\/cjs\/react.production.min.js$/.test(path))
+if (reactInputs.length !== 1) throw new Error('The remote view must bundle exactly one React runtime')
 const temporary = await mkdtemp(join(tmpdir(), 'spaces-css-'))
 let css
 try {

@@ -7,6 +7,7 @@ import {
   type ICopilotModel,
   ModelFeature,
   ModelPropertyKey,
+  type ParameterRule,
   ParameterType,
   readModelConfiguration
 } from '@xpert-ai/contracts'
@@ -72,7 +73,7 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     try {
       const modelConfig = this.getModelSchema(model)?.modelConfig as XirangPredefinedModelConfig | undefined
       const params = toCredentialKwargs(credentials, model, modelConfig)
-      await new XirangChatModel({ ...params, temperature: 0, maxTokens: 2 }).invoke([{ role: 'human', content: 'Hi' }])
+      await new XirangChatModel(params).invoke([{ role: 'human', content: 'Reply only: OK' }])
     } catch (error) {
       throw new CredentialsValidateFailedError(getErrorMessage(error))
     }
@@ -94,10 +95,9 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     const configuration = readModelConfiguration(credentials)
     const llmConfiguration = configuration?.modelType === AiModelTypeEnum.LLM ? configuration : undefined
     const requestedMaxTokens = Number(modelOptions.max_tokens)
-    const maxTokens = llmConfiguration
-      ? Math.min(Number.isSafeInteger(requestedMaxTokens) && requestedMaxTokens > 0
-        ? requestedMaxTokens : llmConfiguration.defaultMaxTokens, llmConfiguration.maxOutputTokens)
-      : modelOptions.max_tokens
+    const maxTokens = Number.isSafeInteger(requestedMaxTokens) && requestedMaxTokens > 0
+      ? Math.min(requestedMaxTokens, llmConfiguration?.maxOutputTokens ?? requestedMaxTokens)
+      : undefined
     const runtimeThinking = modelOptions.enable_thinking
     if (runtimeThinking !== undefined) {
       const enabled =
@@ -113,7 +113,7 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     return new XirangChatModel({
       ...params,
       streaming: modelOptions.streaming ?? true,
-      temperature: modelOptions.temperature ?? 0.2,
+      temperature: modelOptions.temperature,
       maxTokens,
       maxConcurrency: llmConfiguration?.maxConcurrency,
       topP: modelOptions.top_p,
@@ -128,6 +128,24 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       ],
       metadata: {
         profile: this.getModelProfile(copilotModel.model, credentials)
+      }
+    })
+  }
+
+  override getParameterRules(model: string, credentials: Record<string, string>): ParameterRule[] {
+    // The SDK adds a common temperature default and an imported model's defaultMaxTokens.
+    // Remove only generation defaults; keep host controls (such as retries) and saved options intact.
+    const serverDefaultParameters = ['temperature', 'top_p', 'max_tokens', 'enable_thinking', 'response_format']
+    return super.getParameterRules(model, credentials).map((rule) => {
+      if (!serverDefaultParameters.includes(rule.name)) return rule
+      const { default: _default, ...parameter } = rule
+      return {
+        ...parameter,
+        required: false,
+        help: {
+          zh_Hans: `${rule.help?.zh_Hans ?? ''} 未设置时不发送此参数，由模型服务端决定；已保存的值继续生效。`.trim(),
+          en_US: `${rule.help?.en_US ?? ''} When unset, omit this parameter and let the model server decide. Saved values remain effective.`.trim()
+        }
       }
     })
   }
@@ -148,27 +166,24 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
         {
           name: 'temperature',
           type: ParameterType.FLOAT,
-          useTemplate: 'temperature',
           label: { zh_Hans: '温度', en_US: 'Temperature' },
-          default: 0.2,
+          required: false,
           min: 0,
           max: 2
         },
         {
           name: 'top_p',
           type: ParameterType.FLOAT,
-          useTemplate: 'top_p',
           label: { zh_Hans: 'Top P', en_US: 'Top P' },
-          default: 1,
+          required: false,
           min: 0,
           max: 1
         },
         {
           name: 'max_tokens',
           type: ParameterType.INT,
-          useTemplate: 'max_tokens',
           label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' },
-          default: Math.min(2048, maxOutputTokens),
+          required: false,
           min: 1,
           max: maxOutputTokens
         },
@@ -176,7 +191,6 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
           name: 'enable_thinking',
           type: ParameterType.BOOLEAN,
           label: { zh_Hans: '思考模式', en_US: 'Thinking mode' },
-          default: false,
           required: false
         }
       ]

@@ -12,6 +12,8 @@ import {
 @Injectable()
 @DataSourceStrategy(POSTGRES_TYPE)
 export class PostgresDataSourceStrategy extends AdapterDataSourceStrategy<PostgresAdapterOptions> {
+  override readonly workbench = { engine: 'postgres' }
+
   override readonly type = POSTGRES_TYPE
   override readonly name = 'PostgreSQL Data Source'
 

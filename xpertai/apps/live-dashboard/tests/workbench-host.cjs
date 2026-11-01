@@ -28,6 +28,13 @@ const capabilities = {
         completeness: { returnedRows: rows.length, totalRows: rows.length, totalAccuracy: 'exact', scope: 'full_query_result', truncated: false }, sourceFetchedAt: new Date().toISOString() }, randomUUID(), 1000)
     }
   },
+    'platform.artifact-content': {
+      async write({ artifactId, buffer }) {
+
+        const filePath = `.apps/artifact_content/${artifactId}/${require('node:crypto').createHash('sha256').update(buffer).digest('hex')}`
+        files.set(filePath, Buffer.from(buffer)); return { source: 'platform.workspace.files', filePath, workspacePath: filePath }
+      }
+    },
   'platform.workspace.files': {
     async uploadBuffer(input) { const filePath = `${input.folder}/${input.fileName}`; files.set(filePath, Buffer.from(input.buffer)); return { filePath, workspacePath: `/workspace/${filePath}` } },
     async readBuffer(reference) { return { buffer: files.get(reference.filePath) } }

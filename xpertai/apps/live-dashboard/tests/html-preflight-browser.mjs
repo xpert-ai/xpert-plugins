@@ -75,6 +75,19 @@ try {
   assert(missingRefreshId.errors.some(error => error.includes('DOCUMENT_BINDING_DENIED')))
   const validPageRefresh = await validateDocument({ ...input, html: pageButton("live.refresh('sales');") }, browser, hostPath)
   assert.equal(validPageRefresh.ok, true, JSON.stringify(validPageRefresh.errors))
+  for (const mode of ['hidden', 'disabled', 'inserted']) {
+    const buttonPath = `<html><body><output>Sales</output><button id="open">Open</button>
+      ${mode === 'inserted' ? '' : `<button id="child" ${mode}>Apply</button>`}
+      <script>(async()=>{const live=xpertLiveArtifact;await live.query('sales',{});
+      document.querySelector('#open').onclick=()=>{
+        let child=document.querySelector('#child');
+        if(!child){child=document.createElement('button');child.id='child';child.textContent='Apply';document.body.append(child);}
+        child.hidden=false;child.disabled=false;child.onclick=()=>live.query('undeclared',{});
+      };})()</script></body></html>`
+    const pathResult = await validateDocument({ ...input, html: buttonPath }, browser, hostPath)
+    assert.equal(pathResult.ok, false, `missed ${mode} dependent button`)
+    assert(pathResult.errors.some(error => error.includes('DOCUMENT_BINDING_DENIED')))
+  }
   const sharedInput = { ...input,
     context: { ...input.context, bindingIds: ['sales', 'totals'] },
     parameters: Object.fromEntries(['sales', 'totals'].map(id => [id, [{ controlId: 'region', type: 'string', required: false, defaultValue: null }]])),
@@ -124,6 +137,32 @@ try {
   assert.equal(disabledEmpty.ok, true, JSON.stringify(disabledEmpty.errors))
   const presentationEmpty = await validateDocument({ ...enumInput, html: selectHtml("await live.query('sales',{});").replace('data-dashboard-control="days"', 'data-dashboard-presentation') }, browser, hostPath)
   assert.equal(presentationEmpty.ok, true, JSON.stringify(presentationEmpty.errors))
+  const fanoutIds = ['summary', 'trend', 'ranking', 'detail']
+  const fanoutControls = ['days', 'status', 'vendor']
+  const fanoutInput = {
+    context: { ...input.context, bindingIds: fanoutIds, defaults: Object.fromEntries(fanoutControls.map(id => [id, 0])) },
+    datasets: Object.fromEntries(fanoutIds.map(id => [id, { rows: [{ amount: '120' }] }])),
+    parameters: Object.fromEntries(fanoutIds.map(id => [id, fanoutControls.map(controlId =>
+      ({ controlId, type: 'number', defaultValue: 0, allowedValues: [0, 1, 2, 3] }))]))
+  }
+  const fanoutHtml = (repeats = 1) => `<html><body><output>Loading</output>
+    ${fanoutControls.map(id => `<select data-dashboard-control="${id}" id="${id}">${[0, 1, 2, 3].map(value => `<option value="${value}">${value}</option>`).join('')}</select>`).join('')}
+    ${Array.from({ length: 12 }, (_, index) => `<button>Action ${index}</button>`).join('')}
+    <script>(async()=>{
+      const live=xpertLiveArtifact, ids=${JSON.stringify(fanoutIds)};
+      const selects=[...document.querySelectorAll('select')];
+      const query=()=>Promise.all(ids.map(id=>live.query(id,Object.fromEntries(selects.map(select=>[select.id,Number(select.value)])))));
+      ids.forEach(id=>live.subscribe(id,data=>document.querySelector('output').textContent=data.rows[0].amount));
+      selects.forEach(select=>select.onchange=query);
+      document.querySelectorAll('button').forEach(button=>button.onclick=async()=>{for(let i=0;i<${repeats};i++)await query()});
+      await query();
+    })()</script></body></html>`
+  const fanout = await validateDocument({ ...fanoutInput, html: fanoutHtml() }, browser, hostPath)
+  assert.equal(fanout.ok, true, JSON.stringify(fanout.errors))
+  assert.deepEqual(new Set(fanout.requestedBindings), new Set(fanoutIds))
+  const storm = await validateDocument({ ...fanoutInput, html: fanoutHtml(16) }, browser, hostPath)
+  assert.equal(storm.ok, false)
+  assert(storm.errors.some(error => error.includes('DOCUMENT_QUERY_LIMIT')))
   const libraries = JSON.parse(await readFile(new URL('../dist/libraries/catalog.json', import.meta.url)))
   const echarts = libraries.find(item => item.id === 'echarts'), three = libraries.find(item => item.id === 'three')
   const lifecycle = await readFile(new URL('../skills/live-dashboard/references/html-lifecycle.md', import.meta.url), 'utf8')

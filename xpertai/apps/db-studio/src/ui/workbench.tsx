@@ -1,3 +1,4 @@
+import { quoteDatabaseIdentifier, splitWorkbenchSql } from '../sql.js'
 import { PlanChatReview } from './plan-chat-review'
 import { policyInput } from '../lib/policy-input'
 import { CaptureSnapshotButton, SnapshotComparison } from './schema-snapshots'
@@ -29,8 +30,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  splitWorkbenchSql,
-  quoteDatabaseIdentifier,
   type DatabaseCapabilities,
   type DatabaseObjectRef,
   type DatabaseObjectDetail,

@@ -1,8 +1,8 @@
-# for more details, please refer to https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/deepseek-api
 model: deepseek-v4.1-flash
 label:
-  zh_Hans: DeepSeek-V4.1-Flash
-  en_US: DeepSeek-V4.1-Flash
+  en_US: deepseek-v4.1-flash
+  zh_Hans: deepseek-v4.1-flash
 model_type: llm
 features:
   - vision
@@ -18,9 +18,9 @@ parameter_rules:
   - name: temperature
     use_template: temperature
     type: float
-    default: 1.0
-    min: 0.0
-    max: 2.0
+    default: 1
+    min: 0
+    max: 2
     help:
       zh_Hans: 采样温度，控制模型生成文本的多样性。
       en_US: Sampling temperature, which controls the diversity of generated text.
@@ -35,15 +35,15 @@ parameter_rules:
       en_US: The maximum number of output tokens, including reasoning and the model response.
   - name: reasoning_effort
     label:
-      zh_Hans: 推理强度
+      zh_Hans: 思考强度
       en_US: Reasoning Effort
-    type: int
+    type: string
     required: false
-    min: 1
-    max: 100
-    help:
-      zh_Hans: 控制模型的推理力度，取值范围为 1～100，数值越大推理力度越强。
-      en_US: Controls reasoning effort. Values range from 1 to 100; higher values enable stronger reasoning.
+    default: high
+    options:
+      - low
+      - high
+      - max
   - name: response_format
     label:
       zh_Hans: 回复格式
@@ -84,45 +84,106 @@ parameter_rules:
     help:
       zh_Hans: 以 JSON 字符串格式输入额外的 HTTP 请求头，这些请求头将包含在 API 请求中。
       en_US: Enter extra HTTP headers in JSON string format, which will be included in the API request.
-# Official prices verified 2026-09-16. Use peak rates until the full peak/off-peak
-# schedule is supported. Unknown custom-endpoint regions use the highest regional rate.
 pricing:
-  input: "2.188"
-  output: "8.75"
+  input: "2"
+  output: "8"
   unit: "0.000001"
   currency: RMB
-  source_url: https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash
+  source_url: https://help.aliyun.com/zh/model-studio/model-pricing
   rules:
-    - component: input
-      unit_price: 2.188
-      unit_size: 1000000
-    - component: output
-      unit_price: 8.75
-      unit_size: 1000000
-    - component: cache_read_input
-      unit_price: 0.219
-      unit_size: 1000000
     - component: input
       unit_price: 2
       unit_size: 1000000
       region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
     - component: output
       unit_price: 8
       unit_size: 1000000
       region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
     - component: cache_read_input
       unit_price: 0.2
       unit_size: 1000000
       region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
+    - component: input
+      unit_price: 1
+      unit_size: 1000000
+      region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"
+    - component: output
+      unit_price: 4
+      unit_size: 1000000
+      region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"
+    - component: cache_read_input
+      unit_price: 0.1
+      unit_size: 1000000
+      region: cn
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"
     - component: input
       unit_price: 2.188
       unit_size: 1000000
       region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
     - component: output
       unit_price: 8.75
       unit_size: 1000000
       region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
     - component: cache_read_input
       unit_price: 0.219
       unit_size: 1000000
       region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "08:00"
+        end_time: "22:00"
+    - component: input
+      unit_price: 1.094
+      unit_size: 1000000
+      region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"
+    - component: output
+      unit_price: 4.375
+      unit_size: 1000000
+      region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"
+    - component: cache_read_input
+      unit_price: 0.109
+      unit_size: 1000000
+      region: international
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "22:00"
+        end_time: "08:00"

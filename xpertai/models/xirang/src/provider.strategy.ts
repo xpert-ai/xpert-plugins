@@ -3,7 +3,7 @@ import { AIModelProviderStrategy, CredentialsValidateFailedError, ModelProvider,
 import { AiModelTypeEnum, type AIModelEntity, type DiscoveredModel } from '@xpert-ai/contracts'
 import { getRerankRequest } from './rerank/protocol.js'
 import { z } from 'zod'
-import { Xirang, type XirangCredentials, getXirangAuthorization, getXirangBaseUrl, isOfficialXirangEndpoint } from './types.js'
+import { Xirang, type XirangCredentials, getXirangAuthorization, getXirangBaseUrl } from './types.js'
 
 @Injectable()
 @AIModelProviderStrategy(Xirang)
@@ -35,7 +35,8 @@ export class XirangProviderStrategy extends ModelProvider {
     return models.map((model) => ({
       ...model,
       modelProperties: {
-        endpoint_model_name: (isOfficialXirangEndpoint(credentials) ? endpointIds.get(model.model) : undefined) || model.model,
+        // The account's exact API ID is authoritative; catalog aliases only supply metadata.
+        endpoint_model_name: model.model,
         ...(model.modelType === AiModelTypeEnum.RERANK
           ? { rerank_path: getRerankRequest(credentials, model.model).path }
           : {})

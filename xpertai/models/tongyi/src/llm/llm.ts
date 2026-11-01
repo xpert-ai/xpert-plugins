@@ -2,7 +2,7 @@ import { HumanMessage } from '@langchain/core/messages'
 import { ClientOptions } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel, ParameterRule } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
-import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
+import { LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'
 import {
   isTongyiInternationalEndpointEnabled,
@@ -12,6 +12,8 @@ import {
   TongyiTranslationOptions
 } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
+import { hasTongyiFixedSampling, hasTongyiModelControls, resolveTongyiModelOptions, validateTongyiToolControls } from './model-options.js'
+import { TongyiReasoningChatModel } from './chat-model.js'
 
 const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
   'qwen3.8-27b',
@@ -432,8 +434,12 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
 
   protected override _commonParameterRules(model: string): ParameterRule[] {
     const rules = super._commonParameterRules(model)
-    if (!TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model)) return rules
-    return rules.filter((rule) => rule.name !== 'temperature')
+    if (TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model) || hasTongyiFixedSampling(model)) {
+      return rules.filter((rule) => rule.name !== 'temperature')
+    }
+    if (!hasTongyiModelControls(model)) return rules
+    const temperature = this.getModelSchema(model)?.parameter_rules?.find((rule) => rule.name === 'temperature')
+    return rules.map((rule) => rule.name === 'temperature' && temperature ? temperature : rule)
   }
 
   override predefinedModels(): ReturnType<LargeLanguageModel['predefinedModels']> {
@@ -452,10 +458,11 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
 
   async validateCredentials(model: string, credentials: TongyiCredentials): Promise<void> {
     const params = toCredentialKwargs(credentials)
-    const chatModel = new ChatOAICompatReasoningModel({
+    const chatModel = new TongyiReasoningChatModel({
       ...params,
       model,
-      ...(TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model) ? {} : { temperature: 0 }),
+      ...(TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model) || hasTongyiFixedSampling(model)
+        ? {} : { temperature: 0 }),
       maxTokens: 5
     })
 
@@ -469,7 +476,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const { modelProvider } = copilot
     const credentials = modelProvider.credentials as TongyiCredentials
     const params = toCredentialKwargs(credentials)
-    const modelCredentials = copilotModel.options as TongyiModelCredentials
+    const modelCredentials = resolveTongyiModelOptions(copilotModel.model, copilotModel.options as TongyiModelCredentials)
     const configuration = toTongyiConfigurationWithExtraHeaders(params.configuration, modelCredentials?.extra_headers)
     let responseFormat: { type: string; json_schema?: object } | undefined
     if (modelCredentials?.response_format) {
@@ -494,11 +501,11 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
         configuration,
         model,
         streaming: modelCredentials?.streaming ?? true,
-        temperature: supportsSamplingAndReasoningOverrides
-          ? modelCredentials?.temperature ?? 0
+        temperature: supportsSamplingAndReasoningOverrides && !hasTongyiFixedSampling(model)
+          ? modelCredentials?.temperature
           : undefined,
         maxTokens: modelCredentials?.max_completion_tokens ?? modelCredentials?.max_tokens,
-        topP: supportsSamplingAndReasoningOverrides ? modelCredentials?.top_p : undefined,
+        topP: supportsSamplingAndReasoningOverrides && !hasTongyiFixedSampling(model) ? modelCredentials?.top_p : undefined,
         frequencyPenalty: supportsSamplingAndReasoningOverrides
           ? modelCredentials?.frequency_penalty
           : undefined,
@@ -530,7 +537,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
       isNil
     )
 
-    const chatModel = new ChatOAICompatReasoningModel({
+    const chatModel = new TongyiReasoningChatModel({
       ...fields,
       verbose: options?.verbose,
       callbacks: [
@@ -551,6 +558,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const originalCompletionWithRetry = chatModel.completionWithRetry.bind(chatModel)
 
     chatModel.completionWithRetry = (async (request, requestOptions) => {
+      validateTongyiToolControls(model, request)
       const requestWithExplicitCache = applyTongyiExplicitCache(request, { model })
       return originalCompletionWithRetry(requestWithExplicitCache, requestOptions)
     }) as typeof chatModel.completionWithRetry

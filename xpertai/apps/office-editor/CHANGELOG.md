@@ -1,5 +1,15 @@
 # @xpert-ai/plugin-office-editor
 
+## 0.7.0
+
+### Minor Changes
+
+- 8117ba6: Integrate the existing Univer editor with the generic Spaces Spreadsheet catalog and resource editor protocol. Project-native workbooks use immutable JSON source snapshots, idempotent creation, permission-checked version saves, and the same CAS writer for Assistant tools. Keep existing XLSX, Docs and Slides flows; do not advertise snapshot collaboration as real-time cell merging.
+
+### Patch Changes
+
+- Require published contracts/plugin-sdk 3.28.0 for content catalog, project files and extensible resource integrations, and align development dependencies with the runtime peer requirements.
+
 ## 0.6.0
 
 ### Minor Changes

@@ -1,6 +1,7 @@
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk';
 import chalk from 'chalk';
 import { HANADataSourceStrategy } from './hana.strategy.js';
+import { HanaAnalyticsProvider } from './hana-analytics.provider.js';
 
 
 @XpertServerPlugin({
@@ -11,6 +12,7 @@ import { HANADataSourceStrategy } from './hana.strategy.js';
 
 	providers: [
 		HANADataSourceStrategy,
+		HanaAnalyticsProvider,
 	]
 })
 export class HANAPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

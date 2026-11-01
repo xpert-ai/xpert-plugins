@@ -813,6 +813,18 @@
       "model_type": "image"
     },
     {
+      "name": "qwen-audio-3.0-asr-flash-filetrans",
+      "model_type": "speech2text"
+    },
+    {
+      "name": "qwen-audio-3.0-asr-flash",
+      "model_type": "speech2text"
+    },
+    {
+      "name": "fun-asr",
+      "model_type": "speech2text"
+    },
+    {
       "name": "deepseek-v4-pro-0813",
       "model_type": "llm",
       "context_size": 1000000,
@@ -1064,21 +1076,6 @@
     {
       "name": "wan3.0-video-prime",
       "model_type": "video",
-      "reason": "model-type-not-implemented"
-    },
-    {
-      "name": "qwen-audio-3.0-asr-flash-filetrans",
-      "model_type": "speech2text",
-      "reason": "model-type-not-implemented"
-    },
-    {
-      "name": "qwen-audio-3.0-asr-flash",
-      "model_type": "speech2text",
-      "reason": "model-type-not-implemented"
-    },
-    {
-      "name": "fun-asr",
-      "model_type": "speech2text",
       "reason": "model-type-not-implemented"
     },
     {

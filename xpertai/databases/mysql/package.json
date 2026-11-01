@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-mysql",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -34,23 +34,38 @@
   "dependencies": {
     "mysql": "^2.18.1",
     "mysql2": "^3.15.3",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@xpert-ai/sql-workbench": "workspace:^"
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.29.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "lodash-es": "4.17.21",
     "chalk": "4.1.2"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.21.0",
+    "@xpert-ai/plugin-sdk": "3.29.0",
     "@types/mysql": "^2.15.27"
   },
   "scripts": {
     "test:workbench": "node --test tests/*.test.mjs",
     "build": "tsc -p tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "dependsOn": [
+          {
+            "projects": [
+              "@xpert-ai/sql-workbench"
+            ],
+            "target": "build"
+          }
+        ]
+      }
+    }
   }
 }

@@ -97,7 +97,7 @@ try {
   const exported = await request(owner, 'page.export', { itemId: page.id })
   assert.equal(exported.sequence, current.sequence)
   const downloaded = await fetch(exported.url, { headers: editor }); assert.equal(downloaded.status, 200); assert((await downloaded.text()).includes('周五'))
-  const collected = await request(owner, 'artifact.collect', { spaceId: space.id, artifactId: exported.artifactId, versionId: exported.versionId })
+  const collected = await request(owner, 'artifact.collect', {mode:'copy',acknowledgeCopy:true, spaceId: space.id, artifactId: exported.artifactId, versionId: exported.versionId })
   const opened = await request(editor, 'artifact.open', { itemId: collected.id })
   assert.equal(opened.version.id, exported.versionId)
   const sessionResponse = await fetch(`${api}/ai/workspace-files/view-sessions`, { method: 'POST', headers: { ...editor, 'content-type': 'application/json' },

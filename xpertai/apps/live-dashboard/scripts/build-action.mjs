@@ -9,7 +9,7 @@ const packageIndex = process.argv.indexOf('--verify-package')
 if (packageIndex >= 0 && !process.argv[packageIndex + 1]) throw Error('Missing extracted package directory')
 const target = join(packageIndex >= 0 ? resolve(process.argv[packageIndex + 1]) : root, 'dist/sandbox-actions')
 const verify = process.argv.includes('--verify') || packageIndex >= 0
-const sourceNames = ['runner.mjs', 'validate.mjs']
+const sourceNames = ['resource-cache.mjs', 'runner.mjs', 'validate.mjs']
 if (!(await lstat(join(root, 'sandbox-actions'))).isDirectory() ||
     JSON.stringify((await readdir(join(root, 'sandbox-actions'))).sort()) !== JSON.stringify(sourceNames))
   throw Error('Invalid Action source directory')
@@ -19,7 +19,8 @@ const result = await build({ configFile: false, root, logLevel: 'error', build: 
   lib: { entry: join(root, 'src/validation/host-entry.ts'), name: 'DocumentHost', formats: ['iife'] } } })
 const chunk = (Array.isArray(result) ? result : [result]).flatMap(item => item.output).find(item => item.type === 'chunk' && item.isEntry)
 if (!chunk) throw Error('Missing document host bundle')
-const files = { 'host.js': Buffer.from(chunk.code), 'runner.mjs': await readFile(join(root, 'sandbox-actions/runner.mjs')), 'validate.mjs': await readFile(join(root, 'sandbox-actions/validate.mjs')) }
+const files = { 'host.js': Buffer.from(chunk.code),
+  ...Object.fromEntries(await Promise.all(sourceNames.map(async name => [name, await readFile(join(root, 'sandbox-actions', name))]))) }
 const hash = createHash('sha256')
 if (!verify) { await rm(target, { recursive: true, force: true }); await mkdir(join(target, 'bundle'), { recursive: true }) }
 else {

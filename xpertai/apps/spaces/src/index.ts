@@ -1,3 +1,4 @@
+import { SpaceArtifactLibrary } from './artifact-library.js'
 import { SpaceItemCatalog } from './item-catalog.js'
 import { SpaceCatalog } from './catalog.js'
 import { SpaceContentKnowledge } from './content-knowledge.js'
@@ -27,7 +28,7 @@ import { SpacesCapabilityProvider } from './capability.js'
 
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(entities)], entities,
-  providers: [SpaceItemCatalog, SpaceContentKnowledge, SpaceCatalog, SpacesCapabilityProvider, SpaceImports, SpaceReferences, SpaceSubpages, SpaceContent, SpaceAccess, SpaceKnowledge, SpaceDocuments, SpacesResourceProvider, SpacesService, SpacePages, SpaceAi, SpaceFiles, SpaceEditors, SpaceArtifacts, SpacesMiddleware, SpacesView]
+  providers: [SpaceArtifactLibrary, SpaceItemCatalog, SpaceContentKnowledge, SpaceCatalog, SpacesCapabilityProvider, SpaceImports, SpaceReferences, SpaceSubpages, SpaceContent, SpaceAccess, SpaceKnowledge, SpaceDocuments, SpacesResourceProvider, SpacesService, SpacePages, SpaceAi, SpaceFiles, SpaceEditors, SpaceArtifacts, SpacesMiddleware, SpacesView]
 })
 export class SpacesPlugin {}
 

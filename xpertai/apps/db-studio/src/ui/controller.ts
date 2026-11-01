@@ -1,3 +1,4 @@
+import { quoteDatabaseIdentifier, splitWorkbenchSql } from '../sql.js'
 import { latestRequest, refreshSelectedPlan } from './request-state'
 import { translate } from './i18n'
 import { beginQuery, receiveQuery, endQuery, retargetDraft } from './query-state'
@@ -28,8 +29,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  splitWorkbenchSql,
-  quoteDatabaseIdentifier,
   type DatabaseCapabilities,
   type DatabaseObjectRef,
   type DatabaseObjectDetail,

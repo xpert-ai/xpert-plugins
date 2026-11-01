@@ -1,5 +1,6 @@
 import { BaseMessage, BaseMessageChunk, isAIMessage, isAIMessageChunk } from '@langchain/core/messages'
 import { ChatOpenAIFields, ClientOptions, OpenAIClient } from '@langchain/openai'
+import { z } from 'zod'
 import {
   AIModelEntity,
   AiModelTypeEnum,
@@ -7,7 +8,8 @@ import {
   ICopilotModel,
   ModelFeature,
   ModelPropertyKey,
-  ParameterType
+  ParameterType,
+  legacyModelFeatures
 } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
@@ -20,6 +22,8 @@ import {
 import { randomUUID } from 'node:crypto'
 import { OpenAICompatModelCredentials, toCredentialKwargs } from '../types.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
+import { compatibleResponsesTransport, reasoningEffortSchema } from '../native.js'
+import { CompatibleResponsesChatModel } from './responses.js'
 
 export type TOAIAPICompatLLMParams = ChatOpenAIFields & { configuration: ClientOptions }
 
@@ -93,6 +97,21 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
   }
 
   async validateCredentials(model: string, credentials: OpenAICompatModelCredentials): Promise<void> {
+    if (credentials.api_protocol === 'responses') {
+      try {
+        const response = await compatibleResponsesTransport(credentials)(
+          { model, input: 'Reply OK.', stream: false, max_output_tokens: 32 }, {}, AbortSignal.timeout(60000)
+        )
+        if (!response.ok) {
+          await response.body?.cancel()
+          throw new Error(`Responses validation failed (${response.status})`)
+        }
+        z.object({ object: z.literal('response'), status: z.enum(['completed', 'incomplete']) }).parse(await response.json())
+        return
+      } catch (error) {
+        throw new CredentialsValidateFailedError(getErrorMessage(error))
+      }
+    }
     const params = toCredentialKwargs(credentials, model, { includeCustomBodyParams: true })
 
     try {
@@ -113,9 +132,12 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
   }
 
   protected createChatModel(params: TOAIAPICompatLLMParams) {
-    /**
-     * @todo ChatOpenAICompletions vs ChatOpenAI
-     */
+    if (params.useResponsesApi) {
+      const model = new CompatibleResponsesChatModel(params)
+      // The SDK defaults temperature to 1 even when no sampling option was selected.
+      model.temperature = params.temperature
+      return model
+    }
     return new StableOpenAICompatibleChatModel(params)
   }
 
@@ -128,12 +150,13 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
     const { handleLLMTokens } = options ?? {}
 
     credentials ??= options?.modelProperties as OpenAICompatModelCredentials
-    const runtimeEnableThinking = copilotModel.options?.['enable_thinking']
+    const native = credentials?.api_protocol === 'responses'
+    const runtimeEnableThinking = native ? undefined : copilotModel.options?.['enable_thinking']
     const runtimeCredentials = {
       ...(credentials ?? {}),
       ...(runtimeEnableThinking !== undefined ? { enable_thinking: toBoolean(runtimeEnableThinking) } : {})
     } as OpenAICompatModelCredentials
-    const params = toCredentialKwargs(runtimeCredentials, copilotModel.model, { includeCustomBodyParams: true })
+    const params = toCredentialKwargs(runtimeCredentials, copilotModel.model, { includeCustomBodyParams: !native })
     if (runtimeEnableThinking !== undefined) {
       const enableThinking = toBoolean(runtimeEnableThinking)
       params.modelKwargs['enable_thinking'] = enableThinking
@@ -141,11 +164,18 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       params.modelKwargs['chat_template_kwargs']['enable_thinking'] = enableThinking
     }
     const modelOptions = copilotModel.options ?? {}
+    const effort = native
+      ? reasoningEffortSchema.optional().parse(modelOptions['reasoning_effort'] ?? credentials.reasoning_effort)
+      : undefined
 
     return this.createChatModel({
       ...params,
+      ...(native ? {
+        useResponsesApi: true,
+        modelKwargs: { store: false, include: ['reasoning.encrypted_content'], ...(effort ? { reasoning: { effort } } : {}) }
+      } : {}),
       streaming: modelOptions['streaming'] ?? this.canSteaming(params.model),
-      temperature: modelOptions['temperature'] ?? 0,
+      temperature: native ? modelOptions['temperature'] : (modelOptions['temperature'] ?? 0),
       maxTokens: modelOptions['max_tokens'],
       topP: modelOptions['top_p'] ?? params.topP,
       frequencyPenalty: modelOptions['frequency_penalty'],
@@ -165,6 +195,28 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
     model: string,
     credentials: Record<string, any>
   ): AIModelEntity | null {
+    const positive = (value: unknown, fallback: number) => {
+      const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+      return Number.isSafeInteger(number) && number > 0 ? number : fallback
+    }
+    const contextLength = positive(credentials['context_size'] ?? credentials['context_length'], 2048)
+    const outputLimit = Math.min(positive(credentials['max_tokens_to_sample'], contextLength), contextLength)
+    if (credentials['api_protocol'] === 'responses') {
+      const effort = reasoningEffortSchema.optional().parse(credentials['reasoning_effort'])
+      return {
+        model, label: { en_US: model, zh_Hans: model },
+        model_type: AiModelTypeEnum.LLM, fetch_from: FetchFrom.CUSTOMIZABLE_MODEL,
+        native_protocols: ['openai_responses'], features: legacyModelFeatures(credentials),
+        model_properties: { [ModelPropertyKey.MODE]: 'chat', [ModelPropertyKey.CONTEXT_SIZE]: contextLength },
+        parameter_rules: [
+          { name: 'max_tokens', type: ParameterType.INT, min: 1, max: outputLimit,
+            default: Math.min(512, outputLimit), label: { en_US: 'Max output tokens', zh_Hans: '最大输出 Token' } },
+          { name: 'reasoning_effort', type: ParameterType.STRING, required: false,
+            options: reasoningEffortSchema.options, ...(effort ? { default: effort } : {}),
+            label: { en_US: 'Reasoning effort', zh_Hans: '推理强度' } }
+        ]
+      }
+    }
     const rules: any[] = [
       {
         name: 'temperature',
@@ -189,7 +241,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
         type: ParameterType.INT,
         use_template: 'max_tokens',
         min: 1,
-        max: credentials['context_length'] ?? 2048,
+        max: outputLimit,
         default: 512,
         label: {
           zh_Hans: '最大生成长度',
@@ -252,13 +304,13 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       completionType = 'chat'
     }
 
-    const features: ModelFeature[] = []
+    const features: ModelFeature[] = legacyModelFeatures(credentials)
     const supportFunctionCall = credentials['support_function_call'] ?? false
-    if (supportFunctionCall) {
+    if (supportFunctionCall && !features.includes(ModelFeature.TOOL_CALL)) {
       features.push(ModelFeature.TOOL_CALL)
     }
     const supportVision = credentials['support_vision'] ?? false
-    if (supportVision) {
+    if (supportVision && !features.includes(ModelFeature.VISION)) {
       features.push(ModelFeature.VISION)
     }
 
@@ -329,8 +381,6 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       required: false,
       default: defaultEnableThinking === undefined ? false : toBoolean(defaultEnableThinking)
     })
-
-    const contextLength = credentials['context_length'] ?? 2048
 
     return {
       model,

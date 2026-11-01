@@ -320,7 +320,7 @@ test('editing reads the selected immutable version, preserves bindings and retur
   const s = setup(), html = '<html><body>' + 'a'.repeat(17000) + '</body></html>'
   const dependencies = [{ id: 'echarts', version: '5.5.0', format: 'classic-script', global: 'echarts', sha256: 'a'.repeat(64) }]
   s.saved.manifest = { ...s.saved.manifest, charts: [], tables: [], presentation: { type: 'html', html, dependencies } }
-  await assert.rejects(s.invoke('dashboard_open', {}), /TARGET_REQUIRED/)
+  assert.equal(JSON.parse(await s.invoke('dashboard_open', {})).status, 'selection_required')
   const selected = { schemaVersion: 1, artifactId: s.saved.artifactId, versionId: s.saved.versionId }
   const opened = JSON.parse(await s.invoke('dashboard_open', {}, { context: { executionId: 'current-execution' }, configurable: { context: { live_dashboard: selected } } }))
   assert.equal(opened.versionId, selected.versionId)
@@ -350,7 +350,7 @@ test('library discovery returns pins only and explicit edits select the packaged
   assert.equal(JSON.stringify(catalog).includes('"source"'), false)
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   s.files.set('dashboards/library.html', Buffer.from('<html><body>Library</body></html>'))
-  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, htmlPath: 'dashboards/library.html', libraries: ['echarts'] })
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, htmlPath: 'dashboards/library.html', libraries: ['echarts'], removals: { viewIds: [...s.saved.manifest.charts, ...s.saved.manifest.tables].map(item => item.id) } })
   const dependencies = s.calls.find(c => c[0] === 'update')[4].presentation.dependencies
   assert.equal(dependencies.length, 1)
   assert.equal(dependencies[0].id, 'echarts')
@@ -379,7 +379,7 @@ test('sandbox mutations require a receipt for the same file and exact bytes', as
   const { ToolMessage } = require('@langchain/core/messages')
   const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
   const { createHash } = require('node:crypto')
-  const s = setup(); s.saved.manifest.presentation = { type: 'html', html: '<html><body>Initial</body></html>' }
+  const s = setup(); s.saved.manifest.charts = []; s.saved.manifest.tables = []; s.saved.manifest.presentation = { type: 'html', html: '<html><body>Initial</body></html>' }
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   const call = (name, args, content, status = 'success', metadata) => s.middleware.wrapToolCall({ toolCall: { name, args, id: 'call' }, tool: { metadata } },
     async () => {
@@ -404,7 +404,7 @@ test('sandbox mutations require a receipt for the same file and exact bytes', as
 
 test('opening prepares independent copies and only explicit update saves the draft', async () => {
   const s = setup(); const html = '<html><body>Saved page</body></html>'
-  s.saved.manifest.presentation = { type: 'html', html }
+  s.saved.manifest.charts = []; s.saved.manifest.tables = []; s.saved.manifest.presentation = { type: 'html', html }
   const first = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   assert.equal(s.files.get(first.htmlPath).toString(), html)
   s.files.set(first.htmlPath, Buffer.from(html.replace('Saved', 'Unsaved')))
@@ -662,7 +662,7 @@ test('HTML creation forwards explicit candidate replacements to the save guard w
   await assert.rejects(s.invoke('dashboard_create_html', { ...args, supersedesPaths: [paths[1]] }), /SUPERSEDE_INVALID/)
   assert.equal(s.calls.filter(c => c[0] === 'save').length, 0)
   const saved = await s.middleware.wrapToolCall({ toolCall: { name: 'dashboard_create_html', args, id: 'save' } }, async () => new ToolMessage({ tool_call_id: 'save', content: await s.invoke('dashboard_create_html', args) }))
-  assert.equal(JSON.parse(saved.content).dashboard.artifactId, artifactId)
+  assert.equal(JSON.parse(saved.update?.messages?.[0]?.content ?? saved.content).dashboard.artifactId, artifactId)
   const manifest = s.calls.find(c => c[0] === 'save')[1]
   assert.equal(manifest.presentation.html, s.files.get(paths[1]).toString())
   assert.equal(manifest.supersedesPaths, undefined)
@@ -685,7 +685,7 @@ test('switching to standard charts can explicitly abandon an HTML prototype usin
   const first = await save(input)
   await s.middleware.wrapModelCall({ tools: [] }, async r => { assert.equal(r.toolChoice, 'required') })
   const final = await save({ ...input, supersedesPaths: [path] })
-  assert.equal(JSON.parse(first.content).dashboard.artifactId, JSON.parse(final.content).dashboard.artifactId)
+  assert.equal(JSON.parse(first.update?.messages?.[0]?.content ?? first.content).dashboard.artifactId, JSON.parse(final.update?.messages?.[0]?.content ?? final.content).dashboard.artifactId)
   await s.middleware.wrapModelCall({ tools: [] }, async r => { assert.equal(r.toolChoice, undefined); return { tool_calls: [] } })
   assert(s.files.has(path)); assert(s.calls.filter(c => c[0] === 'save').every(c => !c[1].presentation && !c[1].supersedesPaths))
 })
@@ -713,7 +713,7 @@ test('preview surfaces actionable checks before authoring; checks still require 
 })
 test('an HTML edit receipt explicitly identifies an existing file and saves title with HTML', async () => {
   const s = setup()
-  s.saved.manifest.presentation = { type: 'html', html: '<html><body>Old</body></html>' }
+  s.saved.manifest.charts = []; s.saved.manifest.tables = []; s.saved.manifest.presentation = { type: 'html', html: '<html><body>Old</body></html>' }
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   assert.equal(opened.saveArguments.title, s.saved.manifest.title)
   assert.equal(opened.saveArguments.expectedCurrentVersionId, opened.expectedCurrentVersionId)

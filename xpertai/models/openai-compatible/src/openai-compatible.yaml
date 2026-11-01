@@ -100,6 +100,49 @@ model_credential_schema:
       placeholder:
         zh_Hans: endpoint model name, e.g. chatgpt4.0
         en_US: endpoint model name, e.g. chatgpt4.0
+    - variable: api_protocol
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        en_US: API protocol
+        zh_Hans: API 协议
+      type: select
+      default: chat
+      required: false
+      options:
+        - value: chat
+          label:
+            en_US: Chat Completions
+            zh_Hans: Chat Completions
+        - value: responses
+          label:
+            en_US: Native Responses
+            zh_Hans: 原生 Responses
+    - variable: reasoning_effort
+      show_on:
+        - variable: api_protocol
+          value: responses
+      label:
+        en_US: Default reasoning effort
+        zh_Hans: 默认推理强度
+      type: select
+      required: false
+      options:
+        - value: none
+          label: { en_US: none, zh_Hans: none }
+        - value: minimal
+          label: { en_US: minimal, zh_Hans: minimal }
+        - value: low
+          label: { en_US: low, zh_Hans: low }
+        - value: medium
+          label: { en_US: medium, zh_Hans: medium }
+        - value: high
+          label: { en_US: high, zh_Hans: high }
+        - value: xhigh
+          label: { en_US: xhigh, zh_Hans: xhigh }
+        - value: max
+          label: { en_US: max, zh_Hans: max }
     - variable: mode
       show_on:
         - variable: __model_type
@@ -205,6 +248,10 @@ model_credential_schema:
           label:
             en_US: Tool Call
             zh_Hans: Tool Call
+        - value: multi_tool_call
+          label:
+            en_US: Multiple Tool Calls
+            zh_Hans: 多工具调用
         - value: no_call
           label:
             en_US: Not Support

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-office-editor",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Office editor app plugin with server-side XLSX automation and collaborative Univer documents and presentations.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/office-editor",

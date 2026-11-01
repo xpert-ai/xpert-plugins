@@ -1,24 +1,31 @@
+import { PostgresWorkbenchAdapter } from './postgres-adapter.js'
+import { quoteSqlIdentifier, type WorkbenchTransport } from '@xpert-ai/sql-workbench'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { from as copyFrom } from 'pg-copy-streams'
 import { Client, Query, type ClientConfig, type FieldDef, type QueryArrayConfig } from 'pg'
-import { SqlDatabaseWorkbenchAdapter, quoteDatabaseIdentifier, type DatabaseColumn, type DatabaseResult, type DatabaseValue, type WorkbenchTransport } from '@xpert-ai/plugin-sdk/data-workbench'
+import { type DatabaseLocation, type DatabaseColumn, type DatabaseResult, type DatabaseValue } from '@xpert-ai/plugin-sdk/data-workbench'
 
-export function createPostgresWorkbench(config: ClientConfig, schema = 'public') {
+export function postgresWorkbenchConfig(config: ClientConfig, schema: string, location: DatabaseLocation = {}) {
+  if (location.engineCatalog && location.engineCatalog !== 'internal') throw new Error('external_catalog_not_supported')
+  return { config: { ...config, database: location.database ?? config.database }, schema: location.schema ?? schema }
+}
+export function createPostgresWorkbench(saved: ClientConfig, defaultSchema = 'public', location: DatabaseLocation = {}) {
+  const { config, schema } = postgresWorkbenchConfig(saved, defaultSchema, location)
   // Dedicated parsers preserve int8/numeric, dates, timestamps, JSON and array text exactly.
   const client = new Client({ ...config, connectionTimeoutMillis: 15000, query_timeout: 30000, types: { getTypeParser: () => (value: string) => value } })
   let connected: Promise<void> | undefined, closed = false
-  const ensureConnected = () => connected ??= client.connect().then(async () => { await client.query(`SET search_path TO ${quoteDatabaseIdentifier(schema, 'postgres')}`) })
+  const ensureConnected = () => connected ??= client.connect().then(async () => { await client.query(`SET search_path TO ${quoteSqlIdentifier(schema, '"')}`) })
   const transport: WorkbenchTransport = {
     async importRows(input, signal) {
       await ensureConnected()
-      const reference=[input.schema||schema,input.table].map((name)=>quoteDatabaseIdentifier(name,'postgres')).join('.')
+      const reference=[input.schema||schema,input.table].map((name)=>quoteSqlIdentifier(name,'"')).join('.')
       const csv=input.rows.map((row)=>row.map((value)=>value===null?'\\N':'"'+String(value).replaceAll('"','""')+'"').join(',')+'\n')
       const timeout=AbortSignal.timeout(120000),boundedSignal=signal?AbortSignal.any([signal,timeout]):timeout
       let commitStarted=false
       try {
         await client.query('BEGIN')
-        const stream=client.query(copyFrom(`COPY ${reference} (${input.columns.map((name)=>quoteDatabaseIdentifier(name,'postgres')).join(',')}) FROM STDIN WITH (FORMAT csv, NULL E'\\\\N')`))
+        const stream=client.query(copyFrom(`COPY ${reference} (${input.columns.map((name)=>quoteSqlIdentifier(name,'"')).join(',')}) FROM STDIN WITH (FORMAT csv, NULL E'\\\\N')`))
         await pipeline(Readable.from(csv),stream,{signal:boundedSignal})
         commitStarted=true
         await client.query('COMMIT')
@@ -58,5 +65,5 @@ export function createPostgresWorkbench(config: ClientConfig, schema = 'public')
       })
     }
   }
-  return new SqlDatabaseWorkbenchAdapter('postgres', transport, { database: String(config.database || 'postgres'), schema })
+  return new PostgresWorkbenchAdapter(transport, { database: String(config.database || 'postgres'), schema })
 }

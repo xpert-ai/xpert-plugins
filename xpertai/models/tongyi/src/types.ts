@@ -29,7 +29,7 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     frequency_penalty?: number
     enable_thinking?: boolean
     thinking_budget?: number
-    reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | number
+    reasoning_effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | number
     tool_stream?: boolean
     enable_search?: boolean
     response_format?: 'text' | 'json_object' | 'json_schema'
@@ -49,6 +49,7 @@ export interface TongyiTranslationOptions {
 export interface TongyiTextEmbeddingModelOptions {
     context_size: number
     max_chunks: number
+    dimensions?: number
 }
 
 export function isTongyiInternationalEndpointEnabled(credentials?: Partial<TongyiCredentials>): boolean {

@@ -1,0 +1,58 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/mimo-v2-6-pro-ultraspeed
+model: xiaomi/mimo-v2.6-pro-ultraspeed
+label:
+  en_US: xiaomi/mimo-v2.6-pro-ultraspeed
+  zh_Hans: xiaomi/mimo-v2.6-pro-ultraspeed
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 131072
+    default: 65536
+  - name: enable_thinking
+    label:
+      zh_Hans: 思考模式
+      en_US: Thinking Mode
+    type: boolean
+    required: false
+    default: true
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    required: false
+    options:
+      - text
+      - json_object
+pricing:
+  input: "30"
+  output: "60"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/mimo-v2-6-pro-ultraspeed
+  rules:
+    - component: input
+      unit_price: 30
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 60
+      unit_size: 1000000
+      region: cn
+    - component: cache_read_input
+      unit_price: 0.25
+      unit_size: 1000000
+      region: cn

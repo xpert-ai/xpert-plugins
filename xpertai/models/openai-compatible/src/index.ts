@@ -11,6 +11,7 @@ const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
   name: string;
   version: string;
+  xpert: { plugin: { level: 'system'; artifactNamespace: string } };
 };
 
 
@@ -23,6 +24,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     meta: {
         name: packageJson.name,
         version: packageJson.version,
+        level: packageJson.xpert.plugin.level,
+        artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
         category: 'model',
         icon: {
             type: 'svg',

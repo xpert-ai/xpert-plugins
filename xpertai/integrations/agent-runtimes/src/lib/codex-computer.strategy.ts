@@ -5,6 +5,7 @@ import {
   AgentRuntimeStrategy,
   type AgentRuntimeContext,
   type AgentRuntimeHandle,
+  type AgentRuntimeObservation,
   type AgentRuntimeStart,
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
@@ -33,22 +34,43 @@ export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerCodex(request, context, this.profiles.profile(request, context, 'codex-computer'))
   }
-  inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
-    return inspectComputerCodex(handle, context, this.profiles)
+  async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
+    requireComputerProfile(handle, context, this.profiles)
+    // A durable result may precede cleanup. Recover that result after an API
+    // restart without trying to read a JSONL service that has already exited.
+    const observation = context.settlement
+      ? { ...context.settlement, handle }
+      : await inspectComputerCodex(handle, context, this.profiles)
+    return ['succeeded', 'failed', 'cancelled'].includes(observation.status)
+      ? this.settle(handle, context, observation)
+      : observation
   }
   async cancel(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
     requireComputerProfile(handle, context, this.profiles)
     if (!handle.runner) throw new Error('Codex Computer receipt is unavailable')
-    const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
-    const outcome = context.settlement?.status ?? 'cancelled'
-    const controlEvidence = runnerCompletion(context, handle, outcome, result.completion)
+    return this.settle(handle, context, { status: 'cancelled', handle })
+  }
+
+  private async settle(
+    handle: AgentRuntimeHandle,
+    context: AgentRuntimeContext,
+    observation: AgentRuntimeObservation
+  ): Promise<AgentRuntimeObservation> {
+    const receipt = handle.runner!
+    const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(receipt)
+    const outcome = context.settlement?.status ?? observation.status
+    if (outcome !== 'succeeded' && outcome !== 'failed' && outcome !== 'cancelled')
+      throw new Error('Invalid Computer settlement outcome')
+    const controlEvidence = result.state === 'exited'
+      ? runnerCompletion(context, handle, outcome, result.completion)
+      : undefined
     return {
+      ...observation,
       status: controlEvidence
-        ? ('cancelled' as const)
-        : result.state === 'stopping'
+        ? observation.status
+        : result.state === 'stopping' && observation.status === 'cancelled'
         ? ('cancelling' as const)
         : ('unknown' as const),
-      handle,
       controlEvidence
     }
   }

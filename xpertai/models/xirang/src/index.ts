@@ -22,7 +22,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     artifactNamespace: 'xirang_model',
     icon: { type: 'image', value: `data:image/png;base64,${icon}` },
     displayName: '天翼云模型',
-    description: '通过天翼云星辰 MaaS 接入兼容 OpenAI API 的文本、向量、重排和图片模型',
+    description: '通过天翼云星辰 MaaS 接入文本、向量、重排、图片、语音识别和语音合成服务',
     keywords: ['天翼云', '星辰', 'Xirang', 'Ctyun', 'model', 'LLM'],
     author: 'XpertAI'
   },

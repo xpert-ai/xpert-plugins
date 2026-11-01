@@ -1,5 +1,17 @@
 # @xpert-ai/plugin-volcengine
 
+## 0.5.1
+
+### Patch Changes
+
+- 8d0f27e: Support validated structured output through automatic tool selection for MiniMax M3.1 Flash, MiMo V2.6 Pro Ultraspeed and Step 5 Preview. Keep Step 5 thinking off by default and mark retired Doubao Seed 2.0 Mini 260215 deprecated while retaining saved references.
+
+## 0.5.0
+
+### Minor Changes
+
+- b39d857: Add the October Ark and DashScope models with verified context limits, reasoning controls, embedding dimensions and regional/cache prices. Apply Ark weekday peak tariffs at completion and DashScope daily peak/off-peak tariffs. Preserve reasoning history (including Ark encrypted content) across streamed and non-streamed tool continuations. Add Seedream 5.0 Flash to image tools and retain the old Seed Evolving catalog ID as deprecated.
+
 ## 0.4.1
 
 ### Patch Changes

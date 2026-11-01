@@ -1,4 +1,6 @@
 model: doubao-seed-evolving-latest-version
+# Retain saved references; new selections use the official doubao-seed-evolving ID.
+deprecated: true
 label:
   en_US: doubao-seed-evolving-latest-version
   zh_Hans: doubao-seed-evolving-latest-version

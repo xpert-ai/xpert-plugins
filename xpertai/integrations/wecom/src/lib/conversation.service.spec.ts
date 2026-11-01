@@ -28,6 +28,7 @@ describe('WeComConversationService', () => {
         ? options.triggerBinding
         : {
             xpertId: 'xpert-1',
+            tenantId: 'tenant-1', organizationId: 'organization-1',
             sessionTimeoutSeconds: 3600,
             summaryWindowSeconds: 0
           }
@@ -41,6 +42,7 @@ describe('WeComConversationService', () => {
         }
       })
     }
+    integrationPermissionService['readForUsage'] = jest.fn(async () => ({id:'integration-1', provider:'wecom_long', tenantId:'tenant-1'}))
     const wecomChannel = {
       errorMessage: jest.fn().mockResolvedValue(undefined),
       sendTextByIntegrationId: jest.fn().mockResolvedValue({

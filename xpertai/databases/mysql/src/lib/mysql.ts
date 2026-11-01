@@ -1,3 +1,4 @@
+import type { DatabaseLocation } from '@xpert-ai/plugin-sdk/data-workbench'
 import { createMysqlWorkbench } from './mysql-workbench.js'
 import mysql from 'mysql2'
 import { Connection, Pool, createConnection, FieldPacket, ConnectionOptions } from 'mysql2'
@@ -18,7 +19,7 @@ export interface MysqlAdapterOptions extends SQLAdapterOptions {
 const MYSQL_DEFAULT_PORT = 3306
 
 export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> extends BaseSQLQueryRunner<T> {
-  getWorkbenchAdapter() { return createMysqlWorkbench(this.options, 'mysql') }
+  getWorkbenchAdapter(location?: DatabaseLocation) { return createMysqlWorkbench(this.options, 'mysql', undefined, location) }
   override readonly name: string = 'MySQL'
   override readonly type: string = MYSQL_TYPE
   override readonly syntax = DBSyntaxEnum.SQL

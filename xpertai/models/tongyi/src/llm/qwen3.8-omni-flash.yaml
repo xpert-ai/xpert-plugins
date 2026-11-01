@@ -1,0 +1,72 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/qwen3-8-omni-flash
+model: qwen3.8-omni-flash
+label:
+  en_US: qwen3.8-omni-flash
+  zh_Hans: qwen3.8-omni-flash
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+model_properties:
+  mode: chat
+  context_size: 1000000
+parameter_rules:
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 131072
+    default: 65536
+  - name: reasoning_effort
+    label:
+      zh_Hans: 思考强度
+      en_US: Reasoning Effort
+    type: string
+    required: false
+    default: xhigh
+    options:
+      - none
+      - low
+      - medium
+      - xhigh
+  - name: enable_search
+    type: boolean
+    default: false
+    label:
+      zh_Hans: 联网搜索
+      en_US: Web Search
+pricing:
+  input: "0.8"
+  output: "2.7"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/qwen3-8-omni-flash
+  rules:
+    - component: input
+      unit_price: 0.8
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 2.7
+      unit_size: 1000000
+      region: cn
+    - component: cache_read_input
+      unit_price: 0.1
+      unit_size: 1000000
+      region: cn
+    - component: input
+      unit_price: 1.094
+      unit_size: 1000000
+      region: international
+    - component: output
+      unit_price: 3.427
+      unit_size: 1000000
+      region: international
+    - component: cache_read_input
+      unit_price: 0.117
+      unit_size: 1000000
+      region: international

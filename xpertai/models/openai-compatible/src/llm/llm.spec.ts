@@ -282,7 +282,7 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
 
     const invocationParams = model.invocationParams()
     expect(invocationParams['temperature']).toBe(0.2)
-    expect(invocationParams['max_completion_tokens']).toBe(8192)
+    expect(invocationParams['max_tokens']).toBe(8192)
     expect(invocationParams['top_p']).toBe(0.8)
     expect(invocationParams['presence_penalty']).toBe(0.3)
     expect(invocationParams['frequency_penalty']).toBe(0.4)
