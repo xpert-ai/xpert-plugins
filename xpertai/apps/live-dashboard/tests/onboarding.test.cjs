@@ -4,6 +4,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { dashboardApp, DASHBOARD_PROJECT_TYPE } = require('../dist/lib/project')
 const { dashboardTemplates } = require('../dist/lib/templates')
+const root = path.resolve(__dirname, '../skills/live-dashboard/examples')
+const catalog = JSON.parse(fs.readFileSync(path.join(root, 'catalog.json')))
 
 test('App links one project-required author template with runnable file and skill dependencies', () => {
   const app = dashboardApp.appConfig
@@ -19,13 +21,30 @@ test('App links one project-required author template with runnable file and skil
   const graph = JSON.parse(author.dslContent)
   assert.deepEqual(graph.team.options.workspaceScope, {mode:'project-required',projectType:DASHBOARD_PROJECT_TYPE})
   assert.equal(graph.team.features.sandbox.enabled, true)
+  assert.equal(graph.team.agentConfig.recursionLimit, 300)
+  assert.equal(graph.nodes.find(n=>n.entity.provider==='LiveDashboard').entity.options.maxModelCalls, 64)
+  assert.equal(author.startPrompts.length, 5)
+  const uiPrompts = require('../src/remote/locales/zh-Hans.json')
+  assert.deepEqual(author.startPrompts.slice(0,3), [uiPrompts.regionalPrompt,uiPrompts.salesPrompt,uiPrompts.qualityPrompt])
+  assert.equal(author.startPrompts[3], uiPrompts.superstorePrompt)
+  assert.equal(graph.team.features.opener.enabled, true)
+  assert.deepEqual(graph.team.features.opener.questions.map(item => item.prompt), author.startPrompts)
+  assert.deepEqual(graph.team.features.opener.questions.map(item => item.label), [
+    uiPrompts.regionalTitle, uiPrompts.salesTitle, uiPrompts.qualityTitle, uiPrompts.superstoreTitle, uiPrompts.realDataTitle
+  ])
   assert.ok(dashboardTemplates.find(t=>t.key==='live-dashboard-monitor'))
 })
 
-test('App cover is declared in the package screenshot allowlist', () => {
-  const manifest = require('../.xpertai-plugin/plugin.json')
-  assert.deepEqual(dashboardApp.appConfig.presentation.screenshots, manifest.assets.screenshots)
-  for (const asset of manifest.assets.screenshots) {
-    assert.ok(fs.statSync(path.resolve(__dirname, '..', asset)).isFile(), asset)
+test('catalog packages complete recipes and declared screenshot assets', () => {
+  assert.deepEqual(catalog.examples.map(x=>x.key), ['regional-sales','sales-overview','production-quality','superstore'])
+  for (const recipe of catalog.examples.filter(recipe=>recipe.dataMode==='synthetic-demo')) {
+    for (const file of [recipe.recipe, recipe.source, recipe.preview, ...['definition.json','query.json','expected.json','demo.csv','demo.json'].map(f=>recipe.key+'/'+f)])
+      assert.ok(fs.statSync(path.join(root,file)).isFile(), file)
+    assert.equal(recipe.dataMode, 'synthetic-demo')
+    const definition = JSON.parse(fs.readFileSync(path.join(root,recipe.key,'definition.json')))
+    assert.ok(!('file' in definition), 'no copied scope identifiers')
+    assert.ok(!JSON.stringify(definition).includes('dataSourceId'))
   }
+  const manifest = require('../.xpertai-plugin/plugin.json')
+  assert.deepEqual(dashboardApp.appConfig.presentation.screenshots,manifest.assets.screenshots)
 })

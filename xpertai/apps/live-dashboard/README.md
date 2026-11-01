@@ -181,6 +181,8 @@ The owner can delete private Assistant dashboards; Project dashboards require th
 
 Manual acceptance after installing the updated plugin: cancel a deletion and confirm the entry remains; delete an unused saved dashboard and confirm it stays absent after reload; delete the selected dashboard and confirm the preview clears and its old shared link is unavailable.
 
-## App setup
+## Quick start and examples
 
-See [快速开始](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant with its declared plugin and skill dependencies. Connect authorized business data and review a saved draft before publication.
+See [快速开始与样例](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant. Three versioned recipes bundle source, labeled synthetic data, previews and checks in [skills/live-dashboard/examples](skills/live-dashboard/examples/README.md). Existing dashboards remain independent of recipe upgrades.
+
+Superstore 企业 BI 样例的数据准备、三个页面和指标口径见 [Superstore](docs/superstore.mdx)。

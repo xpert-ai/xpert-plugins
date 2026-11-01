@@ -103,9 +103,9 @@ export function DashboardPicker({ value, selectedTitle, project, disabled, open,
   const title = selectedTitle ?? (value || t.select)
   return <Popover open={open} onOpenChange={onOpenChange}>
     <PopoverTrigger role="combobox" aria-label={t.selectProjectDashboard} aria-expanded={open} aria-controls={open ? contentId : undefined} aria-haspopup="dialog" disabled={disabled}
-      className={cn(buttonVariants({ variant: 'outline' }), 'dashboard-picker justify-between font-normal')} title={`${project?.name ?? t.selectProject} / ${title}`}>
+      className={cn(buttonVariants({ variant: 'outline' }), 'dashboard-picker h-10 justify-between rounded-[10px] border-border/70 bg-muted/20 font-normal shadow-none data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/10')} title={`${project?.name ?? t.selectProject} / ${title}`}>
       <span className="picker-project truncate text-muted-foreground">{project?.name ?? t.selectProject}</span><ChevronRight className="shrink-0 opacity-50" aria-hidden="true"/>
-      <span className="picker-dashboard truncate">{title}</span><ChevronDown className="shrink-0 opacity-50" aria-hidden="true"/>
+      <span className="picker-dashboard truncate font-medium">{title}</span><ChevronDown className="shrink-0 opacity-50" aria-hidden="true"/>
     </PopoverTrigger>
     <PopoverContent id={contentId} aria-label={t.selectProjectDashboard} align="start" className="dashboard-picker-menu p-0">
       <ProjectColumn project={project} disabled={disabled} onChange={onProjectChange} t={t}/>

@@ -23,7 +23,7 @@ async function setup(t) {
   const ui = await import('@xpert-ai/plugin-shadcn-ui'), i18nUi = await import('@xpert-ai/plugin-shadcn-ui/i18n')
   const { createRoot } = require('react-dom/client')
   let root, ready, created, scopeReset, rejectDelete = false, releaseDelete, holdOpen = false, releaseOpen
-  const calls = [], navigation = [], selections = []
+  const calls = [], navigation = [], selections = [], assistantRequests = []
   const projects = [{ id: randomUUID(), name: 'Project A' }, { id: randomUUID(), name: 'Project B' }]
   let currentProject = projects[0], navigationSuccess = true
   const projectNavigation = []
@@ -52,6 +52,7 @@ async function setup(t) {
         return response
       }
       if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.navigation.open') { projectNavigation.push(request.payload); return { success: navigationSuccess } }
+      if (kind === 'invokeClientCommand' && request.commandKey === 'assistant.chat.send_message') { assistantRequests.push({ ...request.payload, selection: selections.at(-1), projectId: currentProject.id }); return { success: true } }
       if (kind === 'executeAction' && ['projects', 'dashboards'].includes(request.actionKey)) {
         pickerRequests.push(request)
         const {search, page} = request.input
@@ -93,6 +94,7 @@ async function setup(t) {
         if (id === './i18n') return load('i18n.ts')
         if (id === './toolbar-menu') return load('toolbar-menu.tsx')
         if (id === './dashboard-picker') return load('dashboard-picker.tsx')
+        if (id === './dashboard-starter') return load('dashboard-starter.tsx')
         if (id.startsWith('./locales/')) return require(`../src/remote/${id}`)
         return require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id)
       }
@@ -121,7 +123,7 @@ async function setup(t) {
     await act(async () => ready('en-US', readOnly ? {} : { selectionId: items[0].artifactId }))
     await flush()
   }
-  return { reset, projects, projectNavigation, pickerRequests,
+  return { reset, projects, projectNavigation, pickerRequests, assistantRequests,
     setPickerFixtures: (p, d) => { pickerProjects = p; pickerDashboards = d },
     fill: async (label, value) => {
       const input = document.querySelector(`input[aria-label="${label}"]`)
@@ -141,6 +143,21 @@ async function setup(t) {
 
 test('dashboard deletion UI', async t => {
   const harness = await setup(t)
+  await t.test('new-dashboard examples clear the previous edit target and send a request in the current project', async () => {
+    await harness.reset()
+    await harness.click(harness.picker())
+    await harness.click(harness.button('New dashboard'))
+    assert.deepEqual([...document.querySelectorAll('button[aria-label^="Try demo:"]')].map(button => button.getAttribute('aria-label')), [
+      'Try demo: Regional sales · Beginner', 'Try demo: Sales overview · Beginner',
+      'Try demo: Production quality · Beginner', 'Try demo: Superstore enterprise BI · Advanced'
+    ])
+    await harness.click(harness.button('Try demo: Sales overview · Beginner'))
+    assert.equal(harness.assistantRequests.at(-1).selection, null)
+    assert.equal(harness.assistantRequests.at(-1).projectId, harness.projects[0].id)
+    assert.match(harness.assistantRequests.at(-1).text, /sales-overview.*bundled demo file/)
+    assert.match(harness.assistantRequests.at(-1).text, /two filter checks.*without publishing/)
+    assert.equal(harness.calls.length, 0, 'starting an example does not save or publish a dashboard directly')
+  })
   await t.test('project selector requests host navigation and follows authoritative scope changes', async () => {
     await harness.reset()
     const projectPicker = harness.picker

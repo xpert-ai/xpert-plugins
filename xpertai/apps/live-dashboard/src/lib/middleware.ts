@@ -11,7 +11,7 @@ import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { AgentMiddlewareStrategy, RequestContext, validateAnalyticsPayload, workspaceFileMutationPath, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { artifactDocumentHtml, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
-import { libraryLocks } from './document-libraries'
+import { bundledLibraries, libraryLocks } from './document-libraries'
 import { DASHBOARD_NETWORK_POLICY } from './document-network'
 import { discoverToolSchema, previewToolSchema, createToolSchema, createHtmlToolSchema, htmlPathSchema, fromAgentBinding, parseObjectJson } from './agent.schema'
 import { HTML_DASHBOARD_GUIDANCE } from './html-guidance'
@@ -28,7 +28,8 @@ import { dashboardIcon } from './dashboard-icon'
 import { createPreviewRetryGuard } from './preview-retry'
 import { dashboardPromptWorkflows } from './prompt-workflows'
 
-const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict().default({})
+const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional(),
+  maxModelCalls: z.number().int().min(1).max(64).default(24) }).strict().default({})
 
 export const DASHBOARD_GUIDANCE = `For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
@@ -40,6 +41,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     slashCommands: dashboardPromptWorkflows,
     // Tools inherit this self-contained icon through the platform middleware metadata.
     icon: dashboardIcon, features: [FEATURE], configSchema: { type: 'object', properties: {
+      maxModelCalls: { type: 'integer', minimum: 1, maximum: 64, default: 24,
+        title: { en_US: 'Model call limit', zh_Hans: '模型调用上限' },
+        description: { en_US: 'Bounded per-run budget, including recipe reads and source setup. Save validation remains required.', zh_Hans: '每次执行的调用预算，包含配方读取和数据源准备；保存校验仍然必须通过。' } },
       allowedFinalProviders: { type: 'array', items: { type: 'string' }, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的 Provider' },
         description: { en_US: 'Optional provider IDs required for saved Agent dashboards. Upstream previews remain available.', zh_Hans: '可选的最终看板 Provider ID 列表，不限制上游来源预览。' } }
     }, additionalProperties: false }
@@ -174,7 +178,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         // A noncompliant model must not restart the failed loop even after tools were removed.
         return result?.tool_calls?.length ? new AIMessage(summary) : result
       }
-      const exhausted = ++modelCalls > 24
+      const exhausted = ++modelCalls > options.maxModelCalls
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
       const result = await handler({ ...request, ...(evidence.pending ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
         ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
@@ -185,7 +189,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }, tools: [
       filterEvidence.tool,
       ...createDefinitionTools(context, () => { listedSources = undefined }),
-      tool(async () => JSON.stringify({ libraries: await libraryLocks(['echarts', 'three']),
+      tool(async () => JSON.stringify({ libraries: (await bundledLibraries()).map(({ source, ...lock }) => lock),
         online: { ...DASHBOARD_NETWORK_POLICY,
           usage: 'HTML may load scripts, stylesheets and fonts directly from these exact HTTPS origins. Use script src and link rel="stylesheet"; pin exact versions where available. Tailwind CDN https://cdn.tailwindcss.com is supported. Online resources require connectivity when saving and viewing; loading failures fail preflight. Keep all business data queries on window.xpertLiveArtifact; fetch/XHR, external images, workers, iframes and eval remain unavailable. Online resources do not belong in the packaged libraries array.' },
         pageRuntime: {
@@ -195,7 +199,11 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
           refresh: 'live.refresh(bindingId) requires a Binding ID. live.refresh() without an ID is invalid. For a page refresh button or timer, call Promise.all(bindingIds.map(id => live.refresh(id))). Each subscription redraws its KPI, chart and details.',
           filters: 'Mark native data selects with data-dashboard-control="<exact controlId>". Mark purely visual selects with data-dashboard-presentation instead. Changing a data select must call live.query for every affected Binding, not only filter cached rows in JS. bindSelect updates one Binding only. Read references/html-lifecycle.md before writing the page.'
         },
-        usage: { echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption(completeOption, {notMerge:true}). Canvas is also available. Derive active series/legend dimensions from each received Dataset, including filtered results; never retain excluded groups as zero-valued series. Aggregate repeated categories using all grain dimensions, clear empty results, and redraw KPI, chart and details together in subscribe. Use ResizeObserver to resize and reuse the instance on filter/refresh.',
+        usage: { 'trend-workspace': 'window.TrendWorkspace: pale-blue KPI rail and aligned trends. Read themes/trend-workspace/README.md.',
+          'profit-atlas': 'window.ProfitAtlas: dark profitability workbench, horizontal KPIs, scatter-first analysis and signed rankings. Read themes/profit-atlas/README.md.',
+          'customer-brief': 'window.CustomerBrief: warm editorial customer brief, serif hierarchy, grouped return metrics and segment comparisons. Read themes/customer-brief/README.md.',
+          themes: 'Select exactly one theme with echarts. Each provides enhanceSelect(nativeSelect) and charts.line/horizontal/scatter with isolated CSS and pinned bytes. Read themes/README.md; preserve an existing dashboard theme unless the user requests a change.',
+          echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption(completeOption, {notMerge:true}). Canvas is also available. Derive active series/legend dimensions from each received Dataset, including filtered results; never retain excluded groups as zero-valued series. Aggregate repeated categories using all grain dimensions, clear empty results, and redraw KPI, chart and details together in subscribe. Use ResizeObserver to resize and reuse the instance on filter/refresh.',
           three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
         lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources are listed separately under online, are not pinned in the Artifact, and must load successfully when saving and viewing.' }),
       { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries, exact versions and allowed HTTPS origins for online scripts, stylesheets and fonts. Read before using Tailwind CDN or ECharts/Three.js. Returns metadata, never library source.',

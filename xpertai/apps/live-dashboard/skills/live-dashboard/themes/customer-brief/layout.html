@@ -1,0 +1,22 @@
+<!-- Structural fragment; add verified controls, data bindings and the SDK runtime. -->
+<body data-dashboard-theme="customer-brief@1">
+  <main class="workspace">
+    <header class="brief-header">
+      <div><h1>Customer report</h1><p class="description">Business question</p><span class="demo">Source and period</span></div>
+      <div class="filters" aria-label="Analysis filters"><!-- Typed filter-field controls --></div>
+    </header>
+    <section class="brief-metrics" aria-label="Current scope metrics">
+      <div class="brief-primary-metrics"><!-- Customer, order and value metrics --></div>
+      <div class="brief-return-metrics"><!-- Rate then count; keep original IDs --></div>
+    </section>
+    <div class="analysis">
+      <div class="brief-plots">
+        <section class="panel"><h2>01 Customer groups</h2><div class="chart" id="chart-primary"></div></section>
+        <section class="panel"><h2>02 Regional returns</h2><div class="chart" id="chart-secondary"></div></section>
+      </div>
+      <div class="full-details"><section class="details"><!-- Complete accessible detail table --></section></div>
+      <p id="status" class="status" role="status"></p>
+    </div>
+    <footer><span>Source period</span><span id="freshness"></span></footer>
+  </main>
+</body>

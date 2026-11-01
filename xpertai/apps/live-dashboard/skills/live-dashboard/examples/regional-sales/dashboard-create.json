@@ -1,0 +1,35 @@
+{
+  "title": "区域销售 · 演示数据",
+  "previewIds": [
+    "<current-preview-id>"
+  ],
+  "controls": [
+    {
+      "controlId": "region",
+      "label": "区域",
+      "type": "string",
+      "defaultValue": null
+    }
+  ],
+  "charts": [
+    {
+      "id": "region-sales",
+      "title": "区域销售额 · CNY",
+      "type": "bar",
+      "datasetId": "<preview-dataset-id>",
+      "x": "region",
+      "y": "amount"
+    }
+  ],
+  "tables": [
+    {
+      "id": "sales-details",
+      "title": "销售明细 · 演示数据",
+      "datasetId": "<preview-dataset-id>",
+      "fields": [
+        "region",
+        "amount"
+      ]
+    }
+  ]
+}

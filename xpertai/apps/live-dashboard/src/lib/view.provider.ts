@@ -2,7 +2,7 @@ import { DashboardProjectsService, projectSearchSchema } from './projects.servic
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery } from '@xpert-ai/contracts'
-import { ARTIFACT_PRESENTATION_OPEN_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
+import { ARTIFACT_PRESENTATION_OPEN_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
 import { ViewExtensionProvider, type IXpertViewExtensionProvider } from '@xpert-ai/plugin-sdk'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardRemoteEntry } from './remote-entry'
@@ -31,6 +31,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 50 }, cache: { enabled: false } },
       clientCommands: [{ key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
+        { key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, label: text('Create with Assistant', '交给助理制作') },
         { key: ARTIFACT_PRESENTATION_OPEN_COMMAND, label: text('Open shared page', '打开独立页面') },
         { key: WORKBENCH_NAVIGATION_OPEN_COMMAND, label: text('Open dashboard', '打开看板') }],
       hostEvents: { subscriptions: [{ key: 'dashboard-created', event: 'assistant.tool.completed',

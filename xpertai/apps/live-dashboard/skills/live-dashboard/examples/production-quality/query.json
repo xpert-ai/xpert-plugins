@@ -1,0 +1,53 @@
+{
+  "payloadFields": {
+    "select": [
+      "date",
+      "line",
+      "produced",
+      "good",
+      "defects"
+    ],
+    "filters": [
+      {
+        "column": "line",
+        "operator": "eq",
+        "value": {
+          "type": "parameter",
+          "name": "line"
+        },
+        "skipWhenNull": true
+      }
+    ],
+    "orderBy": [
+      {
+        "column": "date",
+        "direction": "asc"
+      },
+      {
+        "column": "line",
+        "direction": "asc"
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "name": "line",
+      "controlId": "line",
+      "type": "string",
+      "required": false,
+      "defaultValue": null
+    }
+  ],
+  "grain": [
+    "date",
+    "line"
+  ],
+  "controls": [
+    {
+      "controlId": "line",
+      "label": "产线",
+      "type": "string",
+      "defaultValue": null
+    }
+  ]
+}

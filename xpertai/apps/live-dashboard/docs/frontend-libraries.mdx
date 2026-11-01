@@ -1,12 +1,12 @@
 ---
 title: "固定前端图库"
-description: "ECharts、Three.js 的受控注入、版本快照和 Binding 边界。"
+description: "ECharts、Three.js 与三种可选视觉主题的受控注入、版本快照和 Binding 边界。"
 ---
 
 ## Agent 使用方式
 
 调用 `dashboard_libraries` 读取可用库的精确版本、全局名称、摘要和能力说明。
-当前打包 ECharts 5.6.0（`window.echarts`）与 Three.js 0.185.1（`window.THREE`）。
+当前打包 ECharts 5.6.0（`window.echarts`）、Three.js 0.185.1（`window.THREE`），以及三个 1.0.0 主题：Trend Workspace（`window.TrendWorkspace`）、Profit Atlas（`window.ProfitAtlas`）和 Customer Brief（`window.CustomerBrief`）。
 创建 HTML 看板时传入 `libraries: ["echarts"]`；不使用库时省略。
 已有看板先 `dashboard_open`，读取原 HTML，再 `dashboard_update`。
 修改工具省略 `libraries` 会保留原依赖；显式传入完整列表表示增加、移除或升级依赖。
@@ -49,6 +49,14 @@ WebGLRenderer 需要浏览器提供 WebGL2，必须处理 GPU 不可用并释放
 生成预检与实际 View 使用同一 SDK、相同 HTML 和同一份库源码。
 未知库、缺失的依赖锁或被篡改的源码会被拒绝，运行时异常会阻止保存。
 包中附带 ECharts 的 LICENSE/NOTICE 和 Three.js LICENSE。
+
+## 可复用企业主题
+
+使用 `libraries:["echarts","trend-workspace"]` 可复用浅蓝 KPI 侧栏、精致筛选器和图表主题。`window.TrendWorkspace.enhanceSelect(select)` 提供键盘可用的双层标签下拉，`window.TrendWorkspace.charts` 提供趋势、排名和散点图配方。布局类名和字段参数见技能的 `themes/trend-workspace/README.md`。
+
+盈利分析可选 `libraries:["echarts","profit-atlas"]`；客户报告可选 `libraries:["echarts","customer-brief"]`。每个文档只使用一个主题库，重复或混合主题请求会被拒绝。三套主题共享筛选与查询契约，布局与色彩各自独立，详见[视觉风格](/visual-styles)。
+
+主题只提供样式和展示组件，不提供业务数据或替代 SDK 查询。Agent 仍负责业务 HTML、指标口径、Binding 与筛选联动。主题代码随 Artifact 固定，旧看板不会因插件升级自行变样；图标的 Lucide ISC 许可也随包保留。
 
 ## 查询权限
 

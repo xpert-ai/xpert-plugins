@@ -1,0 +1,19 @@
+{
+  "all": {
+    "amount": 50000
+  },
+  "filtered": {
+    "East": {
+      "amount": 12000
+    },
+    "West": {
+      "amount": 18000
+    }
+  },
+  "checks": [
+    "All \u2192 first option \u2192 second option \u2192 all; chart, KPI and detail agree.",
+    "Refresh uses the current filter.",
+    "Empty results clear charts and show no-data; errors never show old totals as current.",
+    "Saved draft remains unpublished and belongs to current Project."
+  ]
+}

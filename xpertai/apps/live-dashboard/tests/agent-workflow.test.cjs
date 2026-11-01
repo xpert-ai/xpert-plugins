@@ -546,7 +546,7 @@ test('repeated creation retries advance the cached draft revision for the same A
 test('Agent discovers frontend pins and saves only explicitly requested libraries', async () => {
   const s = setup(), { input, binding } = draft()
   const catalog = JSON.parse(await s.invoke('dashboard_libraries', {}))
-  assert.deepEqual(catalog.libraries.map(item => item.id), ['echarts', 'three'])
+  assert.deepEqual(catalog.libraries.map(item => item.id), ['echarts', 'three', 'trend-workspace', 'profit-atlas', 'customer-brief'])
   assert(catalog.libraries.every(item => !Object.hasOwn(item, 'source')))
   await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
@@ -760,3 +760,10 @@ for (const source of [{ kind: 'definition', definitionId: randomUUID(), versionI
     s.revoke(); await assert.rejects(s.invoke('dashboard_discover', { source, providerId: binding.providerId }), /REVOKED/)
   })
 }
+
+test('onboarding may extend the call budget while keeping a finite limit', async () => {
+  for (const invalid of [0,65,1.5,'48',null]) assert.throws(()=>setup({maxModelCalls:invalid}))
+  const s=setup({maxModelCalls:48})
+  for(let i=0;i<48;i++) await s.middleware.wrapModelCall({tools:['available']},async r=>assert.deepEqual(r.tools,['available']))
+  await s.middleware.wrapModelCall({tools:['available']},async r=>assert.deepEqual(r.tools,[]))
+})

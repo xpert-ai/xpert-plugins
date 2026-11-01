@@ -13,12 +13,18 @@ export const dashboardAppConfig = {
   modelRequirements: { primary: true },
   presentation: {
     developer: 'Xpert AI',
-    tagline: text('Create live dashboards with your business data', '连接业务数据，对话制作实时看板'),
-    longDescription: text('Create dashboards with an Assistant in ChatKit. Select a Project, connect authorized files and business sources, then review a saved draft before publication.', '在 ChatKit 中与助理一起制作看板。选择项目，连接有权限的文件及业务数据源，检查保存的草稿后再发布。'),
+    tagline: text('From a working example to your live business data', '从可运行样例开始，连接你的业务数据'),
+    longDescription: text('Create dashboards with an Assistant in ChatKit. Select a Project, explore clearly labeled demo data or connect authorized files and business sources, then review a saved draft before publication.', '在 ChatKit 中与助理一起制作看板。选择项目，体验明确标注的演示数据或连接有权限的文件及业务数据源，检查保存的草稿后再发布。'),
     screenshots: [
-      './assets/branding/cover-v1.webp'
+      './assets/branding/cover-v1.webp',
+      './assets/previews/trend-workspace.png',
+      './assets/previews/profit-atlas.png',
+      './assets/previews/customer-brief.png'
     ],
     features: [
+      { key: 'visual-styles', title: text('Three visual styles', '三种视觉风格'), description: text('Preview the Trend Workspace overview, Profit Atlas profitability desk and Customer Brief report prototypes. Each style includes reusable Agent recipes.', '预览 Trend Workspace 经营总览、Profit Atlas 盈利分析台与 Customer Brief 客户报告原型。每种风格均提供 Agent 可复用配方。') },
+      { key: 'superstore', title: text('Enterprise retail analytics', '企业零售 BI 样例'), description: text('A reproducible Tableau Superstore dataset and three dashboards query your authorized published Data Xpert model.', '可复现的 Tableau Superstore 数据与三个企业看板，通过有权限的 Data Xpert 发布模型查询。') },
+      { key: 'examples', title: text('Three runnable examples', '三个可运行样例'), description: text('Regional sales, sales overview and production quality include source, demo data and validation checks.', '区域销售、销售总览和生产质量均附带源码、演示数据与核对清单。') },
       { key: 'project', title: text('One synchronized Project', '项目双向同步'), description: text('ChatKit and the dashboard view use the same Project and resource permissions.', 'ChatKit 与看板视图使用同一项目及资源权限。') },
       { key: 'draft', title: text('Review before publication', '先检查，再发布'), description: text('The Assistant saves a draft; a project manager publishes the reviewed revision.', '助理保存草稿，项目管理者检查后发布指定修订。') }
     ],

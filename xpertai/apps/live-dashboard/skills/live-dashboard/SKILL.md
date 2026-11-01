@@ -7,6 +7,12 @@ description: Create and continuously edit saved live dashboards, including free-
 
 Use the platform SandboxFile tools to author source files. Use the dashboard tools to validate and save the business document. This skill belongs to the Live Dashboard plugin; data-source-specific query formats remain owned by each provider.
 
+## Quick start and examples
+
+For a first dashboard or a request for examples, read [examples/catalog.json](examples/catalog.json), [the shared workflow](examples/README.md), and only the selected recipe. Offer regional-sales (standard chart), sales-overview (HTML/ECharts), or production-quality (HTML/ECharts). Keep all files and drafts in the currently selected ChatKit Project. Explicit demo requests use labeled synthetic fixtures through a real registered file.table source; otherwise establish demo versus real data before writing. Never silently fill real-data gaps with sample values. Reuse existing authoring and draft tools; sample updates never overwrite existing dashboards.
+
+For enterprise BI, offer [Superstore](examples/superstore/README.md): three full dashboards over the authorized **published Data Xpert SuperstoreOrders model**. This recipe uses `data-xpert.ontology`, not the file workflow above. Keep its fictional teaching-data label. Do not read the entire orders.csv into model context; follow its administrator setup and source discovery. Missing authorization/model is a setup gap, never permission to substitute another sample. Preserve its independent backend totals for distinct orders/customers.
+
 When `dashboard_open` or `dashboard_history` returns `selection_required`, display its message and wait for the user to select a dashboard. This is a normal empty-selection state: do not retry, restore a target from conversation history, or create a replacement.
 
 ## Avoid preventable retries
@@ -30,6 +36,21 @@ The Assistant needs LiveDashboard, SandboxFile and skillsMiddleware; Sandbox mus
 Use the installed SKILL.md path shown in the skill catalog with `read_skill_file({"path":"<catalog path>"})`; resolve references relative to that file, not the sandbox working directory.
 
 Read [data-validation.md](references/data-validation.md) when creating a dashboard or changing its data/Binding. Read [html-runtime.md](references/html-runtime.md) and its lifecycle example when authoring or changing HTML/JavaScript. Style-only edits preserve the saved Bindings and do not need to reconstruct upstream queries.
+
+## Reusable visual themes
+
+Read the [style selection guide](themes/README.md) before choosing a visual system.
+Trend Workspace is the pale-blue trend overview; Profit Atlas is the dark
+profitability desk; Customer Brief is the warm editorial customer report. They
+have different layouts and chart emphasis, not just different colors. Honor the
+user's choice and preserve an existing theme unless redesign is requested.
+Read the selected theme's guide and complete example, then author and save the
+business page yourself using its installed components and exactly one pinned theme
+library with ECharts. Do not depend on a developer, repository checkout, screenshot
+or an already-created Artifact.
+Use the complete Superstore pages as worked examples, not as a substitute for
+discovering another dataset's fields and validating its metrics. For style-only
+upgrades, follow the theme's existing-Artifact procedure and keep saved bindings.
 
 ## One file editing interface
 

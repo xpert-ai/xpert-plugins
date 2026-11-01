@@ -1,0 +1,636 @@
+{
+  "controls": [
+    {
+      "controlId": "year",
+      "label": "年份",
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "",
+        "2021",
+        "2022",
+        "2023",
+        "2024"
+      ]
+    },
+    {
+      "controlId": "region",
+      "label": "区域",
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "",
+        "Central",
+        "East",
+        "South",
+        "West"
+      ]
+    },
+    {
+      "controlId": "category",
+      "label": "品类",
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "",
+        "Furniture",
+        "Office Supplies",
+        "Technology"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "id": "summary",
+      "providerId": "data-xpert.ontology",
+      "operation": "action",
+      "contractVersion": 1,
+      "payload": {
+        "resourceId": "<discovered-resource-id>",
+        "actionTypeCode": "sql.query_cube_slice",
+        "target": {
+          "entityTypeCode": "semantic_cube",
+          "entityRef": "<published-model-id>::SuperstoreOrders"
+        },
+        "params": {
+          "dimensions": [],
+          "measures": [
+            "Sales",
+            "Profit",
+            "Orders",
+            "Customers"
+          ],
+          "filters": [
+            {
+              "field": "OrderYear",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Region",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Category",
+              "op": "contains",
+              "value": ""
+            }
+          ],
+          "limit": 100
+        },
+        "parameterPaths": {
+          "year": [
+            "filters",
+            "0",
+            "value"
+          ],
+          "region": [
+            "filters",
+            "1",
+            "value"
+          ],
+          "category": [
+            "filters",
+            "2",
+            "value"
+          ]
+        }
+      },
+      "parameters": [
+        {
+          "name": "year",
+          "controlId": "year",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "2021",
+            "2022",
+            "2023",
+            "2024"
+          ]
+        },
+        {
+          "name": "region",
+          "controlId": "region",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Central",
+            "East",
+            "South",
+            "West"
+          ]
+        },
+        {
+          "name": "category",
+          "controlId": "category",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Furniture",
+            "Office Supplies",
+            "Technology"
+          ]
+        }
+      ],
+      "output": {
+        "datasetId": "summary",
+        "fields": [
+          {
+            "id": "Sales",
+            "sourceField": "Sales",
+            "label": "Sales",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Profit",
+            "sourceField": "Profit",
+            "label": "Profit",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Orders",
+            "sourceField": "Orders",
+            "label": "Orders",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          },
+          {
+            "id": "Customers",
+            "sourceField": "Customers",
+            "label": "Customers",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          }
+        ],
+        "grain": []
+      }
+    },
+    {
+      "id": "trend",
+      "providerId": "data-xpert.ontology",
+      "operation": "action",
+      "contractVersion": 1,
+      "payload": {
+        "resourceId": "<discovered-resource-id>",
+        "actionTypeCode": "sql.query_cube_slice",
+        "target": {
+          "entityTypeCode": "semantic_cube",
+          "entityRef": "<published-model-id>::SuperstoreOrders"
+        },
+        "params": {
+          "dimensions": [
+            "OrderMonth"
+          ],
+          "measures": [
+            "Sales",
+            "Profit",
+            "Orders",
+            "Customers"
+          ],
+          "filters": [
+            {
+              "field": "OrderYear",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Region",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Category",
+              "op": "contains",
+              "value": ""
+            }
+          ],
+          "limit": 100
+        },
+        "parameterPaths": {
+          "year": [
+            "filters",
+            "0",
+            "value"
+          ],
+          "region": [
+            "filters",
+            "1",
+            "value"
+          ],
+          "category": [
+            "filters",
+            "2",
+            "value"
+          ]
+        }
+      },
+      "parameters": [
+        {
+          "name": "year",
+          "controlId": "year",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "2021",
+            "2022",
+            "2023",
+            "2024"
+          ]
+        },
+        {
+          "name": "region",
+          "controlId": "region",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Central",
+            "East",
+            "South",
+            "West"
+          ]
+        },
+        {
+          "name": "category",
+          "controlId": "category",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Furniture",
+            "Office Supplies",
+            "Technology"
+          ]
+        }
+      ],
+      "output": {
+        "datasetId": "trend",
+        "fields": [
+          {
+            "id": "OrderMonth",
+            "sourceField": "OrderMonth",
+            "label": "OrderMonth",
+            "logicalType": "string",
+            "role": "dimension",
+            "nullable": false
+          },
+          {
+            "id": "Sales",
+            "sourceField": "Sales",
+            "label": "Sales",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Profit",
+            "sourceField": "Profit",
+            "label": "Profit",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Orders",
+            "sourceField": "Orders",
+            "label": "Orders",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          },
+          {
+            "id": "Customers",
+            "sourceField": "Customers",
+            "label": "Customers",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          }
+        ],
+        "grain": [
+          "OrderMonth"
+        ]
+      }
+    },
+    {
+      "id": "regions",
+      "providerId": "data-xpert.ontology",
+      "operation": "action",
+      "contractVersion": 1,
+      "payload": {
+        "resourceId": "<discovered-resource-id>",
+        "actionTypeCode": "sql.query_cube_slice",
+        "target": {
+          "entityTypeCode": "semantic_cube",
+          "entityRef": "<published-model-id>::SuperstoreOrders"
+        },
+        "params": {
+          "dimensions": [
+            "Region"
+          ],
+          "measures": [
+            "Sales",
+            "Profit",
+            "Orders",
+            "Customers"
+          ],
+          "filters": [
+            {
+              "field": "OrderYear",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Region",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Category",
+              "op": "contains",
+              "value": ""
+            }
+          ],
+          "limit": 100
+        },
+        "parameterPaths": {
+          "year": [
+            "filters",
+            "0",
+            "value"
+          ],
+          "region": [
+            "filters",
+            "1",
+            "value"
+          ],
+          "category": [
+            "filters",
+            "2",
+            "value"
+          ]
+        }
+      },
+      "parameters": [
+        {
+          "name": "year",
+          "controlId": "year",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "2021",
+            "2022",
+            "2023",
+            "2024"
+          ]
+        },
+        {
+          "name": "region",
+          "controlId": "region",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Central",
+            "East",
+            "South",
+            "West"
+          ]
+        },
+        {
+          "name": "category",
+          "controlId": "category",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Furniture",
+            "Office Supplies",
+            "Technology"
+          ]
+        }
+      ],
+      "output": {
+        "datasetId": "regions",
+        "fields": [
+          {
+            "id": "Region",
+            "sourceField": "Region",
+            "label": "Region",
+            "logicalType": "string",
+            "role": "dimension",
+            "nullable": false
+          },
+          {
+            "id": "Sales",
+            "sourceField": "Sales",
+            "label": "Sales",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Profit",
+            "sourceField": "Profit",
+            "label": "Profit",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Orders",
+            "sourceField": "Orders",
+            "label": "Orders",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          },
+          {
+            "id": "Customers",
+            "sourceField": "Customers",
+            "label": "Customers",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          }
+        ],
+        "grain": [
+          "Region"
+        ]
+      }
+    },
+    {
+      "id": "categories",
+      "providerId": "data-xpert.ontology",
+      "operation": "action",
+      "contractVersion": 1,
+      "payload": {
+        "resourceId": "<discovered-resource-id>",
+        "actionTypeCode": "sql.query_cube_slice",
+        "target": {
+          "entityTypeCode": "semantic_cube",
+          "entityRef": "<published-model-id>::SuperstoreOrders"
+        },
+        "params": {
+          "dimensions": [
+            "Category"
+          ],
+          "measures": [
+            "Sales",
+            "Profit",
+            "Orders",
+            "Customers"
+          ],
+          "filters": [
+            {
+              "field": "OrderYear",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Region",
+              "op": "contains",
+              "value": ""
+            },
+            {
+              "field": "Category",
+              "op": "contains",
+              "value": ""
+            }
+          ],
+          "limit": 100
+        },
+        "parameterPaths": {
+          "year": [
+            "filters",
+            "0",
+            "value"
+          ],
+          "region": [
+            "filters",
+            "1",
+            "value"
+          ],
+          "category": [
+            "filters",
+            "2",
+            "value"
+          ]
+        }
+      },
+      "parameters": [
+        {
+          "name": "year",
+          "controlId": "year",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "2021",
+            "2022",
+            "2023",
+            "2024"
+          ]
+        },
+        {
+          "name": "region",
+          "controlId": "region",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Central",
+            "East",
+            "South",
+            "West"
+          ]
+        },
+        {
+          "name": "category",
+          "controlId": "category",
+          "type": "string",
+          "required": true,
+          "defaultValue": "",
+          "allowedValues": [
+            "",
+            "Furniture",
+            "Office Supplies",
+            "Technology"
+          ]
+        }
+      ],
+      "output": {
+        "datasetId": "categories",
+        "fields": [
+          {
+            "id": "Category",
+            "sourceField": "Category",
+            "label": "Category",
+            "logicalType": "string",
+            "role": "dimension",
+            "nullable": false
+          },
+          {
+            "id": "Sales",
+            "sourceField": "Sales",
+            "label": "Sales",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Profit",
+            "sourceField": "Profit",
+            "label": "Profit",
+            "logicalType": "decimal",
+            "role": "measure",
+            "nullable": true
+          },
+          {
+            "id": "Orders",
+            "sourceField": "Orders",
+            "label": "Orders",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          },
+          {
+            "id": "Customers",
+            "sourceField": "Customers",
+            "label": "Customers",
+            "logicalType": "int64",
+            "role": "measure",
+            "nullable": false
+          }
+        ],
+        "grain": [
+          "Category"
+        ]
+      }
+    }
+  ]
+}

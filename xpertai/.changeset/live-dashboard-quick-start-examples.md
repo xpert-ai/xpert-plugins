@@ -2,6 +2,8 @@
 "@xpert-ai/plugin-live-dashboard": minor
 ---
 
-Add governed Live Dashboard App initialization with a private configuration workspace, primary-model setup, and explicit authoring-template plugin and skill dependencies. Keep dashboard authoring scoped to the selected Project and retain draft publication permissions.
+Add a governed Live Dashboard App setup, explicit authoring-template dependencies, and project-scoped quick-start prompts. Bundle regional sales, sales overview and production quality recipes with synthetic data, source, previews and verification steps; expose them through the existing new-dashboard empty state without changing saved dashboard identities or publication permissions.
 
-Add the Explore app cover and document initialization and authorized business-data authoring.
+Add a matching Explore app cover and show three enterprise style prototypes in the App details, with documented paths to interactive project drafts.
+
+Order the three beginner examples before the advanced Superstore suite. Show concise starter labels while preserving the complete authoring instructions sent to the assistant.

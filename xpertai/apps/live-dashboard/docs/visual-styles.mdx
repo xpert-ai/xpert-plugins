@@ -1,0 +1,46 @@
+---
+title: "三种可选视觉风格"
+description: "按分析场景选择主题，让 Agent 复用布局、筛选与图表配方。"
+---
+
+Live Dashboard 的主题是可组合的展示能力。业务数据仍来自当前项目授权的 Binding，主题不提供数据、结论或权限。
+
+| 风格 | 适合场景 | 结构与色彩 | 文档库 |
+| --- | --- | --- | --- |
+| Trend Workspace | 经营总览、时间趋势 | 浅蓝 KPI 侧栏、独立刻度趋势、下方比较与明细 | `trend-workspace` |
+| Profit Atlas | 贡献、利润与亏损分析 | 深石墨底色、横向指标、大散点图、带正负号的排名、亏损优先明细 | `profit-atlas` |
+| Customer Brief | 客户、退货与管理报告 | 暖纸底色、衬线标题、横向指标、分组退货区域、编号比较章节 | `customer-brief` |
+
+Superstore 三页分别展示上述风格，属于同一个案例的三个独立看板。其他业务可选择其中一种，不能仅替换标题而沿用不适用的指标或筛选。
+
+## 在应用详情中预览
+
+打开 Explore 的 Live Dashboard 应用详情，预览区仅展示封面与 Trend Workspace、Profit Atlas、Customer Brief 三张风格原型，可纵向滚动查看。原型展示设计方向；已保存看板通过真实 Binding 渲染数据。
+
+三张原型随插件的 `assets/previews/` 打包，并由 `appConfig.presentation.screenshots` 与 bundle manifest 共同声明。应用卡片继续使用首张封面。
+
+## 交给 Agent 复用
+
+在实时看板助理中选择项目和目标看板，例如：
+
+> 请读取 live-dashboard 技能的 themes/README.md 和 themes/profit-atlas/README.md，使用 Profit Atlas 风格优化当前盈利分析。保留 Artifact、全部 Binding、控件和组件 ID。先读取当前定义与编辑副本，使用 echarts 和 profit-atlas 文档库，验证全量和区域筛选后保存草稿，不发布。
+
+客户报告将指南与主题库换为 `customer-brief`。总览继续使用 `trend-workspace`。没有请求重设计时，Agent 保留当前看板的主题。
+
+每个主题目录包含 CSS、图表组件、布局骨架和使用说明；完整 Superstore 配方展示其组合方法。公共选择器和图标随文档库打包，Agent 不需要复制组件实现或运行开发者构建程序。
+
+调用 `dashboard_libraries` 发现精确版本，再选择 ECharts 和一个主题。保存后，主题代码、版本及摘要随 Artifact 固定；插件升级不会自行改变历史看板。更新已有看板时显式传入新的完整库列表，省略列表则继承原快照。
+
+## 表达与交互
+
+- 三种风格共享类型化选择器：键盘方向键、高亮、确认、关闭、焦点恢复和窄屏边界保持一致。
+- Profit Atlas 始终采用深色画布，正利润为薄荷色，负利润为珊瑚色；金额、负号和零线提供额外信息，不依赖颜色判断。
+- Customer Brief 使用本地衬线字体栈，无外部字体请求；退货占比与订单数放在一起，退货关联销售额不表述为退款或损失。
+- 图表由查询数据绘制。完整明细保留在可滚动区域，不为匹配原型截图而删除数据行。
+- 窄屏重新排列指标与图表；无数据、失败或不完整结果会清除旧值并显示状态。
+
+## 制作边界
+
+助手模板提供主题选择规则和样例入口，不自动更新用户已有草稿。视觉升级通过正常 `dashboard_open` / `dashboard_update` 流程完成，保留项目归属、原 Artifact 与数据契约；保存草稿不等于发布正式版。
+
+模板、技能资源和文档库一同打包。开发者验证构建、生产 Document SDK 和安装后的实际 Agent/UI 工作流；不同层次的验收结果见[视觉风格验收](/visual-styles-acceptance)。

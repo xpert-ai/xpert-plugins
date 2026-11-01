@@ -15,6 +15,7 @@ import { ToolbarMenu } from './toolbar-menu'
 import { DashboardPicker } from './dashboard-picker'
 import { ShareDialog } from './share-dialog'
 import { ViewerControls } from './viewer-controls'
+import { DashboardStarter } from './dashboard-starter'
 import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifact-document'
 
 installArtifactDocumentFramePolicy(document)
@@ -295,7 +296,12 @@ function App() {
       {unavailableDatasets.length > 0 && <div role="alert" className="px-4 py-2 text-sm"><p>{t.bindingUnavailable}</p><ul>{unavailableDatasets.map(id => <li key={id}>{[...(saved?.manifest.charts ?? []), ...(saved?.manifest.tables ?? [])].filter(view => view.datasetId === id).map(view => view.title).join(' · ') || id}</li>)}</ul></div>}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
       <section className="canvas-panel" aria-busy={busy}>
-        {!busy && !html && !saved?.manifest.presentation && !error && !unavailableDatasets.length && <p className="p-6 text-muted-foreground">{t.empty}</p>}
+        {!busy && !html && !saved?.manifest.presentation && !error && !unavailableDatasets.length && (!saved && canEdit && currentProject
+          ? <DashboardStarter t={t} onStart={text => run(async () => {
+            await selectEditorTarget(null)
+            await requestHost('invokeClientCommand', { commandKey: 'assistant.chat.send_message', payload: { text } })
+          })}/>
+          : <p className="p-6 text-muted-foreground">{t.empty}</p>)}
         {saved?.manifest.presentation && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} draftRevision={saved.isDraft ? saved.draftRevision : undefined}
           manifest={saved.manifest} dependencies={saved.dependencies ?? []} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
         {html && <iframe title={saved?.manifest.title ?? t.title} sandbox="allow-scripts" srcDoc={html} className="h-full w-full border-0"/>}
