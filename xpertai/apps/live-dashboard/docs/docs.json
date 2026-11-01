@@ -16,6 +16,7 @@
             "group": "接入与验证",
             "pages": [
               "index",
+              "quick-start",
               "html-mode",
               "frontend-libraries",
               "frontend-libraries-acceptance",

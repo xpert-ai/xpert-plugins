@@ -32,6 +32,8 @@ export const dashboardTemplates: XpertTemplateContribution[] = [false, true].map
   title: monitor ? '看板巡检' : '实时看板助理', type: XpertTypeEnum.Agent, icon: dashboardIcon,
   description: monitor ? '在项目内以授权身份检查正式看板，不修改或发布。' : '在项目内制作和维护看板，草稿与正式发布分离。',
   targetApps: ['xpert', 'data-xpert'], targetAppMeta: { xpert: { types: ['business-assistant'],
-    capabilities: [monitor ? 'live_dashboard.monitor' : 'live_dashboard'], requiredPlugins: ['@xpert-ai/plugin-live-dashboard'] } },
+    capabilities: [monitor ? 'live_dashboard.monitor' : 'live_dashboard'], requiredPlugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'] } },
+  dependencies: { plugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'],
+    skills: monitor ? [] : [{ componentKey: 'live-dashboard', targetAgentKey: 'Agent_Dashboard' }] },
   dslContent: dsl(monitor), default: false, order: monitor ? 36 : 35
 }))

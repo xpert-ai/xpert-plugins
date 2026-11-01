@@ -1,5 +1,6 @@
 import type { PluginMarketplaceContribution, XpertProjectTypeRef } from '@xpert-ai/contracts'
 import { dashboardIcon } from './dashboard-icon'
+import { dashboardAppConfig } from './app-config'
 
 export const DASHBOARD_PROJECT_TYPE = {
   applicationKey: '@xpert-ai/plugin-live-dashboard:live-dashboard', projectTypeKey: 'dashboard'
@@ -7,6 +8,7 @@ export const DASHBOARD_PROJECT_TYPE = {
 
 export const dashboardApp = {
   type: 'app', name: 'live-dashboard', icon: dashboardIcon,
+  appConfig: dashboardAppConfig,
   displayName: { en_US: 'Live Dashboard', zh_Hans: '实时看板' },
   description: { en_US: 'Create and use live dashboards in Assistant ChatKit with a synchronized Project selection.', zh_Hans: '在助理 ChatKit 中按项目制作和使用实时看板，项目选择双向同步。' },
   projectTypes: [{ key: DASHBOARD_PROJECT_TYPE.projectTypeKey,

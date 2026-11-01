@@ -180,3 +180,7 @@ Open the dashboard picker and use the trash icon beside an entry. The confirmati
 The owner can delete private Assistant dashboards; Project dashboards require the current user's management permission. Read-only shared pages expose no delete control. The platform checks the confirmed draft revision atomically, rejecting concurrent edits. Entries without a saved working draft (legacy version-only or incomplete first saves) have no recycle revision and do not expose this action. No Agent deletion tool is registered.
 
 Manual acceptance after installing the updated plugin: cancel a deletion and confirm the entry remains; delete an unused saved dashboard and confirm it stays absent after reload; delete the selected dashboard and confirm the preview clears and its old shared link is unavailable.
+
+## App setup
+
+See [快速开始](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant with its declared plugin and skill dependencies. Connect authorized business data and review a saved draft before publication.

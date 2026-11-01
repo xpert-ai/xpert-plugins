@@ -16,6 +16,7 @@
     "dist",
     "index.cjs",
     "README.md",
+    "assets",
     "docs",
     "examples",
     ".xpertai-plugin",
