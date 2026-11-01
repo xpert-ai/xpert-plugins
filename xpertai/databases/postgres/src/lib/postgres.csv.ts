@@ -15,6 +15,10 @@ export function openCsvSource(file: File): Readable {
   if (file.path) {
     return createReadStream(file.path)
   }
+  // Multer memory storage is used by the platform's data-source upload API.
+  if (file.buffer) {
+    return Readable.from([file.buffer])
+  }
   throw new Error('CSV file stream is empty')
 }
 
