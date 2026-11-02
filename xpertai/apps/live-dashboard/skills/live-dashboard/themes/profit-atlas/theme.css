@@ -1,0 +1,75 @@
+/* Profit Atlas: a deliberate dark document theme, independent of the host chrome. */
+body[data-dashboard-theme="profit-atlas@1"] {
+  color-scheme: dark;
+  --paper: #10181f;
+  --control: #17222c;
+  --ink: #f0f4f7;
+  --muted: #aebdcb;
+  --line: #30414e;
+  --blue: #62d9c1;
+  --teal: #53d6ba;
+  --red: #ff8b90;
+  --selected: #203c39;
+  --focus: #89e4d0;
+  --shadow: 0 8px 24px #0006;
+  --radius: 8px;
+}
+body[data-dashboard-theme="profit-atlas@1"] .workspace { display: block; }
+.atlas-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding: 22px 34px 18px; }
+.atlas-header h1 { font-size: 36px; line-height: 1.25; letter-spacing: -.6px; }
+.atlas-header .description { margin-top: 4px; font-size: 15px; }
+.atlas-header .demo { margin: 6px 0 0; font-size: 13px; }
+.atlas-header .filters { padding: 6px 0 0; flex-wrap: nowrap; gap: 14px; }
+.atlas-header .filter-field { width: 168px; }
+.atlas-header .filter-trigger { min-height: 62px; }
+.atlas-metrics { display: grid; grid-template-columns: 1.15fr 1.1fr .95fr .9fr .75fr; margin: 0; padding: 18px 34px; border-block: 1px solid var(--line); }
+.atlas-metrics .metric { grid-column: auto; padding: 0 26px; border: 0; border-left: 1px solid var(--line); }
+.atlas-metrics .metric:first-child { padding-left: 0; border-left: 0; }
+.atlas-metrics .metric:last-child { padding-right: 0; }
+.atlas-metrics .metric output { font-size: clamp(25px, 2.55vw, 37px); letter-spacing: -.6px; margin: 6px 0 0; }
+.atlas-metrics .metric:nth-child(2) output { color: var(--teal); }
+.atlas-metrics .metric small { display: none; }
+.atlas-plots { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 32px; padding: 24px 34px 20px; }
+.atlas-plots .panel { min-width: 0; }
+.atlas-plots .panel:last-child { padding-left: 28px; border-left: 1px solid var(--line); }
+.atlas-plots h2 { font-size: 22px; }
+.atlas-plots .note { font-size: 13px; }
+.atlas-plots .chart { height: 448px; margin-top: 12px; }
+body[data-dashboard-theme="profit-atlas@1"] .details { padding: 12px 34px 14px; }
+body[data-dashboard-theme="profit-atlas@1"] .details h2 { display: inline; font-size: 20px; }
+body[data-dashboard-theme="profit-atlas@1"] .details > .note { display: inline; margin-left: 18px; }
+body[data-dashboard-theme="profit-atlas@1"] .table-scroll { max-height: 150px; margin-top: 10px; border: 1px solid var(--line); border-radius: 7px; }
+body[data-dashboard-theme="profit-atlas@1"] th, body[data-dashboard-theme="profit-atlas@1"] td { padding: 7px 16px; }
+body[data-dashboard-theme="profit-atlas@1"] .table-bar { display: none; }
+body[data-dashboard-theme="profit-atlas@1"] .status { padding: 0 34px; }
+body[data-dashboard-theme="profit-atlas@1"] .methodology { padding: 4px 34px 12px; }
+body[data-dashboard-theme="profit-atlas@1"] footer { padding: 10px 34px; }
+@media (max-width: 1100px) {
+  .atlas-header { flex-wrap: wrap; gap: 14px; }
+  .atlas-header .filters { margin-left: auto; }
+  .atlas-metrics .metric { padding-inline: 14px; }
+  .atlas-metrics .metric output { font-size: 25px; }
+  .atlas-plots { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; }
+  .atlas-plots .panel:last-child { padding-left: 18px; }
+}
+@media (max-width: 760px) {
+  .atlas-plots { grid-template-columns: 1fr; }
+  .atlas-plots .panel:last-child { padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+}
+@media (max-width: 680px) {
+  .atlas-header { display: block; padding: 20px 16px; }
+  .atlas-header h1 { font-size: 28px; }
+  .atlas-header .filters { display: grid; margin-top: 20px; padding: 0; gap: 8px; }
+  .atlas-header .filter-field { width: auto; }
+  .atlas-metrics { grid-template-columns: 1fr 1fr; gap: 18px 12px; padding: 18px 16px; }
+  .atlas-metrics .metric, .atlas-metrics .metric:last-child { padding: 0; border: 0; }
+  .atlas-metrics .metric:first-child { grid-column: 1 / -1; }
+  .atlas-metrics .metric output { font-size: 28px; }
+  .atlas-plots { padding: 20px 16px; }
+  .atlas-plots .chart { height: 390px; }
+  .atlas-plots .panel:last-child .chart { height: 448px; }
+  body[data-dashboard-theme="profit-atlas@1"] .details { padding: 16px; }
+  body[data-dashboard-theme="profit-atlas@1"] .details > .note { display: block; margin: 6px 0 0; }
+  body[data-dashboard-theme="profit-atlas@1"] .table-scroll { max-height: 250px; }
+  body[data-dashboard-theme="profit-atlas@1"] .status, body[data-dashboard-theme="profit-atlas@1"] .methodology, body[data-dashboard-theme="profit-atlas@1"] footer { padding-inline: 16px; }
+}

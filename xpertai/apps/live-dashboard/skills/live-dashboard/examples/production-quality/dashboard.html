@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>生产质量 · 演示数据</title>
+<style>
+:root{color-scheme:light;--bg:#f5f7fa;--paper:#fff;--ink:#172d42;--muted:#526579;--line:#d8e0e8;--accent:#22649a;--second:#16847d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"PingFang SC",sans-serif}
+body.dark{color-scheme:dark;--bg:#142433;--paper:#1c3042;--ink:#ecf2f8;--muted:#b0c2d1;--line:#3b5266;--accent:#75b7ee;--second:#65cabc}
+main{max-width:1320px;margin:auto;padding:28px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:1px solid var(--line);padding-bottom:20px}
+h1{font-size:26px;line-height:1.3;margin:4px 0 8px}
+h2{font-size:17px;margin:0 0 8px}
+p{margin:0}
+.muted{color:var(--muted)}
+.demo{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:2px 7px;font-size:12px}
+.filter{display:grid;gap:6px;min-width:160px}
+select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:9px}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:25px 0}
+.metric{border-left:3px solid var(--accent);padding-left:16px}
+.metric p{color:var(--muted)}
+.metric output{font-size:32px;font-weight:650;font-variant-numeric:tabular-nums;display:block}
+.plots{display:grid;grid-template-columns:3fr 2fr;gap:20px}
+.panel{min-width:0;background:var(--paper);padding:20px;border:1px solid var(--line);border-radius:8px}
+.chart{height:300px}
+.details{margin-top:20px;overflow:auto}
+table{width:100%;border-collapse:collapse;white-space:nowrap;font-variant-numeric:tabular-nums}
+caption{text-align:left;font-size:17px;font-weight:600;margin-bottom:10px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500}
+#feedback{min-height:28px;margin-top:16px}
+footer{display:flex;justify-content:space-between;gap:16px;margin-top:20px;font-size:12px;color:var(--muted)}
+@media(max-width:700px){main{padding:16px}
+header{flex-direction:column}
+.filter{width:100%}
+.metrics{gap:12px}
+.metric{padding-left:8px}
+.metric output{font-size:24px}
+.plots{grid-template-columns:1fr}
+.panel{padding:14px}
+footer{flex-direction:column}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}
+}
+
+</style></head>
+<body><main>
+<header><div><span class="demo">演示数据 · 人为构造</span><h1>生产质量</h1><p class="muted">同一产线口径下核对产量与质量</p></div><label class="filter" for="scope">产线<select id="scope" data-dashboard-control="line" disabled></select></label></header>
+<section class="metrics" aria-label="主要指标"><div class="metric"><p>产量</p><output id="produced">—</output></div><div class="metric"><p>加权良品率（%）</p><output id="yield">—</output></div><div class="metric"><p>不良品数</p><output id="defects">—</output></div></section>
+<div class="plots"><section class="panel"><h2>每日产量趋势</h2><p class="muted">产量（件）</p><div id="trend" class="chart" role="img" aria-label="每日产量趋势，同一数据详见下表"></div></section><section class="panel"><h2>产线不良品对比</h2><p class="muted">不良品数（件）</p><div id="breakdown" class="chart" role="img" aria-label="产线不良品对比，同一数据详见下表"></div></section></div>
+<p id="feedback" role="status">正在查询…</p>
+<section class="panel details"><table><caption>数据明细</caption><thead><tr><th scope="col">日期</th><th scope="col">产线</th><th scope="col">产量</th><th scope="col">良品数</th><th scope="col">不良品数</th></tr></thead><tbody id="rows"></tbody></table></section>
+<footer><span>良品率 = 良品数合计 ÷ 产量合计；不良品数 = 产量 − 良品数。</span><span id="freshness">尚未取得查询结果</span></footer>
+</main><script>
+// Example v1. One complete Dataset drives every panel. Adapt explicit field IDs after real preview.
+// No business rows, source IDs, query text or credentials belong in this HTML.
+(async () => {
+  const live = window.xpertLiveArtifact;
+  const filter = document.getElementById('scope');
+  const feedback = document.getElementById('feedback');
+  const fields = ["date", "line", "produced", "good", "defects"];
+  const measures = ["produced", "good", "defects"];
+  const fmt = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 2});
+  let trend, breakdown;
+  function clear(message) {
+    document.querySelectorAll('output').forEach(el => { el.textContent = '—'; });
+    document.getElementById('rows').replaceChildren();
+    trend?.clear(); breakdown?.clear();
+    feedback.textContent = message;
+    document.getElementById('freshness').textContent = '当前结果不可用';
+  }
+  function total(rows, field) {
+    const values = rows.map(row => {
+      const raw = row[field];
+      if (typeof raw !== 'string' && typeof raw !== 'number' || !/^\d+$/.test(String(raw))) throw Error('计数字段或金额单位不符合样例口径');
+      const n = Number(raw); if (!Number.isSafeInteger(n)) throw Error('数值超过本样例安全整数范围');
+      return n;
+    });
+    const sum = values.reduce((a,b) => a+b,0);
+    if (!Number.isSafeInteger(sum)) throw Error('合计超过本样例安全整数范围');
+    return sum;
+  }
+  function group(rows, dimension, measure) {
+    const groups = new Map();
+    for (const row of rows) {
+      if (typeof row[dimension] !== 'string') throw Error('维度字段缺失');
+      const key = row[dimension]; if (!groups.has(key)) groups.set(key,[]); groups.get(key).push(row);
+    }
+    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([key,items])=>[key,total(items,measure)]);
+  }
+  function render(dataset) {
+    try {
+      if (!dataset.completeness || dataset.completeness.truncated) { clear('结果不完整，请缩小范围后重试；当前不显示汇总值。'); return; }
+      const rows = dataset.rows;
+      if (!rows.length) { clear('此筛选下没有数据。'); return; }
+      for (const row of rows) for (const field of fields) if (row[field] === null || row[field] === undefined) throw Error('必要字段为空，无法展示完整指标');
+      const totals = Object.fromEntries(measures.map(field => [field,total(rows,field)]));
+      if(totals.good>totals.produced || totals.defects!==totals.produced-totals.good) throw Error('产量、良品与不良品数量不一致');document.getElementById('produced').textContent=fmt.format(totals.produced);document.getElementById('defects').textContent=fmt.format(totals.defects);document.getElementById('yield').textContent=totals.produced ? fmt.format(totals.good/totals.produced*100) : '—';
+      const daily = group(rows,'date','produced');
+      const groups = group(rows,'line','defects');
+      const color = getComputedStyle(document.body).getPropertyValue('--ink').trim();
+      const line = getComputedStyle(document.body).getPropertyValue('--line').trim();
+      const axis = {axisLabel:{color},axisLine:{lineStyle:{color:line}},splitLine:{lineStyle:{color:line}}};
+      trend.setOption({animation:false,aria:{enabled:true},color:['#3984bd'],grid:{left:60,right:18,top:28,bottom:35},tooltip:{trigger:'axis'},xAxis:{...axis,type:'category',data:daily.map(([k])=>k)},yAxis:{...axis,type:'value'},series:[{id:'daily',name:'产量（件）',type:'line',symbolSize:7,areaStyle:{opacity:0.08},data:daily.map(([,v])=>v)}]},{notMerge:true});
+      breakdown.setOption({animation:false,aria:{enabled:true},color:['#16847d'],grid:{left:65,right:30,top:20,bottom:35},tooltip:{trigger:'axis'},xAxis:{...axis,type:'value'},yAxis:{...axis,type:'category',data:groups.map(([k])=>k)},series:[{id:'breakdown',name:'不良品数（件）',type:'bar',barMaxWidth:38,label:{show:true,position:'right',color},data:groups.map(([,v])=>v)}]},{notMerge:true});
+      document.getElementById('rows').replaceChildren(...rows.map(row => { const tr=document.createElement('tr'); for(const field of fields){const td=document.createElement('td');td.textContent=String(row[field]);tr.append(td);}return tr;}));
+      feedback.textContent = '已显示 '+ rows.length +' 行，所有图表与指标使用同一筛选结果。';
+      document.getElementById('freshness').textContent = '查询时间：'+(dataset.freshness?.sourceFetchedAt ?? '未提供');
+    } catch (error) { clear(error.message || '数据无法展示'); }
+  }
+  try {
+    const context = await live.ready();
+    document.body.classList.toggle('dark', context.theme === 'dark');
+    if (context.bindingIds.length !== 1) throw Error('本样例要求一个已验证的完整数据集');
+    const bindingId = context.bindingIds[0];
+    trend=window.echarts.init(document.getElementById('trend'),null,{renderer:'svg'});
+    breakdown=window.echarts.init(document.getElementById('breakdown'),null,{renderer:'svg'});
+    new ResizeObserver(()=>{trend.resize();breakdown.resize();}).observe(document.querySelector('.plots'));
+    // Subscribe before bindSelect/query so toolbar refresh uses this same render function.
+    live.subscribe(bindingId,render);
+    filter.addEventListener('change',()=>clear('正在查询…'));
+    filter.addEventListener('xpert-query-error',()=>clear('查询失败，请检查访问权限或重试。'));
+    live.bindSelect(filter,{bindingId,controlId:'line',fieldId:'line',allLabel:'全部'});
+    await live.query(bindingId,{...context.defaults});
+    filter.disabled=false;
+  } catch(error) { clear(error.message || '查询失败，请重试'); }
+})();
+</script></body></html>

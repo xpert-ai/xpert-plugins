@@ -5,8 +5,9 @@ import { artifactDocumentDependencyLocks, verifyArtifactDocumentDependencies,
   type ArtifactDocumentDependencyAsset, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
 
 /** The plugin owns its catalog. The platform owns verification and isolated execution. */
-export const libraryRequestsSchema = z.array(z.enum(['echarts', 'three'])).max(2)
+export const libraryRequestsSchema = z.array(z.enum(['echarts', 'three', 'trend-workspace', 'profit-atlas', 'customer-brief'])).max(3)
   .refine(ids => new Set(ids).size === ids.length, 'Duplicate library')
+  .refine(ids => ids.filter(id => ['trend-workspace', 'profit-atlas', 'customer-brief'].includes(id)).length <= 1, 'Choose one dashboard visual theme')
 export type LibraryRequests = z.output<typeof libraryRequestsSchema>
 export async function bundledLibraries() {
   return verifyArtifactDocumentDependencies(JSON.parse(await readFile(join(__dirname, '../libraries/catalog.json'), 'utf8')))

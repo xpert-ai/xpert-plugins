@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-markdown-editor",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -88,6 +88,14 @@
     "typeorm": "^0.3.24",
     "typescript": "5.9.3",
     "zod": "3.25.67"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/markdown-editor"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "nx": {
     "name": "@xpert-ai/plugin-markdown-editor"

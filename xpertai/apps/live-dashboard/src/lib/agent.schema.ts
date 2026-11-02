@@ -33,7 +33,7 @@ export const htmlPathSchema = workspaceRelativeFilePathSchema.refine(path => {
 }, 'Use a named HTML file such as dashboards/sales.html; .html alone is not a dashboard filename.')
   .describe('Workspace-relative HTML file created or edited with SandboxFile, for example dashboards/sales.html. Copy the complete htmlPath from dashboard_open when editing.')
 export const createHtmlToolSchema = createToolSchema.omit({ charts: true, tables: true }).extend({ path: htmlPathSchema,
-  libraries: libraryRequestsSchema.optional().describe('Bundled library IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use ["echarts"] for ECharts or ["three"] for Three.js.') }).strict()
+  libraries: libraryRequestsSchema.optional().describe('Bundled IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use echarts or three for charts. Optional: add exactly one visual theme (trend-workspace, profit-atlas, customer-brief) with echarts. Preserve the saved theme unless a change is requested.') }).strict()
 export function parseObjectJson(text: string) {
   try { return analyticsOptionsSchema.parse(JSON.parse(text)) } catch { throw new Error('DASHBOARD_INVALID_JSON: supply a JSON object encoded as text, matching the returned provider contract') }
 }

@@ -20,7 +20,23 @@ export interface OpenAICredentials {
 	sampling_parameters?: 'auto' | 'enabled' | 'disabled'
 }
 
-export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+const OpenAICurrentModelProfiles: readonly {
+	model: string
+	supported: readonly OpenAIReasoningEffort[]
+	defaultEffort: OpenAIReasoningEffort
+}[] = [
+	{ model: 'gpt-6-astra', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+	{ model: 'gpt-6.1-sol', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+	{ model: 'gpt-6.1-terra', supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+	{ model: 'gpt-6-luna', supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+	{ model: 'gpt-6-sol', supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+]
+
+function getCurrentModelProfile(model?: string) {
+	return OpenAICurrentModelProfiles.find((profile) => profile.model === model?.trim())
+}
 
 const OpenAIReasoningEffortScale: readonly OpenAIReasoningEffort[] = [
 	'none',
@@ -29,6 +45,7 @@ const OpenAIReasoningEffortScale: readonly OpenAIReasoningEffort[] = [
 	'medium',
 	'high',
 	'xhigh',
+	'max',
 ]
 
 const OpenAIReasoningEffortProfiles = [
@@ -50,7 +67,7 @@ const OpenAIReasoningEffortProfiles = [
 	},
 ] as const
 
-export interface OpenAIModelOptions extends CommonChatModelParameters {
+export interface OpenAIModelOptions extends Partial<CommonChatModelParameters> {
 	streaming?: boolean
 	top_p?: number
 	max_tokens?: number
@@ -111,15 +128,20 @@ export function getSupportedOpenAIReasoningEfforts(
 		return undefined
 	}
 
-	return OpenAIReasoningEffortProfiles.find(({ pattern }) => pattern.test(model.trim()))?.supported
+	return getCurrentModelProfile(model)?.supported ??
+		OpenAIReasoningEffortProfiles.find(({ pattern }) => pattern.test(model.trim()))?.supported
 }
 
 export function normalizeOpenAIReasoningEffort(
 	model?: string,
 	effort?: OpenAIReasoningEffort
 ): OpenAIReasoningEffort | undefined {
+	const currentProfile = getCurrentModelProfile(model)
 	if (!effort) {
-		return undefined
+		return currentProfile?.defaultEffort
+	}
+	if (currentProfile && effort === 'minimal') {
+		return 'low'
 	}
 
 	const supported = getSupportedOpenAIReasoningEfforts(model)
@@ -149,8 +171,18 @@ export function normalizeOpenAIReasoningEffort(
 export function shouldEnableSamplingParameters(
 	mode: OpenAICredentials['sampling_parameters'],
 	baseURL?: string,
-	model?: string
+	model?: string,
+	reasoningEffort?: OpenAIReasoningEffort
 ): boolean {
+	// An endpoint override must not send parameters forbidden by the official model contract.
+	// GPT-5.2 and GPT-5.4 default to none when the request omits reasoning effort.
+	const defaultsToNone = model?.trim() === 'gpt-5.2' || model?.trim() === 'gpt-5.4'
+	const effectiveEffort = normalizeOpenAIReasoningEffort(model, reasoningEffort) ??
+		(defaultsToNone ? 'none' : undefined)
+	if (isOpenAIOfficialBaseUrl(baseURL) && getSupportedOpenAIReasoningEfforts(model) &&
+		effectiveEffort !== 'none') {
+		return false
+	}
 	if (mode === 'enabled') {
 		return true
 	}

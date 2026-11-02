@@ -1,0 +1,45 @@
+{
+  "payloadFields": {
+    "select": [
+      "region",
+      "amount"
+    ],
+    "filters": [
+      {
+        "column": "region",
+        "operator": "eq",
+        "value": {
+          "type": "parameter",
+          "name": "region"
+        },
+        "skipWhenNull": true
+      }
+    ],
+    "orderBy": [
+      {
+        "column": "region",
+        "direction": "asc"
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "name": "region",
+      "controlId": "region",
+      "type": "string",
+      "required": false,
+      "defaultValue": null
+    }
+  ],
+  "grain": [
+    "region"
+  ],
+  "controls": [
+    {
+      "controlId": "region",
+      "label": "区域",
+      "type": "string",
+      "defaultValue": null
+    }
+  ]
+}

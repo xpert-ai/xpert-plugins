@@ -16,14 +16,29 @@ const built = await build({ configFile: false, root, logLevel: 'error', build: {
   lib: { entry: join(threeRoot, 'build/three.module.js'), name: 'THREE', formats: ['iife'] } } })
 const chunk = (Array.isArray(built) ? built : [built]).flatMap(output => output.output).find(output => output.type === 'chunk' && output.isEntry)
 if (!chunk) throw Error('Missing Three.js bundle')
+const themeRoot = join(root, 'skills/live-dashboard/themes/trend-workspace')
+const themeCss = await readFile(join(themeRoot, 'theme.css'), 'utf8')
+const themeModules = await Promise.all(['icons.js', 'select.js', 'charts.js'].map(name => readFile(join(themeRoot, name), 'utf8')))
+const themeSource = `(function(){const style=document.createElement('style');style.textContent=${JSON.stringify(themeCss)};document.head.append(style);\n${themeModules.join('\n')}\nwindow.TrendWorkspace=Object.freeze({version:'1.0.0',enhanceSelect:enhanceDashboardSelect,charts:TrendWorkspaceCharts});})();`
+const visualThemes = []
+for (const [id, global] of [['profit-atlas', 'ProfitAtlas'], ['customer-brief', 'CustomerBrief']]) {
+  const directory = join(root, 'skills/live-dashboard/themes', id)
+  const css = themeCss + '\n' + await readFile(join(directory, 'theme.css'), 'utf8')
+  const charts = await readFile(join(directory, 'charts.js'), 'utf8')
+  const source = `(function(){const style=document.createElement('style');style.textContent=${JSON.stringify(css)};document.head.append(style);\n${themeModules.join('\n')}\n${charts}\nwindow.${global}=Object.freeze({version:'1.0.0',enhanceSelect:enhanceDashboardSelect,charts:${global}Charts});})();`
+  visualThemes.push({id, version: '1.0.0', global, source})
+}
 const entries = [
   { id: 'echarts', version: echartsPackage.version, global: 'echarts', source: await readFile(join(echartsRoot, 'dist/echarts.min.js'), 'utf8') },
-  { id: 'three', version: threePackage.version, global: 'THREE', source: chunk.code }
+  { id: 'three', version: threePackage.version, global: 'THREE', source: chunk.code },
+  { id: 'trend-workspace', version: '1.0.0', global: 'TrendWorkspace', source: themeSource },
+  ...visualThemes
 ].map(item => ({ ...item, format: 'classic-script', sha256: createHash('sha256').update(item.source).digest('hex') }))
 const files = { 'catalog.json': JSON.stringify(entries),
   'ECHARTS-LICENSE.txt': await readFile(join(echartsRoot, 'LICENSE'), 'utf8'),
   'ECHARTS-NOTICE.txt': await readFile(join(echartsRoot, 'NOTICE'), 'utf8'),
-  'THREE-LICENSE.txt': await readFile(join(threeRoot, 'LICENSE'), 'utf8') }
+  'THREE-LICENSE.txt': await readFile(join(threeRoot, 'LICENSE'), 'utf8'),
+  'TREND-WORKSPACE-ICONS-LICENSE.txt': await readFile(join(themeRoot, 'ICON_LICENSE.txt'), 'utf8') }
 if (!verify) await mkdir(target, { recursive: true })
 else if (JSON.stringify((await readdir(target)).sort()) !== JSON.stringify(Object.keys(files).sort())) throw Error('Library bundle files differ')
 for (const [name, content] of Object.entries(files)) {

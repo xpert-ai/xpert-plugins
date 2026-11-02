@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-hana
 
+## 0.1.1
+
+### Patch Changes
+
+- 335d4f5: Allow read-only HANA queries on servers that reject native statement timeouts. Retry only the explicit unsupported-timeout error once, retaining the original client deadline, communication timeout, cancellation and read-only session protections.
+
 ## 0.1.0
 
 ### Minor Changes

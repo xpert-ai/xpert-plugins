@@ -1,0 +1,26 @@
+{
+  "all": {
+    "produced": 720,
+    "good": 690,
+    "defects": 30,
+    "yieldPercent": 95.83333333333333
+  },
+  "filtered": {
+    "Line A": {
+      "produced": 330,
+      "good": 317,
+      "defects": 13
+    },
+    "Line B": {
+      "produced": 390,
+      "good": 373,
+      "defects": 17
+    }
+  },
+  "checks": [
+    "All \u2192 first option \u2192 second option \u2192 all; chart, KPI and detail agree.",
+    "Refresh uses the current filter.",
+    "Empty results clear charts and show no-data; errors never show old totals as current.",
+    "Saved draft remains unpublished and belongs to current Project."
+  ]
+}

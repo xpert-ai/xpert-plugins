@@ -19,11 +19,13 @@ async function setup(t) {
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }
   dom.window.HTMLElement.prototype.scrollIntoView = function () {}
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
-  const React = require('react'), { act } = React
+  // The UI package may live in the parent pnpm workspace; use its React instance.
+  const uiRequire = createRequire(require.resolve('@xpert-ai/plugin-shadcn-ui'))
+  const React = uiRequire('react'), { act } = React
   const ui = await import('@xpert-ai/plugin-shadcn-ui'), i18nUi = await import('@xpert-ai/plugin-shadcn-ui/i18n')
-  const { createRoot } = require('react-dom/client')
+  const { createRoot } = uiRequire('react-dom/client')
   let root, ready, created, scopeReset, rejectDelete = false, releaseDelete, holdOpen = false, releaseOpen
-  const calls = [], navigation = [], selections = []
+  const calls = [], navigation = [], selections = [], assistantRequests = []
   const projects = [{ id: randomUUID(), name: 'Project A' }, { id: randomUUID(), name: 'Project B' }]
   let currentProject = projects[0], navigationSuccess = true
   const projectNavigation = []
@@ -52,6 +54,7 @@ async function setup(t) {
         return response
       }
       if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.navigation.open') { projectNavigation.push(request.payload); return { success: navigationSuccess } }
+      if (kind === 'invokeClientCommand' && request.commandKey === 'assistant.chat.send_message') { assistantRequests.push({ ...request.payload, selection: selections.at(-1), projectId: currentProject.id }); return { success: true } }
       if (kind === 'executeAction' && ['projects', 'dashboards'].includes(request.actionKey)) {
         pickerRequests.push(request)
         const {search, page} = request.input
@@ -81,6 +84,7 @@ async function setup(t) {
     } }).outputText
     vm.runInNewContext(code, { exports: api, window: dom.window, document: dom.window.document, console, Error,
       require: id => {
+        if (id === 'react') return React
         if (id === '@xpert-ai/plugin-shadcn-ui') return ui
         if (id === '@xpert-ai/plugin-shadcn-ui/i18n') return i18nUi
         if (id === '@xpert-ai/plugin-sdk/artifact-document') return { installArtifactDocumentFramePolicy() {} }
@@ -93,6 +97,7 @@ async function setup(t) {
         if (id === './i18n') return load('i18n.ts')
         if (id === './toolbar-menu') return load('toolbar-menu.tsx')
         if (id === './dashboard-picker') return load('dashboard-picker.tsx')
+        if (id === './dashboard-starter') return load('dashboard-starter.tsx')
         if (id.startsWith('./locales/')) return require(`../src/remote/${id}`)
         return require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id)
       }
@@ -121,7 +126,7 @@ async function setup(t) {
     await act(async () => ready('en-US', readOnly ? {} : { selectionId: items[0].artifactId }))
     await flush()
   }
-  return { reset, projects, projectNavigation, pickerRequests,
+  return { reset, projects, projectNavigation, pickerRequests, assistantRequests,
     setPickerFixtures: (p, d) => { pickerProjects = p; pickerDashboards = d },
     fill: async (label, value) => {
       const input = document.querySelector(`input[aria-label="${label}"]`)
@@ -131,6 +136,7 @@ async function setup(t) {
     failNavigation: () => { navigationSuccess = false },
     hostProjectChange: async () => { currentProject = projects[1]; dashboards = []; await act(async () => { scopeReset(); ready('en-US', { parameters: { picker: 'dashboards' } }) }); await flush() },
     items, versionId, calls, navigation, selections, click, button, picker, dialog,
+    revise: (id, revision) => { dashboards = dashboards.map(item => item.artifactId === id ? { ...item, draftRevision: revision, title: `Updated r${revision}`, manifest: { ...item.manifest, title: `Updated r${revision}` } } : item) },
     failDelete: value => { rejectDelete = value },
     finishDelete: async () => { await act(async () => releaseDelete()); await flush() },
     notify: async (id, hold = false) => { holdOpen = hold; await act(async () => created(id)); await flush() },
@@ -141,6 +147,45 @@ async function setup(t) {
 
 test('dashboard deletion UI', async t => {
   const harness = await setup(t)
+  await t.test('a successful draft receipt reloads metadata and exact Assistant revision without navigating', async () => {
+    await harness.reset()
+    const id = harness.items[0].artifactId
+    harness.revise(id, 4)
+    await harness.notify(id)
+    assert.match(document.querySelector('header').textContent, /Updated r4/)
+    assert.equal(harness.selections.at(-1).draftRevision, 4)
+    assert.equal(harness.selections.at(-1).artifactId, id)
+    assert.equal(harness.navigation.length, 0)
+  })
+  await t.test('a receipt for another dashboard does not replace the selected dashboard', async () => {
+    await harness.reset()
+    harness.revise(harness.items[1].artifactId, 5)
+    await harness.notify(harness.items[1].artifactId)
+    assert.equal(harness.selections.at(-1).artifactId, harness.items[0].artifactId)
+    assert.doesNotMatch(document.querySelector('header').textContent, /Updated r5/)
+  })
+  await t.test('a new draft receipt preserves an explicitly selected published version', async () => {
+    await harness.reset(false, 'published')
+    harness.revise(harness.items[0].artifactId, 6)
+    await harness.notify(harness.items[0].artifactId)
+    assert.equal(harness.selections.at(-1).versionId, harness.versionId)
+    assert.doesNotMatch(document.querySelector('header').textContent, /Updated r6/)
+  })
+  await t.test('new-dashboard examples clear the previous edit target and send a request in the current project', async () => {
+    await harness.reset()
+    await harness.click(harness.picker())
+    await harness.click(harness.button('New dashboard'))
+    assert.deepEqual([...document.querySelectorAll('button[aria-label^="Try demo:"]')].map(button => button.getAttribute('aria-label')), [
+      'Try demo: Regional sales · Beginner', 'Try demo: Sales overview · Beginner',
+      'Try demo: Production quality · Beginner', 'Try demo: Superstore enterprise BI · Advanced'
+    ])
+    await harness.click(harness.button('Try demo: Sales overview · Beginner'))
+    assert.equal(harness.assistantRequests.at(-1).selection, null)
+    assert.equal(harness.assistantRequests.at(-1).projectId, harness.projects[0].id)
+    assert.match(harness.assistantRequests.at(-1).text, /sales-overview.*bundled demo file/)
+    assert.match(harness.assistantRequests.at(-1).text, /two filter checks.*without publishing/)
+    assert.equal(harness.calls.length, 0, 'starting an example does not save or publish a dashboard directly')
+  })
   await t.test('project selector requests host navigation and follows authoritative scope changes', async () => {
     await harness.reset()
     const projectPicker = harness.picker

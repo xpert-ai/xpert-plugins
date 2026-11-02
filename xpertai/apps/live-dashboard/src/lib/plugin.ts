@@ -10,5 +10,6 @@ import { HtmlDashboardValidation } from './html-validation'
 import { DashboardPresentationProvider } from './presentation.provider'
 import { DashboardSharingService } from './sharing.service'
 import { DashboardArtifactType } from './artifact-type.provider'
-@XpertServerPlugin({ providers: [DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
+import { DashboardProviderOptionsController } from './provider-options.controller'
+@XpertServerPlugin({ controllers: [DashboardProviderOptionsController], providers: [DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
 export class LiveDashboardPlugin {}

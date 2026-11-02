@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-live-dashboard",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "Versioned live dashboards using platform analytics and Data Analytics renderer",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,8 @@
     "docs",
     "examples",
     ".xpertai-plugin",
-    "skills"
+    "skills",
+    "scripts/import-prompts.mjs"
   ],
   "scripts": {
     "verify:dist": "node scripts/verify-dist.mjs && node scripts/build-action.mjs --verify && node scripts/build-libraries.mjs --verify",
@@ -40,8 +41,8 @@
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@xpert-ai/contracts": "^3.29.1",
-    "@xpert-ai/plugin-sdk": "^3.29.1",
+    "@xpert-ai/contracts": "^3.30.0",
+    "@xpert-ai/plugin-sdk": "^3.30.0",
     "zod": "3.25.67",
     "@langchain/langgraph": "^0.4.7"
   },
@@ -55,8 +56,8 @@
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "@xpert-ai/community-data-analytics": "0.1.35",
-    "@xpert-ai/contracts": "^3.29.1",
-    "@xpert-ai/plugin-sdk": "^3.29.1",
+    "@xpert-ai/contracts": "^3.30.0",
+    "@xpert-ai/plugin-sdk": "^3.30.0",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "echarts": "5.6.0",
     "react": "^18.3.1",

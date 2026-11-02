@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-01-01",
+    "region": "East",
+    "amount": 12000,
+    "orders": 60
+  },
+  {
+    "date": "2026-01-01",
+    "region": "West",
+    "amount": 8000,
+    "orders": 40
+  },
+  {
+    "date": "2026-01-02",
+    "region": "East",
+    "amount": 15000,
+    "orders": 75
+  },
+  {
+    "date": "2026-01-02",
+    "region": "West",
+    "amount": 11000,
+    "orders": 55
+  },
+  {
+    "date": "2026-01-03",
+    "region": "East",
+    "amount": 17000,
+    "orders": 85
+  },
+  {
+    "date": "2026-01-03",
+    "region": "West",
+    "amount": 13000,
+    "orders": 65
+  }
+]

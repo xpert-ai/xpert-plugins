@@ -149,6 +149,36 @@ In Xpert integration settings, click "Test" to validate credentials and get `web
 - Use `interactive` mode in `dingtalk_send_rich_notification` for URL button cards.
 - Existing HTTP callback integrations keep working through the `dingtalk` HTTP Mode provider.
 
+## Reply callback reliability
+
+Reply callbacks enter the existing platform Managed Queue before Handoff acknowledges them. The plugin uses
+`ManagedQueueService.getRedis()` for renewable, token-checked leases and atomic state writes, scoped by tenant,
+organization, integration, Assistant and source run. This requires no platform changes or new dependencies.
+Apply jobs retry up to eight times. Completed-run receipts and completed jobs remain for 24 hours to suppress duplicates.
+
+When a terminal callback arrives with missing earlier events, a recovery job allows five seconds for reordering.
+It uses the explicit `on_message_end` final text snapshot and excludes a verified, already-delivered prefix.
+It also handles a missing `complete` envelope after conversation end. If the full text is unavailable, contains
+unsupported non-text blocks, or conflicts with text already sent, the plugin reports a recovery error rather than
+marking a partial reply successful. It cannot reconstruct content that was never delivered in any callback.
+
+Run the integration suite with an **isolated disposable Redis**, never a shared or production database:
+
+```sh
+export DINGTALK_TEST_REDIS_URL=redis://127.0.0.1:<test-port>
+corepack pnpm -C xpertai exec nx test @xpert-ai/plugin-dingtalk --runInBand --skipNxCache
+corepack pnpm -C xpertai exec nx build @xpert-ai/plugin-dingtalk --skipSync
+```
+
+The Redis suite launches three independent Node processes and exercises the real processor, renderer and state service.
+The host queue adapter and DingTalk HTTP endpoint are test doubles; production callback delivery remains a separate
+acceptance check. Without the test URL, only the Redis suite is skipped.
+
+Release all API replicas together or drain in-flight callbacks before switching versions: old processors do not participate
+in the new lease protocol. This update does not replay historical failed conversations. Redis fencing and completion receipts
+prevent stale writes and ordinary duplicates, but cannot guarantee exactly-once HTTP delivery if a process dies after
+DingTalk accepts a request and before its receipt is persisted.
+
 ## License
 
 AGPL-3.0

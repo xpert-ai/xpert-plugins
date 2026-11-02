@@ -201,7 +201,7 @@ export async function installQuickstartPlugin(
   const existing = bindings.filter(
     (binding) =>
       !binding.supersededById &&
-      binding.workspaceIds.includes(workspaceId) &&
+      (binding.workspaceIds.includes(workspaceId) || binding.definition.availability === "scope") &&
       binding.definition.kind === "agent_plugin",
   );
   if (

@@ -4,6 +4,13 @@ import type { HANAAdapterOptions } from './hana.js'
 
 class HanaReadError extends Error {}
 
+function isUnsupportedStatementTimeout(error: unknown): boolean {
+  // The native client reports this capability rejection with a generic HY000/-1 code.
+  return error instanceof Error && 'code' in error && error.code === -1 &&
+    'sqlState' in error && error.sqlState === 'HY000' &&
+    error.message === 'Query timeout is not supported by the HANA server.'
+}
+
 export interface HanaReadOptions { timeoutMs: number; maxRows: number; signal?: AbortSignal }
 export interface HanaReadTransport {
   execute(sql: string, parameters: DatabaseValue[], options: HanaReadOptions): Promise<DatabaseResult>
@@ -26,6 +33,7 @@ export function normalizeHanaCell(value: unknown, type: string): DatabaseValue {
 /** One disposable, read-only connection per scoped adapter. Never reuse the legacy write connection. */
 export function createHanaReadTransport(options: HANAAdapterOptions, connection: Connection = hanaClient.createConnection()): HanaReadTransport {
   let connected = false, closed = false, busy = false
+  let nativeTimeoutSupported = true
   let closePromise: Promise<void> | undefined
   const close = () => closePromise ??= (async () => {
     closed = true
@@ -86,15 +94,30 @@ export function createHanaReadTransport(options: HANAAdapterOptions, connection:
             reject(new HanaReadError('HANA_SESSION_CLOSED'))
           } else resolve(prepared)
         }))
-        statement.setTimeout(Math.max(1, Math.ceil(remaining() / 1000)))
-        cursor = await new Promise<ResultSet>((resolve, reject) => statement!.execQuery(parameters,
+        const query = () => new Promise<ResultSet>((resolve, reject) => statement!.execQuery(parameters,
           { communicationTimeout: remaining() }, (error, result) => {
-            if (error || !result) reject(new HanaReadError('HANA_QUERY_FAILED'))
-            else if (closed) {
-              void cleanup((done) => result.close(done))
+            if (closed) {
+              if (result) void cleanup((done) => result.close(done))
               reject(new HanaReadError('HANA_SESSION_CLOSED'))
+            } else if (error || !result) {
+              reject(error ?? new HanaReadError('HANA_QUERY_FAILED'))
             } else resolve(result)
           }))
+        try {
+          if (nativeTimeoutSupported) statement.setTimeout(Math.max(1, Math.ceil(remaining() / 1000)))
+          cursor = await query()
+        } catch (error) {
+          if (!nativeTimeoutSupported || !isUnsupportedStatementTimeout(error)) {
+            throw error instanceof HanaReadError ? error : new HanaReadError('HANA_QUERY_FAILED')
+          }
+          // Retry only this capability rejection, on the same read-only session and deadline.
+          remaining()
+          nativeTimeoutSupported = false
+          statement.setTimeout(0)
+          cursor = await query().catch((error: unknown) => {
+            throw error instanceof HanaReadError ? error : new HanaReadError('HANA_QUERY_FAILED')
+          })
+        }
         const info = cursor.getColumnInfo()
         const columns = info.map((column, index) => ({ id: `c${index}`, name: column.columnName,
           dataType: column.nativeTypeName, nullable: column.nullable !== 0 }))

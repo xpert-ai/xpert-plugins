@@ -1,0 +1,219 @@
+{
+  "observedAt": "2026-11-01",
+  "sourceType": "SAP BW XMLA test source",
+  "catalogCount": 471,
+  "cubeAndQueryCount": 627,
+  "scope": "Catalog evidence and earlier bounded read-only probes; not Bosi Assistant end-to-end acceptance. Production fields and permissions must be rediscovered.",
+  "models": [
+    {
+      "query": "2CIACF90CUBEV/2CCACTCASHFLANLYTS",
+      "catalog": "2CIACF90CUBEV",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIRBLSKDATDUE/2CCARCASHCOLLOVW",
+      "catalog": "2CIRBLSKDATDUE",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIARJEITMAGGRID/2CCARJEITMAGGRID",
+      "catalog": "2CIARJEITMAGGRID",
+      "description": "科目应收账款日记账分录视图的老化网格",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CICCGRPRPTC/2CCCGAC20Q",
+      "catalog": "2CICCGRPRPTC",
+      "description": "实际与预算比较 - 定期集团货币值",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CICCGRPRPTC/2CCCPLRPT20Q",
+      "catalog": "2CICCGRPRPTC",
+      "description": "合并损益（按费用性质）",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CICCGRPRPTC/2CCCSBSRPT10Q",
+      "catalog": "2CICCGRPRPTC",
+      "description": "合并资产负债表",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIENGPTEBILLITMC/2CCENGPTEBILLITMQ",
+      "catalog": "2CIENGPTEBILLITMC",
+      "description": "互动项目时间和费用开票",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIEPROJSLSMARCUBE/2CCEPMARGANLYSQ",
+      "catalog": "2CIEPROJSLSMARCUBE",
+      "description": "互动项目利润率分析查询",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIACTPLNJEIC/2CCFICCPLANACT2001",
+      "catalog": "2CIFIACTPLNJEIC",
+      "description": "成本中心 - 计划/实际",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CIFIDOCJRNLCUBE/2CCFICOSTCTRQ2001",
+      "catalog": "2CIFIDOCJRNLCUBE",
+      "description": "成本中心 - 实际",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIGLACCTLITST/2CCFICSHFLINDIFRS",
+      "catalog": "2CIFIGLACCTLITST",
+      "description": "显示现金流量表间接国际财务报表标准",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIDAYSSLSOUTSTG/2CCFIDAYSSLSOUTSTG",
+      "catalog": "2CIFIDAYSSLSOUTSTG",
+      "description": "应收账款周转天数 Smart Business 应用",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CIFIACTPLNJEIC/2CCFIPLPLANACT",
+      "catalog": "2CIFIACTPLNJEIC",
+      "description": "损益 - 计划/实际",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CIFIPRODCSTBOCUB/2CCFIPRODCSTBOQRY",
+      "catalog": "2CIFIPRODCSTBOCUB",
+      "description": "生产成本（按订单）",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIDOCJRNLCUBE/2CCFIPROFLOSSQ2901",
+      "catalog": "2CIFIDOCJRNLCUBE",
+      "description": "损益 - 实际值",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CIFIACTPLNJEIC/2CCFIPROPLACTQ2203",
+      "catalog": "2CIFIACTPLNJEIC",
+      "description": "项目 - 基准/完工时估算/正在进行",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIACTPLNJEIC/2CCFIPRPLANACT2201",
+      "catalog": "2CIFIACTPLNJEIC",
+      "description": "项目 - 计划/实际",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIFIWCPRODCSTCUB/2CCFIWCPRODCSTQRY",
+      "catalog": "2CIFIWCPRODCSTCUB",
+      "description": "生产成本（按工作中心）",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIMATERIALSTOCK/2CCMATSTOCKBYKDATE",
+      "catalog": "2CIMATERIALSTOCK",
+      "description": "过账日期的物料库存",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIMATSTOCKTIMESER/2CCMATSTOCKTIMESER",
+      "catalog": "2CIMATSTOCKTIMESER",
+      "description": "期间的物料库存（按类型）",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIMFGORDITEMAMTC/2CCMFGORDITEMAMTQ",
+      "catalog": "2CIMFGORDITEMAMTC",
+      "description": "制造订单项目报废金额查询",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CCMMCONTRLEAKAGE1/2CCMMCONTRLEAKAGE",
+      "catalog": "2CCMMCONTRLEAKAGE1",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CCMMPUOITMHISV2/2CCMMPOAVGDLVT",
+      "catalog": "2CCMMPUOITMHISV2",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CCMMPURORDSPND/2CCMMPURORDQUERY",
+      "catalog": "2CCMMPURORDSPND",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CCMMPURORDVALUE/2CCMMPURORDVALUEQ",
+      "catalog": "2CCMMPURORDVALUE",
+      "description": "支出分析",
+      "status": "query_currency_error"
+    },
+    {
+      "query": "2CIOVRDUEACCTRBLS/2CCOVRDUEACCTRBLS",
+      "catalog": "2CIOVRDUEACCTRBLS",
+      "description": "逾期应收账款 Smart Business 应用",
+      "status": "metadata_unavailable"
+    },
+    {
+      "query": "2CIPPMFGORDITEMC/2CCPPMFGMATLSCRAPQ",
+      "catalog": "2CIPPMFGORDITEMC",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIPPMFGORDITEMC/2CCPPMFGORDITMDURQ",
+      "catalog": "2CIPPMFGORDITEMC",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CIPPMFGORDEROPC/2CCPPMFGORDOPDURNQ",
+      "catalog": "2CIPPMFGORDEROPC",
+      "description": "",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CISDCUSTRETITMC2/2CCSDCUSTRETITMQ2",
+      "catalog": "2CISDCUSTRETITMC2",
+      "description": "客户退货 - 灵活分析",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CISDBILLGDOCITMC/2CCSDSALESVLMQ",
+      "catalog": "2CISDBILLGDOCITMC",
+      "description": "分析 - 销售量",
+      "status": "query_verified_scoped"
+    },
+    {
+      "query": "2CISDSALESORDERIC/2CCSDSLSORDERITEMQ",
+      "catalog": "2CISDSALESORDERIC",
+      "description": "分析 - 收到的销售订单",
+      "status": "query_verified_scoped"
+    },
+    {
+      "query": "2CISHPPLNDCUBE/2CCSHPPLNDQRY",
+      "catalog": "2CISHPPLNDCUBE",
+      "description": "按计划装运的交货项目",
+      "status": "catalog_only"
+    },
+    {
+      "query": "2CISTOCKQUANVALCUR/2CCSTOCKQUANVALCUR",
+      "catalog": "2CISTOCKQUANVALCUR",
+      "description": "当前库存数量和值",
+      "status": "query_verified_native_currency"
+    },
+    {
+      "query": "/ERP/FC_MP05/ERP_FCLM_MP05_QCP02",
+      "catalog": "/ERP/FC_MP05",
+      "description": "变量的现金头寸",
+      "status": "catalog_only"
+    }
+  ]
+}

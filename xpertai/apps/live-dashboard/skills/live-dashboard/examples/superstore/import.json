@@ -1,0 +1,200 @@
+[
+  {
+    "catalog": "public",
+    "name": "superstore_orders_v1",
+    "withHeader": 1,
+    "columns": [
+      {
+        "name": "row_id",
+        "fieldName": "row_id",
+        "isKey": true,
+        "type": "integer"
+      },
+      {
+        "name": "order_id",
+        "fieldName": "order_id",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "order_date",
+        "fieldName": "order_date",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "ship_date",
+        "fieldName": "ship_date",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "ship_mode",
+        "fieldName": "ship_mode",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "customer_id",
+        "fieldName": "customer_id",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "customer_name",
+        "fieldName": "customer_name",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "segment",
+        "fieldName": "segment",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "country",
+        "fieldName": "country",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "city",
+        "fieldName": "city",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "state",
+        "fieldName": "state",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "postal_code",
+        "fieldName": "postal_code",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "region",
+        "fieldName": "region",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "product_id",
+        "fieldName": "product_id",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "category",
+        "fieldName": "category",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "sub_category",
+        "fieldName": "sub_category",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "product_name",
+        "fieldName": "product_name",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "sales",
+        "fieldName": "sales",
+        "isKey": false,
+        "type": "decimal",
+        "precision": 20,
+        "fraction": 6
+      },
+      {
+        "name": "quantity",
+        "fieldName": "quantity",
+        "isKey": false,
+        "type": "integer"
+      },
+      {
+        "name": "discount",
+        "fieldName": "discount",
+        "isKey": false,
+        "type": "decimal",
+        "precision": 20,
+        "fraction": 6
+      },
+      {
+        "name": "profit",
+        "fieldName": "profit",
+        "isKey": false,
+        "type": "decimal",
+        "precision": 20,
+        "fraction": 6
+      },
+      {
+        "name": "order_year",
+        "fieldName": "order_year",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "order_month",
+        "fieldName": "order_month",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "regional_manager",
+        "fieldName": "regional_manager",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "returned",
+        "fieldName": "returned",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "returned_order_id",
+        "fieldName": "returned_order_id",
+        "isKey": false,
+        "type": "varchar",
+        "length": 512
+      },
+      {
+        "name": "returned_sales",
+        "fieldName": "returned_sales",
+        "isKey": false,
+        "type": "decimal",
+        "precision": 20,
+        "fraction": 6
+      }
+    ]
+  }
+]

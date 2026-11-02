@@ -1,0 +1,44 @@
+[
+  {
+    "date": "2026-01-01",
+    "line": "Line A",
+    "produced": 100,
+    "good": 96,
+    "defects": 4
+  },
+  {
+    "date": "2026-01-01",
+    "line": "Line B",
+    "produced": 120,
+    "good": 114,
+    "defects": 6
+  },
+  {
+    "date": "2026-01-02",
+    "line": "Line A",
+    "produced": 110,
+    "good": 104,
+    "defects": 6
+  },
+  {
+    "date": "2026-01-02",
+    "line": "Line B",
+    "produced": 130,
+    "good": 126,
+    "defects": 4
+  },
+  {
+    "date": "2026-01-03",
+    "line": "Line A",
+    "produced": 120,
+    "good": 117,
+    "defects": 3
+  },
+  {
+    "date": "2026-01-03",
+    "line": "Line B",
+    "produced": 140,
+    "good": 133,
+    "defects": 7
+  }
+]

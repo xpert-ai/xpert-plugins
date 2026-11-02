@@ -1,0 +1,104 @@
+[
+  {
+    "case": "all",
+    "controls": {
+      "year": "",
+      "region": "",
+      "category": ""
+    },
+    "summary": {
+      "Sales": "2326534.354300",
+      "Profit": "292296.814600",
+      "Quantity": "38654",
+      "Orders": "5111",
+      "Customers": "804",
+      "ReturnedOrders": "296",
+      "ReturnedSales": "180504.277900"
+    }
+  },
+  {
+    "case": "west",
+    "controls": {
+      "year": "",
+      "region": "West",
+      "category": ""
+    },
+    "summary": {
+      "Sales": "739813.608500",
+      "Profit": "110798.817000",
+      "Quantity": "12466",
+      "Orders": "1635",
+      "Customers": "686",
+      "ReturnedOrders": "189",
+      "ReturnedSales": "107483.057500"
+    }
+  },
+  {
+    "case": "east",
+    "controls": {
+      "year": "",
+      "region": "East",
+      "category": ""
+    },
+    "summary": {
+      "Sales": "691828.168000",
+      "Profit": "94883.260300",
+      "Quantity": "11159",
+      "Orders": "1475",
+      "Customers": "685",
+      "ReturnedOrders": "44",
+      "ReturnedSales": "41705.144000"
+    }
+  },
+  {
+    "case": "year2024",
+    "controls": {
+      "year": "2024",
+      "region": "",
+      "category": ""
+    },
+    "summary": {
+      "Sales": "745567.531200",
+      "Profit": "95926.347600",
+      "Quantity": "12737",
+      "Orders": "1723",
+      "Customers": "704",
+      "ReturnedOrders": "105",
+      "ReturnedSales": "75502.063900"
+    }
+  },
+  {
+    "case": "furniture",
+    "controls": {
+      "year": "",
+      "region": "",
+      "category": "Furniture"
+    },
+    "summary": {
+      "Sales": "754747.761300",
+      "Profit": "19729.995600",
+      "Quantity": "8369",
+      "Orders": "1819",
+      "Customers": "714",
+      "ReturnedOrders": "136",
+      "ReturnedSales": "59219.174900"
+    }
+  },
+  {
+    "case": "west2024furniture",
+    "controls": {
+      "year": "2024",
+      "region": "West",
+      "category": "Furniture"
+    },
+    "summary": {
+      "Sales": "74155.119500",
+      "Profit": "2892.830000",
+      "Quantity": "909",
+      "Orders": "202",
+      "Customers": "184",
+      "ReturnedOrders": "36",
+      "ReturnedSales": "11587.636500"
+    }
+  }
+]

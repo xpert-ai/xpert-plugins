@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "dataClassification": "fictional teaching data, not actual customer operations",
+  "publisher": "Tableau / Salesforce",
+  "sourcePage": "https://tableau.github.io/extensions-api/docs/dataapps/trex_dataapp_examples/",
+  "repositoryPath": "Samples/DataApp/Tableau Superstore Data App/Data/Datasources/Sample - Superstore.xls",
+  "blobUrl": "https://api.github.com/repos/tableau/extensions-api/git/blobs/7f294f45f39c3e82b4dc738ffa5f8692c3c000d8",
+  "sourceSha256": "add4e193479cae8e9f22bfa734dd8bb706355dce38353967668f4e2b6643d19c",
+  "csvSha256": "7939076bc3b0c5841a9514da2dc2fbce91df97a05f36a586952ca95d64fcb37b",
+  "license": "Apache-2.0",
+  "licenseUrl": "https://github.com/tableau/extensions-api/blob/main/LICENSE.txt",
+  "transformations": [
+    "Normalize Excel date serials to ISO dates; decimal values to six places",
+    "Deduplicate 800 Returns rows to 296 unique Order IDs before enrichment",
+    "Preserve 10194 order-line rows; enrich with one manager per region",
+    "Derive order_year, order_month, returned, nullable returned_order_id and returned_sales",
+    "Postal codes remain text; blank returned_order_id is SQL NULL on CSV import"
+  ],
+  "visualReference": {
+    "author": "Luke Stanke / phData",
+    "url": "https://www.phdata.io/blog/building-an-executive-dashboard-in-tableau/",
+    "usage": "Information hierarchy reference only; original page implementation; no copied screenshot or brand assets"
+  }
+}

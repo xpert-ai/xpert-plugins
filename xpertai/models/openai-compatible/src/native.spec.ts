@@ -1,7 +1,7 @@
 import { compatibleResponsesTransport } from './native.js'
 import { OpenAICompatibleProviderStrategy } from './provider.strategy.js'
 import { OAIAPICompatLargeLanguageModel } from './llm/llm.js'
-import { ModelFeature } from '@xpert-ai/contracts'
+import { ModelFeature, resolveModelParameterOptions } from '@xpert-ai/contracts'
 import { ChatOpenAIResponses } from '@langchain/openai'
 
 const credentials = {
@@ -19,6 +19,46 @@ const credentials = {
 }
 
 describe('native OpenAI-compatible Responses', () => {
+  it.each([undefined, false, true])('scopes cache key filtering to the configured model (disabled=%s)', async (disabled) => {
+    const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}'))
+    const generate = compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: disabled }, fetcher)
+    const otherModel = compatibleResponsesTransport(credentials, fetcher)
+    const body = {
+      model: 'coding',
+      prompt_cache_key: 'session-cache-key',
+      stream: true,
+      max_output_tokens: 2048,
+      reasoning: { effort: 'high', summary: 'auto' },
+      input: [
+        { type: 'reasoning', id: 'rs_1', encrypted_content: 'opaque', summary: [] },
+        { type: 'function_call', call_id: 'call_1', name: 'read', arguments: '{}' },
+        { type: 'function_call_output', call_id: 'call_1', output: 'tool output with prompt_cache_key text' }
+      ],
+      tools: [{ type: 'function', name: 'read', parameters: { type: 'object' } }]
+    }
+    const original = structuredClone(body)
+    await generate(body, {}, AbortSignal.timeout(1000))
+    await otherModel(body, {}, AbortSignal.timeout(1000))
+    const expected = { ...body, model: 'custom-coding', store: false }
+    if (disabled) {
+      const { prompt_cache_key: _key, ...withoutKey } = expected
+      expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual(withoutKey)
+    } else {
+      expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual(expected)
+    }
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual(expected)
+    expect(body).toEqual(original)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('accepts requests without a cache key and rejects ambiguous compatibility settings', async () => {
+    const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}'))
+    const generate = compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: true }, fetcher)
+    await generate({ model: 'coding', input: 'hello' }, {}, AbortSignal.timeout(1000))
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).not.toHaveProperty('prompt_cache_key')
+    expect(() => compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: 'false' }, fetcher)).toThrow()
+  })
+
   it('preserves opaque reasoning and multiple tool results through serialization', async () => {
     const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }))
     const generate = compatibleResponsesTransport(credentials, fetcher)
@@ -74,4 +114,39 @@ describe('native OpenAI-compatible Responses', () => {
     expect(model.maxTokens).toBe(8192)
     expect(model.invocationParams()).toMatchObject({ reasoning: { effort: 'high' }, max_output_tokens: 8192, store: false })
   })
+
+  it('excludes the SDK common temperature default from effective Responses rules', () => {
+    const llm = new OAIAPICompatLargeLanguageModel(new OpenAICompatibleProviderStrategy())
+    const rules = llm.getParameterRules('coding', credentials)
+    expect(rules.map((rule) => rule.name)).toEqual(['maxRetries', 'max_tokens', 'reasoning_effort'])
+    expect(resolveModelParameterOptions({}, rules)).not.toHaveProperty('temperature')
+    expect(llm.getParameterRules('coding', { ...credentials, api_protocol: 'chat' }))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'temperature', default: 0.2 })]))
+  })
+
+  it.each([{}, { temperature: 0.7, top_p: 0.8, frequency_penalty: 0, presence_penalty: 0 }])(
+    'omits unsupported sampling options from the actual Responses HTTP request: %j',
+    async (savedOptions) => {
+      const llm = new OAIAPICompatLargeLanguageModel(new OpenAICompatibleProviderStrategy())
+      const options = resolveModelParameterOptions(savedOptions, llm.getParameterRules('coding', credentials))
+      const model = llm.getChatModel({ model: 'coding', options: { ...options, streaming: false, maxRetries: 0 } }, undefined, credentials)
+      const requests: string[] = []
+      model.clientConfig.fetch = async (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body')
+        requests.push(init.body)
+        return new Response(JSON.stringify({
+          id: 'resp_test', object: 'response', status: 'completed', model: 'custom-coding',
+          output: [{ id: 'msg_test', type: 'message', role: 'assistant', status: 'completed',
+            content: [{ type: 'output_text', text: 'OK', annotations: [] }] }],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 }
+        }), { headers: { 'content-type': 'application/json' } })
+      }
+      await model.bindTools([]).invoke('Hi')
+      expect(requests).toHaveLength(1)
+      expect(JSON.parse(requests[0])).toMatchObject({ model: 'custom-coding', max_output_tokens: 8192, store: false, reasoning: { effort: 'xhigh' } })
+      for (const key of ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']) {
+        expect(JSON.parse(requests[0])).not.toHaveProperty(key)
+      }
+    }
+  )
 })

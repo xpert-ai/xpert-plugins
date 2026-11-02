@@ -1,0 +1,19 @@
+<!-- Structural fragment; add verified controls, data bindings and the SDK runtime. -->
+<body data-dashboard-theme="profit-atlas@1">
+  <main class="workspace">
+    <header class="atlas-header">
+      <div><h1>Analysis title</h1><p class="description">Business question</p><span class="demo">Source and period</span></div>
+      <div class="filters" aria-label="Analysis filters"><!-- Typed filter-field controls --></div>
+    </header>
+    <section class="atlas-metrics" aria-label="Current scope metrics"><!-- Metric outputs --></section>
+    <div class="analysis">
+      <div class="atlas-plots">
+        <section class="panel"><h2>Measure relationship</h2><div class="chart" id="chart-secondary"></div></section>
+        <section class="panel"><h2>Contribution ranking</h2><div class="chart" id="chart-primary"></div></section>
+      </div>
+      <div class="full-details"><section class="details"><!-- Complete accessible detail table --></section></div>
+      <p id="status" class="status" role="status"></p>
+    </div>
+    <footer><span>Source period</span><span id="freshness"></span></footer>
+  </main>
+</body>

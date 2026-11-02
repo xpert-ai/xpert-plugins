@@ -1,0 +1,45 @@
+<!-- Structural reference, not a runnable dashboard. Supply real verified bindings and renderers. -->
+<!-- Inline theme.css in <style>; inline icons.js, select.js, charts.js before business runtime. -->
+<main class="workspace">
+  <aside class="metric-rail">
+    <header>
+      <span class="demo"><!-- Verified source / explicit demo label --></span>
+      <h1><!-- Business question --></h1>
+      <p class="description"><!-- Scope and useful context --></p>
+    </header>
+    <section class="metrics" aria-label="当前筛选主要指标">
+      <!-- Repeat up to five .metric elements, using stable IDs and backend totals. -->
+      <div class="metric"><p><!-- Label and unit --></p><output id="metric-0">—</output><small><!-- Formula --></small></div>
+    </section>
+  </aside>
+  <div class="analysis">
+    <div class="filters" aria-label="分析筛选">
+      <!-- Repeat for actual verified controls; data-dashboard-control must match the saved contract. -->
+      <div class="filter-field">
+        <label for="filter-region">区域</label>
+        <select id="filter-region" data-dashboard-control="region" disabled></select>
+      </div>
+    </div>
+    <section class="hero">
+      <h2><!-- Main analysis heading --></h2><p class="note"><!-- Period and units --></p>
+      <h3 class="chart-heading"><!-- First measure/unit --></h3>
+      <div id="chart-primary" class="chart" role="img" aria-label="主趋势"></div>
+      <h3 class="chart-heading profit"><!-- Second measure/unit with independent scale --></h3>
+      <div id="chart-profit" class="chart chart-profit" role="img" aria-label="辅助趋势"></div>
+    </section>
+    <div class="lower-grid">
+      <section class="region-panel">
+        <h2><!-- Contribution heading --></h2><p class="note"><!-- Units and sort --></p>
+        <div id="chart-secondary" class="chart" role="img" aria-label="排名"></div>
+      </section>
+      <section class="details">
+        <h2><!-- Detail heading --></h2>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="分析明细">
+          <table><thead><!-- Actual column headers --></thead><tbody id="details-rows"></tbody></table>
+        </div>
+      </section>
+    </div>
+    <p id="status" class="status" role="status">正在加载…</p>
+  </div>
+  <footer><span><!-- Actual source and period --></span><span id="freshness">尚无当前查询结果</span></footer>
+</main>

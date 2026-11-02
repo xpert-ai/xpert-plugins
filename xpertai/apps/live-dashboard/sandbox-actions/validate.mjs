@@ -115,7 +115,7 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
     const resources = await frame.locator('script[src], link[rel~="stylesheet"][href]').evaluateAll(elements => elements.map(element =>
       element instanceof HTMLScriptElement ? element.src : element.href))
     for (const url of resources) if (/^https?:/.test(url) && !loadedResources.has(url.split('#')[0]))
-      addError(`DOCUMENT_RESOURCE_NOT_LOADED: ${url.split('?')[0]}. Online scripts and styles must load successfully before saving.`)
+      addError(`DOCUMENT_RESOURCE_NOT_LOADED: ${url.split('?')[0]}. Network resources must load successfully before saving. Check the URL and connectivity, then retry.`)
   }
   // Exercise bounded native selects against the saved parameter contract; data remains the real default preview.
   // This detects invalid filter wiring, not the upstream effect of a filter or arbitrary custom controls.
