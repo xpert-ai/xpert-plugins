@@ -1,4 +1,5 @@
 import { DashboardProjectsService, projectSearchSchema } from './projects.service'
+import { dashboardSearchSchema } from './projects.schema'
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery } from '@xpert-ai/contracts'
@@ -60,10 +61,13 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     const mode = params.newDashboard ? 'draft' : params.mode ?? (access.canReadDraft ? 'draft' : 'published')
     if (mode === 'draft' && !access.canReadDraft) throw new ForbiddenException('DASHBOARD_DRAFT_ACCESS_DENIED')
     const page = await this.service.listPage(context, params.page, params.pageSize)
+    const selectedDashboard = params.artifactId
+      ? page.items.find(item => item.artifactId === params.artifactId) ?? await this.service.selectedSummary(context, params.artifactId)
+      : undefined
     const versions = params.artifactId ? await this.service.history(context, params.artifactId) : undefined
     const unavailable = params.artifactId && mode === 'published' && !params.versionId && !versions?.some(version => version.current)
     return { meta: { navigationTarget: dashboardNavigationTarget(context), access, mode, currentProject,
-      dashboards: page.items, pagination: { page: page.page, pageSize: page.pageSize, hasMore: page.hasMore },
+      dashboards: page.items, selectedDashboard, pagination: { page: page.page, pageSize: page.pageSize, hasMore: page.hasMore },
       sources: access.canEdit ? await this.service.sources(context) : [],
       ...(unavailable ? { notice: 'not_published' as const } : params.artifactId ? {
         saved: await this.service.openDocument(context, params.artifactId, params.versionId, params.draftRevision, mode), versions } : {}) } }
@@ -71,9 +75,12 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)
     if (action === 'dashboards') {
-      const parsed = projectSearchSchema.safeParse(request.input)
+      const parsed = dashboardSearchSchema.safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_INVALID_PICKER_QUERY')
-      return { success: true, data: await this.service.searchPage(context, parsed.data), refresh: false }
+      const target = parsed.data.projectId ? await this.projects.pickerContext(context, parsed.data.projectId) : context
+      const page = await this.service.searchPage(target, parsed.data)
+      const access = await this.service.access(target)
+      return { success: true, data: { ...page, canEdit: access.canEdit, mode: access.canReadDraft ? 'draft' : 'published' }, refresh: false }
     }
     if (action === 'projects') return { success: true, data: await this.projects.list(context, projectSearchSchema.parse(request.input)), refresh: false }
     if (action === 'share') return { success: true, data: await this.sharing.share(context, shareInput.parse(request.input)), refresh: false }
@@ -82,10 +89,11 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       return { success: true, data: action === 'share-status' ? await this.sharing.inspect(context, input.artifactId, input.versionId) : await this.sharing.revoke(context, input.artifactId), refresh: false }
     }
     if (action === 'delete') {
-      const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(), confirmed: z.literal(true) }).strict().safeParse(request.input)
+      const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(), confirmed: z.literal(true), projectId: z.string().uuid().optional() }).strict().safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_DELETION_CONFIRMATION_REQUIRED')
       const input = parsed.data
-      return { success: true, data: await this.service.trash(context, input.artifactId, input.expectedRevision), refresh: false }
+      const target = input.projectId ? await this.projects.pickerContext(context, input.projectId) : context
+      return { success: true, data: await this.service.trash(target, input.artifactId, input.expectedRevision), refresh: false }
     }
     if (action === 'publish') {
       const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(),

@@ -93,5 +93,9 @@
   "realDataPrompt": "使用我的真实业务数据制作看板。先检查当前项目有权限的数据源并确认指标口径，不得使用演示数据补齐。",
   "superstoreTitle": "Superstore 企业分析 · 进阶",
   "superstoreDescription": "官方零售教学数据：经营总览、商品盈利、客户与退货；需先连接 Data Xpert 模型。",
-  "superstorePrompt": "请读取 live-dashboard 技能中的 themes/README.md 和 superstore 完整配方（总览使用 Trend Workspace、盈利使用 Profit Atlas、客户退货使用 Customer Brief），在当前项目使用已授权的 Data Xpert SuperstoreOrders 发布模型，分别制作经营总览、商品盈利、客户与退货三个看板。必须保留演示标识；先核对全量及区域、年份、品类筛选，再按完整 HTML 和全部 Binding 保存三个草稿，不发布。若模型不可用，请说明数据准备步骤，不得用其他样例或自造数据替代。"
+  "superstorePrompt": "请读取 live-dashboard 技能中的 themes/README.md 和 superstore 完整配方（总览使用 Trend Workspace、盈利使用 Profit Atlas、客户退货使用 Customer Brief），在当前项目使用已授权的 Data Xpert SuperstoreOrders 发布模型，分别制作经营总览、商品盈利、客户与退货三个看板。必须保留演示标识；先核对全量及区域、年份、品类筛选，再按完整 HTML 和全部 Binding 保存三个草稿，不发布。若模型不可用，请说明数据准备步骤，不得用其他样例或自造数据替代。",
+  "deleteDashboardNamed": "删除看板“{{title}}”",
+  "loadingMore": "正在加载更多…",
+  "dashboardUpdatedAt": "更新于 {{time}}",
+  "updateTimeUnavailable": "暂无更新时间"
 }

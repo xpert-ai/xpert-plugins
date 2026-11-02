@@ -162,3 +162,41 @@ test('dashboard picker searches every authorized page and draft display title, w
   f.revoke()
   await assert.rejects(search(''), /REVOKED/)
 })
+
+test('hover preview validates membership and Assistant binding before listing or deleting in another project', async () => {
+  const { ForbiddenException } = require('@nestjs/common')
+  const f = projectFixture(), targetId = randomUUID(), deniedId = randomUUID(), checks = []
+  const original = f.capabilities['platform.project.access'].assertAssistant
+  let archived = false, denied = false
+  f.capabilities['platform.project.access'].assertAssistant = async input => {
+    checks.push(input)
+    if (input.projectId === deniedId || denied) throw new ForbiddenException('PROJECT_ACCESS_DENIED')
+    if (input.projectId === targetId) return { projectId: targetId, role: 'manager', canManage: true, archived }
+    return original(input)
+  }
+  const projects = new DashboardProjectsService(f.runtime)
+  const target = await projects.pickerContext(f.context, targetId)
+  assert.equal(target.tenantId, f.context.tenantId); assert.equal(target.organizationId, f.context.organizationId)
+  assert.equal(target.userId, f.context.userId); assert.equal(target.runtimeScope, undefined)
+  const local = await f.service.save(f.context, example, null)
+  const remote = await f.service.save(target, { ...example, id: randomUUID(), title: 'Another project board' }, null)
+  f.drafts.get(remote.artifactId).updatedAt = '2026-11-02T08:30:00Z'
+  const view = new DashboardViewProvider(f.service, f.sharing, projects)
+  const preview = async projectId => view.executeViewAction(f.context, 'live-dashboard', 'dashboards', { input: { projectId, search: '', page: 1 } })
+  const result = (await preview(targetId)).data
+  assert.deepEqual(result.items.map(item => item.artifactId), [remote.artifactId])
+  assert.equal(result.items[0].updatedAt, '2026-11-02T08:30:00Z')
+  assert.equal(f.context.runtimeScope.projectId, f.projectId, 'preview does not mutate current host scope')
+  assert.ok(checks.every(input => input.actor.organizationId === f.context.organizationId && input.assistantId === f.context.hostId))
+  await assert.rejects(preview(deniedId), /PROJECT_ACCESS_DENIED/)
+  archived = true; await assert.rejects(preview(targetId), /ACCESS_DENIED/); archived = false
+  const recycled = []
+  f.capabilities['platform.artifact-drafts'].setRecycled = async input => { recycled.push(input); return f.drafts.get(input.artifactId) }
+  const remove = () => view.executeViewAction(f.context, 'live-dashboard', 'delete', { input: { artifactId: remote.artifactId, expectedRevision: 1, confirmed: true, projectId: targetId } })
+  denied = true; await assert.rejects(remove(), /PROJECT_ACCESS_DENIED/); denied = false
+  f.role('member'); await assert.rejects(remove(), /MANAGE_DENIED/); f.role('manager')
+  await assert.rejects(view.executeViewAction(f.context, 'live-dashboard', 'delete', { input: { artifactId: local.artifactId, expectedRevision: 1, confirmed: true, projectId: targetId } }), /ACCESS_DENIED/)
+  assert.deepEqual(recycled, [])
+  await remove()
+  assert.deepEqual(recycled, [{ artifactId: remote.artifactId, expectedRevision: 1, recycled: true }])
+})

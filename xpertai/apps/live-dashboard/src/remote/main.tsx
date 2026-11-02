@@ -33,6 +33,7 @@ function App() {
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const pickerNavigation = React.useRef(false)
   const [list, setList] = React.useState<Summary[]>([])
+  const [selectedDashboard, setSelectedDashboard] = React.useState<Summary | null>(null)
   const [access, setAccess] = React.useState({ project: false, archived: false, canReadDraft: false, canEdit: false, canManage: false })
   const [currentProject, setCurrentProject] = React.useState<z.infer<typeof listSchema>['meta']['currentProject']>(null)
   const [mode, setMode] = React.useState<DashboardMode>('published')
@@ -51,7 +52,7 @@ function App() {
   const [status, setStatus] = React.useState('')
   const [refreshSeconds, setRefreshSeconds] = React.useState('off')
   const [editor, setEditor] = React.useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = React.useState<Summary | null>(null)
+  const [confirmDelete, setConfirmDelete] = React.useState<(Summary & { projectId?: string }) | null>(null)
   const [deleteError, setDeleteError] = React.useState('')
   const [deleting, setDeleting] = React.useState(false)
   const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
@@ -73,7 +74,7 @@ function App() {
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
     activeArtifactId.current = undefined
-    setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setEditor(null); setVersions([])
+    setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setSelectedDashboard(null); setEditor(null); setVersions([])
     setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
     setControls({}); setStatus(''); setPartial(false)
   }
@@ -104,6 +105,7 @@ function App() {
     activeArtifactId.current = artifactId
     const result = await load(artifactId, versionId, requestedMode, 1, draftRevision), target = result.saved
     if (sequence !== requestSequence.current) return
+    setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === artifactId) ?? null)
     if (result.notice === 'not_published') {
       setNotice(t.notPublished)
       if (!readOnly) { await selectEditorTarget(null); if (reflectNavigation) await navigateDashboard(result.navigationTarget, artifactId, undefined, result.mode) }
@@ -136,6 +138,7 @@ function App() {
     const previous = current.saved, sequence = ++requestSequence.current
     const result = await load(previous.artifactId, previous.versionId ?? undefined, previous.isDraft ? 'draft' : 'published')
     if (sequence !== requestSequence.current || activeArtifactId.current !== previous.artifactId || editRef.current.dirty) return
+    setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === previous.artifactId) ?? null)
     const target = result.saved
     if (!target) { clearDocument(); throw new Error('Dashboard is unavailable') }
     setSaved(target); setVersions(result.versions ?? [])
@@ -220,7 +223,7 @@ function App() {
     setDeleteError(''); setDeleting(true)
     try {
       const receipt = z.object({ artifactId: z.literal(target.artifactId) }).parse(actionSchema.parse(await requestHost('executeAction', {
-        actionKey: 'delete', input: { artifactId: target.artifactId, expectedRevision: target.draftRevision, confirmed: true }
+        actionKey: 'delete', input: { artifactId: target.artifactId, expectedRevision: target.draftRevision, confirmed: true, ...(target.projectId ? { projectId: target.projectId } : {}) }
       })).data)
       setConfirmDelete(null)
       setList(items => items.filter(item => item.artifactId !== receipt.artifactId))
@@ -237,10 +240,16 @@ function App() {
       throw error
     } finally { setDeleting(false) }
   }
-  async function switchProject(projectId: string) {
+  function requestDelete(target: Summary, projectId?: string) {
+    if (readOnly || !target.canDelete || !target.draftRevision) return
+    setPickerOpen(false)
+    setDeleteError(''); setConfirmDelete({ ...target, ...(projectId ? { projectId } : {}) })
+  }
+  async function switchProject(projectId: string, artifactId?: string, newDashboard = false, requestedMode?: DashboardMode) {
     if (projectId === currentProject?.id) return
     const result = await requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
-      target: 'assistant.project', projectId, viewKey: 'live-dashboard__live-dashboard', parameters: { picker: 'dashboards' }
+      target: 'assistant.project', projectId, viewKey: 'live-dashboard__live-dashboard',
+      ...(artifactId ? { selectionId: artifactId } : {}), parameters: newDashboard ? { newDashboard: true } : { ...(requestedMode ? { mode: requestedMode } : {}) }
     } })
     if (!z.object({ success: z.literal(true) }).safeParse(result).success) throw new Error(t.projectSwitchFailed)
   }
@@ -255,8 +264,12 @@ function App() {
   const toolbar = <header className="dashboard-toolbar border-b">
       <h1 className={readOnly ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly ? saved?.title ?? t.title : t.title}</h1>
       {!readOnly && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
-        open={pickerOpen} onOpenChange={togglePicker} t={t} onProjectChange={id => void run(() => switchProject(id))}
-        onChange={id => { setPickerOpen(false); pickerNavigation.current = false; void run(() => open(id)) }} onNew={canEdit ? () => { setPickerOpen(false); pickerNavigation.current = false; void run(async () => { await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current) }) } : undefined}/ >}
+        open={pickerOpen} onOpenChange={togglePicker} t={t} onDelete={requestDelete}
+        onChange={(id, projectId, requestedMode) => { setPickerOpen(false); pickerNavigation.current = false; void run(() => projectId && projectId !== currentProject?.id ? switchProject(projectId, id, false, requestedMode) : open(id, undefined, true, requestedMode)) }}
+        onNew={projectId => { setPickerOpen(false); pickerNavigation.current = false; void run(async () => {
+          if (projectId && projectId !== currentProject?.id) { await switchProject(projectId, undefined, true); return }
+          await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current)
+        }) }}/ >}
       {saved && <Badge variant="secondary" className="toolbar-version" role="status">{saved.isDraft ? i18n.t('draftRevision', { revision: saved.draftRevision ?? '—' }) : i18n.t('publishedVersion', { version: saved.versionNumber ?? '—' })}</Badge>}
       <div className="toolbar-actions">
         {canManage && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
@@ -264,7 +277,7 @@ function App() {
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
         </Button>
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
-          canDelete={canManage && !!saved && !!list.find(item => item.artifactId === saved.artifactId)?.canDelete} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
+          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
           onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
           onEdit={() => void run(async () => {
             if (!saved) return
@@ -273,7 +286,7 @@ function App() {
             await selectEditorTarget({ artifactId: result.saved.artifactId, draftRevision: result.saved.draftRevision }); setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
           })}
           onImport={() => setEditor('')} onShare={() => setSharing(true)}
-          onDelete={() => { setDeleteError(''); setConfirmDelete(list.find(item => item.artifactId === saved?.artifactId) ?? null) }}
+          onDelete={() => { if (selectedDashboard) requestDelete(selectedDashboard) }}
           refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}/>
       </div>
     </header>
