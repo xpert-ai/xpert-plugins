@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-tongyi
 
+## 0.2.2
+
+### Patch Changes
+
+- 769e003: Use the Plugin SDK's OpenAICompatibleEmbeddings adapter for authoritative text-embedding usage callbacks instead of a Tongyi-specific metering subclass. Keep native multimodal routing unchanged. Build and deploy with the SDK release introducing OpenAICompatibleEmbeddings; older installed SDKs do not export this adapter.
+
 ## 0.2.1
 
 ### Patch Changes

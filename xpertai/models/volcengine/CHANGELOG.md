@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-volcengine
 
+## 0.5.2
+
+### Patch Changes
+
+- 0589f62: Extract Seedream image pricing dimensions into a focused helper while preserving the existing tools export and pricing behavior.
+
 ## 0.5.1
 
 ### Patch Changes
