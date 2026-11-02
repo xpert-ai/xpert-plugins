@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-tongyi
 
+## 0.2.3
+
+### Patch Changes
+
+- fc131b9: Require SDK and contracts 3.30.0 or newer for the shared embedding usage adapter, and pin development dependencies to that minimum so frozen release builds resolve the supported API.
+
 ## 0.2.2
 
 ### Patch Changes
