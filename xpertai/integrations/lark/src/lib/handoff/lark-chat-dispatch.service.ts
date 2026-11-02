@@ -18,6 +18,7 @@ import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { DispatchLarkChatPayload } from './commands/dispatch-lark-chat.command.js'
 import { LarkChatRunStateService } from './lark-chat-run-state.service.js'
+import { withLarkDispatchLock, type LarkDispatchLease } from './lark-dispatch-lock.js'
 import {
 	LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
 	LarkChatCallbackContext,
@@ -28,9 +29,6 @@ export type TLarkChatDispatchInput = DispatchLarkChatPayload
 
 const LARK_STEER_CONVERSATION_WAIT_MS = 30_000
 const LARK_STEER_CONVERSATION_POLL_MS = 100
-const LARK_DISPATCH_BUILD_LOCK_TTL_MS = 60_000
-const LARK_DISPATCH_BUILD_LOCK_WAIT_MS = 35_000
-const LARK_DISPATCH_BUILD_LOCK_POLL_MS = 50
 
 type LarkAgentChatDispatchOptions = AgentChatDispatchPayload['options'] & {
 	tenantId: string
@@ -84,17 +82,60 @@ export class LarkChatDispatchService {
 		await this.handoffPermissionService.enqueue(message, { delayMs: 0 })
 	}
 
+	async enqueueRecoveryDispatch(message: HandoffMessage<AgentChatDispatchPayload>): Promise<void> {
+		await this.recoveryEnqueue()(message, { delayMs: 0 })
+	}
+
+	private recoveryEnqueue(): HandoffPermissionService['enqueue'] {
+		// Compatibility boundary until the published SDK contains the optional host method.
+		const service: HandoffPermissionService & { enqueueOnce?: HandoffPermissionService['enqueue'] } =
+			this.handoffPermissionService
+		if (typeof service.enqueueOnce !== 'function') {
+			throw new Error('Lark recovery requires a host with Handoff enqueueOnce support')
+		}
+		return service.enqueueOnce.bind(service)
+	}
+
+	async prepareRecoveryDispatch(
+		input: TLarkChatDispatchInput,
+		persist: (message: HandoffMessage<AgentChatDispatchPayload>) => Promise<void>
+	): Promise<boolean> {
+		this.recoveryEnqueue()
+		const scopeKey = input.larkMessage['scopeKey'] as string | undefined
+		const source = input.options?.recoverySourceMessageId
+		const cardId = input.larkMessage.id
+		if (!scopeKey || !source || !cardId) throw new Error('Missing trusted Lark recovery identity')
+		return this.runWithDispatchBuildLock(scopeKey, input.xpertId, async (lease) => {
+			const active = await this.conversationService.getActiveMessage(scopeKey, input.xpertId, {
+				legacyConversationUserKey: input.larkMessage['legacyConversationUserKey'] as string | undefined
+			})
+			if (active?.thirdPartyMessage?.id !== cardId) return false
+			const owner = JSON.stringify([source, cardId])
+			if (this.isActiveMessageInProgress(active) && (await lease.getRecoveryOwner()) !== owner) {
+				throw new Error('Waiting for the previous Lark response card to finish before stale steer fallback')
+			}
+			await lease.setRecoveryOwner(owner)
+			const message = await this.buildDispatchMessageUnlocked(input, lease.ensureOwned)
+			await lease.ensureOwned()
+			await persist(message)
+			return true
+		})
+	}
+
 	async buildDispatchMessage(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
 		const scopeKey = input.larkMessage['scopeKey'] as string | undefined
 		if (!scopeKey) {
 			return this.buildDispatchMessageUnlocked(input)
 		}
-		return this.runWithDispatchBuildLock(scopeKey, input.xpertId, () =>
-			this.buildDispatchMessageUnlocked(input)
+		return this.runWithDispatchBuildLock(scopeKey, input.xpertId, (lease) =>
+			this.buildDispatchMessageUnlocked(input, lease.ensureOwned)
 		)
 	}
 
-	private async buildDispatchMessageUnlocked(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
+	private async buildDispatchMessageUnlocked(
+		input: TLarkChatDispatchInput,
+		ensureOwned: () => Promise<void> = async () => undefined
+	): Promise<HandoffMessage<AgentChatDispatchPayload>> {
 		const { xpertId, larkMessage } = input
 		const requestUserId = RequestContext.currentUserId()
 		const requestTenantId = RequestContext.currentTenantId()
@@ -167,16 +208,13 @@ export class LarkChatDispatchService {
 
 		await this.clearTypingReaction(larkMessage)
 		if (!followUpMode) {
+			await ensureOwned()
 			await larkMessage.update({ status: 'thinking' })
 			if (scopeKey) {
-				await this.conversationService.setActiveMessage(
-					scopeKey,
-					xpertId,
-					this.toActiveMessageCache(larkMessage),
-					{
-						legacyConversationUserKey
-					}
-				)
+				await ensureOwned()
+				await this.conversationService.setActiveMessage(scopeKey, xpertId, this.toActiveMessageCache(larkMessage), {
+					legacyConversationUserKey
+				})
 			}
 		}
 
@@ -354,40 +392,19 @@ export class LarkChatDispatchService {
 		}
 	}
 
-	private async runWithDispatchBuildLock<T>(scopeKey: string, xpertId: string, task: () => Promise<T>): Promise<T> {
+	private async runWithDispatchBuildLock<T>(
+		scopeKey: string,
+		xpertId: string,
+		task: (lease: LarkDispatchLease) => Promise<T>
+	): Promise<T> {
 		const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
 		const redis = await queue.getRedis()
-		const key = this.dispatchBuildLockKey(scopeKey, xpertId)
-		const owner = randomUUID()
-		const deadline = Date.now() + LARK_DISPATCH_BUILD_LOCK_WAIT_MS
-
-		while (Date.now() < deadline) {
-			const claimed = await redis.set(key, owner, 'PX', LARK_DISPATCH_BUILD_LOCK_TTL_MS, 'NX')
-			if (claimed === 'OK') {
-				try {
-					return await task()
-				} finally {
-					try {
-						await redis.eval(
-							`if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end`,
-							1,
-							key,
-							owner
-						)
-					} catch (error) {
-						this.logger.warn(`Unable to release Lark dispatch decision lock: ${String(error)}`)
-					}
-				}
-			}
-			await new Promise((resolve) => setTimeout(resolve, LARK_DISPATCH_BUILD_LOCK_POLL_MS))
-		}
-
-		throw new Error(`Timed out waiting for the active Lark response decision for scope=${scopeKey}, xpertId=${xpertId}`)
+		return withLarkDispatchLock(redis, this.dispatchBuildLockKey(scopeKey, xpertId), task)
 	}
 
 	private dispatchBuildLockKey(scopeKey: string, xpertId: string): string {
 		const digest = createHash('sha256').update(`${scopeKey}\0${xpertId}`).digest('hex').slice(0, 32)
-		return `lark:dispatch-build:${digest}`
+		return `lark:dispatch-build:{${digest}}`
 	}
 
 	private buildRecoveryRunId(integrationId: string, inboundLogIds: string[]): string {

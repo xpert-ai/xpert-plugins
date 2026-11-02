@@ -1,6 +1,8 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
+import Queue from 'bull'
+import type { HandoffMessage, AgentChatDispatchPayload } from '@xpert-ai/plugin-sdk'
 import type { LarkChatCallbackContext, LarkChatStreamCallbackPayload } from './lark-chat.types.js'
 
 const redisUrl = process.env.LARK_TEST_REDIS_URL
@@ -8,6 +10,7 @@ const redisSuite = redisUrl ? describe : describe.skip
 
 // Separate OS processes prevent an in-memory mutex from accidentally satisfying these tests.
 redisSuite('Lark callback recovery across processes (real Redis)', () => {
+	jest.setTimeout(30_000)
 	const workers: ChildProcess[] = []
 	const context: LarkChatCallbackContext = {
 		tenantId: 'test-tenant',
@@ -31,6 +34,8 @@ redisSuite('Lark callback recovery across processes (real Redis)', () => {
 		})
 	}
 	beforeAll(async () => {
+		if (!process.env.LARK_TEST_PLATFORM_ROOT)
+			throw new Error('LARK_TEST_PLATFORM_ROOT is required for real host queue regressions')
 		for (let index = 0; index < 3; index++) {
 			const worker = fork(resolve(__dirname, 'testing/callback-worker.cjs'), [], {
 				stdio: ['ignore', 'ignore', 'inherit', 'ipc']
@@ -320,6 +325,13 @@ redisSuite('Lark callback recovery across processes (real Redis)', () => {
 		try {
 			const messages: string[] = await redis.hvals(`test:dispatch:${next}`)
 			expect(messages).toHaveLength(1)
+			const queue = new Queue(`lark-handoff-${next}`, redisUrl)
+			try {
+				expect(await queue.getJobs(['waiting', 'active', 'completed', 'failed'])).toHaveLength(1)
+				expect(await redis.llen(`test:enqueue:${next}`)).toBe(2)
+			} finally {
+				await queue.close()
+			}
 			const dispatch = JSON.parse(messages[0])
 			expect(JSON.stringify(dispatch.payload.request)).toContain('Follow up')
 			expect(dispatch.payload.callback.context.followUpMode).toBeUndefined()
@@ -351,5 +363,148 @@ redisSuite('Lark callback recovery across processes (real Redis)', () => {
 			payloads: [{ kind: 'error', sequence: 1, errorCode: 'steer_target_not_running' }]
 		})
 		expect(await sentMessages(run)).toEqual([])
+	})
+
+	it('does not create another host job when acknowledgement is lost and the first job has already completed', async () => {
+		const run = randomUUID()
+		const scoped: LarkChatCallbackContext = {
+			...context,
+			scopeKey: randomUUID(),
+			followUpMode: 'steer',
+			steerFallback: { input: 'recover once', message: context.message }
+		}
+		const payloads: Payload[] = [{ kind: 'error', sequence: 1, errorCode: 'steer_target_not_running' }]
+		const queue = new Queue(`lark-handoff-${run}`, redisUrl)
+		try {
+			let executions = 0
+			const completed = new Promise<void>((resolve, reject) => {
+				queue.once('completed', () => resolve())
+				queue.once('error', reject)
+			})
+			void queue.process('*', async () => {
+				executions++
+			})
+			await expect(
+				command(workers[0], {
+					run,
+					context: scoped,
+					payloads,
+					failEnqueueAfterAcceptance: true,
+					active: { thirdPartyMessage: { ...context.message, status: 'success' } }
+				})
+			).rejects.toThrow('Injected failure after dispatch acceptance')
+			await completed
+			await command(workers[1], { run, context: scoped, payloads })
+			const jobs = await queue.getJobs(['waiting', 'active', 'completed', 'failed'])
+			expect(jobs).toHaveLength(1)
+			expect(await jobs[0].getState()).toBe('completed')
+			expect(executions).toBe(1)
+		} finally {
+			await queue.close()
+		}
+	})
+
+	it.each([false, true])(
+		'serializes distinct follow-ups and resumes a failed preparation: %s',
+		async (failPrepareSave) => {
+			const first = randomUUID(),
+				second = randomUUID()
+			const scoped: LarkChatCallbackContext = {
+				...context,
+				scopeKey: randomUUID(),
+				followUpMode: 'steer',
+				steerFallback: { input: 'first follow-up', message: context.message }
+			}
+			const later: LarkChatCallbackContext = {
+				...scoped,
+				steerFallback: { input: 'second follow-up', message: context.message }
+			}
+			const payloads: Payload[] = [{ kind: 'error', sequence: 1, errorCode: 'steer_target_not_running' }]
+			const firstQueue = new Queue<HandoffMessage<AgentChatDispatchPayload>>(`lark-handoff-${first}`, redisUrl)
+			const secondQueue = new Queue<HandoffMessage<AgentChatDispatchPayload>>(`lark-handoff-${second}`, redisUrl)
+			try {
+				// Hold the first card update before the active cache changes. Both old readers would see success.
+				const firstResult = command(workers[0], {
+					run: first,
+					context: scoped,
+					payloads,
+					sendDelayMs: 300,
+					failPrepareSave,
+					active: { thirdPartyMessage: { ...context.message, status: 'success' } }
+				}).then(
+					() => null,
+					(error: Error) => error
+				)
+				const deadline = Date.now() + 5000
+				while (!(await firstQueue.client.get(`test:send-entered:${first}`))) {
+					if (Date.now() > deadline) throw new Error('First recovery did not enter card update')
+					await new Promise((resolve) => setTimeout(resolve, 10))
+				}
+				await expect(command(workers[1], { run: second, context: later, payloads })).rejects.toThrow(
+					'Waiting for the previous'
+				)
+				const firstError = await firstResult
+				if (failPrepareSave) {
+					expect(firstError?.message).toContain('before prepared envelope save')
+					await command(workers[2], { run: first, context: scoped, payloads })
+				} else expect(firstError).toBeNull()
+				const firstJobs = await firstQueue.getJobs(['waiting'])
+				expect(firstJobs).toHaveLength(1)
+				expect(await secondQueue.getJobs(['waiting'])).toHaveLength(0)
+				const dispatch = firstJobs[0].data
+				await command(workers[0], {
+					run: dispatch.id,
+					context: dispatch.payload.callback.context,
+					payloads: [
+						{ kind: 'stream', sequence: 1, event: { data: { type: 'message', data: 'First recovered reply' } } },
+						{ kind: 'complete', sequence: 2 }
+					]
+				})
+				await command(workers[1], { run: second, context: later, payloads })
+				const secondJobs = await secondQueue.getJobs(['waiting'])
+				expect(secondJobs).toHaveLength(1)
+				expect(secondJobs[0].data.payload.request.action).toBe('send')
+				expect(JSON.stringify(secondJobs[0].data.payload.request)).toContain('second follow-up')
+				const secondDispatch = secondJobs[0].data
+				await command(workers[2], {
+					run: secondDispatch.id,
+					context: secondDispatch.payload.callback.context,
+					payloads: [
+						{ kind: 'stream', sequence: 1, event: { data: { type: 'message', data: 'Second recovered reply' } } },
+						{ kind: 'complete', sequence: 2 }
+					]
+				})
+				expect((await sentMessages(secondDispatch.id)).at(-1)).toContain('Second recovered reply')
+			} finally {
+				await Promise.all([firstQueue.close(), secondQueue.close()])
+			}
+		},
+		15_000
+	)
+
+	it('rejects recovery on an old host before changing the card or using ordinary enqueue', async () => {
+		const run = randomUUID()
+		const scoped: LarkChatCallbackContext = {
+			...context,
+			scopeKey: randomUUID(),
+			followUpMode: 'steer',
+			steerFallback: { input: 'requires deduplication', message: context.message }
+		}
+		await expect(
+			command(workers[0], {
+				run,
+				context: scoped,
+				legacyHost: true,
+				active: { thirdPartyMessage: { ...context.message, status: 'success' } },
+				payloads: [{ kind: 'error', sequence: 1, errorCode: 'steer_target_not_running' }]
+			})
+		).rejects.toThrow('requires a host with Handoff enqueueOnce support')
+		expect(await sentMessages(run)).toEqual([])
+		const queue = new Queue(`lark-handoff-${run}`, redisUrl)
+		try {
+			expect(await queue.getJobs(['waiting', 'active', 'completed', 'failed'])).toHaveLength(0)
+		} finally {
+			await queue.close()
+		}
 	})
 })

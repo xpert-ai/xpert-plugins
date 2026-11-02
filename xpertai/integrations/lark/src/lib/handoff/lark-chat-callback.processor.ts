@@ -268,8 +268,8 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 		if (!context.scopeKey || !context.xpertId) throw new Error('Missing trusted Lark scope for stale steer fallback')
 		const state = lease.state ?? this.createRunState(payload.sourceMessageId, context)
-		// Persist the exact envelope before enqueue. A retry after enqueue or marker failure
-		// reuses its ID, including when message history is disabled.
+		// Persist the exact envelope before enqueueOnce so a lost acknowledgement cannot
+		// create another host job, including when message history is disabled.
 		if (
 			!state.steerDispatch &&
 			context.currentInboundLogIds?.length &&
@@ -284,10 +284,39 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 		if (!state.steerDispatch) {
 			const fallback = context.steerFallback
-			const active = await this.conversationService.getActiveMessage(context.scopeKey, context.xpertId, {
-				legacyConversationUserKey: context.legacyConversationUserKey
+			await lease.ensureOwned()
+			const larkMessage = delivery.createLarkMessage({
+				...context,
+				message: fallback.message,
+				followUpMode: undefined,
+				steerFallback: undefined
 			})
-			if (!fallback.message.id || active?.thirdPartyMessage?.id !== fallback.message.id) {
+			const prepared = await this.dispatchService.prepareRecoveryDispatch(
+				{
+					xpertId: context.xpertId,
+					executionContext: {
+						tenantId: context.tenantId,
+						organizationId: context.organizationId,
+						createdById: context.userId
+					},
+					input: fallback.input,
+					files: fallback.files,
+					currentInboundLogIds: context.currentInboundLogIds,
+					larkMessage,
+					options: {
+						forceNewRun: true,
+						recoverySourceMessageId: payload.sourceMessageId,
+						fromEndUserId: fallback.fromEndUserId,
+						executorUserId: fallback.executorUserId,
+						streamingEnabled: fallback.streamingEnabled
+					}
+				},
+				async (dispatch) => {
+					state.steerDispatch = dispatch
+					await lease.save(state)
+				}
+			)
+			if (!prepared) {
 				await this.messageHistoryService.updateInboundStatus(
 					context.currentInboundLogIds ?? [],
 					'failed',
@@ -296,44 +325,10 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				await lease.finish()
 				return
 			}
-			if (
-				!state.steerPreparing &&
-				(active.thirdPartyMessage.status === 'thinking' || active.thirdPartyMessage.status === 'continuing')
-			) {
-				throw new Error('Waiting for the previous Lark response card to finish before stale steer fallback')
-			}
-			state.steerPreparing = true
-			await lease.save(state)
-			await lease.ensureOwned()
-			const larkMessage = delivery.createLarkMessage({
-				...context,
-				message: fallback.message,
-				followUpMode: undefined,
-				steerFallback: undefined
-			})
-			state.steerDispatch = await this.dispatchService.buildDispatchMessage({
-				xpertId: context.xpertId,
-				executionContext: {
-					tenantId: context.tenantId,
-					organizationId: context.organizationId,
-					createdById: context.userId
-				},
-				input: fallback.input,
-				files: fallback.files,
-				currentInboundLogIds: context.currentInboundLogIds,
-				larkMessage,
-				options: {
-					forceNewRun: true,
-					recoverySourceMessageId: payload.sourceMessageId,
-					fromEndUserId: fallback.fromEndUserId,
-					executorUserId: fallback.executorUserId,
-					streamingEnabled: fallback.streamingEnabled
-				}
-			})
-			await lease.save(state)
 		}
+		if (!state.steerDispatch) throw new Error('Missing prepared Lark recovery dispatch')
 		await lease.ensureOwned()
-		await this.dispatchService.enqueuePreparedDispatch(state.steerDispatch)
+		await this.dispatchService.enqueueRecoveryDispatch(state.steerDispatch)
 		await this.messageHistoryService.updateInboundStatus(
 			context.currentInboundLogIds ?? [],
 			'queued',

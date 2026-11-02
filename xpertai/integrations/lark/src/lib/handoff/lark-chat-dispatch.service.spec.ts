@@ -87,11 +87,11 @@ describe('LarkChatDispatchService', () => {
 				dispatchLocks.set(key, owner)
 				return 'OK'
 			}),
-			eval: jest.fn(async (_script: string, _keyCount: number, key: string, owner: string) => {
+			eval: jest.fn(async (script: string, _keyCount: number, key: string, owner: string) => {
 				if (dispatchLocks.get(key) !== owner) {
 					return 0
 				}
-				dispatchLocks.delete(key)
+				if (script.includes("redis.call('DEL'")) dispatchLocks.delete(key)
 				return 1
 			})
 		}
@@ -190,7 +190,7 @@ describe('LarkChatDispatchService', () => {
 		expect(firstLarkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(secondLarkMessage.update).not.toHaveBeenCalled()
 		expect(conversationService.setActiveMessage).toHaveBeenCalledTimes(1)
-		expect(redis.eval).toHaveBeenCalledTimes(2)
+		expect(redis.eval.mock.calls.filter(([script]) => script.includes("redis.call('DEL'"))).toHaveLength(2)
 		expect(dispatchLocks.size).toBe(0)
 	})
 
@@ -219,7 +219,7 @@ describe('LarkChatDispatchService', () => {
 				larkMessage: larkMessage as any
 			})
 		).resolves.toEqual(expect.objectContaining({ payload: expect.any(Object) }))
-		expect(redis.eval).toHaveBeenCalledTimes(2)
+		expect(redis.eval.mock.calls.filter(([script]) => script.includes("redis.call('DEL'"))).toHaveLength(2)
 		expect(dispatchLocks.size).toBe(0)
 	})
 

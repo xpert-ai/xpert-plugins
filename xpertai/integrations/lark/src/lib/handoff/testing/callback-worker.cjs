@@ -5,6 +5,8 @@ const { readFileSync } = require('node:fs')
 const { resolve, dirname } = require('node:path')
 const { transformSync } = require('@swc/core')
 const Redis = createRequire(require.resolve('bull'))('ioredis')
+const Queue = require('bull')
+if (!process.env.LARK_TEST_PLATFORM_ROOT) throw new Error('Set LARK_TEST_PLATFORM_ROOT to the host checkout under test')
 const redis = new Redis(process.env.LARK_TEST_REDIS_URL, { maxRetriesPerRequest: 1 })
 const cache = new Map()
 const noopDecorator = () => (target) => target
@@ -12,6 +14,8 @@ const sdk = {
 	HandoffProcessorStrategy: noopDecorator,
 	PluginJobProcessor: noopDecorator,
 	MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
+	HANDOFF_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_HANDOFF_PERMISSION_SERVICE',
+	AGENT_CHAT_DISPATCH_MESSAGE_TYPE: 'agent.chat_dispatch.v1',
 	defineChannelMessageType: (channel, type, version) => `channel.${channel}.${type}.v${version}`,
 	RequestContext: {
 		getLanguageCode: () => 'en_US',
@@ -60,10 +64,12 @@ function load(file) {
 		if (name === '@xpert-ai/plugin-sdk') return sdk
 		if (name === '@xpert-ai/contracts') return contracts
 		if (name === '@xpert-ai/chatkit-types') return chatkit
+		if (name === '@nestjs/bull') return { InjectQueue: noopDecorator }
 		if (name.endsWith('/conversation.service.js')) return { LarkConversationService: class {} }
 		if (name.endsWith('/lark-message-history.service.js')) return { LarkMessageHistoryService: class {} }
 		if (name.endsWith('/lark-channel.strategy.js')) return { LarkChannelStrategy: class {} }
-		if (name.startsWith('.')) return load(resolve(dirname(file), name.replace(/\.js$/, '.ts')))
+		if (name.startsWith('.'))
+			return load(resolve(dirname(file), name.endsWith('.js') ? name.replace(/\.js$/, '.ts') : `${name}.ts`))
 		return localRequire(name)
 	}
 	const { code } = transformSync(readFileSync(file, 'utf8'), {
@@ -81,6 +87,16 @@ function load(file) {
 const { LarkChatRunStateService } = load(resolve(__dirname, '../lark-chat-run-state.service.ts'))
 const { LarkChatDispatchService } = load(resolve(__dirname, '../lark-chat-dispatch.service.ts'))
 const { LarkChatStreamCallbackProcessor } = load(resolve(__dirname, '../lark-chat-callback.processor.ts'))
+const hostHandoff = resolve(process.env.LARK_TEST_PLATFORM_ROOT, 'packages/server-ai/src/handoff')
+const { HandoffQueueGatewayService } = load(resolve(hostHandoff, 'dispatcher/handoff-queue-gateway.service.ts'))
+const { XPERT_HANDOFF_QUEUE_REALTIME } = load(resolve(hostHandoff, 'constants.ts'))
+const handoffQueues = new Map()
+function handoffGateway() {
+	if (!handoffQueues.has(testRun))
+		handoffQueues.set(testRun, new Queue(`lark-handoff-${testRun}`, process.env.LARK_TEST_REDIS_URL))
+	const queue = handoffQueues.get(testRun)
+	return new HandoffQueueGatewayService(queue, queue, queue, queue)
+}
 const cacheManager = {
 	get: async (key) => {
 		const raw = await redis.get(key)
@@ -102,12 +118,31 @@ const queue = {
 }
 const pluginContext = {
 	scopeKey: 'system:global',
-	resolve: (token) => (token === sdk.MANAGED_QUEUE_SERVICE_TOKEN ? queue : handoff)
+	resolve: (token) =>
+		token === sdk.MANAGED_QUEUE_SERVICE_TOKEN ? queue : legacyHost ? { enqueue: handoff.enqueue } : handoff
 }
 const stateService = new LarkChatRunStateService(cacheManager, pluginContext)
 let testRun
 let failSend = false
 let failCache = false
+let sendDelayMs = 0
+let failPrepareSave = false
+let legacyHost = false
+const originalWithRun = stateService.withRun.bind(stateService)
+stateService.withRun = (source, context, task, options) =>
+	originalWithRun(
+		source,
+		context,
+		(lease) =>
+			task({
+				...lease,
+				save: async (state) => {
+					if (failPrepareSave && state.steerDispatch) throw new Error('Injected failure before prepared envelope save')
+					await lease.save(state)
+				}
+			}),
+		options
+	)
 
 const channel = {
 	interactiveMessage: async (_context, content) => {
@@ -127,6 +162,8 @@ const channel = {
 }
 async function send(content) {
 	if (failSend) throw new Error('Injected HTTP failure')
+	await redis.set(`test:send-entered:${testRun}`, '1')
+	if (sendDelayMs) await new Promise((resolve) => setTimeout(resolve, sendDelayMs))
 	await redis.rpush(`test:sent:${testRun}`, JSON.stringify(content))
 }
 const conversation = {
@@ -149,6 +186,12 @@ const conversation = {
 let failEnqueueAfterAcceptance = false
 const handoff = {
 	enqueue: async (message) => {
+		await handoffGateway().enqueue(XPERT_HANDOFF_QUEUE_REALTIME, message)
+		await redis.rpush(`test:enqueue:${testRun}`, message.id)
+	},
+	enqueueOnce: async (message) => {
+		await handoffGateway().enqueue(XPERT_HANDOFF_QUEUE_REALTIME, message, { deduplicate: true })
+		await redis.rpush(`test:enqueue:${testRun}`, message.id)
 		await redis.hset(`test:dispatch:${testRun}`, message.id, JSON.stringify(message))
 		if (failEnqueueAfterAcceptance) throw new Error('Injected failure after dispatch acceptance')
 	}
@@ -162,6 +205,10 @@ process.on('message', async (input) => {
 		testRun = input.run
 		failSend = input.failSend === true
 		failCache = input.failCache === true
+		sendDelayMs = input.sendDelayMs ?? 0
+		failPrepareSave = input.failPrepareSave === true
+		legacyHost = input.legacyHost === true
+		dispatch._handoffPermissionService = undefined
 		failEnqueueAfterAcceptance = input.failEnqueueAfterAcceptance === true
 		if (input.active && input.context)
 			await conversation.setActiveMessage(input.context.scopeKey, input.context.xpertId, input.active)
@@ -233,7 +280,8 @@ process.on('message', async (input) => {
 		process.send({ error: error.stack })
 	}
 })
-process.on('disconnect', () => {
+process.on('disconnect', async () => {
+	await Promise.all([...handoffQueues.values()].map((queue) => queue.close()))
 	redis.disconnect()
 	process.exit(0)
 })
