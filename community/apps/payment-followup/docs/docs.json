@@ -1,0 +1,22 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "回款承诺跟进",
+  "colors": {
+    "primary": "#15803D"
+  },
+  "navigation": {
+    "pages": [
+      {
+        "group": "插件说明",
+        "pages": [
+          "index",
+          "quickstart",
+          "architecture",
+          "acceptance",
+          "fault-injection"
+        ]
+      }
+    ]
+  }
+}
