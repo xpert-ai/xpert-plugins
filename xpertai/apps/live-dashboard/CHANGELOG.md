@@ -1,5 +1,51 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.4.0
+
+### Minor Changes
+
+- a2abeaa: Allow manager-created authenticated organization shares of published Project dashboards to include non-Project members. Require the companion platform opt-in for link audiences; draft, edit, file and source-data permissions remain unchanged.
+- 14f3270: Add optional Profit Atlas and Customer Brief document themes alongside Trend Workspace. Include reusable Agent guides, layout and chart components, distinct Superstore recipes, accessible selects and version-pinned theme libraries. Preserve existing Artifact identity and data contracts during requested visual upgrades.
+
+  Bundle all three approved style prototypes and expose them after the cover in the App detail preview gallery, replacing the older onboarding screenshots.
+
+- cffb399: Add project selection to the Live Dashboard View and synchronize it with the Assistant ChatKit project through the existing authorized host navigation. Use a two-column Project → Dashboard picker with independent search and pagination, a persistent active-project highlight, and New dashboard in the dashboard column header. Search all authorized dashboard display titles, including editor drafts, without exposing them to members. Keep publication and refresh as primary toolbar actions; move secondary actions and version history into More, with a compact draft/published badge. Search and paginate projects available to the current user and Assistant; isolate dashboard lists and clear stale targets on project changes.
+
+  Keep the original dashboard authoring, version history, publication and sharing workflow inside the selected Project. Add the Live Dashboard project type and a project-required authoring Assistant template. Editors use revision-protected drafts, members consume published versions, and managers explicitly publish or share. Do not add a separate Project dashboard host or a plugin-specific delivery/review workflow.
+
+  Use protected Artifact content while keeping Project membership and authenticated share audiences cumulative. Sharing never grants Project membership, draft access or source-data permissions. Keep exact published-version and draft targets synchronized with the Assistant.
+
+  Requires the companion platform release providing protected Artifact content and draft publication authorization. Release that platform/SDK first and update the SDK dependency and lockfile before publishing this plugin.
+
+- 91c5569: Add a governed Live Dashboard App setup, explicit authoring-template dependencies, and project-scoped quick-start prompts. Bundle regional sales, sales overview and production quality recipes with synthetic data, source, previews and verification steps; expose them through the existing new-dashboard empty state without changing saved dashboard identities or publication permissions.
+
+  Add a matching Explore app cover and show three enterprise style prototypes in the App details, with documented paths to interactive project drafts.
+
+  Order the three beginner examples before the advanced Superstore suite. Show concise starter labels while preserving the complete authoring instructions sent to the assistant.
+
+- a2abeaa: Add the optional project-scoped Live Dashboard Monitor Assistant template and read-only inspection middleware. Register scheduler tools only on the monitor template and require the companion platform fix that reloads current run-as permissions for each execution.
+- 14f3270: Add a versioned Superstore enterprise BI recipe with reproducible Tableau teaching data, Data Xpert semantic model/query plans, and three project-scoped dashboard pages. Preserve source attribution and distinct-order/customer and deduplicated-return semantics.
+
+  Keep generated HTML readable within bounded file-tool lines and provide exact filter baselines. Allow the three-page authoring workflow to use the existing bounded maximum of 64 model calls.
+
+- 14f3270: Add an Agent-readable Trend Workspace theme with a KPI rail, independently scaled trends, ranked charts and accessible two-line dropdowns. Package reusable CSS, icon, select and chart assets alongside complete Superstore recipes, with instructions for new data and safe updates of existing dashboards.
+
+  Refine the host project/dashboard selector without changing its project synchronization or permission boundaries.
+
+  Expose the same theme as a pinned document library so Agents author business layouts without repeating shared CSS/JS in large tool calls.
+
+- 0ce88a1: Preserve the active dashboard across conversation turns, prioritize explicit Workbench selection and New actions, and require explicit new/copy intent before creating another dashboard. Apply edits by stable component IDs, retain unrelated bindings and HTML elements, and show a normal localized selection prompt when no dashboard is selected.
+
+  Register the authenticated dashboard Artifact type with an explicit installation binding and support validated repair of legacy file bindings. Open the exact published dashboard in shared views and explain how private script dependencies can be prepared for authorized team sharing.
+
+  Legacy type repair and publishing Analytics Definition visibility require the companion platform changes for xpert-ai/xpert#1280. Draft saving remains separate from human publication.
+
+### Patch Changes
+
+- 732768d: Temporarily enable unrestricted document networking for functional acceptance and align authoring guidance with preview and viewing. Refresh the selected draft from its latest saved revision while protecting unsaved edits and pinned published versions.
+
+  Require published Plugin SDK and Contracts 3.30.0 for document networking and Artifact Content support; remove the temporary SDK patch.
+
 ## 0.3.1
 
 ### Patch Changes
