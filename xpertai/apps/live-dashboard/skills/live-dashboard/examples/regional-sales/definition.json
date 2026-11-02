@@ -1,0 +1,35 @@
+{
+  "path": "live-dashboard-examples/regional-sales/demo-v1.csv",
+  "name": "区域销售 · 演示数据 v1",
+  "description": "Synthetic example data; not business results. Rows have disjoint grain; amount is whole CNY and orders are counts.",
+  "reader": {
+    "format": "csv",
+    "delimiter": ",",
+    "headerRow": 1
+  },
+  "columns": [
+    {
+      "key": "region",
+      "path": [
+        "region"
+      ],
+      "label": "区域",
+      "description": "Synthetic demonstration only. Unique daily dimension grain.",
+      "logicalType": "string",
+      "nullable": false,
+      "role": "dimension"
+    },
+    {
+      "key": "amount",
+      "path": [
+        "amount"
+      ],
+      "label": "销售额",
+      "description": "Synthetic demonstration only. Whole CNY, no fractional currency.",
+      "logicalType": "int64",
+      "nullable": false,
+      "role": "measure",
+      "unit": "CNY"
+    }
+  ]
+}

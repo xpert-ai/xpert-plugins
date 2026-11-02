@@ -1,0 +1,27 @@
+Use case: ads-marketing.
+Create a NEW premium 16:9 Explore app cover for "Live Dashboard". The visual must communicate conversational creation, real connected data, interactive analytics, and editable animated data storytelling — not just a conventional static sales report.
+Style reference: the attached DB Studio image is STYLE ONLY. Retain its bright warm ivory studio environment, confident Chinese typography, tactile white surfaces, subtle soft shadows. Combine this with beautifully art-directed dimensional motion graphics. Do not copy the database UI or its branding.
+Layout: left 40% typography, right 55% compelling connected data/animation scene, generous spacing. Keep all essential information above 72% height. Bottom 23% quiet ivory background, reserved for the marketplace card overlay. Main message must remain readable as a 384px thumbnail.
+Palette: ivory #F7F5EF, deep ink #142C42, restrained blue #3659A2, teal #178577 and small warm amber accents. Sophisticated, precise, high-end product design. No dark cyberpunk, no rainbow glow, no decorative plants or notebooks.
+
+Exact text:
+Brand upper left: "Live Dashboard"
+Large two-line headline:
+"数据会说话，"
+"洞察动起来。"
+First line deep ink, second line blue with a teal punctuation mark.
+Support line: "对话生成 · 交互分析 · 动态可视化"
+
+Visual story on right:
+A single harmonious composition of two connected, layered white panels, almost frontal with mild perspective. Rear panel: a compact real-data dashboard labeled "实时洞察", with clear region-filter chips, two KPI cards "76,000" and "380", blue trend chart, teal bar chart. Small text "示例数据" makes the numbers clearly illustrative.
+Front-right panel: an animated-data explainer labeled "动态演示", featuring sculptural blue/teal bars emerging into 3D, a flowing curved trajectory linking highlighted chart points, and two subtle translucent previous positions of a moving amber marker to make MOTION unmistakable. A small simple play triangle is allowed inside this illustrative panel, but no video export button or standalone editor UI. Let visual objects extend slightly beyond the panel border to convey expressive HTML/3D authoring. Motion should feel meaningful and beautifully choreographed, not a pile of floating widgets.
+At the upper-left edge of the visualization add one tiny chat bubble: "把趋势讲清楚" connected by a restrained curved line into the dashboard. This conveys conversation-to-visual creation. Bottom edge of the right visual include small label "能力示意".
+The linked dashboard and animated explainer should be distinct but form one flowing product narrative, with strong visual hierarchy, readable charts, deliberate negative space.
+
+Constraints: only brand is Live Dashboard. Absolutely no Claude, Anthropic or other competitor name/logo/branding, no starburst assistant mark, no database cylinder, no invented app logo, no external product logos. No MP4/export labels, no unsupported automated-update promises, no camera/live-action imagery, no realistic people. Do not reproduce a real customer's data. The result is a marketing illustration, not a claimed actual UI screenshot. All Chinese text must be clean and correctly written. Avoid adding any text beyond the specified short labels.
+
+Final refinement (built-in image_gen):
+Change ONLY the small three-colored-bars logo immediately to the left of the 'Live Dashboard' brand text: remove that logo completely and fill its area with the surrounding warm ivory background. Align the 'Live Dashboard' brand text to the same left margin as the large Chinese headline. Keep every other element exactly unchanged: all Chinese text, the dashboard, the animated 3D chart and play symbol, the chat bubble, colors, lighting, margins and wide framing. Do not create any replacement icon or brand symbol.
+
+Capability basis: docs/frontend-libraries.mdx, docs/editing.mdx and docs/quick-start.mdx. The cover illustrates conversational authoring, data-bound interactive views and authored HTML/chart/3D motion. It does not claim a separate video editor or MP4 export workflow.
+Research: https://claude.com/resources/articles/dashboards-and-motion and https://support.claude.com/en/articles/17454997-get-started-with-claude-motion (2026-11-01). Competitor names and marks must not appear in the image.

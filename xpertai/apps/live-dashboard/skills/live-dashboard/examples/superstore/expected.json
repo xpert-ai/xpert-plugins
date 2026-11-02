@@ -1,0 +1,4069 @@
+{
+  "sourceSha256": "add4e193479cae8e9f22bfa734dd8bb706355dce38353967668f4e2b6643d19c",
+  "orderLines": 10194,
+  "cases": {
+    "all": {
+      "filters": {},
+      "rows": 10194,
+      "totals": {
+        "Sales": "2326534.354300",
+        "Profit": "292296.814600",
+        "Quantity": 38654,
+        "Orders": 5111,
+        "Customers": 804,
+        "ReturnedOrders": 296,
+        "ReturnedSales": "180504.277900"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2021",
+            "Sales": "494040.212100",
+            "Profit": "51684.295700",
+            "Quantity": 7813,
+            "Orders": 995,
+            "Customers": 605,
+            "ReturnedOrders": 53,
+            "ReturnedSales": "29219.548000"
+          },
+          {
+            "OrderYear": "2022",
+            "Sales": "472993.031000",
+            "Profit": "62020.969500",
+            "Quantity": 8086,
+            "Orders": 1053,
+            "Customers": 577,
+            "ReturnedOrders": 61,
+            "ReturnedSales": "39660.894000"
+          },
+          {
+            "OrderYear": "2023",
+            "Sales": "613933.580000",
+            "Profit": "82665.201800",
+            "Quantity": 10018,
+            "Orders": 1340,
+            "Customers": 653,
+            "ReturnedOrders": 77,
+            "ReturnedSales": "36121.772000"
+          },
+          {
+            "OrderYear": "2024",
+            "Sales": "745567.531200",
+            "Profit": "95926.347600",
+            "Quantity": 12737,
+            "Orders": 1723,
+            "Customers": 704,
+            "ReturnedOrders": 105,
+            "ReturnedSales": "75502.063900"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2021-01",
+            "Sales": "14518.055000",
+            "Profit": "2539.390700",
+            "Quantity": 306,
+            "Orders": 33,
+            "Customers": 33,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "38.660000"
+          },
+          {
+            "OrderMonth": "2021-02",
+            "Sales": "4519.892000",
+            "Profit": "862.308400",
+            "Quantity": 159,
+            "Orders": 28,
+            "Customers": 27,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "11.364000"
+          },
+          {
+            "OrderMonth": "2021-03",
+            "Sales": "56933.909000",
+            "Profit": "693.449900",
+            "Quantity": 597,
+            "Orders": 72,
+            "Customers": 70,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1301.830000"
+          },
+          {
+            "OrderMonth": "2021-04",
+            "Sales": "28295.345000",
+            "Profit": "3488.835200",
+            "Quantity": 536,
+            "Orders": 66,
+            "Customers": 64,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "233.990000"
+          },
+          {
+            "OrderMonth": "2021-05",
+            "Sales": "26319.767000",
+            "Profit": "3196.391800",
+            "Quantity": 504,
+            "Orders": 72,
+            "Customers": 68,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1673.920000"
+          },
+          {
+            "OrderMonth": "2021-06",
+            "Sales": "34669.479600",
+            "Profit": "4999.759400",
+            "Quantity": 524,
+            "Orders": 67,
+            "Customers": 64,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "963.720000"
+          },
+          {
+            "OrderMonth": "2021-07",
+            "Sales": "33946.393000",
+            "Profit": "-841.482600",
+            "Quantity": 550,
+            "Orders": 65,
+            "Customers": 65,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "4261.764000"
+          },
+          {
+            "OrderMonth": "2021-08",
+            "Sales": "28918.338500",
+            "Profit": "5765.225000",
+            "Quantity": 624,
+            "Orders": 75,
+            "Customers": 73,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "5112.908000"
+          },
+          {
+            "OrderMonth": "2021-09",
+            "Sales": "82670.428800",
+            "Profit": "8593.630200",
+            "Quantity": 1015,
+            "Orders": 134,
+            "Customers": 121,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "8183.602000"
+          },
+          {
+            "OrderMonth": "2021-10",
+            "Sales": "32413.339000",
+            "Profit": "3469.174900",
+            "Quantity": 605,
+            "Orders": 81,
+            "Customers": 76,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "2328.962000"
+          },
+          {
+            "OrderMonth": "2021-11",
+            "Sales": "78826.956700",
+            "Profit": "9362.955700",
+            "Quantity": 1235,
+            "Orders": 152,
+            "Customers": 140,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "2239.424000"
+          },
+          {
+            "OrderMonth": "2021-12",
+            "Sales": "72008.308500",
+            "Profit": "9554.657100",
+            "Quantity": 1158,
+            "Orders": 150,
+            "Customers": 141,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "2869.404000"
+          },
+          {
+            "OrderMonth": "2022-01",
+            "Sales": "18461.915600",
+            "Profit": "-3189.803000",
+            "Quantity": 260,
+            "Orders": 31,
+            "Customers": 29,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "2042.438000"
+          },
+          {
+            "OrderMonth": "2022-02",
+            "Sales": "11951.411000",
+            "Profit": "2813.850800",
+            "Quantity": 239,
+            "Orders": 36,
+            "Customers": 36,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1306.740000"
+          },
+          {
+            "OrderMonth": "2022-03",
+            "Sales": "39978.628000",
+            "Profit": "9930.613400",
+            "Quantity": 528,
+            "Orders": 81,
+            "Customers": 78,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "969.612000"
+          },
+          {
+            "OrderMonth": "2022-04",
+            "Sales": "34195.208500",
+            "Profit": "4187.496200",
+            "Quantity": 543,
+            "Orders": 72,
+            "Customers": 69,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "3716.362000"
+          },
+          {
+            "OrderMonth": "2022-05",
+            "Sales": "30246.946500",
+            "Profit": "4677.137000",
+            "Quantity": 595,
+            "Orders": 75,
+            "Customers": 70,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "4249.068000"
+          },
+          {
+            "OrderMonth": "2022-06",
+            "Sales": "24797.292000",
+            "Profit": "3335.557200",
+            "Quantity": 486,
+            "Orders": 68,
+            "Customers": 68,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "627.664000"
+          },
+          {
+            "OrderMonth": "2022-07",
+            "Sales": "28765.325000",
+            "Profit": "3288.648300",
+            "Quantity": 557,
+            "Orders": 66,
+            "Customers": 64,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "170.352000"
+          },
+          {
+            "OrderMonth": "2022-08",
+            "Sales": "37057.004200",
+            "Profit": "5371.627400",
+            "Quantity": 603,
+            "Orders": 69,
+            "Customers": 64,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "3658.526000"
+          },
+          {
+            "OrderMonth": "2022-09",
+            "Sales": "64627.046000",
+            "Profit": "8220.025100",
+            "Quantity": 1090,
+            "Orders": 142,
+            "Customers": 127,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "2995.337000"
+          },
+          {
+            "OrderMonth": "2022-10",
+            "Sales": "31407.133500",
+            "Profit": "2817.966000",
+            "Quantity": 632,
+            "Orders": 88,
+            "Customers": 80,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "6126.843000"
+          },
+          {
+            "OrderMonth": "2022-11",
+            "Sales": "75972.563500",
+            "Profit": "12474.788400",
+            "Quantity": 1310,
+            "Orders": 158,
+            "Customers": 146,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "4967.340000"
+          },
+          {
+            "OrderMonth": "2022-12",
+            "Sales": "75532.557200",
+            "Profit": "8093.062700",
+            "Quantity": 1243,
+            "Orders": 167,
+            "Customers": 143,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "8830.612000"
+          },
+          {
+            "OrderMonth": "2023-01",
+            "Sales": "18830.331000",
+            "Profit": "2916.023300",
+            "Quantity": 382,
+            "Orders": 50,
+            "Customers": 48,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1374.246000"
+          },
+          {
+            "OrderMonth": "2023-02",
+            "Sales": "22978.815000",
+            "Profit": "5004.579500",
+            "Quantity": 306,
+            "Orders": 45,
+            "Customers": 42,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "90.480000"
+          },
+          {
+            "OrderMonth": "2023-03",
+            "Sales": "53031.069000",
+            "Profit": "3707.886200",
+            "Quantity": 592,
+            "Orders": 88,
+            "Customers": 82,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "2105.411000"
+          },
+          {
+            "OrderMonth": "2023-04",
+            "Sales": "38829.159000",
+            "Profit": "2991.660900",
+            "Quantity": 640,
+            "Orders": 90,
+            "Customers": 83,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "3102.561000"
+          },
+          {
+            "OrderMonth": "2023-05",
+            "Sales": "57042.838000",
+            "Profit": "8676.696400",
+            "Quantity": 875,
+            "Orders": 109,
+            "Customers": 97,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "5820.774000"
+          },
+          {
+            "OrderMonth": "2023-06",
+            "Sales": "40937.148000",
+            "Profit": "4926.319400",
+            "Quantity": 768,
+            "Orders": 100,
+            "Customers": 96,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "2934.315000"
+          },
+          {
+            "OrderMonth": "2023-07",
+            "Sales": "40300.499000",
+            "Profit": "4559.882700",
+            "Quantity": 774,
+            "Orders": 97,
+            "Customers": 89,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "3327.324000"
+          },
+          {
+            "OrderMonth": "2023-08",
+            "Sales": "31716.814300",
+            "Profit": "2317.499300",
+            "Quantity": 704,
+            "Orders": 91,
+            "Customers": 87,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1149.675000"
+          },
+          {
+            "OrderMonth": "2023-09",
+            "Sales": "73521.662900",
+            "Profit": "9370.103100",
+            "Quantity": 1325,
+            "Orders": 195,
+            "Customers": 177,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "4197.033000"
+          },
+          {
+            "OrderMonth": "2023-10",
+            "Sales": "59831.001000",
+            "Profit": "16256.842200",
+            "Quantity": 770,
+            "Orders": 107,
+            "Customers": 96,
+            "ReturnedOrders": 12,
+            "ReturnedSales": "2806.354000"
+          },
+          {
+            "OrderMonth": "2023-11",
+            "Sales": "79411.965800",
+            "Profit": "4011.407500",
+            "Quantity": 1406,
+            "Orders": 183,
+            "Customers": 165,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "2104.585000"
+          },
+          {
+            "OrderMonth": "2023-12",
+            "Sales": "97502.277000",
+            "Profit": "17926.301300",
+            "Quantity": 1476,
+            "Orders": 185,
+            "Customers": 163,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "7109.014000"
+          },
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "44259.214000",
+            "Profit": "7231.639100",
+            "Quantity": 621,
+            "Orders": 71,
+            "Customers": 69,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "595.140000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "20301.133400",
+            "Profit": "1613.872000",
+            "Quantity": 363,
+            "Orders": 53,
+            "Customers": 53,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "4991.621000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "60728.480800",
+            "Profit": "15013.091000",
+            "Quantity": 914,
+            "Orders": 121,
+            "Customers": 121,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "17730.950000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "36779.036100",
+            "Profit": "957.530000",
+            "Quantity": 736,
+            "Orders": 117,
+            "Customers": 110,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "1061.955600"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "45155.482200",
+            "Profit": "6299.807200",
+            "Quantity": 901,
+            "Orders": 121,
+            "Customers": 115,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "390.016000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "53056.077700",
+            "Profit": "8246.570700",
+            "Quantity": 934,
+            "Orders": 134,
+            "Customers": 119,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "5120.374500"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "45989.496000",
+            "Profit": "7006.501200",
+            "Quantity": 856,
+            "Orders": 112,
+            "Customers": 103,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "4693.232000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "64129.758000",
+            "Profit": "9488.072200",
+            "Quantity": 899,
+            "Orders": 114,
+            "Customers": 105,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "9081.738000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "88064.532000",
+            "Profit": "11050.802400",
+            "Quantity": 1685,
+            "Orders": 231,
+            "Customers": 199,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "14108.569000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "83474.783200",
+            "Profit": "10670.531200",
+            "Quantity": 1166,
+            "Orders": 151,
+            "Customers": 138,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "4195.534000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "118454.505000",
+            "Profit": "9692.103700",
+            "Quantity": 1842,
+            "Orders": 262,
+            "Customers": 217,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "6703.166000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "85175.032800",
+            "Profit": "8655.826900",
+            "Quantity": 1820,
+            "Orders": 236,
+            "Customers": 202,
+            "ReturnedOrders": 18,
+            "ReturnedSales": "6829.767800"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "Central",
+            "Sales": "503170.672800",
+            "Profit": "39865.307000",
+            "Quantity": 8820,
+            "Orders": 1179,
+            "Customers": 629,
+            "ReturnedOrders": 39,
+            "ReturnedSales": "14006.979400"
+          },
+          {
+            "Region": "East",
+            "Sales": "691828.168000",
+            "Profit": "94883.260300",
+            "Quantity": 11159,
+            "Orders": 1475,
+            "Customers": 685,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "41705.144000"
+          },
+          {
+            "Region": "South",
+            "Sales": "391721.905000",
+            "Profit": "46749.430300",
+            "Quantity": 6209,
+            "Orders": 822,
+            "Customers": 512,
+            "ReturnedOrders": 24,
+            "ReturnedSales": "17309.097000"
+          },
+          {
+            "Region": "West",
+            "Sales": "739813.608500",
+            "Profit": "110798.817000",
+            "Quantity": 12466,
+            "Orders": 1635,
+            "Customers": 686,
+            "ReturnedOrders": 189,
+            "ReturnedSales": "107483.057500"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "754747.761300",
+            "Profit": "19729.995600",
+            "Quantity": 8369,
+            "Orders": 1819,
+            "Customers": 714,
+            "ReturnedOrders": 136,
+            "ReturnedSales": "59219.174900"
+          },
+          {
+            "Category": "Office Supplies",
+            "Sales": "731893.314000",
+            "Profit": "126023.443400",
+            "Quantity": 23268,
+            "Orders": 3812,
+            "Customers": 795,
+            "ReturnedOrders": 234,
+            "ReturnedSales": "48576.929000"
+          },
+          {
+            "Category": "Technology",
+            "Sales": "839893.279000",
+            "Profit": "146543.375600",
+            "Quantity": 7017,
+            "Orders": 1560,
+            "Customers": 687,
+            "ReturnedOrders": 123,
+            "ReturnedSales": "72708.174000"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Accessories",
+            "Sales": "167380.318000",
+            "Profit": "41936.635700",
+            "Quantity": 2976,
+            "Orders": 718,
+            "Customers": 474,
+            "ReturnedOrders": 52,
+            "ReturnedSales": "12716.330000"
+          },
+          {
+            "SubCategory": "Appliances",
+            "Sales": "108213.185000",
+            "Profit": "18329.484400",
+            "Quantity": 1750,
+            "Orders": 459,
+            "Customers": 356,
+            "ReturnedOrders": 40,
+            "ReturnedSales": "10129.782000"
+          },
+          {
+            "SubCategory": "Art",
+            "Sales": "27659.014000",
+            "Profit": "6653.196200",
+            "Quantity": 3092,
+            "Orders": 756,
+            "Customers": 496,
+            "ReturnedOrders": 46,
+            "ReturnedSales": "1429.124000"
+          },
+          {
+            "SubCategory": "Binders",
+            "Sales": "207354.881000",
+            "Profit": "31426.100300",
+            "Quantity": 6071,
+            "Orders": 1339,
+            "Customers": 652,
+            "ReturnedOrders": 108,
+            "ReturnedSales": "9983.149000"
+          },
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "115361.204300",
+            "Profit": "-3632.073600",
+            "Quantity": 878,
+            "Orders": 228,
+            "Customers": 196,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "7444.640900"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "335768.249000",
+            "Profit": "27223.532300",
+            "Quantity": 2431,
+            "Orders": 591,
+            "Customers": 409,
+            "ReturnedOrders": 47,
+            "ReturnedSales": "25154.702000"
+          },
+          {
+            "SubCategory": "Copiers",
+            "Sales": "150745.290000",
+            "Profit": "56093.936500",
+            "Quantity": 242,
+            "Orders": 70,
+            "Customers": 64,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "19199.840000"
+          },
+          {
+            "SubCategory": "Envelopes",
+            "Sales": "16528.362000",
+            "Profit": "6988.024700",
+            "Quantity": 914,
+            "Orders": 251,
+            "Customers": 206,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "919.746000"
+          },
+          {
+            "SubCategory": "Fasteners",
+            "Sales": "8532.240000",
+            "Profit": "2428.635800",
+            "Quantity": 980,
+            "Orders": 226,
+            "Customers": 192,
+            "ReturnedOrders": 19,
+            "ReturnedSales": "213.090000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "95598.126000",
+            "Profit": "13891.743000",
+            "Quantity": 3799,
+            "Orders": 919,
+            "Customers": 532,
+            "ReturnedOrders": 67,
+            "ReturnedSales": "9577.550000"
+          },
+          {
+            "SubCategory": "Labels",
+            "Sales": "12695.042000",
+            "Profit": "5572.778000",
+            "Quantity": 1410,
+            "Orders": 348,
+            "Customers": 281,
+            "ReturnedOrders": 20,
+            "ReturnedSales": "885.866000"
+          },
+          {
+            "SubCategory": "Machines",
+            "Sales": "189925.031000",
+            "Profit": "3461.976900",
+            "Quantity": 442,
+            "Orders": 114,
+            "Customers": 99,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "13158.390000"
+          },
+          {
+            "SubCategory": "Paper",
+            "Sales": "79540.538000",
+            "Profit": "34511.507000",
+            "Quantity": 5207,
+            "Orders": 1205,
+            "Customers": 613,
+            "ReturnedOrders": 99,
+            "ReturnedSales": "7140.282000"
+          },
+          {
+            "SubCategory": "Phones",
+            "Sales": "331842.640000",
+            "Profit": "45050.826500",
+            "Quantity": 3357,
+            "Orders": 826,
+            "Customers": 511,
+            "ReturnedOrders": 71,
+            "ReturnedSales": "27633.614000"
+          },
+          {
+            "SubCategory": "Storage",
+            "Sales": "224644.554000",
+            "Profit": "21285.111500",
+            "Quantity": 3191,
+            "Orders": 787,
+            "Customers": 514,
+            "ReturnedOrders": 53,
+            "ReturnedSales": "14679.928000"
+          },
+          {
+            "SubCategory": "Supplies",
+            "Sales": "46725.498000",
+            "Profit": "-1171.394500",
+            "Quantity": 653,
+            "Orders": 189,
+            "Customers": 160,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "3195.962000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "208020.182000",
+            "Profit": "-17753.206100",
+            "Quantity": 1261,
+            "Orders": 314,
+            "Customers": 261,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "17042.282000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "1170659.787000",
+            "Profit": "136371.446300",
+            "Quantity": 19844,
+            "Orders": 2628,
+            "Customers": 416,
+            "ReturnedOrders": 154,
+            "ReturnedSales": "105385.252300"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "715806.134800",
+            "Profit": "94249.640000",
+            "Quantity": 11898,
+            "Orders": 1552,
+            "Customers": 239,
+            "ReturnedOrders": 93,
+            "ReturnedSales": "51912.043600"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "440068.432500",
+            "Profit": "61675.728300",
+            "Quantity": 6912,
+            "Orders": 931,
+            "Customers": 149,
+            "ReturnedOrders": 49,
+            "ReturnedSales": "23206.982000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "2146030.076400",
+            "Profit": "269064.453100",
+            "Quantity": 35601,
+            "Orders": 4815,
+            "Customers": 802,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "180504.277900",
+            "Profit": "23232.361500",
+            "Quantity": 3053,
+            "Orders": 296,
+            "Customers": 247,
+            "ReturnedOrders": 296,
+            "ReturnedSales": "180504.277900"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Chuck Magee",
+            "Sales": "691828.168000",
+            "Profit": "94883.260300",
+            "Quantity": 11159,
+            "Orders": 1475,
+            "Customers": 685,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "41705.144000"
+          },
+          {
+            "RegionalManager": "Fred Suzuki",
+            "Sales": "391721.905000",
+            "Profit": "46749.430300",
+            "Quantity": 6209,
+            "Orders": 822,
+            "Customers": 512,
+            "ReturnedOrders": 24,
+            "ReturnedSales": "17309.097000"
+          },
+          {
+            "RegionalManager": "Roxanne Rodriguez",
+            "Sales": "503170.672800",
+            "Profit": "39865.307000",
+            "Quantity": 8820,
+            "Orders": 1179,
+            "Customers": 629,
+            "ReturnedOrders": 39,
+            "ReturnedSales": "14006.979400"
+          },
+          {
+            "RegionalManager": "Sadie Pawthorne",
+            "Sales": "739813.608500",
+            "Profit": "110798.817000",
+            "Quantity": 12466,
+            "Orders": 1635,
+            "Customers": 686,
+            "ReturnedOrders": 189,
+            "ReturnedSales": "107483.057500"
+          }
+        ]
+      }
+    },
+    "west": {
+      "filters": {
+        "region": "West"
+      },
+      "rows": 3253,
+      "totals": {
+        "Sales": "739813.608500",
+        "Profit": "110798.817000",
+        "Quantity": 12466,
+        "Orders": 1635,
+        "Customers": 686,
+        "ReturnedOrders": 189,
+        "ReturnedSales": "107483.057500"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2021",
+            "Sales": "150916.373000",
+            "Profit": "20254.481200",
+            "Quantity": 2596,
+            "Orders": 319,
+            "Customers": 271,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "11660.310000"
+          },
+          {
+            "OrderYear": "2022",
+            "Sales": "141687.407500",
+            "Profit": "20796.521500",
+            "Quantity": 2469,
+            "Orders": 342,
+            "Customers": 277,
+            "ReturnedOrders": 37,
+            "ReturnedSales": "21107.360000"
+          },
+          {
+            "OrderYear": "2023",
+            "Sales": "188968.794500",
+            "Profit": "24323.002900",
+            "Quantity": 3065,
+            "Orders": 428,
+            "Customers": 330,
+            "ReturnedOrders": 51,
+            "ReturnedSales": "22541.019000"
+          },
+          {
+            "OrderYear": "2024",
+            "Sales": "258241.033500",
+            "Profit": "45424.811400",
+            "Quantity": 4336,
+            "Orders": 546,
+            "Customers": 397,
+            "ReturnedOrders": 71,
+            "ReturnedSales": "52174.368500"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2021-01",
+            "Sales": "2938.723000",
+            "Profit": "24.392900",
+            "Quantity": 64,
+            "Orders": 8,
+            "Customers": 8,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "38.660000"
+          },
+          {
+            "OrderMonth": "2021-02",
+            "Sales": "1057.956000",
+            "Profit": "225.408600",
+            "Quantity": 47,
+            "Orders": 11,
+            "Customers": 11,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-03",
+            "Sales": "12251.798000",
+            "Profit": "1728.947300",
+            "Quantity": 162,
+            "Orders": 23,
+            "Customers": 23,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1198.330000"
+          },
+          {
+            "OrderMonth": "2021-04",
+            "Sales": "9343.487000",
+            "Profit": "1629.454500",
+            "Quantity": 179,
+            "Orders": 24,
+            "Customers": 23,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "233.990000"
+          },
+          {
+            "OrderMonth": "2021-05",
+            "Sales": "7438.888000",
+            "Profit": "818.344000",
+            "Quantity": 151,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "713.194000"
+          },
+          {
+            "OrderMonth": "2021-06",
+            "Sales": "9629.422000",
+            "Profit": "1771.815200",
+            "Quantity": 138,
+            "Orders": 16,
+            "Customers": 16,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "963.720000"
+          },
+          {
+            "OrderMonth": "2021-07",
+            "Sales": "21808.553000",
+            "Profit": "1946.682800",
+            "Quantity": 260,
+            "Orders": 29,
+            "Customers": 29,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "196.414000"
+          },
+          {
+            "OrderMonth": "2021-08",
+            "Sales": "13248.231000",
+            "Profit": "2560.904400",
+            "Quantity": 246,
+            "Orders": 27,
+            "Customers": 26,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "3296.986000"
+          },
+          {
+            "OrderMonth": "2021-09",
+            "Sales": "14900.537000",
+            "Profit": "3075.522700",
+            "Quantity": 274,
+            "Orders": 35,
+            "Customers": 35,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1008.300000"
+          },
+          {
+            "OrderMonth": "2021-10",
+            "Sales": "9514.568000",
+            "Profit": "1385.715500",
+            "Quantity": 258,
+            "Orders": 31,
+            "Customers": 29,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "787.040000"
+          },
+          {
+            "OrderMonth": "2021-11",
+            "Sales": "23191.624500",
+            "Profit": "3151.310700",
+            "Quantity": 386,
+            "Orders": 47,
+            "Customers": 47,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "1352.836000"
+          },
+          {
+            "OrderMonth": "2021-12",
+            "Sales": "25592.585500",
+            "Profit": "1935.982600",
+            "Quantity": 431,
+            "Orders": 47,
+            "Customers": 47,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1870.840000"
+          },
+          {
+            "OrderMonth": "2022-01",
+            "Sales": "6026.736000",
+            "Profit": "600.307900",
+            "Quantity": 64,
+            "Orders": 8,
+            "Customers": 8,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "136.782000"
+          },
+          {
+            "OrderMonth": "2022-02",
+            "Sales": "1804.178000",
+            "Profit": "453.719000",
+            "Quantity": 65,
+            "Orders": 10,
+            "Customers": 10,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "627.480000"
+          },
+          {
+            "OrderMonth": "2022-03",
+            "Sales": "16905.044000",
+            "Profit": "4418.543300",
+            "Quantity": 164,
+            "Orders": 27,
+            "Customers": 26,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2022-04",
+            "Sales": "9056.024000",
+            "Profit": "1332.795700",
+            "Quantity": 135,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1770.252000"
+          },
+          {
+            "OrderMonth": "2022-05",
+            "Sales": "12042.655500",
+            "Profit": "1641.150400",
+            "Quantity": 176,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "601.830000"
+          },
+          {
+            "OrderMonth": "2022-06",
+            "Sales": "5088.950000",
+            "Profit": "1034.346100",
+            "Quantity": 119,
+            "Orders": 19,
+            "Customers": 19,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "627.664000"
+          },
+          {
+            "OrderMonth": "2022-07",
+            "Sales": "7089.826000",
+            "Profit": "24.249600",
+            "Quantity": 98,
+            "Orders": 17,
+            "Customers": 16,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "170.352000"
+          },
+          {
+            "OrderMonth": "2022-08",
+            "Sales": "12548.359000",
+            "Profit": "1238.970300",
+            "Quantity": 189,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "3658.526000"
+          },
+          {
+            "OrderMonth": "2022-09",
+            "Sales": "13898.924000",
+            "Profit": "2451.217600",
+            "Quantity": 343,
+            "Orders": 49,
+            "Customers": 46,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "847.883000"
+          },
+          {
+            "OrderMonth": "2022-10",
+            "Sales": "14018.890000",
+            "Profit": "1779.047500",
+            "Quantity": 283,
+            "Orders": 34,
+            "Customers": 33,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "3061.803000"
+          },
+          {
+            "OrderMonth": "2022-11",
+            "Sales": "14548.896000",
+            "Profit": "1750.186000",
+            "Quantity": 364,
+            "Orders": 45,
+            "Customers": 45,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "2461.934000"
+          },
+          {
+            "OrderMonth": "2022-12",
+            "Sales": "28658.925000",
+            "Profit": "4071.988100",
+            "Quantity": 469,
+            "Orders": 61,
+            "Customers": 59,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "7142.854000"
+          },
+          {
+            "OrderMonth": "2023-01",
+            "Sales": "3657.822000",
+            "Profit": "644.245400",
+            "Quantity": 99,
+            "Orders": 16,
+            "Customers": 16,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "149.900000"
+          },
+          {
+            "OrderMonth": "2023-02",
+            "Sales": "3100.162000",
+            "Profit": "388.398100",
+            "Quantity": 63,
+            "Orders": 10,
+            "Customers": 10,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-03",
+            "Sales": "18801.931000",
+            "Profit": "1404.938500",
+            "Quantity": 134,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "342.501000"
+          },
+          {
+            "OrderMonth": "2023-04",
+            "Sales": "10561.129000",
+            "Profit": "370.604100",
+            "Quantity": 201,
+            "Orders": 29,
+            "Customers": 28,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "3102.561000"
+          },
+          {
+            "OrderMonth": "2023-05",
+            "Sales": "10694.247000",
+            "Profit": "1484.301500",
+            "Quantity": 196,
+            "Orders": 30,
+            "Customers": 30,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "3495.012000"
+          },
+          {
+            "OrderMonth": "2023-06",
+            "Sales": "18598.095000",
+            "Profit": "2275.456300",
+            "Quantity": 245,
+            "Orders": 33,
+            "Customers": 32,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "243.260000"
+          },
+          {
+            "OrderMonth": "2023-07",
+            "Sales": "15280.883000",
+            "Profit": "2946.341400",
+            "Quantity": 241,
+            "Orders": 33,
+            "Customers": 32,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "2712.704000"
+          },
+          {
+            "OrderMonth": "2023-08",
+            "Sales": "11817.852000",
+            "Profit": "1282.035100",
+            "Quantity": 202,
+            "Orders": 27,
+            "Customers": 27,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "165.130000"
+          },
+          {
+            "OrderMonth": "2023-09",
+            "Sales": "23684.844500",
+            "Profit": "4296.394200",
+            "Quantity": 418,
+            "Orders": 61,
+            "Customers": 59,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "2028.852000"
+          },
+          {
+            "OrderMonth": "2023-10",
+            "Sales": "15631.174000",
+            "Profit": "1420.653600",
+            "Quantity": 254,
+            "Orders": 38,
+            "Customers": 37,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "2486.524000"
+          },
+          {
+            "OrderMonth": "2023-11",
+            "Sales": "23923.005000",
+            "Profit": "4442.624900",
+            "Quantity": 409,
+            "Orders": 64,
+            "Customers": 63,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "710.265000"
+          },
+          {
+            "OrderMonth": "2023-12",
+            "Sales": "33217.650000",
+            "Profit": "3367.009800",
+            "Quantity": 603,
+            "Orders": 63,
+            "Customers": 63,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "7104.310000"
+          },
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "12081.844000",
+            "Profit": "3208.332900",
+            "Quantity": 208,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "420.054000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "9814.917000",
+            "Profit": "1648.229900",
+            "Quantity": 163,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "3542.768000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "30266.998000",
+            "Profit": "9309.765300",
+            "Quantity": 350,
+            "Orders": 40,
+            "Customers": 39,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "17605.642000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "13717.253000",
+            "Profit": "-1723.214800",
+            "Quantity": 237,
+            "Orders": 32,
+            "Customers": 32,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "808.570000"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "16477.598000",
+            "Profit": "2595.524700",
+            "Quantity": 314,
+            "Orders": 41,
+            "Customers": 40,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "353.968000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "15919.819500",
+            "Profit": "2779.517400",
+            "Quantity": 301,
+            "Orders": 41,
+            "Customers": 41,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "2153.702500"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "20767.539000",
+            "Profit": "4228.754800",
+            "Quantity": 257,
+            "Orders": 31,
+            "Customers": 30,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "3296.425000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "25737.894000",
+            "Profit": "6145.525800",
+            "Quantity": 338,
+            "Orders": 37,
+            "Customers": 35,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "8989.362000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "27975.467000",
+            "Profit": "4893.131800",
+            "Quantity": 560,
+            "Orders": 81,
+            "Customers": 78,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "4160.210000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "26838.858000",
+            "Profit": "4709.031900",
+            "Quantity": 409,
+            "Orders": 48,
+            "Customers": 45,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "3958.812000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "28941.787000",
+            "Profit": "3443.249700",
+            "Quantity": 556,
+            "Orders": 77,
+            "Customers": 73,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "4444.476000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "29701.059000",
+            "Profit": "4186.962000",
+            "Quantity": 643,
+            "Orders": 73,
+            "Customers": 67,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "2440.379000"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "West",
+            "Sales": "739813.608500",
+            "Profit": "110798.817000",
+            "Quantity": 12466,
+            "Orders": 1635,
+            "Customers": 686,
+            "ReturnedOrders": 189,
+            "ReturnedSales": "107483.057500"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "260679.729500",
+            "Profit": "12316.251400",
+            "Quantity": 2826,
+            "Orders": 613,
+            "Customers": 423,
+            "ReturnedOrders": 88,
+            "ReturnedSales": "34876.144500"
+          },
+          {
+            "Category": "Office Supplies",
+            "Sales": "226366.891000",
+            "Profit": "54070.229200",
+            "Quantity": 7290,
+            "Orders": 1177,
+            "Customers": 608,
+            "ReturnedOrders": 149,
+            "ReturnedSales": "29452.110000"
+          },
+          {
+            "Category": "Technology",
+            "Sales": "252766.988000",
+            "Profit": "44412.336400",
+            "Quantity": 2350,
+            "Orders": 498,
+            "Customers": 365,
+            "ReturnedOrders": 68,
+            "ReturnedSales": "43154.803000"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Accessories",
+            "Sales": "61114.116000",
+            "Profit": "16484.598300",
+            "Quantity": 1032,
+            "Orders": 236,
+            "Customers": 198,
+            "ReturnedOrders": 27,
+            "ReturnedSales": "7058.902000"
+          },
+          {
+            "SubCategory": "Appliances",
+            "Sales": "30315.960000",
+            "Profit": "8278.942500",
+            "Quantity": 498,
+            "Orders": 136,
+            "Customers": 125,
+            "ReturnedOrders": 26,
+            "ReturnedSales": "8212.054000"
+          },
+          {
+            "SubCategory": "Art",
+            "Sales": "9320.456000",
+            "Profit": "2411.286200",
+            "Quantity": 950,
+            "Orders": 233,
+            "Customers": 199,
+            "ReturnedOrders": 27,
+            "ReturnedSales": "668.702000"
+          },
+          {
+            "SubCategory": "Binders",
+            "Sales": "55961.113000",
+            "Profit": "16096.801600",
+            "Quantity": 1868,
+            "Orders": 403,
+            "Customers": 321,
+            "ReturnedOrders": 68,
+            "ReturnedSales": "5994.104000"
+          },
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "36340.743500",
+            "Profit": "-1608.425700",
+            "Quantity": 314,
+            "Orders": 81,
+            "Customers": 75,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "5951.844500"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "107134.978000",
+            "Profit": "4187.650900",
+            "Quantity": 772,
+            "Orders": 199,
+            "Customers": 171,
+            "ReturnedOrders": 33,
+            "ReturnedSales": "12897.576000"
+          },
+          {
+            "SubCategory": "Copiers",
+            "Sales": "49749.242000",
+            "Profit": "19327.235100",
+            "Quantity": 88,
+            "Orders": 25,
+            "Customers": 25,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "15519.912000"
+          },
+          {
+            "SubCategory": "Envelopes",
+            "Sales": "4170.060000",
+            "Profit": "1932.610400",
+            "Quantity": 235,
+            "Orders": 68,
+            "Customers": 58,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "443.448000"
+          },
+          {
+            "SubCategory": "Fasteners",
+            "Sales": "6138.076000",
+            "Profit": "1634.030300",
+            "Quantity": 272,
+            "Orders": 74,
+            "Customers": 67,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "188.570000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "32181.136000",
+            "Profit": "8221.376900",
+            "Quantity": 1254,
+            "Orders": 297,
+            "Customers": 231,
+            "ReturnedOrders": 41,
+            "ReturnedSales": "5446.074000"
+          },
+          {
+            "SubCategory": "Labels",
+            "Sales": "5078.726000",
+            "Profit": "2303.122300",
+            "Quantity": 480,
+            "Orders": 112,
+            "Customers": 101,
+            "ReturnedOrders": 14,
+            "ReturnedSales": "570.770000"
+          },
+          {
+            "SubCategory": "Machines",
+            "Sales": "43130.522000",
+            "Profit": "-541.706400",
+            "Quantity": 149,
+            "Orders": 41,
+            "Customers": 37,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "7580.469000"
+          },
+          {
+            "SubCategory": "Paper",
+            "Sales": "26722.526000",
+            "Profit": "12142.067200",
+            "Quantity": 1710,
+            "Orders": 386,
+            "Customers": 309,
+            "ReturnedOrders": 64,
+            "ReturnedSales": "4381.720000"
+          },
+          {
+            "SubCategory": "Phones",
+            "Sales": "98773.108000",
+            "Profit": "9142.209400",
+            "Quantity": 1081,
+            "Orders": 262,
+            "Customers": 218,
+            "ReturnedOrders": 40,
+            "ReturnedSales": "12995.520000"
+          },
+          {
+            "SubCategory": "Storage",
+            "Sales": "70532.852000",
+            "Profit": "8645.322200",
+            "Quantity": 1039,
+            "Orders": 247,
+            "Customers": 214,
+            "ReturnedOrders": 34,
+            "ReturnedSales": "7988.006000"
+          },
+          {
+            "SubCategory": "Supplies",
+            "Sales": "18127.122000",
+            "Profit": "626.046500",
+            "Quantity": 238,
+            "Orders": 68,
+            "Customers": 64,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "1004.736000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "85022.872000",
+            "Profit": "1515.649300",
+            "Quantity": 486,
+            "Orders": 116,
+            "Customers": 108,
+            "ReturnedOrders": 18,
+            "ReturnedSales": "10580.650000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "363974.739000",
+            "Profit": "57709.898300",
+            "Quantity": 6551,
+            "Orders": 835,
+            "Customers": 358,
+            "ReturnedOrders": 96,
+            "ReturnedSales": "61453.306500"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "232347.764500",
+            "Profit": "35868.513700",
+            "Quantity": 3680,
+            "Orders": 489,
+            "Customers": 204,
+            "ReturnedOrders": 63,
+            "ReturnedSales": "30838.387000"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "143491.105000",
+            "Profit": "17220.405000",
+            "Quantity": 2235,
+            "Orders": 311,
+            "Customers": 124,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "15191.364000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "632330.551000",
+            "Profit": "91135.439200",
+            "Quantity": 10568,
+            "Orders": 1446,
+            "Customers": 664,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "107483.057500",
+            "Profit": "19663.377800",
+            "Quantity": 1898,
+            "Orders": 189,
+            "Customers": 170,
+            "ReturnedOrders": 189,
+            "ReturnedSales": "107483.057500"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Sadie Pawthorne",
+            "Sales": "739813.608500",
+            "Profit": "110798.817000",
+            "Quantity": 12466,
+            "Orders": 1635,
+            "Customers": 686,
+            "ReturnedOrders": 189,
+            "ReturnedSales": "107483.057500"
+          }
+        ]
+      }
+    },
+    "east": {
+      "filters": {
+        "region": "East"
+      },
+      "rows": 2986,
+      "totals": {
+        "Sales": "691828.168000",
+        "Profit": "94883.260300",
+        "Quantity": 11159,
+        "Orders": 1475,
+        "Customers": 685,
+        "ReturnedOrders": 44,
+        "ReturnedSales": "41705.144000"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2021",
+            "Sales": "135439.831000",
+            "Profit": "19011.141100",
+            "Quantity": 2155,
+            "Orders": 281,
+            "Customers": 238,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "10382.162000"
+          },
+          {
+            "OrderYear": "2022",
+            "Sales": "157071.421000",
+            "Profit": "21189.052000",
+            "Quantity": 2458,
+            "Orders": 307,
+            "Customers": 251,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "11103.848000"
+          },
+          {
+            "OrderYear": "2023",
+            "Sales": "182749.874000",
+            "Profit": "20602.633100",
+            "Quantity": 2962,
+            "Orders": 391,
+            "Customers": 319,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "4833.311000"
+          },
+          {
+            "OrderYear": "2024",
+            "Sales": "216567.042000",
+            "Profit": "34080.434100",
+            "Quantity": 3584,
+            "Orders": 496,
+            "Customers": 367,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "15385.823000"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2021-01",
+            "Sales": "717.334000",
+            "Profit": "49.843600",
+            "Quantity": 55,
+            "Orders": 7,
+            "Customers": 7,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-02",
+            "Sales": "199.776000",
+            "Profit": "62.753600",
+            "Quantity": 15,
+            "Orders": 3,
+            "Customers": 3,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-03",
+            "Sales": "5943.388000",
+            "Profit": "-809.175500",
+            "Quantity": 140,
+            "Orders": 17,
+            "Customers": 17,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-04",
+            "Sales": "3054.906000",
+            "Profit": "-220.625200",
+            "Quantity": 120,
+            "Orders": 15,
+            "Customers": 15,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-05",
+            "Sales": "9053.133000",
+            "Profit": "1267.398700",
+            "Quantity": 163,
+            "Orders": 20,
+            "Customers": 16,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "779.796000"
+          },
+          {
+            "OrderMonth": "2021-06",
+            "Sales": "10833.508000",
+            "Profit": "1003.376200",
+            "Quantity": 163,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-07",
+            "Sales": "3568.146000",
+            "Profit": "847.136500",
+            "Quantity": 86,
+            "Orders": 16,
+            "Customers": 16,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "241.194000"
+          },
+          {
+            "OrderMonth": "2021-08",
+            "Sales": "5591.318000",
+            "Profit": "1248.926400",
+            "Quantity": 176,
+            "Orders": 23,
+            "Customers": 23,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "3.912000"
+          },
+          {
+            "OrderMonth": "2021-09",
+            "Sales": "26185.867000",
+            "Profit": "4440.344100",
+            "Quantity": 381,
+            "Orders": 52,
+            "Customers": 50,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "7175.302000"
+          },
+          {
+            "OrderMonth": "2021-10",
+            "Sales": "9119.260000",
+            "Profit": "88.446100",
+            "Quantity": 149,
+            "Orders": 20,
+            "Customers": 20,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1541.922000"
+          },
+          {
+            "OrderMonth": "2021-11",
+            "Sales": "34149.011000",
+            "Profit": "5662.461000",
+            "Quantity": 355,
+            "Orders": 44,
+            "Customers": 43,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "277.570000"
+          },
+          {
+            "OrderMonth": "2021-12",
+            "Sales": "27024.184000",
+            "Profit": "5370.255600",
+            "Quantity": 352,
+            "Orders": 43,
+            "Customers": 42,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "362.466000"
+          },
+          {
+            "OrderMonth": "2022-01",
+            "Sales": "4958.834000",
+            "Profit": "-1542.184000",
+            "Quantity": 89,
+            "Orders": 10,
+            "Customers": 9,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1816.696000"
+          },
+          {
+            "OrderMonth": "2022-02",
+            "Sales": "6463.133000",
+            "Profit": "1806.587500",
+            "Quantity": 93,
+            "Orders": 13,
+            "Customers": 13,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "599.900000"
+          },
+          {
+            "OrderMonth": "2022-03",
+            "Sales": "6021.221000",
+            "Profit": "1477.792900",
+            "Quantity": 114,
+            "Orders": 18,
+            "Customers": 18,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "807.540000"
+          },
+          {
+            "OrderMonth": "2022-04",
+            "Sales": "7778.796000",
+            "Profit": "1095.272600",
+            "Quantity": 175,
+            "Orders": 20,
+            "Customers": 20,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "156.710000"
+          },
+          {
+            "OrderMonth": "2022-05",
+            "Sales": "7596.684000",
+            "Profit": "1642.805500",
+            "Quantity": 196,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "3384.518000"
+          },
+          {
+            "OrderMonth": "2022-06",
+            "Sales": "7442.988000",
+            "Profit": "1629.765100",
+            "Quantity": 97,
+            "Orders": 19,
+            "Customers": 19,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2022-07",
+            "Sales": "11872.664000",
+            "Profit": "2350.984100",
+            "Quantity": 219,
+            "Orders": 22,
+            "Customers": 22,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2022-08",
+            "Sales": "9622.444000",
+            "Profit": "927.905900",
+            "Quantity": 190,
+            "Orders": 21,
+            "Customers": 20,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2022-09",
+            "Sales": "29472.115000",
+            "Profit": "2522.643400",
+            "Quantity": 391,
+            "Orders": 46,
+            "Customers": 44,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1884.144000"
+          },
+          {
+            "OrderMonth": "2022-10",
+            "Sales": "6302.030000",
+            "Profit": "1460.308700",
+            "Quantity": 115,
+            "Orders": 20,
+            "Customers": 19,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "235.970000"
+          },
+          {
+            "OrderMonth": "2022-11",
+            "Sales": "34724.761000",
+            "Profit": "7862.316000",
+            "Quantity": 427,
+            "Orders": 51,
+            "Customers": 49,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1170.720000"
+          },
+          {
+            "OrderMonth": "2022-12",
+            "Sales": "24815.751000",
+            "Profit": "-45.145700",
+            "Quantity": 352,
+            "Orders": 46,
+            "Customers": 40,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1047.650000"
+          },
+          {
+            "OrderMonth": "2023-01",
+            "Sales": "5147.927000",
+            "Profit": "890.226700",
+            "Quantity": 157,
+            "Orders": 19,
+            "Customers": 19,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "819.002000"
+          },
+          {
+            "OrderMonth": "2023-02",
+            "Sales": "3149.821000",
+            "Profit": "573.685700",
+            "Quantity": 86,
+            "Orders": 16,
+            "Customers": 16,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "90.480000"
+          },
+          {
+            "OrderMonth": "2023-03",
+            "Sales": "16837.151000",
+            "Profit": "2345.385700",
+            "Quantity": 208,
+            "Orders": 29,
+            "Customers": 29,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1407.016000"
+          },
+          {
+            "OrderMonth": "2023-04",
+            "Sales": "17839.968000",
+            "Profit": "3538.493700",
+            "Quantity": 210,
+            "Orders": 27,
+            "Customers": 27,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-05",
+            "Sales": "22644.393000",
+            "Profit": "3546.462600",
+            "Quantity": 252,
+            "Orders": 29,
+            "Customers": 28,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-06",
+            "Sales": "12330.020000",
+            "Profit": "1774.495300",
+            "Quantity": 296,
+            "Orders": 35,
+            "Customers": 38,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1369.588000"
+          },
+          {
+            "OrderMonth": "2023-07",
+            "Sales": "8524.197000",
+            "Profit": "-291.273300",
+            "Quantity": 190,
+            "Orders": 25,
+            "Customers": 25,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "122.340000"
+          },
+          {
+            "OrderMonth": "2023-08",
+            "Sales": "9866.397000",
+            "Profit": "666.952300",
+            "Quantity": 214,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "832.725000"
+          },
+          {
+            "OrderMonth": "2023-09",
+            "Sales": "20310.162000",
+            "Profit": "3189.656500",
+            "Quantity": 323,
+            "Orders": 52,
+            "Customers": 49,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "192.160000"
+          },
+          {
+            "OrderMonth": "2023-10",
+            "Sales": "15065.465000",
+            "Profit": "3681.610400",
+            "Quantity": 195,
+            "Orders": 27,
+            "Customers": 27,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-11",
+            "Sales": "22982.089000",
+            "Profit": "-4842.241900",
+            "Quantity": 426,
+            "Orders": 48,
+            "Customers": 47,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-12",
+            "Sales": "28052.284000",
+            "Profit": "5529.179400",
+            "Quantity": 405,
+            "Orders": 60,
+            "Customers": 56,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "5671.124000",
+            "Profit": "447.069400",
+            "Quantity": 100,
+            "Orders": 16,
+            "Customers": 16,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "4968.522000",
+            "Profit": "494.453100",
+            "Quantity": 100,
+            "Orders": 17,
+            "Customers": 17,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1448.853000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "8313.184000",
+            "Profit": "1254.607400",
+            "Quantity": 244,
+            "Orders": 33,
+            "Customers": 36,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "98.350000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "10230.906000",
+            "Profit": "1199.509800",
+            "Quantity": 206,
+            "Orders": 36,
+            "Customers": 36,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "6145.289000",
+            "Profit": "856.354100",
+            "Quantity": 181,
+            "Orders": 29,
+            "Customers": 29,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "36.048000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "15235.577000",
+            "Profit": "3124.994800",
+            "Quantity": 265,
+            "Orders": 36,
+            "Customers": 36,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "12321.823000",
+            "Profit": "1118.123700",
+            "Quantity": 298,
+            "Orders": 36,
+            "Customers": 34,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "745.953000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "21767.336000",
+            "Profit": "2630.035900",
+            "Quantity": 224,
+            "Orders": 32,
+            "Customers": 30,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "32545.548000",
+            "Profit": "2543.343100",
+            "Quantity": 532,
+            "Orders": 67,
+            "Customers": 62,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "9837.179000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "32346.248000",
+            "Profit": "7639.743600",
+            "Quantity": 324,
+            "Orders": 42,
+            "Customers": 41,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "236.722000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "45640.319000",
+            "Profit": "9392.256800",
+            "Quantity": 541,
+            "Orders": 75,
+            "Customers": 70,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1711.548000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "21381.166000",
+            "Profit": "3379.942400",
+            "Quantity": 569,
+            "Orders": 77,
+            "Customers": 71,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1271.170000"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "East",
+            "Sales": "691828.168000",
+            "Profit": "94883.260300",
+            "Quantity": 11159,
+            "Orders": 1475,
+            "Customers": 685,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "41705.144000"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "212231.696000",
+            "Profit": "3444.744800",
+            "Quantity": 2414,
+            "Orders": 521,
+            "Customers": 378,
+            "ReturnedOrders": 22,
+            "ReturnedSales": "13812.782000"
+          },
+          {
+            "Category": "Office Supplies",
+            "Sales": "211658.401000",
+            "Profit": "42996.739700",
+            "Quantity": 6740,
+            "Orders": 1132,
+            "Customers": 617,
+            "ReturnedOrders": 34,
+            "ReturnedSales": "7836.192000"
+          },
+          {
+            "Category": "Technology",
+            "Sales": "267938.071000",
+            "Profit": "48441.775800",
+            "Quantity": 2005,
+            "Orders": 451,
+            "Customers": 354,
+            "ReturnedOrders": 29,
+            "ReturnedSales": "20056.170000"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Accessories",
+            "Sales": "45033.372000",
+            "Profit": "11195.864400",
+            "Quantity": 724,
+            "Orders": 191,
+            "Customers": 169,
+            "ReturnedOrders": 12,
+            "ReturnedSales": "2723.272000"
+          },
+          {
+            "SubCategory": "Appliances",
+            "Sales": "34789.866000",
+            "Profit": "8565.219800",
+            "Quantity": 489,
+            "Orders": 125,
+            "Customers": 111,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1026.780000"
+          },
+          {
+            "SubCategory": "Art",
+            "Sales": "7917.596000",
+            "Profit": "1988.164300",
+            "Quantity": 917,
+            "Orders": 228,
+            "Customers": 184,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "172.012000"
+          },
+          {
+            "SubCategory": "Binders",
+            "Sales": "56302.637000",
+            "Profit": "12386.939800",
+            "Quantity": 1730,
+            "Orders": 403,
+            "Customers": 308,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "1109.268000"
+          },
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "43963.922000",
+            "Profit": "-1365.235400",
+            "Quantity": 254,
+            "Orders": 70,
+            "Customers": 68,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "999.358000"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "97515.683000",
+            "Profit": "9752.928800",
+            "Quantity": 707,
+            "Orders": 162,
+            "Customers": 145,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "8528.920000"
+          },
+          {
+            "SubCategory": "Copiers",
+            "Sales": "54436.722000",
+            "Profit": "17498.953400",
+            "Quantity": 79,
+            "Orders": 22,
+            "Customers": 20,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "3679.928000"
+          },
+          {
+            "SubCategory": "Envelopes",
+            "Sales": "4375.874000",
+            "Profit": "1812.409000",
+            "Quantity": 267,
+            "Orders": 73,
+            "Customers": 72,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "131.820000"
+          },
+          {
+            "SubCategory": "Fasteners",
+            "Sales": "1112.818000",
+            "Profit": "384.268800",
+            "Quantity": 355,
+            "Orders": 69,
+            "Customers": 61,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "21.624000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "30825.944000",
+            "Profit": "6143.198500",
+            "Quantity": 1167,
+            "Orders": 280,
+            "Customers": 220,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "893.600000"
+          },
+          {
+            "SubCategory": "Labels",
+            "Sales": "2811.664000",
+            "Profit": "1155.804000",
+            "Quantity": 430,
+            "Orders": 102,
+            "Customers": 97,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "23.680000"
+          },
+          {
+            "SubCategory": "Machines",
+            "Sales": "66106.165000",
+            "Profit": "6928.642900",
+            "Quantity": 165,
+            "Orders": 36,
+            "Customers": 35,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "4569.942000"
+          },
+          {
+            "SubCategory": "Paper",
+            "Sales": "21175.126000",
+            "Profit": "9450.477900",
+            "Quantity": 1421,
+            "Orders": 344,
+            "Customers": 273,
+            "ReturnedOrders": 19,
+            "ReturnedSales": "1769.466000"
+          },
+          {
+            "SubCategory": "Phones",
+            "Sales": "102361.812000",
+            "Profit": "12818.315100",
+            "Quantity": 1037,
+            "Orders": 253,
+            "Customers": 219,
+            "ReturnedOrders": 19,
+            "ReturnedSales": "9083.028000"
+          },
+          {
+            "SubCategory": "Storage",
+            "Sales": "72360.744000",
+            "Profit": "8390.886300",
+            "Quantity": 930,
+            "Orders": 231,
+            "Customers": 206,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "3211.952000"
+          },
+          {
+            "SubCategory": "Supplies",
+            "Sales": "10812.076000",
+            "Profit": "-1137.430200",
+            "Quantity": 201,
+            "Orders": 57,
+            "Customers": 51,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "369.590000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "39926.147000",
+            "Profit": "-11086.147100",
+            "Quantity": 286,
+            "Orders": 81,
+            "Customers": 76,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "3390.904000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "357141.861000",
+            "Profit": "43024.982600",
+            "Quantity": 5556,
+            "Orders": 741,
+            "Customers": 351,
+            "ReturnedOrders": 25,
+            "ReturnedSales": "27227.880000"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "203576.625000",
+            "Profit": "24462.001100",
+            "Quantity": 3598,
+            "Orders": 468,
+            "Customers": 209,
+            "ReturnedOrders": 10,
+            "ReturnedSales": "10317.995000"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "131109.682000",
+            "Profit": "27396.276600",
+            "Quantity": 2005,
+            "Orders": 266,
+            "Customers": 125,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "4159.269000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "650123.024000",
+            "Profit": "89898.459700",
+            "Quantity": 10616,
+            "Orders": 1431,
+            "Customers": 678,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "41705.144000",
+            "Profit": "4984.800600",
+            "Quantity": 543,
+            "Orders": 44,
+            "Customers": 41,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "41705.144000"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Chuck Magee",
+            "Sales": "691828.168000",
+            "Profit": "94883.260300",
+            "Quantity": 11159,
+            "Orders": 1475,
+            "Customers": 685,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "41705.144000"
+          }
+        ]
+      }
+    },
+    "year2024": {
+      "filters": {
+        "order_year": "2024"
+      },
+      "rows": 3379,
+      "totals": {
+        "Sales": "745567.531200",
+        "Profit": "95926.347600",
+        "Quantity": 12737,
+        "Orders": 1723,
+        "Customers": 704,
+        "ReturnedOrders": 105,
+        "ReturnedSales": "75502.063900"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2024",
+            "Sales": "745567.531200",
+            "Profit": "95926.347600",
+            "Quantity": 12737,
+            "Orders": 1723,
+            "Customers": 704,
+            "ReturnedOrders": 105,
+            "ReturnedSales": "75502.063900"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "44259.214000",
+            "Profit": "7231.639100",
+            "Quantity": 621,
+            "Orders": 71,
+            "Customers": 69,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "595.140000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "20301.133400",
+            "Profit": "1613.872000",
+            "Quantity": 363,
+            "Orders": 53,
+            "Customers": 53,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "4991.621000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "60728.480800",
+            "Profit": "15013.091000",
+            "Quantity": 914,
+            "Orders": 121,
+            "Customers": 121,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "17730.950000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "36779.036100",
+            "Profit": "957.530000",
+            "Quantity": 736,
+            "Orders": 117,
+            "Customers": 110,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "1061.955600"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "45155.482200",
+            "Profit": "6299.807200",
+            "Quantity": 901,
+            "Orders": 121,
+            "Customers": 115,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "390.016000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "53056.077700",
+            "Profit": "8246.570700",
+            "Quantity": 934,
+            "Orders": 134,
+            "Customers": 119,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "5120.374500"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "45989.496000",
+            "Profit": "7006.501200",
+            "Quantity": 856,
+            "Orders": 112,
+            "Customers": 103,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "4693.232000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "64129.758000",
+            "Profit": "9488.072200",
+            "Quantity": 899,
+            "Orders": 114,
+            "Customers": 105,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "9081.738000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "88064.532000",
+            "Profit": "11050.802400",
+            "Quantity": 1685,
+            "Orders": 231,
+            "Customers": 199,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "14108.569000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "83474.783200",
+            "Profit": "10670.531200",
+            "Quantity": 1166,
+            "Orders": 151,
+            "Customers": 138,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "4195.534000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "118454.505000",
+            "Profit": "9692.103700",
+            "Quantity": 1842,
+            "Orders": 262,
+            "Customers": 217,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "6703.166000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "85175.032800",
+            "Profit": "8655.826900",
+            "Quantity": 1820,
+            "Orders": 236,
+            "Customers": 202,
+            "ReturnedOrders": 18,
+            "ReturnedSales": "6829.767800"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "Central",
+            "Sales": "147853.598200",
+            "Profit": "7572.194200",
+            "Quantity": 2902,
+            "Orders": 408,
+            "Customers": 326,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "2050.918400"
+          },
+          {
+            "Region": "East",
+            "Sales": "216567.042000",
+            "Profit": "34080.434100",
+            "Quantity": 3584,
+            "Orders": 496,
+            "Customers": 367,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "15385.823000"
+          },
+          {
+            "Region": "South",
+            "Sales": "122905.857500",
+            "Profit": "8848.907900",
+            "Quantity": 1915,
+            "Orders": 273,
+            "Customers": 223,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "5890.954000"
+          },
+          {
+            "Region": "West",
+            "Sales": "258241.033500",
+            "Profit": "45424.811400",
+            "Quantity": 4336,
+            "Orders": 546,
+            "Customers": 397,
+            "ReturnedOrders": 71,
+            "ReturnedSales": "52174.368500"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "219312.929200",
+            "Profit": "3349.239300",
+            "Quantity": 2548,
+            "Orders": 584,
+            "Customers": 412,
+            "ReturnedOrders": 53,
+            "ReturnedSales": "21434.337900"
+          },
+          {
+            "Category": "Office Supplies",
+            "Sales": "253835.435000",
+            "Profit": "41743.024200",
+            "Quantity": 7792,
+            "Orders": 1296,
+            "Customers": 643,
+            "ReturnedOrders": 86,
+            "ReturnedSales": "17969.082000"
+          },
+          {
+            "Category": "Technology",
+            "Sales": "272419.167000",
+            "Profit": "50834.084100",
+            "Quantity": 2397,
+            "Orders": 532,
+            "Customers": 387,
+            "ReturnedOrders": 44,
+            "ReturnedSales": "36098.644000"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Accessories",
+            "Sales": "59946.232000",
+            "Profit": "15672.357000",
+            "Quantity": 1079,
+            "Orders": 251,
+            "Customers": 216,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "4806.488000"
+          },
+          {
+            "SubCategory": "Appliances",
+            "Sales": "43111.156000",
+            "Profit": "7914.980900",
+            "Quantity": 659,
+            "Orders": 162,
+            "Customers": 148,
+            "ReturnedOrders": 19,
+            "ReturnedSales": "5947.234000"
+          },
+          {
+            "SubCategory": "Art",
+            "Sales": "9022.696000",
+            "Profit": "2270.816700",
+            "Quantity": 1126,
+            "Orders": 261,
+            "Customers": 226,
+            "ReturnedOrders": 16,
+            "ReturnedSales": "449.902000"
+          },
+          {
+            "SubCategory": "Binders",
+            "Sales": "73651.269000",
+            "Profit": "7940.889400",
+            "Quantity": 2096,
+            "Orders": 439,
+            "Customers": 339,
+            "ReturnedOrders": 37,
+            "ReturnedSales": "3732.340000"
+          },
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "30354.073700",
+            "Profit": "-658.187900",
+            "Quantity": 280,
+            "Orders": 78,
+            "Customers": 75,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "3229.172900"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "98032.377000",
+            "Profit": "7788.102400",
+            "Quantity": 699,
+            "Orders": 179,
+            "Customers": 152,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "11055.184000"
+          },
+          {
+            "SubCategory": "Copiers",
+            "Sales": "62916.668000",
+            "Profit": "25039.911800",
+            "Quantity": 79,
+            "Orders": 23,
+            "Customers": 22,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "14879.944000"
+          },
+          {
+            "SubCategory": "Envelopes",
+            "Sales": "3378.574000",
+            "Profit": "1441.759000",
+            "Quantity": 241,
+            "Orders": 71,
+            "Customers": 68,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "190.344000"
+          },
+          {
+            "SubCategory": "Fasteners",
+            "Sales": "6161.714000",
+            "Profit": "1698.882500",
+            "Quantity": 277,
+            "Orders": 68,
+            "Customers": 64,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "93.780000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "29927.276000",
+            "Profit": "4311.598500",
+            "Quantity": 1172,
+            "Orders": 307,
+            "Customers": 254,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "3251.620000"
+          },
+          {
+            "SubCategory": "Labels",
+            "Sales": "3987.026000",
+            "Profit": "1802.519300",
+            "Quantity": 453,
+            "Orders": 111,
+            "Customers": 105,
+            "ReturnedOrders": 9,
+            "ReturnedSales": "289.720000"
+          },
+          {
+            "SubCategory": "Machines",
+            "Sales": "43887.875000",
+            "Profit": "-2830.605600",
+            "Quantity": 122,
+            "Orders": 33,
+            "Customers": 30,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "2821.856000"
+          },
+          {
+            "SubCategory": "Paper",
+            "Sales": "28173.530000",
+            "Profit": "12254.039200",
+            "Quantity": 1708,
+            "Orders": 407,
+            "Customers": 308,
+            "ReturnedOrders": 29,
+            "ReturnedSales": "1826.874000"
+          },
+          {
+            "SubCategory": "Phones",
+            "Sales": "105668.392000",
+            "Profit": "12952.420900",
+            "Quantity": 1117,
+            "Orders": 283,
+            "Customers": 245,
+            "ReturnedOrders": 27,
+            "ReturnedSales": "13590.356000"
+          },
+          {
+            "SubCategory": "Storage",
+            "Sales": "70273.810000",
+            "Profit": "7363.425000",
+            "Quantity": 1037,
+            "Orders": 273,
+            "Customers": 238,
+            "ReturnedOrders": 20,
+            "ReturnedSales": "3663.900000"
+          },
+          {
+            "SubCategory": "Supplies",
+            "Sales": "16075.660000",
+            "Profit": "-944.287800",
+            "Quantity": 195,
+            "Orders": 60,
+            "Customers": 58,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "1774.988000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "60999.202500",
+            "Profit": "-8092.273700",
+            "Quantity": 397,
+            "Orders": 102,
+            "Customers": 96,
+            "ReturnedOrders": 12,
+            "ReturnedSales": "3898.361000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "334911.925900",
+            "Profit": "46270.280200",
+            "Quantity": 6376,
+            "Orders": 890,
+            "Customers": 368,
+            "ReturnedOrders": 55,
+            "ReturnedSales": "42249.546300"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "248244.118400",
+            "Profit": "28407.260400",
+            "Quantity": 3861,
+            "Orders": 508,
+            "Customers": 207,
+            "ReturnedOrders": 32,
+            "ReturnedSales": "24247.257600"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "162411.486900",
+            "Profit": "21248.807000",
+            "Quantity": 2500,
+            "Orders": 325,
+            "Customers": 129,
+            "ReturnedOrders": 18,
+            "ReturnedSales": "9005.260000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "670065.467300",
+            "Profit": "80199.078900",
+            "Quantity": 11597,
+            "Orders": 1618,
+            "Customers": 678,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "75502.063900",
+            "Profit": "15727.268700",
+            "Quantity": 1140,
+            "Orders": 105,
+            "Customers": 100,
+            "ReturnedOrders": 105,
+            "ReturnedSales": "75502.063900"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Chuck Magee",
+            "Sales": "216567.042000",
+            "Profit": "34080.434100",
+            "Quantity": 3584,
+            "Orders": 496,
+            "Customers": 367,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "15385.823000"
+          },
+          {
+            "RegionalManager": "Fred Suzuki",
+            "Sales": "122905.857500",
+            "Profit": "8848.907900",
+            "Quantity": 1915,
+            "Orders": 273,
+            "Customers": 223,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "5890.954000"
+          },
+          {
+            "RegionalManager": "Roxanne Rodriguez",
+            "Sales": "147853.598200",
+            "Profit": "7572.194200",
+            "Quantity": 2902,
+            "Orders": 408,
+            "Customers": 326,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "2050.918400"
+          },
+          {
+            "RegionalManager": "Sadie Pawthorne",
+            "Sales": "258241.033500",
+            "Profit": "45424.811400",
+            "Quantity": 4336,
+            "Orders": 546,
+            "Customers": 397,
+            "ReturnedOrders": 71,
+            "ReturnedSales": "52174.368500"
+          }
+        ]
+      }
+    },
+    "furniture": {
+      "filters": {
+        "category": "Furniture"
+      },
+      "rows": 2201,
+      "totals": {
+        "Sales": "754747.761300",
+        "Profit": "19729.995600",
+        "Quantity": 8369,
+        "Orders": 1819,
+        "Customers": 714,
+        "ReturnedOrders": 136,
+        "ReturnedSales": "59219.174900"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2021",
+            "Sales": "162124.809100",
+            "Profit": "5884.566900",
+            "Quantity": 1732,
+            "Orders": 368,
+            "Customers": 297,
+            "ReturnedOrders": 24,
+            "ReturnedSales": "8696.900000"
+          },
+          {
+            "OrderYear": "2022",
+            "Sales": "172330.297000",
+            "Profit": "3279.966700",
+            "Quantity": 1820,
+            "Orders": 377,
+            "Customers": 292,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "13775.956000"
+          },
+          {
+            "OrderYear": "2023",
+            "Sales": "200979.726000",
+            "Profit": "7216.222700",
+            "Quantity": 2269,
+            "Orders": 490,
+            "Customers": 365,
+            "ReturnedOrders": 29,
+            "ReturnedSales": "15311.981000"
+          },
+          {
+            "OrderYear": "2024",
+            "Sales": "219312.929200",
+            "Profit": "3349.239300",
+            "Quantity": 2548,
+            "Orders": 584,
+            "Customers": 412,
+            "ReturnedOrders": 53,
+            "ReturnedSales": "21434.337900"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2021-01",
+            "Sales": "6307.705000",
+            "Profit": "832.896500",
+            "Quantity": 81,
+            "Orders": 18,
+            "Customers": 18,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "19.300000"
+          },
+          {
+            "OrderMonth": "2021-02",
+            "Sales": "1839.658000",
+            "Profit": "120.691700",
+            "Quantity": 23,
+            "Orders": 6,
+            "Customers": 6,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2021-03",
+            "Sales": "15816.856000",
+            "Profit": "-933.935000",
+            "Quantity": 143,
+            "Orders": 27,
+            "Customers": 27,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "1198.330000"
+          },
+          {
+            "OrderMonth": "2021-04",
+            "Sales": "7944.837000",
+            "Profit": "554.380100",
+            "Quantity": 81,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "125.070000"
+          },
+          {
+            "OrderMonth": "2021-05",
+            "Sales": "8504.607000",
+            "Profit": "-238.308000",
+            "Quantity": 112,
+            "Orders": 25,
+            "Customers": 24,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "290.666000"
+          },
+          {
+            "OrderMonth": "2021-06",
+            "Sales": "13206.125600",
+            "Profit": "596.315300",
+            "Quantity": 122,
+            "Orders": 25,
+            "Customers": 25,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "963.720000"
+          },
+          {
+            "OrderMonth": "2021-07",
+            "Sales": "10821.051000",
+            "Profit": "374.246700",
+            "Quantity": 114,
+            "Orders": 25,
+            "Customers": 25,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "301.710000"
+          },
+          {
+            "OrderMonth": "2021-08",
+            "Sales": "7320.346500",
+            "Profit": "663.471700",
+            "Quantity": 107,
+            "Orders": 23,
+            "Customers": 23,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1658.296000"
+          },
+          {
+            "OrderMonth": "2021-09",
+            "Sales": "23816.480800",
+            "Profit": "1858.597600",
+            "Quantity": 208,
+            "Orders": 49,
+            "Customers": 47,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "1826.862000"
+          },
+          {
+            "OrderMonth": "2021-10",
+            "Sales": "13136.243000",
+            "Profit": "233.212100",
+            "Quantity": 145,
+            "Orders": 30,
+            "Customers": 29,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1855.232000"
+          },
+          {
+            "OrderMonth": "2021-11",
+            "Sales": "21763.112700",
+            "Profit": "-227.067000",
+            "Quantity": 244,
+            "Orders": 54,
+            "Customers": 54,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "136.528000"
+          },
+          {
+            "OrderMonth": "2021-12",
+            "Sales": "31647.786500",
+            "Profit": "2050.065200",
+            "Quantity": 352,
+            "Orders": 65,
+            "Customers": 62,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "321.186000"
+          },
+          {
+            "OrderMonth": "2022-01",
+            "Sales": "11805.121600",
+            "Profit": "-2986.770000",
+            "Quantity": 99,
+            "Orders": 14,
+            "Customers": 14,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "514.034000"
+          },
+          {
+            "OrderMonth": "2022-02",
+            "Sales": "3134.374000",
+            "Profit": "394.894800",
+            "Quantity": 45,
+            "Orders": 9,
+            "Customers": 9,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "493.920000"
+          },
+          {
+            "OrderMonth": "2022-03",
+            "Sales": "13742.679000",
+            "Profit": "1649.782900",
+            "Quantity": 123,
+            "Orders": 24,
+            "Customers": 23,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2022-04",
+            "Sales": "10475.698500",
+            "Profit": "338.650200",
+            "Quantity": 107,
+            "Orders": 23,
+            "Customers": 22,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "997.220000"
+          },
+          {
+            "OrderMonth": "2022-05",
+            "Sales": "9418.850500",
+            "Profit": "920.638700",
+            "Quantity": 136,
+            "Orders": 25,
+            "Customers": 24,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "207.204000"
+          },
+          {
+            "OrderMonth": "2022-06",
+            "Sales": "7714.179000",
+            "Profit": "-412.659700",
+            "Quantity": 112,
+            "Orders": 24,
+            "Customers": 24,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "621.760000"
+          },
+          {
+            "OrderMonth": "2022-07",
+            "Sales": "13674.420000",
+            "Profit": "-325.093800",
+            "Quantity": 162,
+            "Orders": 30,
+            "Customers": 30,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "170.352000"
+          },
+          {
+            "OrderMonth": "2022-08",
+            "Sales": "9638.592200",
+            "Profit": "-487.470900",
+            "Quantity": 112,
+            "Orders": 27,
+            "Customers": 25,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1275.190000"
+          },
+          {
+            "OrderMonth": "2022-09",
+            "Sales": "26273.023000",
+            "Profit": "1350.118500",
+            "Quantity": 205,
+            "Orders": 50,
+            "Customers": 47,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "905.011000"
+          },
+          {
+            "OrderMonth": "2022-10",
+            "Sales": "12026.623500",
+            "Profit": "-605.516300",
+            "Quantity": 140,
+            "Orders": 29,
+            "Customers": 29,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "3656.671000"
+          },
+          {
+            "OrderMonth": "2022-11",
+            "Sales": "30880.832500",
+            "Profit": "2992.024000",
+            "Quantity": 310,
+            "Orders": 67,
+            "Customers": 66,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "2289.246000"
+          },
+          {
+            "OrderMonth": "2022-12",
+            "Sales": "23545.903200",
+            "Profit": "451.368300",
+            "Quantity": 269,
+            "Orders": 55,
+            "Customers": 49,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "2645.348000"
+          },
+          {
+            "OrderMonth": "2023-01",
+            "Sales": "7687.923000",
+            "Profit": "331.390700",
+            "Quantity": 112,
+            "Orders": 19,
+            "Customers": 19,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "718.286000"
+          },
+          {
+            "OrderMonth": "2023-02",
+            "Sales": "3925.551000",
+            "Profit": "377.035200",
+            "Quantity": 69,
+            "Orders": 17,
+            "Customers": 16,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "OrderMonth": "2023-03",
+            "Sales": "14116.286000",
+            "Profit": "-459.349800",
+            "Quantity": 175,
+            "Orders": 40,
+            "Customers": 40,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "167.888000"
+          },
+          {
+            "OrderMonth": "2023-04",
+            "Sales": "13291.210000",
+            "Profit": "378.679400",
+            "Quantity": 151,
+            "Orders": 34,
+            "Customers": 32,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "2318.278000"
+          },
+          {
+            "OrderMonth": "2023-05",
+            "Sales": "15159.725000",
+            "Profit": "1842.033900",
+            "Quantity": 188,
+            "Orders": 39,
+            "Customers": 39,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "2158.568000"
+          },
+          {
+            "OrderMonth": "2023-06",
+            "Sales": "13230.922000",
+            "Profit": "-44.517200",
+            "Quantity": 136,
+            "Orders": 31,
+            "Customers": 32,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "741.468000"
+          },
+          {
+            "OrderMonth": "2023-07",
+            "Sales": "13116.135000",
+            "Profit": "1042.478500",
+            "Quantity": 162,
+            "Orders": 30,
+            "Customers": 28,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1425.780000"
+          },
+          {
+            "OrderMonth": "2023-08",
+            "Sales": "12483.232300",
+            "Profit": "-494.145700",
+            "Quantity": 115,
+            "Orders": 27,
+            "Customers": 27,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "244.615000"
+          },
+          {
+            "OrderMonth": "2023-09",
+            "Sales": "27326.848900",
+            "Profit": "722.592500",
+            "Quantity": 286,
+            "Orders": 70,
+            "Customers": 67,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1257.706000"
+          },
+          {
+            "OrderMonth": "2023-10",
+            "Sales": "11888.569000",
+            "Profit": "-147.658500",
+            "Quantity": 188,
+            "Orders": 44,
+            "Customers": 41,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "596.196000"
+          },
+          {
+            "OrderMonth": "2023-11",
+            "Sales": "31783.628800",
+            "Profit": "819.808800",
+            "Quantity": 318,
+            "Orders": 65,
+            "Customers": 63,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1420.248000"
+          },
+          {
+            "OrderMonth": "2023-12",
+            "Sales": "36969.695000",
+            "Profit": "2847.874900",
+            "Quantity": 369,
+            "Orders": 74,
+            "Customers": 70,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "4262.948000"
+          },
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "6029.212000",
+            "Profit": "-12.010200",
+            "Quantity": 97,
+            "Orders": 22,
+            "Customers": 22,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "158.524000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "6866.337400",
+            "Profit": "-199.042100",
+            "Quantity": 71,
+            "Orders": 21,
+            "Customers": 21,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "3332.864000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "12368.988800",
+            "Profit": "1158.520700",
+            "Quantity": 144,
+            "Orders": 34,
+            "Customers": 35,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "692.944000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "9323.458100",
+            "Profit": "226.702400",
+            "Quantity": 178,
+            "Orders": 38,
+            "Customers": 37,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "540.781600"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "17482.810200",
+            "Profit": "-166.708500",
+            "Quantity": 193,
+            "Orders": 45,
+            "Customers": 44,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "171.288000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "19008.586700",
+            "Profit": "904.995600",
+            "Quantity": 176,
+            "Orders": 43,
+            "Customers": 39,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1584.216500"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "12475.902000",
+            "Profit": "399.194400",
+            "Quantity": 186,
+            "Orders": 46,
+            "Customers": 44,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "2740.392000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "15441.874000",
+            "Profit": "322.239000",
+            "Quantity": 127,
+            "Orders": 30,
+            "Customers": 29,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1696.956000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "29096.636000",
+            "Profit": "1557.233700",
+            "Quantity": 309,
+            "Orders": 68,
+            "Customers": 65,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "7003.060000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "22245.698200",
+            "Profit": "-2492.756100",
+            "Quantity": 267,
+            "Orders": 59,
+            "Customers": 55,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "1369.040000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "37056.715000",
+            "Profit": "406.063700",
+            "Quantity": 364,
+            "Orders": 85,
+            "Customers": 81,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "447.628000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "31916.710800",
+            "Profit": "1244.806700",
+            "Quantity": 436,
+            "Orders": 93,
+            "Customers": 86,
+            "ReturnedOrders": 8,
+            "ReturnedSales": "1696.643800"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "Central",
+            "Sales": "164537.651800",
+            "Profit": "-2802.206700",
+            "Quantity": 1838,
+            "Orders": 407,
+            "Customers": 319,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "4011.174400"
+          },
+          {
+            "Region": "East",
+            "Sales": "212231.696000",
+            "Profit": "3444.744800",
+            "Quantity": 2414,
+            "Orders": 521,
+            "Customers": 378,
+            "ReturnedOrders": 22,
+            "ReturnedSales": "13812.782000"
+          },
+          {
+            "Region": "South",
+            "Sales": "117298.684000",
+            "Profit": "6771.206100",
+            "Quantity": 1291,
+            "Orders": 278,
+            "Customers": 239,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "6519.074000"
+          },
+          {
+            "Region": "West",
+            "Sales": "260679.729500",
+            "Profit": "12316.251400",
+            "Quantity": 2826,
+            "Orders": 613,
+            "Customers": 423,
+            "ReturnedOrders": 88,
+            "ReturnedSales": "34876.144500"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "754747.761300",
+            "Profit": "19729.995600",
+            "Quantity": 8369,
+            "Orders": 1819,
+            "Customers": 714,
+            "ReturnedOrders": 136,
+            "ReturnedSales": "59219.174900"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "115361.204300",
+            "Profit": "-3632.073600",
+            "Quantity": 878,
+            "Orders": 228,
+            "Customers": 196,
+            "ReturnedOrders": 15,
+            "ReturnedSales": "7444.640900"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "335768.249000",
+            "Profit": "27223.532300",
+            "Quantity": 2431,
+            "Orders": 591,
+            "Customers": 409,
+            "ReturnedOrders": 47,
+            "ReturnedSales": "25154.702000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "95598.126000",
+            "Profit": "13891.743000",
+            "Quantity": 3799,
+            "Orders": 919,
+            "Customers": 532,
+            "ReturnedOrders": 67,
+            "ReturnedSales": "9577.550000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "208020.182000",
+            "Profit": "-17753.206100",
+            "Quantity": 1261,
+            "Orders": 314,
+            "Customers": 261,
+            "ReturnedOrders": 30,
+            "ReturnedSales": "17042.282000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "394723.676000",
+            "Profit": "7544.360600",
+            "Quantity": 4270,
+            "Orders": 941,
+            "Customers": 372,
+            "ReturnedOrders": 75,
+            "ReturnedSales": "31809.745300"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "231267.569800",
+            "Profit": "7850.359600",
+            "Quantity": 2639,
+            "Orders": 559,
+            "Customers": 213,
+            "ReturnedOrders": 41,
+            "ReturnedSales": "17705.428600"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "128756.515500",
+            "Profit": "4335.275400",
+            "Quantity": 1460,
+            "Orders": 319,
+            "Customers": 129,
+            "ReturnedOrders": 20,
+            "ReturnedSales": "9704.001000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "695528.586400",
+            "Profit": "17388.876900",
+            "Quantity": 7715,
+            "Orders": 1683,
+            "Customers": 695,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "59219.174900",
+            "Profit": "2341.118700",
+            "Quantity": 654,
+            "Orders": 136,
+            "Customers": 126,
+            "ReturnedOrders": 136,
+            "ReturnedSales": "59219.174900"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Chuck Magee",
+            "Sales": "212231.696000",
+            "Profit": "3444.744800",
+            "Quantity": 2414,
+            "Orders": 521,
+            "Customers": 378,
+            "ReturnedOrders": 22,
+            "ReturnedSales": "13812.782000"
+          },
+          {
+            "RegionalManager": "Fred Suzuki",
+            "Sales": "117298.684000",
+            "Profit": "6771.206100",
+            "Quantity": 1291,
+            "Orders": 278,
+            "Customers": 239,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "6519.074000"
+          },
+          {
+            "RegionalManager": "Roxanne Rodriguez",
+            "Sales": "164537.651800",
+            "Profit": "-2802.206700",
+            "Quantity": 1838,
+            "Orders": 407,
+            "Customers": 319,
+            "ReturnedOrders": 13,
+            "ReturnedSales": "4011.174400"
+          },
+          {
+            "RegionalManager": "Sadie Pawthorne",
+            "Sales": "260679.729500",
+            "Profit": "12316.251400",
+            "Quantity": 2826,
+            "Orders": 613,
+            "Customers": 423,
+            "ReturnedOrders": 88,
+            "ReturnedSales": "34876.144500"
+          }
+        ]
+      }
+    },
+    "west2024furniture": {
+      "filters": {
+        "region": "West",
+        "order_year": "2024",
+        "category": "Furniture"
+      },
+      "rows": 242,
+      "totals": {
+        "Sales": "74155.119500",
+        "Profit": "2892.830000",
+        "Quantity": 909,
+        "Orders": 202,
+        "Customers": 184,
+        "ReturnedOrders": 36,
+        "ReturnedSales": "11587.636500"
+      },
+      "groups": {
+        "OrderYear": [
+          {
+            "OrderYear": "2024",
+            "Sales": "74155.119500",
+            "Profit": "2892.830000",
+            "Quantity": 909,
+            "Orders": 202,
+            "Customers": 184,
+            "ReturnedOrders": 36,
+            "ReturnedSales": "11587.636500"
+          }
+        ],
+        "OrderMonth": [
+          {
+            "OrderMonth": "2024-01",
+            "Sales": "2038.506000",
+            "Profit": "290.676900",
+            "Quantity": 29,
+            "Orders": 6,
+            "Customers": 6,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "158.524000"
+          },
+          {
+            "OrderMonth": "2024-02",
+            "Sales": "3099.307000",
+            "Profit": "150.020600",
+            "Quantity": 35,
+            "Orders": 11,
+            "Customers": 11,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1947.320000"
+          },
+          {
+            "OrderMonth": "2024-03",
+            "Sales": "2917.234000",
+            "Profit": "323.301500",
+            "Quantity": 52,
+            "Orders": 8,
+            "Customers": 8,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "618.064000"
+          },
+          {
+            "OrderMonth": "2024-04",
+            "Sales": "2552.178000",
+            "Profit": "290.454400",
+            "Quantity": 62,
+            "Orders": 14,
+            "Customers": 14,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "320.516000"
+          },
+          {
+            "OrderMonth": "2024-05",
+            "Sales": "3446.820000",
+            "Profit": "-530.871500",
+            "Quantity": 62,
+            "Orders": 13,
+            "Customers": 12,
+            "ReturnedOrders": 1,
+            "ReturnedSales": "171.288000"
+          },
+          {
+            "OrderMonth": "2024-06",
+            "Sales": "6533.281500",
+            "Profit": "592.333700",
+            "Quantity": 49,
+            "Orders": 13,
+            "Customers": 13,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1432.088500"
+          },
+          {
+            "OrderMonth": "2024-07",
+            "Sales": "4686.863000",
+            "Profit": "224.166300",
+            "Quantity": 63,
+            "Orders": 14,
+            "Customers": 14,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "1740.015000"
+          },
+          {
+            "OrderMonth": "2024-08",
+            "Sales": "4646.816000",
+            "Profit": "641.721000",
+            "Quantity": 55,
+            "Orders": 14,
+            "Customers": 14,
+            "ReturnedOrders": 3,
+            "ReturnedSales": "1696.956000"
+          },
+          {
+            "OrderMonth": "2024-09",
+            "Sales": "11759.478000",
+            "Profit": "536.307200",
+            "Quantity": 124,
+            "Orders": 32,
+            "Customers": 32,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "1240.090000"
+          },
+          {
+            "OrderMonth": "2024-10",
+            "Sales": "5925.462000",
+            "Profit": "-418.675600",
+            "Quantity": 85,
+            "Orders": 21,
+            "Customers": 20,
+            "ReturnedOrders": 5,
+            "ReturnedSales": "1369.040000"
+          },
+          {
+            "OrderMonth": "2024-11",
+            "Sales": "14154.679000",
+            "Profit": "780.155200",
+            "Quantity": 115,
+            "Orders": 28,
+            "Customers": 28,
+            "ReturnedOrders": 2,
+            "ReturnedSales": "210.900000"
+          },
+          {
+            "OrderMonth": "2024-12",
+            "Sales": "12394.495000",
+            "Profit": "13.240300",
+            "Quantity": 178,
+            "Orders": 28,
+            "Customers": 28,
+            "ReturnedOrders": 6,
+            "ReturnedSales": "682.835000"
+          }
+        ],
+        "Region": [
+          {
+            "Region": "West",
+            "Sales": "74155.119500",
+            "Profit": "2892.830000",
+            "Quantity": 909,
+            "Orders": 202,
+            "Customers": 184,
+            "ReturnedOrders": 36,
+            "ReturnedSales": "11587.636500"
+          }
+        ],
+        "Category": [
+          {
+            "Category": "Furniture",
+            "Sales": "74155.119500",
+            "Profit": "2892.830000",
+            "Quantity": 909,
+            "Orders": 202,
+            "Customers": 184,
+            "ReturnedOrders": 36,
+            "ReturnedSales": "11587.636500"
+          }
+        ],
+        "SubCategory": [
+          {
+            "SubCategory": "Bookcases",
+            "Sales": "12145.814500",
+            "Profit": "-1006.267100",
+            "Quantity": 122,
+            "Orders": 30,
+            "Customers": 30,
+            "ReturnedOrders": 4,
+            "ReturnedSales": "2746.086500"
+          },
+          {
+            "SubCategory": "Chairs",
+            "Sales": "27101.714000",
+            "Profit": "631.646900",
+            "Quantity": 220,
+            "Orders": 57,
+            "Customers": 54,
+            "ReturnedOrders": 12,
+            "ReturnedSales": "4518.208000"
+          },
+          {
+            "SubCategory": "Furnishings",
+            "Sales": "10473.626000",
+            "Profit": "2713.621500",
+            "Quantity": 408,
+            "Orders": 106,
+            "Customers": 100,
+            "ReturnedOrders": 20,
+            "ReturnedSales": "2371.714000"
+          },
+          {
+            "SubCategory": "Tables",
+            "Sales": "24433.965000",
+            "Profit": "553.828700",
+            "Quantity": 159,
+            "Orders": 38,
+            "Customers": 37,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "1951.628000"
+          }
+        ],
+        "Segment": [
+          {
+            "Segment": "Consumer",
+            "Sales": "32192.518500",
+            "Profit": "902.544900",
+            "Quantity": 439,
+            "Orders": 103,
+            "Customers": 94,
+            "ReturnedOrders": 18,
+            "ReturnedSales": "4133.772500"
+          },
+          {
+            "Segment": "Corporate",
+            "Sales": "21557.498000",
+            "Profit": "267.117200",
+            "Quantity": 267,
+            "Orders": 55,
+            "Customers": 50,
+            "ReturnedOrders": 11,
+            "ReturnedSales": "5151.301000"
+          },
+          {
+            "Segment": "Home Office",
+            "Sales": "20405.103000",
+            "Profit": "1723.167900",
+            "Quantity": 203,
+            "Orders": 44,
+            "Customers": 40,
+            "ReturnedOrders": 7,
+            "ReturnedSales": "2302.563000"
+          }
+        ],
+        "Returned": [
+          {
+            "Returned": "No",
+            "Sales": "62567.483000",
+            "Profit": "1783.843900",
+            "Quantity": 752,
+            "Orders": 166,
+            "Customers": 152,
+            "ReturnedOrders": 0,
+            "ReturnedSales": "0.000000"
+          },
+          {
+            "Returned": "Yes",
+            "Sales": "11587.636500",
+            "Profit": "1108.986100",
+            "Quantity": 157,
+            "Orders": 36,
+            "Customers": 36,
+            "ReturnedOrders": 36,
+            "ReturnedSales": "11587.636500"
+          }
+        ],
+        "RegionalManager": [
+          {
+            "RegionalManager": "Sadie Pawthorne",
+            "Sales": "74155.119500",
+            "Profit": "2892.830000",
+            "Quantity": 909,
+            "Orders": 202,
+            "Customers": 184,
+            "ReturnedOrders": 36,
+            "ReturnedSales": "11587.636500"
+          }
+        ]
+      }
+    },
+    "empty": {
+      "filters": {
+        "order_year": "1999"
+      },
+      "rows": 0,
+      "totals": {
+        "Sales": "0.000000",
+        "Profit": "0.000000",
+        "Quantity": 0,
+        "Orders": 0,
+        "Customers": 0,
+        "ReturnedOrders": 0,
+        "ReturnedSales": "0.000000"
+      },
+      "groups": {
+        "OrderYear": [],
+        "OrderMonth": [],
+        "Region": [],
+        "Category": [],
+        "SubCategory": [],
+        "Segment": [],
+        "Returned": [],
+        "RegionalManager": []
+      }
+    }
+  }
+}

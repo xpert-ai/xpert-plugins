@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "topics": [
+    {
+      "key": "financial-performance",
+      "skill": "bosi-financial-performance",
+      "title": "财务绩效与预算",
+      "requiredConcepts": [
+        "actual financial amounts",
+        "financial account mapping",
+        "reporting scope and period"
+      ],
+      "optionalConcepts": [
+        "plan version",
+        "profit center",
+        "cost center"
+      ],
+      "withoutOptional": "Provide actual analysis only; do not fabricate a budget."
+    },
+    {
+      "key": "cash-collections",
+      "skill": "bosi-cash-collections",
+      "title": "现金与回款",
+      "requiredConcepts": [
+        "cash flows or receivable balances",
+        "as-of date",
+        "currency"
+      ],
+      "optionalConcepts": [
+        "due dates",
+        "clearing dates",
+        "cash forecast",
+        "payables"
+      ],
+      "withoutOptional": "Limit the analysis to the proven cash or receivables scope."
+    },
+    {
+      "key": "sales-profitability",
+      "skill": "bosi-sales-profitability",
+      "title": "销售与盈利",
+      "requiredConcepts": [
+        "sales amount",
+        "business scope",
+        "period or explicitly requested snapshot"
+      ],
+      "optionalConcepts": [
+        "sales cost",
+        "credit memos",
+        "customer",
+        "product"
+      ],
+      "withoutOptional": "Revenue analysis does not imply profit or margin is available."
+    },
+    {
+      "key": "orders-fulfillment",
+      "skill": "bosi-orders-fulfillment",
+      "title": "订单与履约",
+      "requiredConcepts": [
+        "orders or order items",
+        "order grain",
+        "status semantics"
+      ],
+      "optionalConcepts": [
+        "requested delivery date",
+        "confirmed date",
+        "actual delivery date",
+        "open quantity"
+      ],
+      "withoutOptional": "Current status is not historical month-end backlog or on-time delivery."
+    },
+    {
+      "key": "inventory-capital",
+      "skill": "bosi-inventory-capital",
+      "title": "库存与营运资本",
+      "requiredConcepts": [
+        "inventory quantity or value",
+        "as-of date",
+        "unit or currency"
+      ],
+      "optionalConcepts": [
+        "historical inventory",
+        "consumption cost",
+        "stock age",
+        "receivables",
+        "payables"
+      ],
+      "withoutOptional": "Show the current inventory snapshot; omit unsupported turnover and aging."
+    },
+    {
+      "key": "procurement-cost",
+      "skill": "bosi-procurement-cost",
+      "title": "采购与成本",
+      "requiredConcepts": [
+        "purchase commitment or receipt or invoice value",
+        "document grain",
+        "period"
+      ],
+      "optionalConcepts": [
+        "quantity",
+        "unit price",
+        "supplier",
+        "material",
+        "contract baseline"
+      ],
+      "withoutOptional": "Do not infer price effects, savings or supplier delivery performance from spend alone."
+    },
+    {
+      "key": "manufacturing-performance",
+      "skill": "bosi-manufacturing-performance",
+      "title": "制造执行与报废",
+      "requiredConcepts": [
+        "manufacturing orders or operations",
+        "quantity or duration semantics",
+        "plant and reporting scope"
+      ],
+      "optionalConcepts": [
+        "planned/actual dates",
+        "yield and scrap",
+        "work center"
+      ],
+      "withoutOptional": "Do not infer OEE, utilization or comprehensive quality performance from scrap or duration alone."
+    },
+    {
+      "key": "cost-controlling",
+      "skill": "bosi-cost-controlling",
+      "title": "成本控制",
+      "requiredConcepts": [
+        "cost-object grain",
+        "actual costs",
+        "fiscal period and currency"
+      ],
+      "optionalConcepts": [
+        "plan and target versions",
+        "variance categories",
+        "output",
+        "WIP"
+      ],
+      "withoutOptional": "Provide actual cost analysis; do not invent budget, target or variance components."
+    },
+    {
+      "key": "project-performance",
+      "skill": "bosi-project-performance",
+      "title": "业务项目经营",
+      "requiredConcepts": [
+        "business project or WBS identity",
+        "actual costs or revenue",
+        "period and currency"
+      ],
+      "optionalConcepts": [
+        "approved baseline",
+        "estimate at completion",
+        "billing",
+        "schedule progress"
+      ],
+      "withoutOptional": "Do not derive earned value or forecast margin from spending alone."
+    }
+  ]
+}

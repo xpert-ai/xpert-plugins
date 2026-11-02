@@ -162,7 +162,8 @@ test("adaptations disclose provider gaps and preserve substantive role procedure
 
 test("all 90 packages share the assistants layout and traceable series metadata", async () => {
   const catalog = await readJson(join(root, "quickstart.json"));
-  assert.equal((await readdir(join(root, "assistants"))).length, 90);
+  const directories = await readdir(join(root, "assistants"));
+  assert.equal(roles.filter(role => directories.includes(role.package)).length, 90);
   for (const role of roles) {
     assert.equal(
       catalog.plugins.find((p) => p.id === role.package).path,

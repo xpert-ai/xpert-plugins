@@ -19,6 +19,7 @@ export const agentBindingSchema = analyticsBindingObjectSchema.omit({ payload: t
 }).strict()
 export const previewToolSchema = z.object({ binding: agentBindingSchema }).strict()
 export const createToolSchema = dashboardSchema.innerType().omit({ schema: true, id: true, bindings: true, presentation: true }).extend({
+  creationIntent: z.enum(['new', 'copy']).optional().describe('Required when an editing target exists. Use only when the user explicitly requests a new independent dashboard or a copy; ordinary refinements must use dashboard_open/update.'),
   title: dashboardSchema.innerType().shape.title.describe('Saved Artifact title. When renaming an HTML dashboard, include the new title in the SAME dashboard_update call as htmlPath; changing the HTML heading alone does not rename the saved Artifact.'),
   supersedesPaths: z.array(workspaceRelativeFilePathSchema).max(16).optional().describe('Explicitly abandon earlier unsaved HTML creation candidates after this dashboard saves successfully. Copy exact pending paths; never include an Artifact editing copy. Files are not deleted or claimed as saved. Also use when choosing a standard dashboard instead of an HTML prototype.'),
   controls: jsonEncodedSchema(agentControlsSchema),
@@ -32,7 +33,7 @@ export const htmlPathSchema = workspaceRelativeFilePathSchema.refine(path => {
 }, 'Use a named HTML file such as dashboards/sales.html; .html alone is not a dashboard filename.')
   .describe('Workspace-relative HTML file created or edited with SandboxFile, for example dashboards/sales.html. Copy the complete htmlPath from dashboard_open when editing.')
 export const createHtmlToolSchema = createToolSchema.omit({ charts: true, tables: true }).extend({ path: htmlPathSchema,
-  libraries: libraryRequestsSchema.optional().describe('Bundled library IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use ["echarts"] for ECharts or ["three"] for Three.js.') }).strict()
+  libraries: libraryRequestsSchema.optional().describe('Bundled IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use echarts or three for charts. Optional: add exactly one visual theme (trend-workspace, profit-atlas, customer-brief) with echarts. Preserve the saved theme unless a change is requested.') }).strict()
 export function parseObjectJson(text: string) {
   try { return analyticsOptionsSchema.parse(JSON.parse(text)) } catch { throw new Error('DASHBOARD_INVALID_JSON: supply a JSON object encoded as text, matching the returned provider contract') }
 }

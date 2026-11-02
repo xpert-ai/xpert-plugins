@@ -19,7 +19,7 @@ export function dashboardResourceCard(scope: XpertResolvedViewHostContext, saved
     icon: { type: dashboardIcon.type, value: dashboardIcon.value },
     open: {
       ...dashboardNavigationTarget(scope), selectionId: saved.artifactId,
-      ...(saved.state === 'published' && saved.versionId ? { parameters: { versionId: saved.versionId } } : {})
+      parameters: saved.state === 'published' && saved.versionId ? { versionId: saved.versionId } : { mode: 'draft' }
     }
   }
 }

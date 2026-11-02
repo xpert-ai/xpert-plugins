@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "examples": [
+    {
+      "key": "regional-sales",
+      "version": 1,
+      "title": "区域销售",
+      "mode": "standard",
+      "recipe": "regional-sales/README.md",
+      "source": "regional-sales/dashboard-create.json",
+      "preview": "regional-sales/preview.png",
+      "data": [
+        "demo.csv",
+        "demo.json"
+      ],
+      "dataMode": "synthetic-demo",
+      "libraries": []
+    },
+    {
+      "key": "sales-overview",
+      "version": 1,
+      "title": "销售总览",
+      "mode": "html",
+      "recipe": "sales-overview/README.md",
+      "source": "sales-overview/dashboard.html",
+      "preview": "sales-overview/preview.png",
+      "data": [
+        "demo.csv",
+        "demo.json"
+      ],
+      "dataMode": "synthetic-demo",
+      "libraries": [
+        "echarts"
+      ]
+    },
+    {
+      "key": "production-quality",
+      "version": 1,
+      "title": "生产质量",
+      "mode": "html",
+      "recipe": "production-quality/README.md",
+      "source": "production-quality/dashboard.html",
+      "preview": "production-quality/preview.png",
+      "data": [
+        "demo.csv",
+        "demo.json"
+      ],
+      "dataMode": "synthetic-demo",
+      "libraries": [
+        "echarts"
+      ]
+    },
+    {
+      "key": "superstore",
+      "version": 1,
+      "title": "Superstore 企业 BI",
+      "mode": "html-suite",
+      "recipe": "superstore/README.md",
+      "sources": [
+        "superstore/overview.html",
+        "superstore/profitability.html",
+        "superstore/customers.html"
+      ],
+      "previews": [
+        "superstore/overview.png",
+        "superstore/profitability.png",
+        "superstore/customers.png"
+      ],
+      "data": [
+        "orders.csv"
+      ],
+      "dataMode": "tableau-teaching-data",
+      "providerId": "data-xpert.ontology",
+      "libraries": [
+        "echarts"
+      ]
+    }
+  ]
+}

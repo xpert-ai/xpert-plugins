@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { loadQuickstartPlugins } from "../agent-plugins/scripts/quickstart.mjs";
 
 const { values } = parseArgs({
-  options: { "platform-root": { type: "string" } },
+  options: { "platform-root": { type: "string" }, plugin: { type: "string" } },
 });
 const platformRoot = values["platform-root"] || process.env.XPERT_PLATFORM_ROOT;
 if (!platformRoot)
@@ -36,12 +36,14 @@ const { portableMcpSchema, connectorMcpAuth } = await jiti.import(
 );
 const output = await mkdtemp(join(tmpdir(), "agent-plugin-lifecycle-"));
 try {
+  const entries = (await loadQuickstartPlugins()).filter(entry => !values.plugin || entry.id === values.plugin);
+  if (!entries.length) throw new Error(`Unknown plugin: ${values.plugin}`);
   execFileSync(
     process.execPath,
-    [join(presets, "scripts/quickstart.mjs"), "--pack", "--output-dir", output],
+    [join(presets, "scripts/quickstart.mjs"), "--pack", "--output-dir", output, ...(values.plugin ? [values.plugin] : [])],
     { stdio: "pipe" },
   );
-  for (const entry of await loadQuickstartPlugins()) {
+  for (const entry of entries) {
     const root = await mkdtemp(join(tmpdir(), "agent-plugin-import-"));
     try {
       await extractPortableZip(

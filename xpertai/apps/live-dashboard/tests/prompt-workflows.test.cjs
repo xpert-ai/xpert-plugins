@@ -22,14 +22,17 @@ test('assistant template contributes editable shortcuts without middleware name 
   const dsl = JSON.parse(dashboardAssistantTemplate.dslContent)
   const agent = dsl.nodes.find(node => node.type === 'agent')
   assert.equal(dsl.team.agent.key, agent.key)
-  assert.deepEqual(dsl.nodes.filter(node => node.type === 'workflow').map(node => node.entity.provider), ['LiveDashboard', 'skillsMiddleware', 'SandboxFile'])
+  assert.deepEqual(dsl.nodes.filter(node => node.type === 'workflow').map(node => node.entity.provider).sort(), ['LiveDashboard', 'SandboxFile', 'skillsMiddleware'])
   for (const node of dsl.nodes.filter(node => node.type === 'workflow')) {
     assert.equal(node.entity.required, true)
     assert.ok(dsl.connections.some(connection => connection.from === agent.key && connection.to === node.key))
   }
   const plugin = require('../dist/index.js').default
   assert.equal(plugin.templates[0], dashboardAssistantTemplate)
-  assert.equal(plugin.meta.targetAppMeta.xpert.marketplace.contents[0].name, dashboardAssistantTemplate.key)
+  assert.equal(plugin.templates.filter(template => template.key === dashboardAssistantTemplate.key).length, 1)
+  const contents = plugin.meta.targetAppMeta.xpert.marketplace.contents
+  assert.ok(contents.some(content => content.type === 'assistant-template' && content.name === dashboardAssistantTemplate.key))
+  assert.ok(contents.some(content => content.appConfig?.assistantTemplateKey === dashboardAssistantTemplate.key))
 })
 
 test('installed middleware exposes twelve editable, namespaced prompt workflows', () => {

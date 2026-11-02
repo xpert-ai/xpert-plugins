@@ -36,11 +36,11 @@ test('resource replay preserves bytes and CORS but removes wire compression head
   assert.deepEqual(otherRun.calls, ['network'])
 })
 
-test('a cached URL never bypasses the current resource policy or method check', async () => {
+test('a cached URL never bypasses the current resource policy', async () => {
   const { createResourceCache } = await modulePromise
   const cache = createResourceCache(), first = exchange()
   await cache.route(first.page, first.route); cache.capture(first.response); await cache.settle()
-  for (const options of [{ allowed: false }, { method: 'POST' }, { type: 'fetch', allowed: false }]) {
+  for (const options of [{ allowed: false }, { type: 'fetch', allowed: false }]) {
     const denied = exchange(options)
     await cache.route(denied.page, denied.route)
     assert.deepEqual(denied.calls, ['blockedbyclient'])
@@ -57,5 +57,15 @@ test('unapproved, failed, redirected and non-cacheable responses are not replaye
     const next = exchange()
     await cache.route(next.page, next.route)
     assert.deepEqual(next.calls, ['network'], JSON.stringify(options))
+  }
+})
+
+test('allowed fetch/XHR and POST requests reach the network without static replay', async () => {
+  const { createResourceCache } = await modulePromise
+  for (const options of [{ method: 'POST' }, { type: 'fetch' }, { type: 'xhr' }]) {
+    const cache = createResourceCache(), first = exchange(options)
+    await cache.route(first.page, first.route); cache.capture(first.response); await cache.settle()
+    const next = exchange(options); await cache.route(next.page, next.route)
+    assert.deepEqual(next.calls, ['network'])
   }
 })

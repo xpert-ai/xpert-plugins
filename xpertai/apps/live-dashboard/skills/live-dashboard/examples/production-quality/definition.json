@@ -1,0 +1,67 @@
+{
+  "path": "live-dashboard-examples/production-quality/demo-v1.csv",
+  "name": "生产质量 · 演示数据 v1",
+  "description": "Synthetic example data; not business results. Yield = sum(good)/sum(produced); defects = produced-good. Rows are disjoint.",
+  "reader": {
+    "format": "csv",
+    "delimiter": ",",
+    "headerRow": 1
+  },
+  "columns": [
+    {
+      "key": "date",
+      "path": [
+        "date"
+      ],
+      "label": "日期",
+      "description": "Synthetic demonstration only. Unique daily dimension grain.",
+      "logicalType": "date",
+      "nullable": false,
+      "role": "time"
+    },
+    {
+      "key": "line",
+      "path": [
+        "line"
+      ],
+      "label": "产线",
+      "description": "Synthetic demonstration only. Unique daily dimension grain.",
+      "logicalType": "string",
+      "nullable": false,
+      "role": "dimension"
+    },
+    {
+      "key": "produced",
+      "path": [
+        "produced"
+      ],
+      "label": "产量",
+      "description": "Synthetic demonstration only. Nonnegative whole-item count.",
+      "logicalType": "int64",
+      "nullable": false,
+      "role": "measure"
+    },
+    {
+      "key": "good",
+      "path": [
+        "good"
+      ],
+      "label": "良品数",
+      "description": "Synthetic demonstration only. Nonnegative whole-item count.",
+      "logicalType": "int64",
+      "nullable": false,
+      "role": "measure"
+    },
+    {
+      "key": "defects",
+      "path": [
+        "defects"
+      ],
+      "label": "不良品数",
+      "description": "Synthetic demonstration only. Nonnegative whole-item count.",
+      "logicalType": "int64",
+      "nullable": false,
+      "role": "measure"
+    }
+  ]
+}

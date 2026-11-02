@@ -1,3 +1,4 @@
+import { requireWeComUsage } from './integration-usage.js'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -48,6 +49,8 @@ type WeComTriggerService = {
   }) => Promise<boolean>
   getBinding?: (integrationId: string) => Promise<{
     xpertId: string
+    tenantId?: string | null
+    organizationId?: string | null
     sessionTimeoutSeconds?: number
     summaryWindowSeconds?: number
   } | null>
@@ -370,8 +373,6 @@ export class WeComConversationService {
       }
     )
 
-    const tenantId = integration.tenantId || ctx.tenantId
-    const organizationId = integration.organizationId || ctx.organizationId
     const triggerStrategy = await this.getWeComTriggerStrategy()
     const triggerBinding =
       typeof triggerStrategy.getBinding === 'function'
@@ -397,6 +398,11 @@ export class WeComConversationService {
       )
       return
     }
+
+    const tenantId = triggerBinding?.tenantId ?? integration.tenantId
+    const organizationId = triggerBinding?.organizationId ?? undefined
+    if (!tenantId || tenantId !== integration.tenantId) throw new Error('WeCom binding tenant does not match integration')
+    await requireWeComUsage(this.integrationPermissionService, integration.id, 'bind', {tenantId, organizationId: organizationId ?? null})
 
     const newSessionCommand = this.parseNewSessionCommand(input)
     if (newSessionCommand.matched && conversationUserKey) {

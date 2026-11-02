@@ -16,6 +16,13 @@
             "group": "接入与验证",
             "pages": [
               "index",
+              "quick-start",
+              "superstore",
+              "visual-styles",
+              "visual-styles-acceptance",
+              "trend-workspace",
+              "trend-workspace-acceptance",
+              "quick-start-acceptance",
               "html-mode",
               "frontend-libraries",
               "frontend-libraries-acceptance",

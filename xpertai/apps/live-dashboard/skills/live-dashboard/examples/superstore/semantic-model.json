@@ -1,0 +1,220 @@
+{
+  "cubes": [
+    {
+      "name": "SuperstoreOrders",
+      "caption": "Superstore 订单分析（演示）",
+      "fact": {
+        "type": "table",
+        "table": {
+          "name": "superstore_orders_v1",
+          "schema": "public"
+        }
+      },
+      "defaultMeasure": "Sales",
+      "measures": [
+        {
+          "name": "Sales",
+          "column": "sales",
+          "aggregator": "sum",
+          "caption": "销售额（USD）",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "Profit",
+          "column": "profit",
+          "aggregator": "sum",
+          "caption": "利润（USD）",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "Quantity",
+          "column": "quantity",
+          "aggregator": "sum",
+          "caption": "商品件数",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "Orders",
+          "column": "order_id",
+          "aggregator": "distinct-count",
+          "caption": "订单数",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "Customers",
+          "column": "customer_id",
+          "aggregator": "distinct-count",
+          "caption": "客户数",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "ReturnedOrders",
+          "column": "returned_order_id",
+          "aggregator": "distinct-count",
+          "caption": "退货订单数",
+          "datatype": "Numeric",
+          "visible": true
+        },
+        {
+          "name": "ReturnedSales",
+          "column": "returned_sales",
+          "aggregator": "sum",
+          "caption": "退货关联销售额（USD，非退款）",
+          "datatype": "Numeric",
+          "visible": true
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "OrderYear",
+          "caption": "年份",
+          "hierarchies": [
+            {
+              "name": "OrderYear",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "OrderYear",
+                  "column": "order_year",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "OrderMonth",
+          "caption": "订单月份",
+          "hierarchies": [
+            {
+              "name": "OrderMonth",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "OrderMonth",
+                  "column": "order_month",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Region",
+          "caption": "区域",
+          "hierarchies": [
+            {
+              "name": "Region",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Region",
+                  "column": "region",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Category",
+          "caption": "品类",
+          "hierarchies": [
+            {
+              "name": "Category",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Category",
+                  "column": "category",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "SubCategory",
+          "caption": "子品类",
+          "hierarchies": [
+            {
+              "name": "SubCategory",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "SubCategory",
+                  "column": "sub_category",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Segment",
+          "caption": "客户分群",
+          "hierarchies": [
+            {
+              "name": "Segment",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Segment",
+                  "column": "segment",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Returned",
+          "caption": "退货标记",
+          "hierarchies": [
+            {
+              "name": "Returned",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Returned",
+                  "column": "returned",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "RegionalManager",
+          "caption": "区域经理",
+          "hierarchies": [
+            {
+              "name": "RegionalManager",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "RegionalManager",
+                  "column": "regional_manager",
+                  "type": "String",
+                  "uniqueMembers": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

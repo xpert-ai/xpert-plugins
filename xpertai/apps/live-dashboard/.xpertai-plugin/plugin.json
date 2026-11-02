@@ -4,5 +4,13 @@
   "level": "system",
   "artifactNamespace": "live_dashboard",
   "sandboxActions": "./dist/sandbox-actions/action.json",
-  "skills": "./skills"
+  "skills": "./skills",
+  "assets": {
+    "screenshots": [
+      "./assets/branding/cover-v1.webp",
+      "./assets/previews/trend-workspace.png",
+      "./assets/previews/profit-atlas.png",
+      "./assets/previews/customer-brief.png"
+    ]
+  }
 }

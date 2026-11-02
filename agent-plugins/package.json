@@ -6,9 +6,10 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "quickstart": "node scripts/quickstart.mjs",
-    "test": "node --test scripts/quickstart.test.mjs scripts/office-ops.test.cjs scripts/assistant-series.test.mjs",
+    "test": "node --test scripts/quickstart.test.mjs scripts/office-ops.test.cjs scripts/assistant-series.test.mjs scripts/bosi-business-review.test.mjs",
     "test:lifecycle": "node ../plugin-dev-harness/agent-plugins.contract.mjs",
-    "build:assistant-series": "node scripts/build-assistant-series.mjs"
+    "build:assistant-series": "node scripts/build-assistant-series.mjs",
+    "build:bosi": "node scripts/build-bosi-business-review.mjs"
   },
   "dependencies": {
     "archiver": "7.0.1",

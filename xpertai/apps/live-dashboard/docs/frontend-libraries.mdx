@@ -1,16 +1,16 @@
 ---
 title: "固定前端图库"
-description: "ECharts、Three.js 的受控注入、版本快照和 Binding 边界。"
+description: "ECharts、Three.js 与三种可选视觉主题的受控注入、版本快照和 Binding 边界。"
 ---
 
 ## Agent 使用方式
 
 调用 `dashboard_libraries` 读取可用库的精确版本、全局名称、摘要和能力说明。
-当前打包 ECharts 5.6.0（`window.echarts`）与 Three.js 0.185.1（`window.THREE`）。
+当前打包 ECharts 5.6.0（`window.echarts`）、Three.js 0.185.1（`window.THREE`），以及三个 1.0.0 主题：Trend Workspace（`window.TrendWorkspace`）、Profit Atlas（`window.ProfitAtlas`）和 Customer Brief（`window.CustomerBrief`）。
 创建 HTML 看板时传入 `libraries: ["echarts"]`；不使用库时省略。
 已有看板先 `dashboard_open`，读取原 HTML，再 `dashboard_update`。
 修改工具省略 `libraries` 会保留原依赖；显式传入完整列表表示增加、移除或升级依赖。
-打包库在作者代码执行前已加载，不要重复加载相同库或复制库源码。在线依赖可使用 script/link 标签，来源须在 dashboard_libraries.online 的对应资源类型白名单内；Tailwind CDN 可使用 https://cdn.tailwindcss.com/3.4.17。在线资源不填写到 libraries 数组中。
+打包库在作者代码执行前已加载，不要重复加载相同库或复制库源码。在线依赖可使用 script/link 标签，当前验收阶段不限制域名，策略见 dashboard_libraries.online；Tailwind CDN 可使用 https://cdn.tailwindcss.com/3.4.17。在线资源不填写到 libraries 数组中。
 
 ```javascript
 const chart = echarts.init(document.querySelector('#chart'), null, { renderer: 'svg' })
@@ -50,8 +50,16 @@ WebGLRenderer 需要浏览器提供 WebGL2，必须处理 GPU 不可用并释放
 未知库、缺失的依赖锁或被篡改的源码会被拒绝，运行时异常会阻止保存。
 包中附带 ECharts 的 LICENSE/NOTICE 和 Three.js LICENSE。
 
+## 可复用企业主题
+
+使用 `libraries:["echarts","trend-workspace"]` 可复用浅蓝 KPI 侧栏、精致筛选器和图表主题。`window.TrendWorkspace.enhanceSelect(select)` 提供键盘可用的双层标签下拉，`window.TrendWorkspace.charts` 提供趋势、排名和散点图配方。布局类名和字段参数见技能的 `themes/trend-workspace/README.md`。
+
+盈利分析可选 `libraries:["echarts","profit-atlas"]`；客户报告可选 `libraries:["echarts","customer-brief"]`。每个文档只使用一个主题库，重复或混合主题请求会被拒绝。三套主题共享筛选与查询契约，布局与色彩各自独立，详见[视觉风格](/visual-styles)。
+
+主题只提供样式和展示组件，不提供业务数据或替代 SDK 查询。Agent 仍负责业务 HTML、指标口径、Binding 与筛选联动。主题代码随 Artifact 固定，旧看板不会因插件升级自行变样；图标的 Lucide ISC 许可也随包保留。
+
 ## 查询权限
 
 图库只处理已返回的 Dataset。页面仍只能通过 `xpertLiveArtifact` 指定已保存的 Binding ID 和控件值。
-在线脚本、样式和字体使用独立的 HTTPS CDN 白名单，预检和实际页面规则一致。在线资源必须在保存和查看时可访问，内容不会随 Artifact 冻结。数据网络请求、Provider 覆盖、SQL、宿主存储或其他 View Actions 仍不开放。
+当前验收阶段开放在线脚本、样式、字体、图片及 fetch/XHR，不限制域名；预检和实际页面规则一致，浏览器 CORS 和混合内容规则仍然适用。在线资源必须在保存和查看时可访问，内容不会随 Artifact 冻结。平台业务数据仍通过 Binding 查询；页面不能覆盖 Provider、提交 SQL、读取宿主存储或调用未授权的 View Actions。
 服务端继续按当前用户授权查询，旧版本不能恢复已撤销的数据访问权限。
