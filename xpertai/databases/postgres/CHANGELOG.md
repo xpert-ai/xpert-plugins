@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-postgres
 
+## 0.2.1
+
+### Patch Changes
+
+- 83e3a7f: Accept in-memory uploaded CSV files when importing through the platform and Data Xpert data-source APIs.
+
 ## 0.2.0
 
 ### Minor Changes
