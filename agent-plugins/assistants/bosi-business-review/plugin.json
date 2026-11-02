@@ -1,0 +1,243 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bosi-business-review",
+  "version": "1.0.0",
+  "description": "Role-based business analysis Assistants with shared analytical Skills and governed Live Dashboards for BW XMLA, SAP OData and databases.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "keywords": [
+    "assistant-template",
+    "business-intelligence",
+    "live-dashboard",
+    "sap"
+  ],
+  "extensions": {
+    "xpertai": {
+      "version": 2,
+      "role": "assistant",
+      "interface": {
+        "displayName": {
+          "en_US": "Bosi Business Review",
+          "zh_Hans": "Bosi 经营分析助手套件"
+        },
+        "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcng9IjU2IiBmaWxsPSIjMTAyNjNBIi8+PHBhdGggZD0iTTU0IDE4MVY3NWgzN3YxMDZ6bTU2IDBWMTA3aDM3djc0em01NiAwVjQ1aDM3djEzNnoiIGZpbGw9IiNCODk5NjAiLz48cGF0aCBkPSJNNTQgMjA1aDE0OSIgc3Ryb2tlPSIjRjNFRUU0IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPgo=",
+        "description": {
+          "en_US": "Install the roles your organization needs; share analytical methods while configuring access per instance.",
+          "zh_Hans": "按组织职责选装岗位助手，共享分析方法，为每个实例配置实际数据权限。"
+        }
+      },
+      "templates": [
+        {
+          "key": "bosi-general",
+          "path": "templates/bosi-general.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Business Analyst",
+              "zh_Hans": "Bosi 经营分析助手"
+            },
+            "description": {
+              "en_US": "Discover authorized data and deliver evidence-backed analysis and project-scoped Live Dashboards for the current business question.",
+              "zh_Hans": "根据当前业务问题发现授权数据、分析重点并制作项目内实时看板。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-ceo",
+          "path": "templates/bosi-ceo.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi CEO",
+              "zh_Hans": "CEO 经营决策助手"
+            },
+            "description": {
+              "en_US": "Surface material changes in growth, profitability and capital usage for executive decisions.",
+              "zh_Hans": "面向经营负责人，聚焦增长、盈利、资金占用和需要管理层决策的重大变化。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-cfo",
+          "path": "templates/bosi-cfo.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi CFO",
+              "zh_Hans": "CFO 财务经营助手"
+            },
+            "description": {
+              "en_US": "Analyze financial performance, budget variance, liquidity risks and working capital for finance leadership.",
+              "zh_Hans": "面向财务负责人，分析财务绩效、预算偏差、现金风险与营运资本。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-sales",
+          "path": "templates/bosi-sales.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Sales Manager",
+              "zh_Hans": "销售经理助手"
+            },
+            "description": {
+              "en_US": "Analyze sales growth, customer and product contribution, incoming orders and sales profitability.",
+              "zh_Hans": "分析销售增长、客户商品贡献、订单变化与销售利润质量。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-procurement",
+          "path": "templates/bosi-procurement.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Procurement Manager",
+              "zh_Hans": "采购经理助手"
+            },
+            "description": {
+              "en_US": "Analyze purchasing spend, supplier concentration, contract usage and supported delivery risks.",
+              "zh_Hans": "分析采购支出、供应商集中度、合同使用与供应履约风险。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-supply-chain",
+          "path": "templates/bosi-supply-chain.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Supply Chain Manager",
+              "zh_Hans": "供应链经理助手"
+            },
+            "description": {
+              "en_US": "Investigate fulfillment risks and inventory capital using authorized order, stock and delivery data.",
+              "zh_Hans": "连接授权的订单、库存与交付信息，发现履约风险和库存资金占用。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-production",
+          "path": "templates/bosi-production.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Production Manager",
+              "zh_Hans": "生产经理助手"
+            },
+            "description": {
+              "en_US": "Analyze manufacturing execution, operation duration, scrap and authorized production-cost exceptions.",
+              "zh_Hans": "分析制造订单执行、工序时长、报废与有授权的生产成本偏差。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-controller",
+          "path": "templates/bosi-controller.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Cost Controller",
+              "zh_Hans": "成本控制经理助手"
+            },
+            "description": {
+              "en_US": "Investigate cost-center and manufacturing cost variance with reconciled accounting scope.",
+              "zh_Hans": "面向成本控制岗位，分析成本中心、生产订单及工作中心的实际与计划差异。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-treasury",
+          "path": "templates/bosi-treasury.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Treasury Manager",
+              "zh_Hans": "资金经理助手"
+            },
+            "description": {
+              "en_US": "Analyze cash position, liquidity and evidence-backed incoming and outgoing cash flows.",
+              "zh_Hans": "面向资金岗位，分析现金头寸、流动性与有依据的未来收支。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-receivables",
+          "path": "templates/bosi-receivables.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Receivables Manager",
+              "zh_Hans": "应收管理经理助手"
+            },
+            "description": {
+              "en_US": "Analyze customer receivables, aging, overdue concentration and collection trends.",
+              "zh_Hans": "面向应收管理岗位，分析客户欠款、逾期集中度、账龄与回款变化。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        },
+        {
+          "key": "bosi-project-manager",
+          "path": "templates/bosi-project-manager.json",
+          "category": "analytics",
+          "presentation": {
+            "title": {
+              "en_US": "Bosi Project Manager",
+              "zh_Hans": "项目经理助手"
+            },
+            "description": {
+              "en_US": "Analyze business-project and WBS budgets, actuals, completion estimates, billing and profitability.",
+              "zh_Hans": "分析业务项目或 WBS 的预算、实际、完工估算、开票与盈利情况。"
+            },
+            "pluginDisplayName": {
+              "en_US": "Bosi Business Review",
+              "zh_Hans": "Bosi 经营分析助手套件"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

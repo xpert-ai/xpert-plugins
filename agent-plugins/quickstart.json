@@ -2,6 +2,11 @@
   "version": 1,
   "plugins": [
     {
+      "id": "bosi-business-review",
+      "path": "assistants/bosi-business-review",
+      "oauthServers": []
+    },
+    {
       "id": "documents",
       "oauthServers": []
     },

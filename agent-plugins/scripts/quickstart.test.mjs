@@ -115,6 +115,29 @@ test("a different authorization configuration is not silently reused or replaced
   );
 });
 
+test("scope-wide bindings returned by the host are reused without creating duplicate publications", async () => {
+  const plugin = (await loadQuickstartPlugins()).find(p => p.id === 'bosi-business-review');
+  const pkg = { id: 'package', descriptor: { name: plugin.id, diagnostics: [], servers: [], templates: [{ key: 'bosi-general' }] } };
+  const binding = { id: 'binding', enabled: true, workspaceIds: [], definition: {
+    kind: 'agent_plugin', availability: 'scope', packageId: pkg.id, experts: {}, oauthServers: [], connectorServers: {}
+  } };
+  const calls = [];
+  const api = async (path, method) => {
+    calls.push([path, method]);
+    if (path === '/options') return { workspaces: [{ id: 'workspace' }] };
+    if (path === '/zip') return pkg;
+    if (!path) return { packages: [pkg], bindings: [binding] };
+    throw new Error('Unexpected duplicate publication');
+  };
+  const result = await installQuickstartPlugin(plugin, 'workspace', api);
+  assert.equal(result.state, 'already_published');
+  assert.equal(result.binding.id, 'binding');
+  assert(!calls.some(([path]) => path === '/bindings'));
+  binding.enabled = false;
+  await assert.rejects(installQuickstartPlugin(plugin, 'workspace', api), /resource was disabled/);
+  assert(!calls.some(([path]) => path === '/bindings'));
+});
+
 test("an imported package with diagnostics is never automatically published", async () => {
   const [plugin] = await loadQuickstartPlugins();
   const api = async (path) => {
@@ -447,8 +470,10 @@ test("github package uses streamable HTTP and Connector OAuth without embedded s
     (item) => item.id === "github",
   );
   assert.ok(plugin);
-  assert.equal(plugin.version, "1.0.0");
-  assert.deepEqual(plugin.connectorServers, { github: { type: "mcp_oauth" } });
+  assert.equal(plugin.version, "1.0.1");
+  assert.deepEqual(plugin.connectorServers, { github: {
+    type: "existing", provider: "github", resource: "https://api.githubcopilot.com/mcp/"
+  } });
   assert.deepEqual(plugin.oauthServers, []);
   const root = new URL("../github/", import.meta.url);
   const mcp = JSON.parse(await readFile(new URL("mcp.json", root), "utf8"));
@@ -894,7 +919,7 @@ test("catalog resolves explicit nested paths while preserving flat packages", as
   const plugins = await loadQuickstartPlugins();
   assert.equal(
     plugins.filter((p) => p.path?.startsWith("assistants/")).length,
-    90,
+    91,
   );
   assert(
     plugins
