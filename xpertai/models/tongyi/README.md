@@ -66,6 +66,8 @@ The plugin includes predefined models and supports custom model configuration. I
 
 ## Getting started
 
+Requires Xpert AI host, SDK, and contracts 3.30.0 or newer for embedding usage reporting.
+
 1. Have your Xpert AI administrator install and enable `@xpert-ai/plugin-tongyi`.
 2. Obtain a Model Studio API key and its corresponding API Host using the [Alibaba Cloud API key guide](https://www.alibabacloud.com/help/en/model-studio/get-api-key).
 3. In Xpert AI's model provider settings, select **Tongyi** and enter the credentials below.
