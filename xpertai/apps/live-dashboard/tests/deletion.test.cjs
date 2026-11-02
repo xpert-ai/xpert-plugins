@@ -50,6 +50,26 @@ test('list transports delete permission and the exact reviewed draft revision', 
   assert.equal((await s.service.list(s.context))[0].canDelete, false, 'uninitialized/legacy artifacts have no CAS draft to recycle')
 })
 
+test('direct selection transports authorized deletion metadata independently of list pagination', async () => {
+  const s = setup(true)
+  const selected = await s.service.selectedSummary(s.context, s.artifact.id)
+  assert.equal(selected.canDelete, true)
+  assert.equal(selected.draftRevision, 3)
+  assert.equal(selected.title, 'Working title')
+  s.access.canManage = false
+  assert.equal((await s.service.selectedSummary(s.context, s.artifact.id)).canDelete, false)
+  s.access.role = 'member'
+  assert.equal(await s.service.selectedSummary(s.context, s.artifact.id), undefined, 'direct selection must not reveal an unpublished title to members')
+  s.artifact.currentVersionId = randomUUID()
+  const published = await s.service.selectedSummary(s.context, s.artifact.id)
+  assert.equal(published.title, 'Published title')
+  assert.equal(published.draftRevision, undefined)
+  assert.equal(published.canDelete, false)
+  s.artifact.organizationId = 'other'
+  await assert.rejects(s.service.selectedSummary(s.context, s.artifact.id), /DASHBOARD_ACCESS_DENIED/)
+  assert.deepEqual(s.calls, [])
+})
+
 test('confirmed delete delegates recycling to the platform without querying data or reading HTML', async () => {
   const s = setup()
   const result = await s.view.executeViewAction(s.context, 'live-dashboard', 'delete', { input: s.input() })

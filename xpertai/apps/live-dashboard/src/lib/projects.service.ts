@@ -22,6 +22,15 @@ export class DashboardProjectsService {
     const access = await this.runtime.require(ProjectAccessRuntimeCapability).assertAssistant({ actor: this.actor(context), projectId: id, assistantId: context.hostId })
     return { id, name: access.name ?? id }
   }
+  /** A picker target is untrusted until membership and the Assistant binding are revalidated. */
+  async pickerContext(context: XpertResolvedViewHostContext, targetProjectId: string): Promise<XpertResolvedViewHostContext> {
+    const access = await this.runtime.require(ProjectAccessRuntimeCapability).assertAssistant({
+      actor: this.actor(context), projectId: targetProjectId, assistantId: context.hostId
+    })
+    if (access.archived || access.projectId !== targetProjectId) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    // Domain reads/deletes accept a Project host. Do not fabricate file/conversation grants.
+    return { ...context, hostType: 'project', hostId: access.projectId, runtimeScope: undefined }
+  }
   async list(context: XpertResolvedViewHostContext, input: z.infer<typeof projectSearchSchema>) {
     const actor = this.actor(context), access = this.runtime.require(ProjectAccessRuntimeCapability)
     const projects = await access.listReadable({ actor })

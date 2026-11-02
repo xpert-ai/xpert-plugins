@@ -93,5 +93,9 @@
   "realDataPrompt": "Create a dashboard using my real data. First inspect authorized sources in the current Project and confirm metric definitions. Do not substitute demo data.",
   "superstoreTitle": "Superstore enterprise BI · Advanced",
   "superstoreDescription": "Official retail teaching data: executive overview, product profitability, customers and returns. Requires a Data Xpert model.",
-  "superstorePrompt": "Read themes/README.md and the complete superstore recipe (Trend Workspace for overview, Profit Atlas for profitability, Customer Brief for customers and returns) in the live-dashboard skill. Use the authorized published Data Xpert SuperstoreOrders model to create three separate dashboards in the current Project: executive overview, product profitability, and customers and returns. Preserve demo labels; validate all data and region, year and category filters, then save three drafts using the complete HTML and every Binding. Do not publish. If the model is unavailable, explain data preparation; never substitute other examples or invented rows."
+  "superstorePrompt": "Read themes/README.md and the complete superstore recipe (Trend Workspace for overview, Profit Atlas for profitability, Customer Brief for customers and returns) in the live-dashboard skill. Use the authorized published Data Xpert SuperstoreOrders model to create three separate dashboards in the current Project: executive overview, product profitability, and customers and returns. Preserve demo labels; validate all data and region, year and category filters, then save three drafts using the complete HTML and every Binding. Do not publish. If the model is unavailable, explain data preparation; never substitute other examples or invented rows.",
+  "deleteDashboardNamed": "Delete dashboard “{{title}}”",
+  "loadingMore": "Loading more…",
+  "dashboardUpdatedAt": "Updated {{time}}",
+  "updateTimeUnavailable": "Update time unavailable"
 }

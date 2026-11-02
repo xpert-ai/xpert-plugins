@@ -32,6 +32,24 @@ test('viewer rejects a definition source without its pinned version', () => {
   ] } }).success, false)
 })
 
+test('a direct selection outside the first page retains its deletion metadata without changing list pagination', async () => {
+  const saved = { artifactId: randomUUID(), manifest: example, versionId: randomUUID(), isDraft: false }
+  const selected = { artifactId: saved.artifactId, title: 'Current draft title', draftRevision: 7, canDelete: true }
+  const view = new DashboardViewProvider({
+    access: async () => ({ project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }),
+    listPage: async () => ({ items: [], page: 1, pageSize: 50, hasMore: true }), sources: async () => [],
+    selectedSummary: async (_context, id) => { assert.equal(id, saved.artifactId); return selected },
+    openDocument: async () => saved, history: async () => [{ ...saved, current: true }]
+  }, undefined, { current: async () => null })
+  const result = dashboardViewDataSchema.parse(await view.getViewData({ hostType: 'agent' }, 'live-dashboard', {
+    selectionId: saved.artifactId, parameters: { mode: 'published' }
+  })).meta
+  assert.deepEqual(result.selectedDashboard, selected)
+  assert.deepEqual(result.dashboards, [])
+  assert.equal(result.saved.draftRevision, undefined, 'deletion revision must not change the selected published definition')
+  assert.equal(result.pagination.hasMore, true)
+})
+
 test('only Assistant Workbench hosts expose the dashboard, with paginated selection', () => {
   const view=new DashboardViewProvider({})
   for(const [hostType,slot] of [['agent','agent.workbench'],['agent','agent.workbench.fixed'],['agent','agent.workbench.main']]) {

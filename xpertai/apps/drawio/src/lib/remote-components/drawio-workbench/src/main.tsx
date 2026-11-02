@@ -1,3 +1,4 @@
+import { DRAWIO_ORIGIN, editorReplyOrigin, editorSceneXml } from './editor-channel'
 import {
   Archive,
   Badge,
@@ -52,7 +53,6 @@ type DetailPayload = {
   logs?: any[]
 }
 
-const DRAWIO_ORIGIN = 'https://embed.diagrams.net'
 const DRAWIO_EDITOR_URL = `${DRAWIO_ORIGIN}/?embed=1&proto=json&spin=1&libraries=1&configure=1&noExitBtn=1&saveAndExit=0&modified=0`
 const EMPTY_DRAWIO_XML = '<mxfile host="xpert"><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>'
 const DEFAULT_MERMAID = `flowchart TD
@@ -107,6 +107,7 @@ function App() {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
+  const editorTargetOriginRef = React.useRef(DRAWIO_ORIGIN)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const contextRef = React.useRef<any>(null)
   const editorReadyRef = React.useRef(false)
@@ -156,9 +157,9 @@ function App() {
 
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
-      if (iframeRef.current?.contentWindow && event.source !== iframeRef.current.contentWindow) {
-        return
-      }
+      const replyOrigin = editorReplyOrigin(event, iframeRef.current?.contentWindow)
+      if (!replyOrigin) return
+      editorTargetOriginRef.current = replyOrigin
       const message = parseMessage(event.data)
       if (!message || typeof message.event !== 'string') {
         return
@@ -180,8 +181,8 @@ function App() {
         loadCurrentSceneIntoEditor()
         return
       }
-      if (message.event === 'save') {
-        const nextXml = typeof message.xml === 'string' && message.xml.trim() ? message.xml : xml
+      const nextXml = editorSceneXml(message)
+      if (nextXml) {
         setInvalidXmlError('')
         setXml(nextXml)
         setDirty(true)
@@ -340,7 +341,7 @@ function App() {
       return
     }
     pendingSaveActionRef.current = sourceAction
-    postToEditor({ action: 'save' })
+    postToEditor({ action: 'export', format: 'xml' })
   }
 
   async function saveCurrentScene(xmlValue: string, sourceAction = 'save_scene_version') {
@@ -550,7 +551,7 @@ function App() {
   }
 
   function postToEditor(message: Record<string, unknown>) {
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), DRAWIO_ORIGIN)
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), editorTargetOriginRef.current)
   }
 
   const currentVersion = detail?.currentVersion || null
@@ -642,7 +643,7 @@ function App() {
               <Save className="dw-button-icon" aria-hidden="true" />
               {t('save')}
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId || !editorReady || Boolean(invalidXmlError)} onClick={() => postToEditor({ action: 'save' })}>
+            <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId || !editorReady || Boolean(invalidXmlError)} onClick={() => postToEditor({ action: 'export', format: 'xml' })}>
               <FileJson className="dw-button-icon" aria-hidden="true" />
               {t('syncEditor')}
             </Button>

@@ -6,10 +6,18 @@ const { randomUUID, createHash } = require('node:crypto')
 const { DashboardService } = require('../dist/lib/dashboard.service.js')
 const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
 const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
+const { DashboardProjectsService } = require('../dist/lib/projects.service.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const hostType = process.env.DASHBOARD_HOST_TYPE ?? 'agent'
 if (!['agent', 'project'].includes(hostType)) throw Error('Unsupported fixture host')
 const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType, hostId: randomUUID(), slots: [] }
+const projects = Array.from({ length: 25 }, (_, index) => ({ projectId: randomUUID(), name: `项目 ${String(index + 1).padStart(2, '0')} · 项目名称很长时也应保持完整的布局与清晰的选择`, role: 'owner', canManage: true, archived: false }))
+scope.runtimeScope = { projectId: projects[0].projectId }
+function projectAccess({ actor, projectId }) {
+  const project = projects.find(item => item.projectId === projectId)
+  if (!project || actor.tenantId !== scope.tenantId || actor.organizationId !== scope.organizationId || actor.userId !== scope.userId) throw Error('PROJECT_ACCESS_DENIED')
+  return project
+}
 const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = new Map()
 const links = new Map()
 const receipts = { queries: 0, parameters: [], saves: 0, selection: null, navigation: [], hostType, hostId: scope.hostId }
@@ -17,6 +25,12 @@ const manifest = require('../examples/postgres-sales.json')
 const source = { source: manifest.bindings[0].source, name: 'Acceptance sales', providers: [{ id: manifest.bindings[0].providerId },
   { id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
+  'platform.project.access': {
+    async listReadable({ projectIds }) { return projects.filter(item => !projectIds || projectIds.includes(item.projectId)) },
+    async assertAssistant(input) { if (input.assistantId !== scope.hostId) throw Error('ASSISTANT_DENIED'); return projectAccess(input) },
+    async assertEdit(input) { return projectAccess(input) },
+    async assertManage(input) { return projectAccess(input) }
+  },
   'platform.analytics': {
     async list() { return [source] },
     async query(actor, request) {
@@ -42,10 +56,17 @@ const capabilities = {
   'platform.artifact-drafts': {
     async list(ids) { return [...drafts.values()].filter(draft => ids.includes(draft.artifactId)) },
     async get(id) { return drafts.get(id) ?? null },
+    async setRecycled({ artifactId, expectedRevision, recycled }) {
+      const draft = drafts.get(artifactId), artifact = artifacts.get(artifactId)
+      if (draft?.revision !== expectedRevision) throw Error('ARTIFACT_DRAFT_CONFLICT')
+      artifact.status = recycled ? 'archived' : 'active'; draft.revision++
+      if (recycled && links.has(artifactId)) links.get(artifactId).status = 'revoked'
+      return draft
+    },
     async save(input) {
       const artifact = artifacts.get(input.artifactId), previous = drafts.get(artifact.id)
       if ((previous?.revision ?? 0) !== input.expectedRevision || (artifact.currentVersionId ?? null) !== input.expectedCurrentVersionId) throw Error('DRAFT_CONFLICT')
-      const draft = { ...input, id: previous?.id ?? randomUUID(), revision: input.expectedRevision + 1, baseVersionId: input.expectedCurrentVersionId,
+      const draft = { ...input, updatedAt: '2026-11-02T08:30:00Z', id: previous?.id ?? randomUUID(), revision: input.expectedRevision + 1, baseVersionId: input.expectedCurrentVersionId,
         publishedRevision: previous?.publishedRevision ?? null, publishedVersionId: previous?.publishedVersionId ?? null }
       drafts.set(artifact.id, draft); receipts.saves++
       return draft
@@ -67,7 +88,10 @@ const capabilities = {
       links.set(input.artifactId, link); return { link }
     },
     async revokeArtifactShare({ artifactId }) { const link = links.get(artifactId); if (link) link.status = 'revoked' },
-    async listArtifacts() { return { items: [...artifacts.values()], total: artifacts.size, page: 1, pageSize: 100 } },
+    async listArtifacts({ status, resourceIdPrefix, page = 1, pageSize = 100 }) {
+      const items = [...artifacts.values()].filter(artifact => artifact.status === status && artifact.resourceId.startsWith(resourceIdPrefix))
+      return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }
+    },
     async findArtifactBySource(input) { return [...artifacts.values()].find((artifact) => artifact.resourceId === input.resourceId) ?? null },
     async createArtifact(input) { const artifact = { id: randomUUID(), ...input.source, ...input.scope, title: input.title, kind: input.kind, status: 'active' }; artifacts.set(artifact.id, artifact); return artifact },
     async ensureArtifactVersion(input) {
@@ -85,7 +109,7 @@ const capabilities = {
 }
 const runtime = { require(key) { const api = capabilities[key.id]; if (!api) throw new Error(`Missing capability ${key.id}`); return api } }
 const service = new DashboardService(runtime, { async validate(_context, manifest) { if (manifest.presentation) throw Error('HTML validation requires the real Sandbox Jobs host'); return null } })
-const provider = new DashboardViewProvider(service, new DashboardSharingService(service, runtime))
+const provider = new DashboardViewProvider(service, new DashboardSharingService(service, runtime), new DashboardProjectsService(runtime))
 const host = `<!doctype html><html><head><meta charset="utf-8"><title>Live Dashboard acceptance host</title><style>html,body,iframe{margin:0;width:100%;height:100%;border:0}</style></head><body><iframe id="view" title="Dashboard workbench" src="/view" sandbox="allow-scripts"></iframe><script>
 const frame=document.getElementById('view');const instanceId='acceptance-host';
 function send(message){frame.contentWindow.postMessage({channel:'xpertai.remote_component',protocolVersion:1,instanceId,...message},'*')}
@@ -101,7 +125,7 @@ const server = http.createServer(async (request, response) => {
     if (request.url === '/view') { response.setHeader('Content-Type', 'text/html'); response.end((await provider.getRemoteComponentEntry()).html); return }
     response.setHeader('Content-Type', 'application/json')
     if (request.url === '/manifest') { response.end(JSON.stringify(manifest)); return }
-    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, links: [...links.values()], artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.values()].map((buffer) => JSON.parse(buffer.toString())) })); return }
+    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, projects, projectId: scope.runtimeScope.projectId, links: [...links.values()], artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.values()].map((buffer) => JSON.parse(buffer.toString())) })); return }
     if (request.url === '/rpc' && request.method === 'POST') {
       const chunks = []; let size = 0
       for await (const chunk of request) { size += chunk.length; if (size > 600000) throw new Error('Too large'); chunks.push(chunk) }
@@ -109,7 +133,8 @@ const server = http.createServer(async (request, response) => {
       if (message.type === 'invokeClientCommand') {
         if (message.commandKey === 'workbench.navigation.open') {
           const target = message.payload
-          if (target.target !== (hostType === 'project' ? 'assistant.project' : 'workbench.view') ||
+          if (target.target === 'assistant.project' && projects.some(item => item.projectId === target.projectId)) scope.runtimeScope.projectId = target.projectId
+          else if (target.target !== (hostType === 'project' ? 'assistant.project' : 'workbench.view') ||
             (hostType === 'project' ? target.projectId !== scope.hostId : target.projectId !== undefined)) throw Error('Wrong dashboard navigation host')
           receipts.navigation.push(target)
           response.end(JSON.stringify({ success: true })); return

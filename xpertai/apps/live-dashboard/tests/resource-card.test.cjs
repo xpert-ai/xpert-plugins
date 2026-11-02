@@ -29,6 +29,7 @@ test('card delivery failure does not undo or fail a successful operation', async
 test('view navigation uses exact selection, rejects conflicting/malformed/version-only targets and keeps authorization in service', async () => {
   const versionId = randomUUID(), calls = []
   const provider = new DashboardViewProvider({
+    selectedSummary: async () => ({ artifactId }),
     access: async () => ({ project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }), listPage: async () => ({ items: [], page: 1, pageSize: 50, hasMore: false }), sources: async () => [], history: async () => [],
     openDocument: async (...args) => { calls.push(args); throw Error('DASHBOARD_ACCESS_DENIED') }
   }, undefined, { current: async () => null })

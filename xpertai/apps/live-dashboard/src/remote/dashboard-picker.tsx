@@ -1,115 +1,123 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
-import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, ChevronLeft, Check, Plus, Button } from '@xpert-ai/plugin-shadcn-ui'
+import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, Check, Plus, Trash2, Button, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardProjectSchema, dashboardProjectsSchema } from '../lib/projects.schema'
 import { dashboardPickerPageSchema } from '../lib/dashboard-view.schema'
-import { requestHost } from './bridge'
-import type { messages } from './i18n'
+import type { DashboardMode } from '../lib/project'
+import { usePickerItems } from './picker-data'
+import { i18n, type messages } from './i18n'
 
 type Project = z.infer<typeof dashboardProjectSchema>
 type Messages = ReturnType<typeof messages>
+type Dashboard = z.infer<typeof dashboardPickerPageSchema>['items'][number]
+const projectKey = (project: Project) => project.id
+const dashboardKey = (dashboard: Dashboard) => dashboard.artifactId
 
-function usePickerPage<T>(actionKey: string, schema: z.ZodType<T>) {
-  const [search, setSearch] = React.useState(''), [page, setPage] = React.useState(1)
-  const [data, setData] = React.useState<T | null>(null)
-  const [loading, setLoading] = React.useState(true), [failed, setFailed] = React.useState(false), [retry, setRetry] = React.useState(0)
-  React.useEffect(() => {
-    let active = true
-    setLoading(true); setFailed(false); setData(null)
-    const timer = window.setTimeout(() => {
-      void requestHost('executeAction', { actionKey, input: { search, page } }).then(response => {
-        const next = schema.parse(z.object({ success: z.literal(true), data: z.unknown() }).parse(response).data)
-        if (active) setData(next)
-      }).catch(() => { if (active) setFailed(true) }).finally(() => { if (active) setLoading(false) })
-    }, search ? 200 : 0)
-    return () => { active = false; window.clearTimeout(timer) }
-  }, [actionKey, schema, search, page, retry])
-  return { data, search, page, loading, failed, setPage, retry: () => setRetry(value => value + 1),
-    setSearch: (value: string) => { setSearch(value); setPage(1) } }
-}
-
-function Pager({ page, hasMore, disabled, onChange, label, t }: {
-  page: number; hasMore: boolean; disabled: boolean; onChange: (page: number) => void; label: string; t: Messages
+function ProjectColumn({ project, preview, disabled, onPreview, onSelect, t }: {
+  project: Project | null; preview: Project | null; disabled: boolean; onPreview: (project: Project) => void; onSelect: (project: Project) => void; t: Messages
 }) {
-  return <div className="picker-pagination border-t" role="group" aria-label={label}>
-    <Button variant="ghost" size="icon" aria-label={t.previousPage} disabled={disabled || page === 1} onClick={() => onChange(page - 1)}><ChevronLeft/></Button>
-    <span className="text-sm text-muted-foreground" aria-live="polite">{page}</span>
-    <Button variant="ghost" size="icon" aria-label={t.nextPage} disabled={disabled || !hasMore} onClick={() => onChange(page + 1)}><ChevronRight/></Button>
-  </div>
-}
-
-function ProjectColumn({ project, disabled, onChange, t }: { project: Project | null; disabled: boolean; onChange: (id: string) => void; t: Messages }) {
-  const result = usePickerPage('projects', dashboardProjectsSchema)
+  const result = usePickerItems('projects', dashboardProjectsSchema, projectKey)
   const [highlight, setHighlight] = React.useState(project?.id ?? '')
-  React.useEffect(() => { if (result.data) setHighlight(result.data.items.find(item => item.id === project?.id)?.id ?? result.data.items[0]?.id ?? '') }, [result.data, project?.id])
-  return <section className="picker-column border-r" aria-label={t.project}>
+  const keyboardNavigation = React.useRef(false)
+  return <section className="picker-column" aria-label={t.project}>
     <div className="picker-column-heading"><h2 className="text-sm font-semibold">{t.project}</h2></div>
-    <Command shouldFilter={false} value={highlight} onValueChange={setHighlight} className="picker-command">
+    <Command shouldFilter={false} value={highlight} onValueChange={id => {
+      setHighlight(id)
+      const item = result.items.find(item => item.id === id)
+      if (keyboardNavigation.current && item && !disabled) onPreview(item)
+    }} onKeyDownCapture={event => { keyboardNavigation.current = ['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) }} className="picker-command">
       <CommandInput value={result.search} onValueChange={result.setSearch} aria-label={t.searchProjects} placeholder={t.searchProjects}/>
-      <CommandList className="picker-list" aria-label={t.selectProject} aria-busy={disabled || result.loading}>
-        {result.data?.items.map(item => <CommandItem key={item.id} value={item.id} data-current={item.id === project?.id}
-          className={item.id === project?.id ? 'bg-secondary font-medium' : undefined} aria-current={item.id === project?.id ? true : undefined} disabled={disabled || result.loading}
-          onSelect={() => { if (item.id !== project?.id) onChange(item.id) }}>
+      <CommandList className="picker-list" aria-label={t.selectProject} aria-busy={result.loading} onScroll={result.onScroll}>
+        {result.items.map(item => <CommandItem key={item.id} value={item.id} data-current={item.id === project?.id}
+          className={item.id === preview?.id ? 'bg-secondary font-medium' : undefined} aria-current={item.id === project?.id ? true : undefined} disabled={disabled}
+          onPointerEnter={() => { keyboardNavigation.current = false; if (!disabled) onPreview(item) }} onSelect={() => onSelect(item)}>
           <span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>{item.id === project?.id && <Check aria-hidden="true"/>}<ChevronRight aria-hidden="true"/>
         </CommandItem>)}
-        {result.loading && <p role="status" className="p-3 text-sm text-muted-foreground">{t.loading}</p>}
+        {result.loading && <p role="status" className="p-3 text-sm text-muted-foreground">{result.items.length ? t.loadingMore : t.loading}</p>}
         {result.failed && <div className="p-3"><p role="alert" className="text-sm">{t.projectsFailed}</p><Button variant="ghost" onClick={result.retry}>{t.refresh}</Button></div>}
-        {!result.loading && !result.failed && !result.data?.items.length && <p className="p-3 text-sm text-muted-foreground">{t.noProjects}</p>}
+        {!result.loading && !result.failed && !result.items.length && <p className="p-3 text-sm text-muted-foreground">{t.noProjects}</p>}
+        <div ref={result.sentinel} className="h-px" aria-hidden="true"/>
       </CommandList>
     </Command>
-    <Pager page={result.page} hasMore={result.data?.hasMore ?? false} disabled={disabled || result.loading} onChange={result.setPage} label={t.projectPages} t={t}/>
   </section>
 }
 
-function DashboardColumn({ value, disabled, onChange, onNew, t }: {
-  value: string; disabled: boolean; onChange: (id: string) => void; onNew?: () => void; t: Messages
+function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, t }: {
+  value: string; project: Project | null; disabled: boolean; onChange: (id: string, mode?: DashboardMode) => void; onNew?: () => void; onDelete?: (dashboard: Dashboard) => void; t: Messages
 }) {
-  const result = usePickerPage('dashboards', dashboardPickerPageSchema)
+  const result = usePickerItems('dashboards', dashboardPickerPageSchema, dashboardKey, project?.id)
   const [highlight, setHighlight] = React.useState(value)
-  React.useEffect(() => { if (result.data) setHighlight(result.data.items.find(item => item.artifactId === value)?.artifactId ?? result.data.items[0]?.artifactId ?? '') }, [result.data, value])
+  const dateFormat = new Intl.DateTimeFormat(i18n.getLocale(), { dateStyle: 'medium', timeStyle: 'short' })
   return <section className="picker-column" aria-label={t.dashboards}>
-    <div className="picker-column-heading"><h2 className="text-sm font-semibold">{t.dashboards}</h2>
-      {onNew && <Button variant="ghost" size="sm" disabled={disabled} onClick={onNew}><Plus/>{t.newDashboard}</Button>}
+    <div className="picker-column-heading"><h2 className="text-sm font-semibold truncate" title={project?.name}>{t.dashboards}</h2>
+      {onNew && project && result.data?.canEdit && <Button variant="ghost" size="sm" disabled={disabled} onClick={onNew}><Plus/>{t.newDashboard}</Button>}
     </div>
     <Command shouldFilter={false} value={highlight} onValueChange={setHighlight} className="picker-command">
       <CommandInput value={result.search} onValueChange={result.setSearch} aria-label={t.search} placeholder={t.search}/>
-      <CommandList className="picker-list" aria-label={t.select} aria-busy={disabled || result.loading}>
-        {result.data?.items.map(item => <CommandItem key={item.artifactId} value={item.artifactId} data-current={item.artifactId === value}
-          className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled || result.loading} onSelect={() => onChange(item.artifactId)}>
-          <span className="min-w-0 flex-1 truncate" title={item.title ?? item.artifactId}>{item.title ?? item.artifactId}</span>{item.artifactId === value && <Check aria-hidden="true"/>}
-        </CommandItem>)}
-        {result.loading && <p role="status" className="p-3 text-sm text-muted-foreground">{t.loading}</p>}
+      <CommandList className="picker-list" aria-label={t.select} aria-busy={result.loading} onScroll={result.onScroll}>
+        {result.items.map(item => {
+          const date = item.updatedAt ? new Date(item.updatedAt) : null
+          return <Tooltip key={item.artifactId}>
+            <TooltipTrigger asChild><div className="picker-dashboard-row">
+              <CommandItem value={item.artifactId} data-current={item.artifactId === value}
+                className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
+                <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>{item.artifactId === value && <Check aria-hidden="true"/>}
+              </CommandItem>
+              {onDelete && item.canDelete && !!item.draftRevision && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
+                aria-label={i18n.t('deleteDashboardNamed', { title: item.title ?? item.artifactId })}
+                onKeyDown={event => { if (event.key === 'Enter') event.stopPropagation() }} onClick={() => onDelete(item)}><Trash2 aria-hidden="true"/></Button>}
+            </div></TooltipTrigger>
+            <TooltipContent side="top" align="start" collisionPadding={12} className="max-w-[min(18rem,calc(100vw-24px))] break-words">
+              <div className="space-y-1"><p>{item.title ?? item.artifactId}</p>
+                <p>{date && Number.isFinite(date.getTime()) ? i18n.t('dashboardUpdatedAt', { time: dateFormat.format(date) }) : t.updateTimeUnavailable}</p></div>
+            </TooltipContent>
+          </Tooltip>
+        })}
+        {result.loading && <p role="status" className="p-3 text-sm text-muted-foreground">{result.items.length ? t.loadingMore : t.loading}</p>}
         {result.failed && <div className="p-3"><p role="alert" className="text-sm">{t.dashboardsFailed}</p><Button variant="ghost" onClick={result.retry}>{t.refresh}</Button></div>}
-        {!result.loading && !result.failed && !result.data?.items.length && <p className="p-3 text-sm text-muted-foreground">{t.noResults}</p>}
+        {!result.loading && !result.failed && !result.items.length && <p className="p-3 text-sm text-muted-foreground">{t.noResults}</p>}
+        <div ref={result.sentinel} className="h-px" aria-hidden="true"/>
       </CommandList>
     </Command>
-    <Pager page={result.page} hasMore={result.data?.hasMore ?? false} disabled={disabled || result.loading} onChange={result.setPage} label={t.dashboardPages} t={t}/>
   </section>
 }
 
-export function DashboardPicker({ value, selectedTitle, project, disabled, open, onOpenChange, onChange, onProjectChange, onNew, t }: {
-  value: string
-  selectedTitle?: string | null
-  project: Project | null
-  disabled: boolean
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onChange: (id: string) => void
-  onProjectChange: (id: string) => void
-  onNew?: () => void
-  t: Messages
+function PickerColumns({ project, value, disabled, onChange, onNew, onDelete, t }: {
+  project: Project | null; value: string; disabled: boolean; onChange: (id: string, projectId?: string, mode?: DashboardMode) => void;
+  onNew?: (projectId?: string) => void; onDelete?: (dashboard: Dashboard, projectId?: string) => void; t: Messages
+}) {
+  const [preview, setPreview] = React.useState(project)
+  const [tab, setTab] = React.useState(project ? 'dashboards' : 'projects')
+  return <TooltipProvider delayDuration={250} disableHoverableContent><Tabs value={tab} onValueChange={setTab} className="picker-panels">
+    <TabsList className="picker-mobile-tabs" aria-label={t.selectProjectDashboard}>
+      <TabsTrigger value="projects">{t.project}</TabsTrigger><TabsTrigger value="dashboards">{t.dashboards}</TabsTrigger>
+    </TabsList>
+    <TabsContent value="projects" forceMount className="picker-pane picker-project-pane">
+      <ProjectColumn project={project} preview={preview} disabled={disabled} onPreview={setPreview} onSelect={item => { setPreview(item); setTab('dashboards') }} t={t}/>
+    </TabsContent>
+    <TabsContent value="dashboards" forceMount className="picker-pane">
+      <DashboardColumn key={preview?.id ?? 'personal'} project={preview} value={preview?.id === project?.id ? value : ''} disabled={disabled}
+        onChange={(id, mode) => onChange(id, preview?.id, mode)} onNew={onNew ? () => onNew(preview?.id) : undefined}
+        onDelete={onDelete ? item => onDelete(item, preview?.id) : undefined} t={t}/>
+    </TabsContent>
+  </Tabs></TooltipProvider>
+}
+
+export function DashboardPicker({ value, selectedTitle, project, disabled, open, onOpenChange, onChange, onNew, onDelete, t }: {
+  value: string; selectedTitle?: string | null; project: Project | null; disabled: boolean; open: boolean;
+  onOpenChange: (open: boolean) => void; onChange: (id: string, projectId?: string, mode?: DashboardMode) => void;
+  onNew?: (projectId?: string) => void; onDelete?: (dashboard: Dashboard, projectId?: string) => void; t: Messages
 }) {
   const contentId = React.useId()
   const title = selectedTitle ?? (value || t.select)
   return <Popover open={open} onOpenChange={onOpenChange}>
     <PopoverTrigger role="combobox" aria-label={t.selectProjectDashboard} aria-expanded={open} aria-controls={open ? contentId : undefined} aria-haspopup="dialog" disabled={disabled}
-      className={cn(buttonVariants({ variant: 'outline' }), 'dashboard-picker h-10 justify-between rounded-[10px] border-border/70 bg-muted/20 font-normal shadow-none data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/10')} title={`${project?.name ?? t.selectProject} / ${title}`}>
+      className={cn(buttonVariants({ variant: 'outline' }), 'dashboard-picker justify-between')} title={`${project?.name ?? t.selectProject} / ${title}`}>
       <span className="picker-project truncate text-muted-foreground">{project?.name ?? t.selectProject}</span><ChevronRight className="shrink-0 opacity-50" aria-hidden="true"/>
       <span className="picker-dashboard truncate font-medium">{title}</span><ChevronDown className="shrink-0 opacity-50" aria-hidden="true"/>
     </PopoverTrigger>
-    <PopoverContent id={contentId} aria-label={t.selectProjectDashboard} align="start" className="dashboard-picker-menu p-0">
-      <ProjectColumn project={project} disabled={disabled} onChange={onProjectChange} t={t}/>
-      <DashboardColumn key={project?.id ?? 'personal'} value={value} disabled={disabled} onChange={onChange} onNew={project ? onNew : undefined} t={t}/>
+    <PopoverContent id={contentId} aria-label={t.selectProjectDashboard} align="start" collisionPadding={12} className="dashboard-picker-menu p-0">
+      <PickerColumns key={project?.id ?? 'personal'} project={project} value={value} disabled={disabled} onChange={onChange} onNew={onNew} onDelete={onDelete} t={t}/>
     </PopoverContent>
   </Popover>
 }

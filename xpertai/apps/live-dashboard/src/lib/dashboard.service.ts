@@ -48,7 +48,7 @@ export class DashboardService {
     return { page, pageSize, hasMore: page * pageSize < result.total, items: items.filter(item => access.canReadDraft || !!item.currentVersionId).map(item => {
       const draft = drafts.get(item.id)
       return { ...summary(item), canDelete: !!draft && access.canManage,
-        ...(draft ? { title: draft.title ?? item.title, draftRevision: draft.revision } : {}) }
+        ...(draft ? { title: draft.title ?? item.title, draftRevision: draft.revision, updatedAt: draft.updatedAt ?? item.updatedAt } : {}) }
     }) }
   }
   async searchPage(context: XpertResolvedViewHostContext, input: { search: string; page: number }) {
@@ -63,6 +63,16 @@ export class DashboardService {
       if (!batch.hasMore || matches.length > offset + pageSize) break
     }
     return { items: matches.slice(offset, offset + pageSize), page: input.page, hasMore: matches.length > offset + pageSize }
+  }
+  async selectedSummary(context: XpertResolvedViewHostContext, artifactId: string) {
+    const access = await this.access(context)
+    const artifact = await this.runtime.require(ArtifactsRuntimeCapability).getArtifact(artifactId)
+    assertOwned(context, artifact)
+    if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
+    if (!access.canReadDraft && !artifact.currentVersionId) return undefined
+    const draft = access.canReadDraft ? (await this.runtime.require(ArtifactDraftsRuntimeCapability).list([artifactId]))[0] : undefined
+    return { ...summary(artifact), canDelete: !!draft && access.canManage,
+      ...(draft ? { title: draft.title ?? artifact.title, draftRevision: draft.revision } : {}) }
   }
   async trash(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number) {
     await this.authorizeProject(context, 'manage')

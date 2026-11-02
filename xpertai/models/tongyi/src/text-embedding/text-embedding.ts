@@ -1,8 +1,7 @@
-import { OpenAIEmbeddings } from '@langchain/openai'
 import { Embeddings } from '@langchain/core/embeddings'
 import { AiModelTypeEnum, ICopilotModel, PriceType } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
-import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
+import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isTongyiInternationalEndpointEnabled, toCredentialKwargs, TongyiCredentials, TongyiTextEmbeddingModelOptions } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 import { TONGYI_MULTIMODAL_EMBEDDING_MODEL, TongyiMultimodalEmbeddings } from './multimodal-embeddings.js'
@@ -21,7 +20,7 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 		return price
 	}
 
-	getEmbeddingInstance(copilotModel: ICopilotModel): Embeddings {
+	getEmbeddingInstance(copilotModel: ICopilotModel, runtime?: TChatModelOptions): Embeddings {
 		const { copilot } = copilotModel
 		const { modelProvider } = copilot
 		const options = copilotModel.options as TongyiTextEmbeddingModelOptions
@@ -29,7 +28,8 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 			copilotModel.model || copilot.copilotModel?.model,
 			modelProvider.credentials as TongyiCredentials,
 			options?.max_chunks ?? 10,
-			options?.dimensions
+			options?.dimensions,
+			runtime
 		)
 	}
 
@@ -42,7 +42,7 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 		}
 	}
 
-	private createEmbeddings(model: string, credentials: TongyiCredentials, batchSize = 10, dimensions?: number): Embeddings {
+	private createEmbeddings(model: string, credentials: TongyiCredentials, batchSize = 10, dimensions?: number, runtime?: TChatModelOptions): Embeddings {
 		if (model === TONGYI_MULTIMODAL_EMBEDDING_MODEL) {
 			return new TongyiMultimodalEmbeddings({ credentials, batchSize })
 		}
@@ -53,11 +53,11 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 				throw new Error(`${model}: unsupported dimensions ${dimensions}`)
 			}
 		}
-		return new OpenAIEmbeddings({
+		return new OpenAICompatibleEmbeddings({
 			...toCredentialKwargs(credentials), model,
 			batchSize: supportedDimensions ? Math.min(batchSize, 20) : batchSize,
 			...(dimensions === undefined ? {} : { dimensions })
-		})
+		}, runtime)
 	}
 }
 
