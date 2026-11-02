@@ -8,9 +8,10 @@ export function createResourceCache() {
   return {
     async route(page, route) {
       const request = route.request()
-      const allowed = request.method() === 'GET' && await page.evaluate(({ type, url }) =>
+      const allowed = await page.evaluate(({ type, url }) =>
         DocumentHost.isDashboardResourceAllowed(type, url), { type: request.resourceType(), url: request.url() })
       if (!allowed) return route.abort('blockedbyclient')
+      if (request.method() !== 'GET' || !['script', 'stylesheet', 'font', 'image'].includes(request.resourceType())) return route.continue()
       admitted.add(request)
       const cached = await entries.get(key(request))
       if (cached) return route.fulfill(cached)

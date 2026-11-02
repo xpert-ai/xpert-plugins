@@ -72,7 +72,12 @@ class PreviewPage {
     const response = { request: () => request, status: () => 200, url: request.url,
       headers: () => ({ 'content-type': 'text/javascript' }), body: async () => Buffer.from('/* fixture library */') }
     await this.routeHandler({ request: () => request,
-      continue: async () => { this.elapsed += this.fixture.resourceDelay; this.handlers.get('response')(response) },
+      continue: async () => {
+        this.elapsed += this.fixture.resourceDelay
+        if (this.fixture.resourceFailure) this.handlers.get('requestfailed')({ ...request,
+          failure: () => ({ errorText: 'net::ERR_INTERNET_DISCONNECTED' }) })
+        else this.handlers.get('response')(response)
+      },
       fulfill: async () => { this.elapsed += 500; this.handlers.get('response')(response) },
       abort: async () => { throw Error('unexpected resource rejection') } })
   }
@@ -228,16 +233,28 @@ for (const mode of ['hidden', 'disabled', 'inserted']) test(`button paths reach 
   assert(fixture.pages.every(page => page.closed))
 })
 
-test('slow allowed resources are loaded once instead of spending the Action deadline on every mount', async () => {
+test('online preflight loads and reuses CDN resources within the Action budget', async () => {
   const { validateDocument } = await validator
   const fixture = scenario(4, { resourceDelay: 6000 })
   const result = await validateDocument(fixture.input, fixture.browser, hostPath)
   assert.equal(result.ok, true, JSON.stringify(result.errors))
+  assert.equal(fixture.pages[0].elapsed >= 6000, true)
+  assert(fixture.pages.slice(1).every(page => page.elapsed < 6000), 'later scenarios reuse the admitted static response')
   // Include the real waits; the initial page is serial, remaining pages run in pairs.
   let elapsed = fixture.pages[0].elapsed
   for (let index = 1; index < fixture.pages.length; index += 2)
     elapsed += Math.max(fixture.pages[index].elapsed, fixture.pages[index + 1]?.elapsed ?? 0)
   assert(elapsed < 55000, `preflight needs at least ${elapsed} ms, exceeding its Action budget`)
+})
+
+test('online preflight still rejects a failed CDN load', async () => {
+  const { validateDocument } = await validator
+  const fixture = scenario(4, { resourceDelay: 1, resourceFailure: true })
+  const result = await validateDocument(fixture.input, fixture.browser, hostPath)
+  assert.equal(result.ok, false)
+  assert(result.errors.some(error => error.includes('DOCUMENT_RESOURCE_LOAD_FAILED') && error.includes('ERR_INTERNET_DISCONNECTED')))
+  assert(fixture.pages.every(page => page.closed))
+  assert(fixture.isClosed())
 })
 
 test('a stalled scenario returns a bounded failure and closes the context', async () => {

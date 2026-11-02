@@ -190,8 +190,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       filterEvidence.tool,
       ...createDefinitionTools(context, () => { listedSources = undefined }),
       tool(async () => JSON.stringify({ libraries: (await bundledLibraries()).map(({ source, ...lock }) => lock),
-        online: { ...DASHBOARD_NETWORK_POLICY,
-          usage: 'HTML may load scripts, stylesheets and fonts directly from these exact HTTPS origins. Use script src and link rel="stylesheet"; pin exact versions where available. Tailwind CDN https://cdn.tailwindcss.com is supported. Online resources require connectivity when saving and viewing; loading failures fail preflight. Keep all business data queries on window.xpertLiveArtifact; fetch/XHR, external images, workers, iframes and eval remain unavailable. Online resources do not belong in the packaged libraries array.' },
+        online: { enabled: true, ...DASHBOARD_NETWORK_POLICY,
+          usage: 'Network access is temporarily unrestricted for functional acceptance: CDN scripts/styles/fonts, external images, CSS imports and fetch/XHR are available, subject to browser CORS and mixed-content rules. Tailwind CDN is supported. Use exact versions when possible. Business data from platform sources must still use window.xpertLiveArtifact and saved Bindings; never embed credentials.' },
         pageRuntime: {
           global: 'window.xpertLiveArtifact',
           bindingIds: [...new Set([...previews.values()].map(binding => binding.id))],
@@ -205,8 +205,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
           themes: 'Select exactly one theme with echarts. Each provides enhanceSelect(nativeSelect) and charts.line/horizontal/scatter with isolated CSS and pinned bytes. Read themes/README.md; preserve an existing dashboard theme unless the user requests a change.',
           echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption(completeOption, {notMerge:true}). Canvas is also available. Derive active series/legend dimensions from each received Dataset, including filtered results; never retain excluded groups as zero-valued series. Aggregate repeated categories using all grain dimensions, clear empty results, and redraw KPI, chart and details together in subscribe. Use ResizeObserver to resize and reuse the instance on filter/refresh.',
           three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
-        lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources are listed separately under online, are not pinned in the Artifact, and must load successfully when saving and viewing.' }),
-      { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries, exact versions and allowed HTTPS origins for online scripts, stylesheets and fonts. Read before using Tailwind CDN or ECharts/Three.js. Returns metadata, never library source.',
+        lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources must load successfully during preflight and viewing; they are not frozen with the Artifact.' }),
+      { name: 'dashboard_libraries', description: 'Discover packaged libraries, themes, exact versions and the current unrestricted network policy. Tailwind CDN and other online dependencies are supported. Returns metadata, never library source.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId), editing.resolve),
       tool(async () => {

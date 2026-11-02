@@ -37,10 +37,12 @@ node tests/html-preflight-browser.mjs /absolute/path/to/platform
 node tests/workbench-browser.mjs /absolute/path/to/platform /private/screenshot.png
 ```
 
-开发依赖固定使用已发布的 SDK/contracts 3.27.0，构建无需本地平台链接或 SDK 补丁。
+当前工作区与 Live Dashboard 使用已发布的 SDK/Contracts 3.30.0，直接使用其文档联网策略和 Artifact Content 能力，不再需要 SDK 补丁或本地平台类型映射。
 升级 SDK 后须重新构建页面和 HTML 预检资源，运行 `verify:dist`，并用
-`tests/html-online-browser.mjs` 验证真实 CDN 加载、样式、刷新及离线失败诊断。
+`tests/html-online-browser.mjs` 验证真实 CDN 加载、样式、刷新及断网诊断。临时开放策略由 `tests/html-resources.test.cjs` 覆盖；网络策略后续单独设计。
 分批提交审核在临时快照构建和测试，不覆盖运行中的 dist，也不重新部署或重跑 SSO。
+
+临时在线验收还需在本地平台 `.env` 设置 `XPERT_BROWSER_ACCEPTANCE_NETWORK=unrestricted` 并重启 API/Worker。该开关只在 development/test 对通用 Browser Runtime 生效，Docker 预检使用 bridge 网络；生产环境和其他 Runtime 不变。移除此开关并重启可恢复预检默认断网策略。浏览器与容器必须都能访问资源 URL；容器中的 localhost 指向容器自身。页面 CORS、混合内容和项目/数据源权限校验继续适用。
 
 真实验收使用 `verify-installed-dashboard.mjs` / `verify-installed-html.mjs`，
 传入私有上下文与独立业务 oracle。固定日期的历史模型、SSO 与页面交互结果

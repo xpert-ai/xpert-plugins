@@ -129,6 +129,23 @@ function App() {
   }
   const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete })
   autoRefresh.current = { saved, controls, busy, editor, confirmDelete }
+  async function refreshSaved() {
+    const current = autoRefresh.current
+    if (!current.saved) { await openPicker(); return }
+    if (editRef.current.dirty || current.editor !== null) return
+    const previous = current.saved, sequence = ++requestSequence.current
+    const result = await load(previous.artifactId, previous.versionId ?? undefined, previous.isDraft ? 'draft' : 'published')
+    if (sequence !== requestSequence.current || activeArtifactId.current !== previous.artifactId || editRef.current.dirty) return
+    const target = result.saved
+    if (!target) { clearDocument(); throw new Error('Dashboard is unavailable') }
+    setSaved(target); setVersions(result.versions ?? [])
+    if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
+      ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
+    if (sequence !== requestSequence.current) return
+    if (!target.manifest.presentation) await query(target, current.controls)
+    else if (target.draftRevision === previous.draftRevision && target.versionId === previous.versionId) htmlDashboard.current?.refresh()
+    // A new HTML revision remounts with its exact bindings and dependency snapshot.
+  }
   React.useEffect(() => {
     if (refreshSeconds === 'off') return
     let stopped = false, pending = false
@@ -137,8 +154,7 @@ function App() {
       if (stopped || !isViewVisible() || pending || current.busy || current.confirmDelete || current.editor !== null || !current.saved?.manifest.bindings.length) return
       pending = true
       try {
-        if (current.saved.manifest.presentation) htmlDashboard.current?.refresh()
-        else await query(current.saved, current.controls)
+        await refreshSaved()
       } catch { if (!stopped) setError(t.error) }
       finally { pending = false }
     }
@@ -174,8 +190,8 @@ function App() {
     void run(() => target.artifactId ? open(target.artifactId, target.versionId, false, target.mode, target.draftRevision) : openPicker(target.newDashboard))
   },
     (artifactId) => {
-      if (editRef.current.dirty || activeArtifactId.current !== artifactId) { void load(); return }
-      void run(() => open(artifactId, undefined, true, 'draft'))
+      if (editRef.current.dirty || activeArtifactId.current !== artifactId || !autoRefresh.current.saved?.isDraft) { void load().catch(() => undefined); return }
+      void run(refreshSaved)
     }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
 
   async function save() {
@@ -244,7 +260,7 @@ function App() {
       {saved && <Badge variant="secondary" className="toolbar-version" role="status">{saved.isDraft ? i18n.t('draftRevision', { revision: saved.draftRevision ?? '—' }) : i18n.t('publishedVersion', { version: saved.versionNumber ?? '—' })}</Badge>}
       <div className="toolbar-actions">
         {canManage && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
-        <Button variant="ghost" size="icon" disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openPicker() }) }}>
+        <Button variant="ghost" size="icon" disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => void run(refreshSaved)}>
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
         </Button>
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
