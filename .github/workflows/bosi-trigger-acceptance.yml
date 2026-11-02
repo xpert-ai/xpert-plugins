@@ -1,0 +1,27 @@
+name: Bosi Trigger Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      fail:
+        description: '模拟失败；关闭则成功，用于验证不会触发失败诊断'
+        type: boolean
+        required: true
+        default: true
+
+permissions: {}
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Controlled acceptance result
+        env:
+          SHOULD_FAIL: ${{ inputs.fail }}
+        run: |
+          if [ "$SHOULD_FAIL" = "true" ]; then
+            echo "::error::BOSI_ACCEPTANCE_EXPECTED_FAILURE"
+            exit 1
+          fi
+          echo "BOSI_ACCEPTANCE_SUCCESS"
