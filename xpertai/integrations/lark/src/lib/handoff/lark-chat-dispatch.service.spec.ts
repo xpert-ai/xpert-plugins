@@ -14,57 +14,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
 
-function createLarkMessage(
-	overrides: Partial<{
-		id: string
-		messageId: string
-		status: string
-		language: string
-		header: unknown
-		elements: unknown[]
-		integrationId: string
-		chatId: string
-		chatType: string
-		senderOpenId: string
-		principalKey: string
-		scopeKey: string
-		legacyConversationUserKey: string
-		recipientDirectoryKey: string
-		replyToMessageId: string
-		typingReaction: {
-			messageId: string
-			reactionId: string
-			emojiType: string
-		}
-		update: jest.Mock
-		larkChannel: {
-			deleteMessageReaction: jest.Mock
-		}
-	}> = {}
-) {
-	const larkChannel = overrides.larkChannel ?? {
-		deleteMessageReaction: jest.fn().mockResolvedValue(undefined)
-	}
-	return {
-		id: 'lark-message-id',
-		messageId: 'chat-message-id',
-		status: 'thinking',
-		language: 'en_US',
-		header: null,
-		elements: [],
-		integrationId: 'integration-1',
-		chatId: 'chat-1',
-		chatType: 'group',
-		senderOpenId: 'ou_sender_1',
-		principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
-		scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
-		legacyConversationUserKey: 'open_id:ou_sender_1',
-		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
-		larkChannel,
-		update: jest.fn().mockResolvedValue(undefined),
-		...overrides
-	}
-}
+import { createLarkMessage } from './testing/dispatch-message-fixture.js'
 
 function mockRequestContext(params?: {
 	userId?: string
@@ -123,7 +73,7 @@ describe('LarkChatDispatchService', () => {
 			)
 		}
 		const runStateService = {
-			save: jest.fn().mockResolvedValue(undefined)
+			initialize: jest.fn().mockResolvedValue(undefined)
 		}
 		const handoffPermissionService = {
 			enqueue: jest.fn().mockResolvedValue(undefined)
@@ -363,7 +313,7 @@ describe('LarkChatDispatchService', () => {
 			lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
 		})
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
-		expect(runStateService.save).toHaveBeenCalledWith(
+		expect(runStateService.initialize).toHaveBeenCalledWith(
 			expect.objectContaining({
 				context: expect.objectContaining({
 					tenantId: 'binding-tenant-id',
@@ -478,7 +428,7 @@ describe('LarkChatDispatchService', () => {
 				sourceMessageLogIds: ['log-1', 'log-2']
 			})
 		)
-		expect(runStateService.save).toHaveBeenCalledWith(
+		expect(runStateService.initialize).toHaveBeenCalledWith(
 			expect.objectContaining({
 				context: expect.objectContaining({
 					currentInboundLogIds: ['log-1', 'log-2'],
@@ -553,7 +503,7 @@ describe('LarkChatDispatchService', () => {
 		)
 		expect(larkMessage.update).not.toHaveBeenCalled()
 		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
-		expect(runStateService.save).not.toHaveBeenCalled()
+		expect(runStateService.initialize).not.toHaveBeenCalled()
 	})
 
 	it('forces stale steer recovery into a normal send while reusing the same card and client message id', async () => {
@@ -603,7 +553,7 @@ describe('LarkChatDispatchService', () => {
 		expect(duplicate.id).toBe(message.id)
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalled()
-		expect(runStateService.save).toHaveBeenCalled()
+		expect(runStateService.initialize).toHaveBeenCalled()
 	})
 
 	it('uses a normal send only after the active response completes while waiting for its conversation', async () => {
@@ -637,7 +587,7 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).request.conversationId).toBeUndefined()
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalledTimes(1)
-		expect(runStateService.save).toHaveBeenCalledTimes(1)
+		expect(runStateService.initialize).toHaveBeenCalledTimes(1)
 	})
 
 	it('does not fall back to a second response card while an active response lacks a conversation binding', async () => {
@@ -674,7 +624,7 @@ describe('LarkChatDispatchService', () => {
 			'reaction-1'
 		)
 		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
-		expect(runStateService.save).not.toHaveBeenCalled()
+		expect(runStateService.initialize).not.toHaveBeenCalled()
 	})
 
 	it('keeps the normal send path after the active response has completed', async () => {
@@ -705,7 +655,7 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).callback.context.followUpMode).toBeUndefined()
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalledTimes(1)
-		expect(runStateService.save).toHaveBeenCalledTimes(1)
+		expect(runStateService.initialize).toHaveBeenCalledTimes(1)
 	})
 
 	it('buildDispatchMessage continues when deleting typing reaction fails', async () => {

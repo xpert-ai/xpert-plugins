@@ -1,5 +1,6 @@
 {
     "Error": {
+    "ReplyRecoveryUnavailable": "未能恢复完整回复，请在 Xpert 中查看本次对话。",
         "CredentialsFailed": "凭证验证失败",
         "BotPermission": "可能尚未添加机器人能力或权限",
         "LarkConfigurationRequired": "飞书配置是必需的"

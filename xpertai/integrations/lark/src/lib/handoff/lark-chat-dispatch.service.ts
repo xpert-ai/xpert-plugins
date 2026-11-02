@@ -76,10 +76,12 @@ export class LarkChatDispatchService {
 
 	async enqueueDispatch(input: TLarkChatDispatchInput): Promise<ChatLarkMessage> {
 		const message = await this.buildDispatchMessage(input)
-		await this.handoffPermissionService.enqueue(message, {
-			delayMs: 0
-		})
+		await this.enqueuePreparedDispatch(message)
 		return input.larkMessage
+	}
+
+	async enqueuePreparedDispatch(message: HandoffMessage<AgentChatDispatchPayload>): Promise<void> {
+		await this.handoffPermissionService.enqueue(message, { delayMs: 0 })
 	}
 
 	async buildDispatchMessage(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
@@ -179,7 +181,9 @@ export class LarkChatDispatchService {
 		}
 
 		const runId =
-			input.options?.forceNewRun && currentInboundLogIds.length
+			input.options?.forceNewRun && input.options.recoverySourceMessageId
+				? this.buildRecoveryRunId(larkMessage.integrationId, [input.options.recoverySourceMessageId])
+				: input.options?.forceNewRun && currentInboundLogIds.length
 				? this.buildRecoveryRunId(larkMessage.integrationId, currentInboundLogIds)
 				: `lark-chat-${randomUUID()}`
 		const sessionKey = conversationId ?? runId
@@ -222,7 +226,7 @@ export class LarkChatDispatchService {
 		}
 
 		if (!followUpMode) {
-			await this.runStateService.save({
+			await this.runStateService.initialize({
 				sourceMessageId: runId,
 				nextSequence: 1,
 				responseMessageContent: '',

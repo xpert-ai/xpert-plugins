@@ -23,6 +23,8 @@ export type DispatchLarkChatPayload = {
 		groupWindow?: LarkGroupWindow
 		/** Internal stale-steer recovery: reuse the existing card and start a normal run. */
 		forceNewRun?: boolean
+		/** Stable identity for retries of one stale-steer callback. */
+		recoverySourceMessageId?: string
 	}
 }
 
