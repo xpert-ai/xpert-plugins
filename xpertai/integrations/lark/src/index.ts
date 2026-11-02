@@ -162,8 +162,7 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
   permissions: [
     { type: 'integration', service: 'lark', operations: ['read', 'write'] },
     { type: 'user', operations: ['read', 'write'] },
-    { type: 'handoff', operations: ['enqueue'] },
-    { type: 'analytics', operations: ['model', 'dscore', 'query', 'create_indicator'] }
+    { type: 'handoff', operations: ['enqueue'] }
   ],
   templates: larkTemplates,
   register(ctx) {

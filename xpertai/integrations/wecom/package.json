@@ -32,13 +32,15 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/passport": "^1.0.17"
+    "@types/passport": "^1.0.17",
+    "@xpert-ai/contracts": "3.30.0",
+    "@xpert-ai/plugin-sdk": "3.30.0"
   },
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.26.1",
-    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.30.0",
+    "@xpert-ai/contracts": "^3.30.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/core": "^11.1.6",

@@ -71,7 +71,7 @@ Tenant administrators explicitly grant organizations access to a tenant integrat
 
 Publication and inbound dispatch use the Assistant's persisted tenant/organization scope. Runtime authorization is checked again for inbound messages, buffered dispatch and each notification tool call. Revocation preserves configuration and binding records while denying subsequent consumption. It does not undo sent messages or cancel an already executing Assistant run.
 
-Deploy with a host and SDK supporting `IntegrationPermissionService.readForUsage` and `/api/integration/available`. Older hosts are rejected explicitly. Existing tenant integrations with no sharing policy need an administrator to grant the required organizations and usages before organization consumption resumes. User OAuth credentials are never shared by this policy.
+Deploy with Xpert host, SDK and contracts 3.30.0 or newer, supporting `IntegrationPermissionService.readForUsage` and `/api/integration/available`. Older hosts are rejected explicitly. Existing tenant integrations with no sharing policy need an administrator to grant the required organizations and usages before organization consumption resumes. User OAuth credentials are never shared by this policy.
 
 ## Middleware Configuration
 
