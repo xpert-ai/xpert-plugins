@@ -179,6 +179,26 @@ describe('DingTalkTriggerStrategy', () => {
 		}
 	}
 
+	it('declares a discoverable Assistant channel with its existing account and QR setup', () => {
+		const { strategy } = createStrategy()
+		const meta: DingTalkTriggerStrategy['meta'] = strategy.meta
+
+		expect(meta.assistant).toEqual({
+			category: 'channel',
+			channel: 'dingtalk',
+			accountFields: ['integrationId']
+		})
+		for (const accountField of meta.assistant.accountFields) {
+			expect(meta.configSchema.properties[accountField]).toBeDefined()
+			expect(meta.configSchema.required).toContain(accountField)
+		}
+		expect(meta.quickConnect).toEqual({
+			method: 'qr',
+			integrationProvider: 'dingtalk_long',
+			configField: meta.assistant.accountFields[0]
+		})
+	})
+
 	it('loads DingTalk integrations from the plugin select endpoint', () => {
 		const { strategy } = createStrategy()
 		const properties = strategy.meta.configSchema.properties as Record<string, any>

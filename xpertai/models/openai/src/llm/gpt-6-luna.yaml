@@ -1,0 +1,116 @@
+# Source: https://developers.openai.com/api/docs/models/gpt-6-luna (2026-10-30)
+model: gpt-6-luna
+native_protocols:
+  - openai_responses
+label:
+  en_US: GPT-6 Luna
+  zh_Hans: GPT-6 Luna
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - structured-output
+  - vision
+model_properties:
+  mode: chat
+  context_size: 1050000
+  max_output: 128000
+parameter_rules:
+  - name: max_tokens
+    use_template: max_tokens
+    default: 32768
+    min: 16
+    max: 128000
+    help:
+      en_US: Maximum output tokens, including reasoning tokens. Input and output must fit within the context window.
+      zh_Hans: 最大输出 Token 数，包含推理 Token；输入和输出合计须在上下文窗口内。
+  - name: reasoning_effort
+    label:
+      en_US: Reasoning Effort
+      zh_Hans: 推理力度
+    type: string
+    required: false
+    default: medium
+    options:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+    help:
+      en_US: Higher effort can improve reasoning at the cost of latency and output tokens. Sampling parameters apply only with none.
+      zh_Hans: 更高档位可增强推理，但会增加延迟和输出 Token；采样参数仅在 none 档位生效。
+  - name: temperature
+    use_template: temperature
+    default: 1
+    min: 0.0
+    max: 2.0
+    help:
+      en_US: Only sent when reasoning effort is none.
+      zh_Hans: 仅当推理力度为 none 时发送。
+  - name: top_p
+    use_template: top_p
+    default: 1
+    min: 0.0
+    max: 1.0
+    help:
+      en_US: Only sent when reasoning effort is none.
+      zh_Hans: 仅当推理力度为 none 时发送。
+  - name: response_format
+    label:
+      en_US: Response Format
+      zh_Hans: 回复格式
+    type: string
+    required: false
+    options:
+      - text
+      - json_object
+pricing:
+  input: '0.1'
+  output: '0.5'
+  unit: '0.000001'
+  currency: USD
+  # Standard processing; long-context rates apply to the entire request above 272K input tokens.
+  tiered_pricing:
+    - input: 0.1
+      output: 0.5
+      max_tokens: 272000
+    - input: 0.2
+      output: 0.75
+      max_tokens: 1050000
+  rules:
+    - component: input
+      unit_price: 0.1
+      unit_size: 1000000
+      max_input_tokens: 272000
+    - component: output
+      unit_price: 0.5
+      unit_size: 1000000
+      max_input_tokens: 272000
+    - component: cache_read_input
+      unit_price: 0.01
+      unit_size: 1000000
+      max_input_tokens: 272000
+    - component: cache_write_input
+      unit_price: 0.125
+      unit_size: 1000000
+      max_input_tokens: 272000
+    - component: input
+      unit_price: 0.2
+      unit_size: 1000000
+      min_input_tokens: 272001
+    - component: output
+      unit_price: 0.75
+      unit_size: 1000000
+      min_input_tokens: 272001
+    - component: cache_read_input
+      unit_price: 0.02
+      unit_size: 1000000
+      min_input_tokens: 272001
+    - component: cache_write_input
+      unit_price: 0.250
+      unit_size: 1000000
+      min_input_tokens: 272001

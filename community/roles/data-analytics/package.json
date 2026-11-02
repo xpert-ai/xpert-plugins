@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/community-data-analytics",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "description": "Analyze product usage, investigate metric movements, prepare KPI reports, build high-quality dashboards and notebooks, create source-backed semantic layers, guide first-run analytics setup, and generate analytics-grade report apps.",
   "author": "XpertAI",
   "license": "MIT",
@@ -49,7 +49,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "lint": "echo \"(todo) add lint\"",
-    "test": "node --test test/renderer.test.cjs && tsc -p test/tsconfig.json && tsc -p tsconfig.spec.json --noEmit"
+    "test": "npm run build && node --test test/*.test.cjs && tsc -p test/tsconfig.json && tsc -p tsconfig.spec.json --noEmit",
+    "prepack": "npm test"
   },
   "dependencies": {
     "tslib": "^2.3.0"

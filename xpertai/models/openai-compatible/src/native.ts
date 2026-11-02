@@ -8,6 +8,7 @@ const nativeCredentialsSchema = z.object({
   api_key: z.string().min(1),
   endpoint_url: z.string().url(),
   endpoint_model_name: z.string().min(1).optional(),
+  disable_prompt_cache_key: z.boolean().optional(),
   reasoning_effort: reasoningEffortSchema.optional()
 })
 
@@ -21,6 +22,7 @@ export function compatibleResponsesTransport(properties: unknown, fetcher?: type
   })
   return (body, headers, signal) => {
     const request: NativeModelBody = { ...body, store: false }
+    if (settings.disable_prompt_cache_key) delete request.prompt_cache_key
     if (settings.endpoint_model_name) request.model = settings.endpoint_model_name
     const reasoning = request.reasoning
     if (reasoning != null) {

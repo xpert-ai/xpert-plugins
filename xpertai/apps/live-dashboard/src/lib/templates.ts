@@ -2,6 +2,7 @@ import { XpertTypeEnum } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import { DASHBOARD_PROJECT_TYPE } from './project'
 import { dashboardIcon } from './dashboard-icon'
+import { dashboardWorkspacePrompts } from './prompt-workflows'
 
 const startPrompts = [
   "请读取 live-dashboard 技能中 regional-sales 的完整配方，使用该配方随附的演示文件和标准图表定义，在当前项目新建区域销售看板。核对区域筛选、销售额和明细；不要使用其他样例或项目中已有的不同数据替代。完成实际查询与两个筛选验证后保存草稿，保留演示标识，不发布。",
@@ -48,6 +49,8 @@ export const dashboardTemplates: XpertTemplateContribution[] = [false, true].map
     capabilities: [monitor ? 'live_dashboard.monitor' : 'live_dashboard'], requiredPlugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'] } },
   dependencies: { plugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'],
     skills: monitor ? [] : [{ componentKey: 'live-dashboard', targetAgentKey: 'Agent_Dashboard' }] },
+  category: 'Analytics',
+  promptWorkflows: monitor ? undefined : dashboardWorkspacePrompts,
   startPrompts: monitor ? [] : startPrompts,
   releaseNotes: monitor ? undefined : 'Adds project-scoped onboarding, three small examples and the Data Xpert Superstore enterprise suite with three optional reusable visual styles (Trend Workspace, Profit Atlas and Customer Brief) and accessible select controls; existing dashboards are never overwritten by template updates.',
   dslContent: dsl(monitor), default: false, order: monitor ? 36 : 35

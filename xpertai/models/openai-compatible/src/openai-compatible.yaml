@@ -119,6 +119,21 @@ model_credential_schema:
           label:
             en_US: Native Responses
             zh_Hans: 原生 Responses
+    - variable: disable_prompt_cache_key
+      show_on:
+        - variable: __model_type
+          value: llm
+        - variable: api_protocol
+          value: responses
+      label:
+        en_US: Disable prompt cache key forwarding
+        zh_Hans: 禁用 prompt_cache_key 透传
+      type: boolean
+      default: false
+      required: false
+      help:
+        en_US: Enable only for a model whose upstream rejects prompt_cache_key in native Responses requests. Conversation content is preserved.
+        zh_Hans: 仅在该模型上游不兼容原生 Responses 请求中的 prompt_cache_key 时开启。对话内容保持完整。
     - variable: reasoning_effort
       show_on:
         - variable: api_protocol

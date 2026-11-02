@@ -35,6 +35,17 @@ Tools are `dashboard_list_sources`, `dashboard_discover`, `dashboard_preview`, `
 
 Specialized Assistants may configure `allowedFinalProviders` on the middleware, for example `["workspace_script.query"]`. Upstream discovery and preview still work with other providers, but Agent save rejects final bindings outside this list. Omit it for the existing unrestricted provider workflow. This is an Agent workflow policy, not a substitute for the server's source/Artifact authorization.
 
+The settings form now selects each entry from a dropdown. Options come from
+`GET /api/live-dashboard/provider-options`, using the host Analytics capability
+with the authenticated tenant, organization and user. It lists distinct Provider
+types of **currently accessible data sources**, not every installed adapter or
+individual database connection. The list refreshes on loading the selector;
+unavailable saved IDs remain visible and are not silently removed. A configured
+policy still requires 1–20 values; the saved `string[]` contract is unchanged.
+An empty catalog means no accessible sources; authorization/catalog errors remain
+errors. This uses the existing platform `remoteSelect` control and requires no
+platform changes.
+
 For a dedicated Dashboard Assistant, mark its connected `LiveDashboard` middleware node `required: true` (see the [graph fragment](examples/assistant-middleware.yaml)). ChatKit sends an explicit capability allowlist; an optional middleware is unavailable until the user selects it. Enabling the Workbench view alone does not enable Agent tools. Preserve that platform selection behavior for general-purpose Assistants.
 
 Only the LLM boundary uses `requestJson` / `payloadJson` strings, because recursive JSON unions are unreliable in model function schemas. The plugin parses these into the unchanged canonical JSON protocol before calling the platform. Protocol version and operation come from the discovered provider contract; parameter name also supplies the Agent-created control ID. Saved manifests retain the full generic Binding protocol. Preview uses Binding parameter defaults, avoiding a second control mapping for the model to repeat. Provider syntax is learned from discovery, not embedded in platform prompts.
@@ -58,6 +69,59 @@ Preview/save also probe a declared non-default filter value and, when applicable
 Artifacts are owner-only within their agent/project host for this MVP. MIME: `application/json`; resource type: `live-dashboard`; namespace: `live_dashboard`. The Workbench supports selection, JSON import/edit, typed filters, refresh, version/freshness and partial-result notices.
 
 ## Built-in prompt workflows / 内置提示词模板
+
+### Chat shortcut buttons / 聊天快捷按钮
+
+Like Presentation Studio, this plugin contributes an Assistant template with
+12 workspace prompt workflows. In the plugin's contents, choose **实时看板助手 /
+Live Dashboard Assistant**, install it into the target workspace, and select the
+model and sandbox in the existing setup wizard. Its required LiveDashboard,
+Skills and SandboxFile middleware nodes are already connected. Workspace prompts
+use `insert_text`: clicking a shortcut opens editable text before sending.
+
+Shortcut resources use names beginning with `live-dashboard-`. The legacy
+middleware commands below keep their `/dashboard-` names: the host gives middleware
+commands precedence, so reusing those names would hide the workspace shortcuts.
+Both paths share the same prompt content. The workspace prompt library remains
+the place to edit labels, content and Assistant associations.
+
+**Existing Assistants:** a plugin update alone does not seed workspace resources.
+Import the prompts once, or associate already imported prompts with the Assistant
+in the workspace prompt library. The following shipped helper supports a one-time
+import without changing the Assistant graph, model, publication or existing prompts:
+
+1. Configure and publish the Assistant with LiveDashboard connected to its main
+   Agent and **System middleware** enabled. Keep its normal Skills, SandboxFile,
+   model and sandbox configuration.
+2. From this plugin package directory (source checkout: build first), use Node 20+
+   and a platform login token with authoring access to the target workspace.
+   Provide `XPERT_TOKEN` through your normal secret environment; do not store it
+   in shell history or commit it. IDs come from the selected organization and
+   published Assistant.
+
+   ```sh
+   node scripts/import-prompts.mjs \
+     --api-url https://your-xpert-host/api \
+     --organization-id YOUR_ORGANIZATION_UUID \
+     --assistant-id YOUR_ASSISTANT_UUID
+   ```
+
+3. Review the read-only preview. Repeat with `--apply` to create only the missing
+   resources, associated with this Assistant. The script then checks the published
+   runtime exposes the new `insert_text` shortcuts. Reopen the chat/new conversation
+   to refresh its command list. No republishing is needed just for prompt import.
+
+The helper never overwrites or archives prompts or changes associations. Matching,
+active and applicable prompts are skipped. Edited/archived prompts, resources
+associated with another Assistant, or disabled/overridden command-profile entries
+stop the import before writes: resolve those deliberately in the prompt library
+or Assistant command settings. For a second Assistant in the same workspace,
+associate the existing resources instead of importing duplicates. Network failures
+can leave some newly created prompts; rerunning safely skips them. Use HTTPS for
+remote hosts and configure trust for private certificates; do not disable TLS
+verification. The helper does not install or update the plugin.
+
+### Middleware slash commands / 中间件斜杠命令
 
 When the Assistant has the `LiveDashboard` middleware, type `/dashboard-` in its
 chat composer and select a workflow. Selection inserts an invocation so the user

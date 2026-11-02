@@ -153,6 +153,14 @@ cleanup callbacks are bounded. Binary/LOB/spatial/array results require explicit
 bounded scalar conversion. Query failure messages do not expose driver SQL or
 connection details.
 
+Native statement timeouts are used when supported. If the native client reports
+the specific `HY000` / `-1` error `Query timeout is not supported by the HANA server.`,
+the transport resets that statement's timeout to its default (`0`) and retries once
+on the same read-only connection. Later statements on that connection skip native
+statement timeouts. The original client deadline, communication timeouts and
+abort/disconnect behavior still apply; the retry never gets a new time budget.
+Other query errors and actual timeouts do not trigger this compatibility retry.
+
 `DECIMAL`/`SMALLDECIMAL` and `BIGINT` retain exact string values; lossy numeric
 values are rejected. Bind them to `decimal`/`int64` fields. HANA timestamp values
 have no time zone and remain strings unless the query explicitly establishes an
