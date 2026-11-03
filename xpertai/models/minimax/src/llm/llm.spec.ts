@@ -347,3 +347,15 @@ describe('MiniMaxLargeLanguageModel', () => {
     expect(result.generations[0]?.message.additional_kwargs?.reasoning_content).toBe('先分析，再收束');
   });
 });
+
+describe('MiniMax M3.1 Flash', () => {
+  it('validates the catalog ID and sends OpenAI-compatible effort without service_tier', async () => {
+    const manager = new MiniMaxLargeLanguageModel(new MiniMaxProviderStrategy())
+    await expect(manager.validateCredentials('MiniMax-M3.1-Flash', { api_key: 'test', group_id: 'test' })).resolves.toBeUndefined()
+    const client = manager.getChatModel(createCopilotModel('MiniMax-M3.1-Flash', { reasoning_effort: 'xhigh', temperature: .1 }, { api_key: 'test', group_id: 'test', service_tier: 'priority' }))
+    expect(client.invocationParams()).toMatchObject({ model: 'MiniMax-M3.1-Flash', reasoning_effort: 'xhigh', reasoning_split: true, temperature: 1 })
+    expect(client.invocationParams()).not.toHaveProperty('service_tier')
+    expect(client.invocationParams()).not.toHaveProperty('output_config')
+    expect(() => manager.getChatModel(createCopilotModel('MiniMax-M3.1-Flash', { reasoning_effort: 'invalid' }))).toThrow('reasoning_effort')
+  })
+})

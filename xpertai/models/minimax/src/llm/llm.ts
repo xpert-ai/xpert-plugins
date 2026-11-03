@@ -319,6 +319,11 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
     const { modelProvider } = copilot;
     const modelCredentials = mergeCredentials(modelProvider.credentials, options?.modelProperties) as MiniMaxModelCredentials;
     const model = copilotModel.model;
+    const flash = model === 'MiniMax-M3.1-Flash';
+    const effort = copilotModel.options?.['reasoning_effort'] ?? options?.modelProperties?.['reasoning_effort'] ?? 'max';
+    if (flash && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
+      throw new Error('MiniMax-M3.1-Flash: unsupported reasoning_effort');
+    }
 
     const params = toCredentialKwargs(modelCredentials, model);
 
@@ -327,10 +332,10 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
       model,
       modelKwargs: {
         reasoning_split: true,
-        ...(modelCredentials.service_tier ? { service_tier: modelCredentials.service_tier } : {})
+        ...(flash ? { reasoning_effort: effort } : modelCredentials.service_tier ? { service_tier: modelCredentials.service_tier } : {})
       },
       streaming: copilotModel.options?.['streaming'] ?? true,
-      temperature: copilotModel.options?.['temperature'] ?? 0,
+      temperature: flash ? 1 : copilotModel.options?.['temperature'] ?? 0,
       maxTokens: copilotModel.options?.['max_tokens'],
       verbose: options?.verbose,
       callbacks: [

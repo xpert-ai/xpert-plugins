@@ -3,8 +3,8 @@ configurate_methods:
 - predefined-model
 - customizable-model
 description:
-  en_US: Models provided by StepFun, including Step 3.7 Flash.
-  zh_Hans: 阶跃星辰提供的模型，包括 Step 3.7 Flash。
+  en_US: StepFun language and audio models, including Step 5 and StepAudio 3.
+  zh_Hans: 阶跃星辰语言与语音模型，包括 Step 5 和 StepAudio 3。
 extra:
   python:
     model_sources:
@@ -72,6 +72,12 @@ model_credential_schema:
       en_US: Enter your model name
       zh_Hans: 输入模型名称
 models:
+  speech2text:
+    predefined:
+    - models/speech2text/*.yaml
+  tts:
+    predefined:
+    - models/tts/*.yaml
   llm:
     position: models/llm/_position.yaml
     predefined:
@@ -89,3 +95,5 @@ provider_credential_schema:
     variable: api_key
 supported_model_types:
 - llm
+- speech2text
+- tts

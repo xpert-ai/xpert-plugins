@@ -475,6 +475,11 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       : this.isThinkingModel(params.model)
     const runtimeThinkingBudget =
       copilotModel.options?.['thinking_budget'] ?? credentials.thinking_budget
+    const effortRule = parameterRules.find((rule) => rule.name === 'reasoning_effort')
+    const effort = copilotModel.options?.['reasoning_effort'] ?? credentials.reasoning_effort
+    if (effortRule && effort !== undefined && !effortRule.options?.includes(effort)) {
+      throw new Error(`${copilotModel.model}: unsupported reasoning_effort`)
+    }
     const runtimeResponseFormat = toJsonSchemaResponseFormat(
       copilotModel.options?.['response_format'] ?? credentials.response_format,
       copilotModel.options?.['json_schema'] ?? credentials.json_schema
@@ -488,6 +493,7 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
         copilotModel.options?.['repetition_penalty'] ?? credentials.repetition_penalty
       ),
       response_format: runtimeResponseFormat,
+      ...(effortRule && (!supportsThinkingToggle || runtimeThinkingEnabled) ? { reasoning_effort: effort } : {}),
     } as Record<string, any>
 
     if (supportsThinkingToggle) {
@@ -519,6 +525,7 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       streaming: copilotModel.options?.['streaming'] ?? this.canStreaming(params.model),
       temperature: copilotModel.options?.['temperature'] ?? credentials.temperature ?? 0,
       topP: copilotModel.options?.['top_p'] ?? credentials.top_p,
+      frequencyPenalty: copilotModel.options?.['frequency_penalty'] ?? credentials.frequency_penalty,
       maxTokens,
       streamUsage: false,
       verbose: options?.verbose,

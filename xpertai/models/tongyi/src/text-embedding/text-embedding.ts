@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common'
 import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isTongyiInternationalEndpointEnabled, toCredentialKwargs, TongyiCredentials, TongyiTextEmbeddingModelOptions } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
-import { TONGYI_MULTIMODAL_EMBEDDING_MODEL, TongyiMultimodalEmbeddings } from './multimodal-embeddings.js'
+import { QWEN_VL_EMBEDDING_MODEL, TONGYI_MULTIMODAL_EMBEDDING_MODEL, TongyiMultimodalEmbeddings } from './multimodal-embeddings.js'
 
 @Injectable()
 export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
@@ -43,8 +43,11 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 	}
 
 	private createEmbeddings(model: string, credentials: TongyiCredentials, batchSize = 10, dimensions?: number, runtime?: TChatModelOptions): Embeddings {
-		if (model === TONGYI_MULTIMODAL_EMBEDDING_MODEL) {
-			return new TongyiMultimodalEmbeddings({ credentials, batchSize })
+		if (model === TONGYI_MULTIMODAL_EMBEDDING_MODEL || model === QWEN_VL_EMBEDDING_MODEL) {
+			if (model === QWEN_VL_EMBEDDING_MODEL && !credentials.api_host && isTongyiInternationalEndpointEnabled(credentials)) {
+				throw new Error('qwen3-vl-embedding is available in the Beijing region only')
+			}
+			return new TongyiMultimodalEmbeddings({ credentials, batchSize, model, dimensions, runtime })
 		}
 		const supportedDimensions = QWEN37_EMBEDDING_DIMENSIONS[model]
 		if (supportedDimensions) {
