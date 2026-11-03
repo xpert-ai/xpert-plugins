@@ -16,6 +16,7 @@ export interface SiliconflowModelCredentials
   endpoint_model_name?: string
   mode?: 'completion' | 'chat'
   top_p?: number
+  frequency_penalty?: number
   context_size: string
   max_tokens?: string
   max_tokens_to_sample?: string
@@ -23,6 +24,7 @@ export interface SiliconflowModelCredentials
   voices?: string
   streaming?: boolean
   enable_thinking?: boolean
+  reasoning_effort?: 'low' | 'high' | 'max'
   thinking_budget?: string | number
   top_k?: string | number
   seed?: string | number

@@ -10,6 +10,7 @@ import {
 import { MoonshotProviderStrategy } from '../provider.strategy.js';
 import { MoonshotModelCredentials, toCredentialKwargs } from '../types.js';
 import { createMoonshotChatModel } from './moonshot-chat-model.js';
+import { buildKimi31Options } from './kimi31-options.js';
 
 @Injectable()
 export class MoonshotLargeLanguageModel extends LargeLanguageModel {
@@ -55,9 +56,18 @@ export class MoonshotLargeLanguageModel extends LargeLanguageModel {
       options?.modelProperties
     ) as MoonshotModelCredentials;
     const params = toCredentialKwargs(modelCredentials, copilotModel.model);
+    const runtime = { ...options?.modelProperties, ...copilotModel.options };
 
     const fields = {
       ...params,
+      ...(copilotModel.model === 'kimi-k3.1-pro' || copilotModel.model === 'kimi-k3.1-pro-highspeed'
+        ? { modelKwargs: buildKimi31Options({
+            max_completion_tokens: runtime['max_completion_tokens'],
+            reasoning_effort: runtime['reasoning_effort'],
+            response_format: runtime['response_format'],
+            json_schema: runtime['json_schema'],
+          }) }
+        : {}),
       streaming: copilotModel.options?.['streaming'] ?? true,
       streamUsage: true,
       verbose: options?.verbose,

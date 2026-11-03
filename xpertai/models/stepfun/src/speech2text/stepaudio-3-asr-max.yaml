@@ -1,0 +1,34 @@
+# Source: langgenius/dify-official-plugins@3189f896; verified 2026-11-03.
+# Free through 2026-11-08 Asia/Shanghai; then RMB 7.50/audio hour. See docs/model-catalog-2026-11.md.
+model: stepaudio-3-asr-max
+label:
+  en_US: StepAudio 3 ASR Max
+  zh_Hans: StepAudio 3 ASR Max
+model_type: speech2text
+model_properties:
+  file_upload_limit: 25
+  supported_file_extensions: mp3,m4a,ogg,wav
+pricing:
+  type: usage
+  rules:
+    - id: stepaudio-3-asr-max-launch
+      version: 2026-11
+      effective_from: "2026-11-03T00:00:00+08:00"
+      unit: second
+      unit_size: 3600
+      unit_price: 0
+      currency: RMB
+      charge_type: free
+      component: input
+      source_url: https://platform.stepfun.com/docs/zh/guides/pricing/details
+      effective_to: "2026-11-09T00:00:00+08:00"
+    - id: stepaudio-3-asr-max-standard
+      version: 2026-11
+      effective_from: "2026-11-09T00:00:00+08:00"
+      unit: second
+      unit_size: 3600
+      unit_price: 7.5
+      currency: RMB
+      charge_type: paid
+      component: input
+      source_url: https://platform.stepfun.com/docs/zh/guides/pricing/details
