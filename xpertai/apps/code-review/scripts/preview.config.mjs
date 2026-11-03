@@ -25,6 +25,16 @@ const reviews = entries.filter(entry => entry.reviewId).map(entry => ({ id: entr
   status: 'reviewed', access: 'public', pinned: false, viewed: [], summary: '已完成本次变更的审查，未发现可验证的缺陷。', findings: [], errorCode: null, submissionUrl: null,
   automationRunId: entry.runId, pipelineProjectId: projectId, conversationId: id(100), executionId: id(101) }))
 const older = [1,2].map((n) => ({ ...entries[0], id: id(110+n), reviewId: id(120+n), runId: id(110+n), status: 'superseded', headSha: String(n).repeat(40), createdAt: `2026-10-20T0${n}:00:00Z` }))
+const workflows = Array.from({ length: 24 }, (_, i) => ({
+  id: id(400 + i),
+  ref: { kind: 'workflow_run', runId: 9001 + i, attempt: 1, headSha: 'd'.repeat(40), branch: 'main',
+    name: 'Workflow scroll acceptance', conclusion: 'failure', url: `https://example.invalid/actions/runs/${9001 + i}` },
+  status: 'completed', reason: null, createdAt: '2026-11-03T00:00:00Z',
+  result: { summary: 'Synthetic workflow diagnosis for list and expanded-detail scrolling.', findings: [{ jobId: 8001 + i,
+    cause: 'The fixture deliberately reports a failed test.',
+    evidence: Array.from({ length: 40 }, (_, line) => `Log line ${line + 1}: fixture assertion failed.`).join('\n'),
+    suggestion: 'Inspect the complete log and verify that pagination remains reachable.' }] }
+}))
 for (const entry of older) {
   const review = structuredClone(reviews[0])
   review.id = entry.reviewId; review.snapshot.headSha = entry.headSha; review.automationRunId = entry.runId
@@ -38,13 +48,14 @@ export default {
     runtimeScope: { projectId, conversationId: null }, theme: { mode: process.env.PREVIEW_THEME ?? 'light', tokens: { 'color-primary': '#2563eb', 'color-primary-foreground': '#ffffff',
       ...(process.env.PREVIEW_THEME === 'dark' ? { 'color-background': '#09090b', 'color-foreground': '#fafafa', 'color-card': '#18181b', 'color-card-foreground': '#fafafa', 'color-popover': '#18181b', 'color-popover-foreground': '#fafafa', 'color-muted': '#27272a', 'color-muted-foreground': '#a1a1aa', 'color-border': '#3f3f46', 'color-input': '#3f3f46', 'color-accent': '#27272a', 'color-accent-foreground': '#fafafa', 'color-warning': '#fbbf24', 'color-success': '#4ade80' } : {})
     } } },
-  state: { repository, entries, reviews, older, savedConfigurations, configurations: {}, commands: [], mutations: [] },
+  state: { repository, entries, reviews, older, workflows, savedConfigurations, configurations: {}, commands: [], mutations: [] },
   async handleRequest(message, { state }) {
     const envelope = { scopeRevision: message.scopeRevision }
     if (message.type === 'requestData') {
       const p = message.query?.parameters ?? {}, page = message.query?.page ?? 1
       let data
       if (p.githubConnection) data = { items: [], meta: { connection: { status: 'connected', login: 'fixture-user' } } }
+      else if (p.workflows) data = { items: state.workflows.slice((page-1)*20,page*20), total: state.workflows.length }
       else if (p.workbench) {
         let items = p.history || p.recordId ? [...state.entries, ...state.older] : state.entries
         if (p.recordId) items = items.filter(e => e.id === p.recordId || e.reviewId === p.recordId)

@@ -291,10 +291,9 @@ export function Workbench() {
   ]
   return (
     <div className="review-workbench flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background text-foreground">
-      <header className="review-toolbar flex shrink-0 items-center gap-3 border-b px-4 py-2">
+      <header className="review-toolbar flex shrink-0 items-center gap-3 border-b py-2 pl-2 pr-4">
         <Button
           variant="ghost"
-          size="icon"
           aria-label={t(navOpen ? 'hideNavigation' : 'showNavigation')}
           title={t(navOpen ? 'hideNavigation' : 'showNavigation')}
           onClick={() => setNavOpen((v) => !v)}
@@ -610,7 +609,7 @@ export function Workbench() {
           if (!busy) setCreateOpen(value)
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogTitle>{t('openGithubPr')}</DialogTitle>
           <DialogDescription>{t('openPrHelp')}</DialogDescription>
           <form

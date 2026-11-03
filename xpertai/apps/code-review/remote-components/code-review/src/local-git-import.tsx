@@ -43,7 +43,7 @@ export function LocalGitImport({
         if (!busy) setOpen(value)
       }}
     >
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogTitle>{t('localImportTitle')}</DialogTitle>
         <DialogDescription>{t('localImportHelp')}</DialogDescription>
         <Input
