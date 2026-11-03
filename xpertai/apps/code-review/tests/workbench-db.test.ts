@@ -1,4 +1,7 @@
 import 'reflect-metadata'
+import { ReviewEventSubscription, ReviewEvents } from '../src/event-subscription.js'
+import { WorkflowDiagnosis } from '../src/workflow-entity.js'
+import { WorkflowDiagnostics } from '../src/workflow-diagnostics.js'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { randomUUID } from 'node:crypto'
@@ -32,7 +35,7 @@ test(
       type: 'postgres',
       url,
       schema,
-      entities: [Review, ReviewRepository, ReviewRun, ReviewDelivery],
+      entities: [ReviewEventSubscription, WorkflowDiagnosis, Review, ReviewRepository, ReviewRun, ReviewDelivery],
       uuidExtension: 'pgcrypto',
       extra: { options: `-c search_path=${schema},public` }
     })
@@ -66,11 +69,13 @@ test(
         return this.assertEdit(c)
       }
     })
+    const events = new ReviewEvents(db.getRepository(ReviewEventSubscription), capability)
     const repositories = new Repositories(
       db.getRepository(ReviewRepository),
       {} as GitHubApp,
       {} as ReviewPipelineCatalog,
-      capability
+      capability,
+      events
     )
     const reviews = new Reviews(db.getRepository(Review), {} as PluginContext, repositories, capability)
     const automation = new Automation(
@@ -79,7 +84,9 @@ test(
       repositories,
       reviews,
       {} as PluginContext,
-      {} as ReviewPipelineAutomation
+      {} as ReviewPipelineAutomation,
+      events,
+      new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, {} as PluginContext)
     )
     const workbench = new ReviewWorkbench(reviews, automation),
       page = (input: Record<string, unknown> = {}, scope = s) =>

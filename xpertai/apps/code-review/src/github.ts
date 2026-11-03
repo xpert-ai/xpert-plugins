@@ -21,6 +21,37 @@ export class GitHub {
     if (!response.ok) throw new ReviewError(response.status === 404 ? 'pull_request_not_found' : response.status === 401 ? 'github_auth_required' : response.status === 403 || response.status === 429 ? 'github_access_or_rate_limit' : 'github_request_failed')
     return response.json()
   }
+  async jobLog(owner: string, repository: string, jobId: number) {
+    z.number().int().positive().safe().parse(jobId)
+    const response = await this.transport(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/actions/jobs/${jobId}/logs`, {
+      redirect: 'manual', signal: AbortSignal.timeout(30000), headers: { Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }
+    })
+    let logs = response
+    if (response.status === 302) {
+      const target = new URL(response.headers.get('location') ?? '')
+      if (target.protocol !== 'https:' || target.port || target.username || target.password ||
+        !['.githubusercontent.com', '.blob.core.windows.net'].some(suffix => target.hostname.endsWith(suffix))) throw new ReviewError('invalid_log_redirect')
+      // Signed storage URLs never receive the GitHub Authorization header.
+      logs = await this.transport(target, { redirect: 'error', signal: AbortSignal.timeout(30000) })
+    }
+    if (!logs.ok || !logs.body) throw new ReviewError('workflow_logs_unavailable')
+    const reader = logs.body.getReader(), chunks: Uint8Array[] = []
+    let size = 0, truncated = false
+    try {
+      while (true) {
+        const next = await reader.read()
+        if (next.done) break
+        const remaining = 256 * 1024 - size
+        chunks.push(next.value.subarray(0, remaining)); size += Math.min(remaining, next.value.length)
+        if (size >= 256 * 1024) { truncated = true; break }
+      }
+    } finally { await reader.cancel() }
+    const content = Buffer.concat(chunks).toString('utf8')
+      .replace(/\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b/g, '[REDACTED]')
+      .replace(/(authorization\s*[:=]\s*(?:bearer|token)\s+)\S+/gi, '$1[REDACTED]')
+    return { content, truncated }
+  }
   private path(ref: PullRef) { return `/repos/${encodeURIComponent(ref.owner)}/${encodeURIComponent(ref.repository)}` }
   async inbox(filter: 'requested' | 'authored', page: number) {
     if (!this.token) throw new ReviewError('github_auth_required')

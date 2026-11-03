@@ -1,6 +1,6 @@
 # Code Review
 
-Installable Xpert app for GitHub PR review in the right-hand Workbench panel. Built with Shadcn UI + Tailwind CSS. Includes immutable diff snapshots, private AI findings, viewed files, checks, repository policies, a review inbox, automatic GitHub App review comments, and explicit manual submission.
+Installable Xpert app and composable **Code review** Assistant capability for GitHub PR review and workflow failure diagnosis. Built with Shadcn UI + Tailwind CSS. Includes immutable diff snapshots, private AI findings, viewed files, checks, repository policies, a review inbox, and governed GitHub submission.
 
 See [automatic PR review setup](docs/automation.mdx), [setup and usage](docs/index.mdx), [architecture](docs/architecture.mdx), and [validation](docs/verification.mdx).
 
@@ -20,7 +20,7 @@ The queue combines authorized manual reviews and webhook runs into one row per G
 
 ## Configure automatic reviews
 
-Automatic reviews require three steps: an administrator configures the GitHub App, a user connects their GitHub account and grants repository access, and the user enables repository review rules in Code Review. Saving the plugin configuration alone does not enable automatic reviews.
+Automatic reviews require a configured GitHub App, an authorized account connection and enabled repository rules. Choose **Current Assistant** for private PR review and workflow diagnosis, then enable **GitHub events · Code review** in the Assistant's Triggers settings. Choose **Project pipeline** for governed multi-role review and publication. Existing rules retain pipeline mode; new rules default to Current Assistant. Saving the plugin configuration alone does not enable automatic reviews.
 
 ### 1. Install and initialize
 
@@ -49,7 +49,7 @@ In your GitHub account or organization, open **Settings → Developer settings �
    openssl rand -hex 32
    ```
 
-4. Under **Repository permissions**, set **Contents: Read-only** and **Pull requests: Read & write**. Under **Subscribe to events**, select **Pull request**.
+4. Under **Repository permissions**, set **Contents: Read-only** and **Pull requests: Read & write**. Under **Subscribe to events**, select **Pull request**. For workflow failure/timeout diagnosis, also grant **Actions: Read-only** and subscribe to **Workflow run**.
 5. Use **Install App** to install the App on the target account or organization and grant access to the repositories you want to review.
 
 ### 3. Configure one GitHub system integration
@@ -86,7 +86,7 @@ The integration may be saved without a webhook secret, but signed and unsigned w
 3. Enter `owner/repository`, click **Add repository**, and open **Configure rules**.
 4. Enter the number of an existing open, non-draft PR and click **Try review (no publishing)**. Trials consume model usage and save results privately without publishing to GitHub.
 5. Inspect the trial result, select **Enable automatic reviews**, configure triggers, base branches, ignored paths, additional review guidance and the daily limit, then save the rules.
-6. Choose a delivery mode: **Save draft, confirm before publishing** requires confirmation in the inbox. **Automatically post summary and P0/P1 findings** publishes a `COMMENT` as the GitHub App; it never approves, requests changes or merges PRs.
+6. For Current Assistant, enable **GitHub events · Code review** in its Triggers settings; automatic results stay private. For Project pipeline, bind a valid Code Review Project pipeline. Publication follows its human approval gate and posts a GitHub App `COMMENT`; it never approves, requests changes or merges PRs.
 
 By default, automation is paused and delivery requires confirmation. Once enabled, the default triggers cover opened or reopened PRs, drafts marked ready for review, and new commits. Draft and bot-authored PRs are excluded by default. The daily limit is 20 review attempts per repository per UTC day, including trials.
 
@@ -166,7 +166,15 @@ inline App configuration remains supported during migration.
 
 ## Repository pipeline routing
 
-Repository automation requires an explicit Project and review pipeline. Manual startup and repository rules select a compatible template and its Assistants directly; they save the immutable Project configuration on submission. Reusing an existing configuration is optional. See [setup, templates and migration](docs/automation.mdx). Apply `migrations/20261022-repository-pipelines.sql` before loading this release with external schema management. Historical private reviews are not automatically shared or published.
+Repository rules explicitly select **Current Assistant** (private review/diagnosis) or **Project pipeline** (shared evidence and governed publication). Existing rules keep Project pipeline mode. The `code-review` Assistant capability can be enabled during blank creation or profile editing, and exposes review tools plus the gated workbench.
+
+For Assistant automation, configure authorized repositories and event filters in Code Review, then enable **GitHub events · Code review** in the Assistant's Triggers settings. This subscription runs on the server independently of Bosi. It supports PR opened/reopened/ready/synchronize and failed or timed-out `workflow_run.completed` events. Workflow diagnosis additionally requires **Actions: Read** and the **Workflow run** event subscription on the GitHub App. No GitHub publication or code execution is performed by diagnosis tools.
+
+Apply `migrations/20261102-assistant-events.sql` after the existing migrations when schema synchronization is externally managed. It adds subscription/diagnosis records and request idempotency, preserves old pipeline policies, and does not change sharing or subscribe existing Assistants. See [setup, templates and migration](docs/automation.mdx).
+
+The new trigger status projection requires the matching host SDK/server change (`IWorkflowTriggerStrategy.assistantStatus` and trusted validation/publication scope). Development uses the exact host build as described below; publishing requires a released SDK containing those contracts. The existing registry range alone does not prove compatibility with these new host features.
+
+With a disposable `xpert_pipeline_test_*` PostgreSQL database, run `scripts/assistant-events-acceptance.mjs` in addition to the pipeline acceptance. It exercises signed ingestion, duplicate deliveries, private ownership, task finalizers, ambiguous dispatch recovery, workflow attempts, pause/revocation, PR-link idempotency and additive migration. GitHub and model transports are fixtures; real public ingress and provider permissions require separate deployment verification.
 
 
 ### Personal App installation / 个人安装

@@ -11,6 +11,10 @@ import { Reviews } from './backend.js'
 import { Repositories } from './repositories.js'
 import { ReviewPipelineAutomation } from './pipeline/automation.js'
 import { assertGitHubRepositoryApplication } from './github-integration.js'
+import { ReviewEvents } from './event-subscription.js'
+import { WorkflowDiagnostics } from './workflow-diagnostics.js'
+import { WorkflowDiagnosis } from './workflow-entity.js'
+import { workflowEventSchema } from './workflow-contract.js'
 
 const pending: RunStatus[] = ['queued', 'running', 'publishing', 'awaiting_confirmation', 'awaiting_revision', 'blocked']
 const logger = new Logger('CodeReviewAutomation')
@@ -22,7 +26,8 @@ export class Automation {
   constructor(@InjectRepository(ReviewRun) readonly runs: Repository<ReviewRun>,
     @InjectRepository(ReviewDelivery) private readonly deliveries: Repository<ReviewDelivery>,
     readonly repositories: Repositories, private readonly reviews: Reviews,
-    @Inject(CONTEXT) private readonly context: PluginContext, private readonly pipelines: ReviewPipelineAutomation) {}
+    @Inject(CONTEXT) private readonly context: PluginContext, private readonly pipelines: ReviewPipelineAutomation,
+    private readonly events: ReviewEvents, private readonly workflows: WorkflowDiagnostics) {}
   private queue() { return this.context.resolve<ManagedQueueService>(MANAGED_QUEUE_SERVICE_TOKEN) }
   async schedule(p: ReviewRepository, future = false) {
     const bucket = Math.floor(Date.now() / 30000) + (future ? 1 : 0)
@@ -59,6 +64,16 @@ export class Automation {
     if (!/^[\w-]{1,100}$/.test(deliveryId) || !/^[a-z_]{1,80}$/.test(event)) throw new ReviewError('invalid_webhook_headers')
     const bytes = raw! // verified above
     const digest = createHash('sha256').update(bytes).digest('hex')
+    if (event === 'workflow_run') {
+      const payload = workflowEventSchema.parse(JSON.parse(bytes.toString('utf8')))
+      const p = await this.repositories.records.findOneBy({ installationId: String(payload.installation.id), repositoryId: String(payload.repository.id) })
+      if (!p) return { accepted: true, ignored: true }
+      if (application?.tenantId && application.tenantId !== p.tenantId) throw new ReviewError('github_integration_unavailable')
+      assertGitHubRepositoryApplication(application!, p)
+      await this.workflows.receive(p, payload, deliveryId, digest)
+      await this.schedule(p)
+      return { accepted: true }
+    }
     if (event !== 'pull_request') return { accepted: true, ignored: true }
     const payload = pullEventSchema.parse(JSON.parse(bytes.toString('utf8')))
     const p = await this.repositories.records.findOneBy({ installationId: String(payload.installation.id), repositoryId: String(payload.repository.id) })
@@ -73,7 +88,11 @@ export class Automation {
         if (previous.digest !== digest) throw new ReviewError('delivery_payload_mismatch')
         return
       }
-      const reason = triggerDecision(locked.settings, payload) ?? (!locked.settings.pipeline ? 'pipeline_binding_required' : null), pr = payload.pull_request
+      let reason = triggerDecision(locked.settings, payload)
+      if (locked.settings.executionMode === 'assistant') {
+        try { await this.events.assertListening(locked) } catch { reason ??= 'github_trigger_paused' }
+      } else if (!locked.settings.pipeline) reason ??= 'pipeline_binding_required'
+      const pr = payload.pull_request
       // Non-trigger events must not consume the key used by a subsequent ready_for_review event.
       const operationKey = `${pr.number}-${pr.head.sha}-${locked.revision}${reason ? '-skip-' + payload.action : ''}`
       let run = await manager.findOneBy(ReviewRun, { repositoryPolicyId: locked.id, operationKey })
@@ -87,11 +106,13 @@ export class Automation {
     })
     // Returning an error on enqueue failure lets GitHub redelivery re-arm the already persisted run.
     await this.schedule(p)
+    await this.events.activity(p, 'event')
     return { accepted: true }
   }
   async trial(s: Scope, repositoryId: string, number: number) {
     const p = await this.repositories.get(s, repositoryId), github = await this.repositories.github(s, p.id)
-    if (!p.settings.pipeline) throw new ReviewError('pipeline_binding_required')
+    if (p.settings.executionMode !== 'assistant' && !p.settings.pipeline) throw new ReviewError('pipeline_binding_required')
+    if (p.settings.executionMode === 'assistant') await this.events.access(s)
     const ref = parsePullUrl(`https://github.com/${p.owner}/${p.repository}/pull/${number}`), snapshot = await github.snapshot(ref)
     const operationKey = `trial-${number}-${snapshot.headSha}-${p.revision}`
     const prior = await this.runs.findOneBy({ repositoryPolicyId: p.id, operationKey })
@@ -107,7 +128,7 @@ export class Automation {
     if (!previous) throw new ReviewError('run_not_found')
     const p = await this.repositories.get(s, previous.repositoryPolicyId)
     if (!['failed', 'cancelled', 'skipped', 'superseded', 'needs_configuration'].includes(previous.status)) throw new ReviewError('run_not_retryable')
-    if (!p.settings.pipeline) throw new ReviewError('pipeline_binding_required')
+    if (p.settings.executionMode !== 'assistant' && !p.settings.pipeline) throw new ReviewError('pipeline_binding_required')
     if (!p.settings.enabled && previous.trigger !== 'trial') throw new ReviewError('automation_paused')
     const operationKey = `retry-${previous.id}`, prior = await this.runs.findOneBy({ repositoryPolicyId: p.id, operationKey })
     if (prior) { await this.schedule(p); return prior }
@@ -151,6 +172,7 @@ export class Automation {
         }
       }
     })
+    await this.workflows.process(await this.repositories.records.findOneByOrFail({ id }))
   }
   private async finish(manager: EntityManager, run: ReviewRun, status: RunStatus, reason: string | null = null) {
     await manager.update(ReviewRun, { id: run.id }, { status, reason, finishedAt: new Date() })
@@ -170,18 +192,23 @@ export class Automation {
     if (await this.reconcilePublication(manager, p, run)) return
     if (p.revision !== run.policyRevision || (!p.settings.enabled && run.trigger !== 'trial'))
       return this.stop(manager, p, run, 'cancelled', 'policy_changed')
+    if (run.settings.executionMode === 'assistant') {
+      try { if (run.trigger === 'trial') await this.events.access(p); else await this.events.assertListening(p) }
+      catch { return this.stop(manager, p, run, 'cancelled', 'github_trigger_paused') }
+    }
     const github = await this.repositories.github(p, p.id)
     const current = await github.state(parsePullUrl(`https://github.com/${p.owner}/${p.repository}/pull/${run.number}`))
     if (current.head.sha !== run.headSha) return this.stop(manager, p, run, 'superseded', 'new_commit')
     if (current.state !== 'open' || current.draft) return this.stop(manager, p, run, 'skipped', current.draft ? 'draft_pull_request' : 'pull_request_closed')
     if (run.trigger !== 'trial' && ((!run.settings.includeBots && current.user.type === 'Bot') || (run.settings.branches.length && !run.settings.branches.includes(current.base.ref))))
       return this.stop(manager, p, run, 'skipped', 'branch_or_author_excluded')
-    if (!run.settings.pipeline) return this.stop(manager, p, run, 'needs_configuration', 'pipeline_binding_required')
+    if (run.settings.executionMode !== 'assistant' && !run.settings.pipeline) return this.stop(manager, p, run, 'needs_configuration', 'pipeline_binding_required')
     if (run.pipelineInstanceId) return this.pipelines.advance(manager, p, run)
-    await this.pipelines.validate(p, run)
+    if (run.settings.executionMode !== 'assistant') await this.pipelines.validate(p, run)
     if (!run.startedAt) {
       const midnight = new Date(); midnight.setUTCHours(0, 0, 0, 0)
-      const used = await manager.count(ReviewRun, { where: { repositoryPolicyId: p.id, startedAt: MoreThanOrEqual(midnight) } })
+      const quotaWhere = { repositoryPolicyId: p.id, startedAt: MoreThanOrEqual(midnight) }
+      const used = await manager.count(ReviewRun, { where: quotaWhere }) + await manager.count(WorkflowDiagnosis, { where: quotaWhere })
       if (used >= run.settings.dailyLimit) return this.finish(manager, run, 'skipped', 'daily_limit_reached')
       // Commit the quota reservation before fetching or dispatching a model task.
       await manager.update(ReviewRun, { id: run.id }, { startedAt: new Date() }); return
@@ -194,6 +221,18 @@ export class Automation {
         if (error instanceof ReviewError && ['all_files_excluded', 'stale_revision'].includes(error.code)) return this.finish(manager, run, 'skipped', error.code)
         throw error
       }
+      return
+    }
+    if (run.settings.executionMode === 'assistant') {
+      let review = await this.reviews.reconcile(p, run.reviewId)
+      if (review.status === 'ready') {
+        await this.repositories.app.inspect(p, p.owner, p.repository)
+        review = await this.reviews.start(p, review.id, review.revision, [run.settings.instructions, await this.events.instructions(p)].filter(Boolean).join('\n\n'), run.id)
+        await this.events.activity(p, 'run')
+      }
+      if (review.status === 'reviewed') return this.finish(manager, run, 'completed')
+      if (review.status === 'failed' || review.status === 'cancelled') return this.finish(manager, run, 'failed', review.errorCode ?? 'assistant_task_failed')
+      if (run.startedAt && Date.now() - run.startedAt.getTime() > 60 * 60 * 1000) return this.stop(manager, p, run, 'failed', 'review_timeout')
       return
     }
     await this.pipelines.advance(manager, p, run)

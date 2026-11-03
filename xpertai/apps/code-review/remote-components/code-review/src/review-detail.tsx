@@ -49,6 +49,7 @@ import { workbenchPageSchema, type WorkbenchEntry } from '../../../src/workbench
 import { i18n, errorMessage } from './i18n'
 import { ReviewChanges } from './review-changes'
 import { PipelineStart } from './pipeline-start'
+import { eventI18n } from './event-i18n'
 import { openPipeline } from './repository-pipeline'
 import { sourceLabel, statusLabel, statusTone } from './workbench-model'
 const reviewSchema = z.object({
@@ -286,7 +287,8 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
             )}
           </div>
         )}
-        {!projectId && review && (
+        {!projectId && review && !review.automationRunId && ['ready', 'reviewed', 'failed', 'cancelled'].includes(review.status) && <div className="mt-4 space-y-2"><Button disabled={busy} onClick={() => void act('start', { instructions: focus })}>{eventI18n.t('startAssistant')}</Button><p className="text-xs text-muted-foreground">{eventI18n.t('privateResult')}</p></div>}
+        {!projectId && review && host?.runtimeScope?.projectId && (
           <PipelineStart
             key={`${review.id}:${host?.scopeRevision}`}
             host={host}

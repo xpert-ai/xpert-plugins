@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, In, Repository } from 'typeorm'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import type { RunnableConfig } from '@langchain/core/runnables'
 import { z } from 'zod/v3'
 import {
   ProjectAccessRuntimeCapability, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
@@ -13,7 +14,7 @@ import { localGitImportSchema, localGitSourcesSchema, type LocalGitImport } from
 import { digest, reviewAgentContextSchema } from './pipeline/contract.js'
 import { GitHub } from './github.js'
 import { Repositories } from './repositories.js'
-import type { ReviewRun, ReviewRepository } from './automation-entities.js'
+import { ReviewRun, type ReviewRepository } from './automation-entities.js'
 import { ignoredPath } from './automation-domain.js'
 import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, reviewLabel, type Scope } from './domain.js'
 import { assertPipelineReviewAccess, assertPipelineReviewVersion } from './pipeline/access.js'
@@ -128,6 +129,27 @@ export class Reviews {
     const snapshot = await (await this.github(s, access)).snapshot(ref)
     return this.records.save(this.records.create({ ...owner(s), ref, access, snapshot, status: 'ready', findings: [], viewed: [], summary: '', instructions: '' }))
   }
+  async request(s: Scope, url: string, instructions: string, config?: RunnableConfig) {
+    const context = z.object({ context: z.object({ codeReview: z.object({}).passthrough().optional(),
+      codeReviewWorkflow: z.object({}).passthrough().optional() }).optional() }).parse(config?.configurable ?? {})
+    if (context.context?.codeReview || context.context?.codeReviewWorkflow) throw new ReviewError('nested_review_forbidden')
+    if (!s.runtime?.executionId) throw new ReviewError('execution_required')
+    const ref = parsePullUrl(url)
+    const requestKey = createHash('sha256').update(JSON.stringify([owner(s), s.runtime.executionId, ref])).digest('hex')
+    let r = await this.records.findOneBy({ ...owner(s), requestKey })
+    if (!r) {
+      const snapshot = await (await this.github(s, 'connected')).snapshot(ref)
+      await this.records.createQueryBuilder().insert().values({ ...owner(s), requestKey, ref, snapshot, access: 'connected', status: 'ready',
+        findings: [], viewed: [], summary: '', instructions }).orIgnore().execute()
+      r = await this.records.findOneByOrFail({ ...owner(s), requestKey })
+    }
+    if (r.status === 'ready') {
+      try { r = await this.start(s, r.id, r.revision, instructions) }
+      catch (error) { if (!(error instanceof ReviewError) || error.code !== 'revision_conflict') throw error; r = await this.get(s, r.id) }
+    }
+    return { reviewId: r.id, status: r.status, headSha: r.snapshot.headSha, conversationId: r.conversationId,
+      message: 'Review task started. Inspect its result in the Code review workbench.' }
+  }
   async importLocal(s: Scope, raw: LocalGitImport) {
     const value = localGitImportSchema.parse(raw)
     const bundleDigest = digest({ ...value, requestId: null })
@@ -169,18 +191,26 @@ export class Reviews {
     if (active.has(r.status)) throw new ReviewError('review_busy')
     const api = this.tasks(s)
     if (r.ref.provider === 'github' && await (await this.recordGithub(s, r)).head(r.ref) !== r.snapshot.headSha) throw new ReviewError('stale_revision')
-    r = await this.update(s, r, { status: 'running', executionId: randomUUID(), conversationId: randomUUID(), taskId: null, threadId: null, instructions, summary: '', findings: [], errorCode: null })
+    r = await this.update(s, r, { status: 'running', executionId: randomUUID(), conversationId: randomUUID(), taskId: null, threadId: null, instructions, summary: '', findings: [], errorCode: 'dispatch_pending_confirmation' })
+    return this.dispatch(s, r)
+  }
+  private async dispatch(s: Scope, r: Review) {
+    if (r.automationPolicyId && r.automationRunId) {
+      const run = await this.records.manager.findOneByOrFail(ReviewRun, { id: r.automationRunId, tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId })
+      await this.repositories.assertAssistantExecution(s, r.automationPolicyId, run.policyRevision, run.trigger === 'trial')
+    }
     try {
-      const receipt = await api.startTask({ xpertId: s.assistantId, executionId: r.executionId!, conversationId: r.conversationId!, clientMessageId: r.executionId!,
-        prompt: `请审查 ${reviewLabel(r.ref)}（${r.snapshot.headSha.slice(0, 12)}），检查变更引入的实际缺陷并保存审查结果。${instructions ? '\n关注点：' + instructions : ''}`,
+      const receipt = await this.tasks(s).startTask({ xpertId: s.assistantId, executionId: r.executionId!, conversationId: r.conversationId!, clientMessageId: r.executionId!,
+        prompt: `请审查 ${reviewLabel(r.ref)}（${r.snapshot.headSha.slice(0, 12)}），使用 code_review_context 读取任务依据，检查变更引入的实际缺陷并使用 code_review_complete 保存结果。${r.instructions ? '\n关注点：' + r.instructions : ''}`,
         context: { codeReview: { reviewId: r.id, headSha: r.snapshot.headSha } } })
-      await this.update(s, await this.get(s, id), { taskId: receipt.taskId ?? null, threadId: receipt.threadId ?? null,
-        executionId: receipt.executionId ?? r.executionId, conversationId: receipt.conversationId ?? r.conversationId })
+      await this.update(s, await this.get(s, r.id), { taskId: receipt.taskId ?? null, threadId: receipt.threadId ?? null,
+        executionId: receipt.executionId ?? r.executionId, conversationId: receipt.conversationId ?? r.conversationId, errorCode: null })
     } catch {
       // A transport failure can happen after the host accepts the task. Preserve its ids for reconciliation.
-      await this.update(s, await this.get(s, id), { errorCode: 'dispatch_pending_confirmation' })
+      const current = await this.get(s, r.id)
+      if (current.status === 'running') await this.update(s, current, { errorCode: 'dispatch_pending_confirmation' })
     }
-    return this.get(s, id)
+    return this.get(s, r.id)
   }
   async reconcile(s: Scope, id: string) {
     let r = await this.get(s, id)
@@ -189,6 +219,7 @@ export class Reviews {
     const status = await this.tasks(s).getTaskStatus?.({ xpertId: s.assistantId, executionId: r.executionId, conversationId: r.conversationId ?? undefined, taskId: r.taskId ?? undefined, threadId: r.threadId ?? undefined })
     // Read again: the completion tool may have changed the state during the host lookup.
     r = await this.get(s, id)
+    if (r.status === 'running' && r.errorCode === 'dispatch_pending_confirmation' && (!status || status.status === 'unknown')) return this.dispatch(s, r)
     if (r.status === 'running' && status && ['failed', 'interrupted', 'succeeded'].includes(status.status)) {
       try { r = await this.update(s, r, { status: 'failed', errorCode: status.status === 'succeeded' ? 'review_result_missing' : 'assistant_task_failed' }) }
       catch (e) { if (!(e instanceof ReviewError) || e.code !== 'revision_conflict') throw e; r = await this.get(s, id) }

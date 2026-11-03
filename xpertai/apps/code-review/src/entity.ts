@@ -6,6 +6,8 @@ import { NAMESPACE, type ReviewRef, type Snapshot, type Finding } from './domain
 @Index(['tenantId', 'organizationId', 'userId', 'assistantId'])
 export class Review {
   @PrimaryGeneratedColumn('uuid') id!: string
+  @Index({ unique: true })
+  @Column({ type: 'varchar', nullable: true }) requestKey!: string | null
   @Column({ type: 'varchar' }) tenantId!: string
   @Column({ type: 'varchar' }) organizationId!: string
   @Column({ type: 'varchar' }) userId!: string

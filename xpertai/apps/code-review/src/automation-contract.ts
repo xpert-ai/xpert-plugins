@@ -5,6 +5,10 @@ export type PipelineTarget = z.infer<typeof pipelineTargetSchema>
 
 export const policySettingsSchema = z.object({
   enabled: z.boolean(),
+  executionMode: z.enum(['assistant', 'pipeline']).default('pipeline'),
+  onWorkflowFailure: z.boolean().default(false),
+  onWorkflowTimeout: z.boolean().default(false),
+  workflows: z.array(z.string().trim().min(1).max(200)).max(30).default([]),
   delivery: z.enum(['draft', 'automatic']),
   onOpened: z.boolean(), onReady: z.boolean(), onPush: z.boolean(),
   includeBots: z.boolean(),
@@ -17,6 +21,7 @@ export const policySettingsSchema = z.object({
 }).strict()
 export type PolicySettings = z.infer<typeof policySettingsSchema>
 export const defaultPolicy: PolicySettings = {
+  executionMode: 'assistant', onWorkflowFailure: false, onWorkflowTimeout: false, workflows: [],
   enabled: false, delivery: 'draft', onOpened: true, onReady: true, onPush: true,
   includeBots: false, branches: [], ignoredPaths: ['**/package-lock.json', '**/pnpm-lock.yaml', '**/yarn.lock'],
   instructions: '', dailyLimit: 20, visibility: 'private', pipeline: null

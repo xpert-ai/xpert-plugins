@@ -7,12 +7,14 @@ import { GitHubApp } from './github-app.js'
 import { ReviewRepository } from './automation-entities.js'
 import { defaultPolicy, policySettingsSchema, type PolicySettings } from './automation-domain.js'
 import { ReviewError, type Scope } from './domain.js'
+import { ReviewEvents } from './event-subscription.js'
 
 export const repositoryScope = (s: Scope) => ({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, userId: s.userId })
 @Injectable()
 export class Repositories {
   constructor(@InjectRepository(ReviewRepository) readonly records: Repository<ReviewRepository>, readonly app: GitHubApp, private readonly catalog: ReviewPipelineCatalog,
-    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry) {}
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry,
+    private readonly events: ReviewEvents) {}
   async list(s: Scope) {
     const projectId = s.runtime?.projectId
     if (!projectId) return this.records.find({ where: repositoryScope(s), order: { createdAt: 'DESC' }, take: 100 })
@@ -45,15 +47,21 @@ export class Repositories {
   }
   async save(s: Scope, id: string, revision: number, input: PolicySettings) {
     const settings = policySettingsSchema.parse(input), existing = await this.get(s, id)
-    if (settings.enabled && !settings.pipeline) throw new ReviewError('pipeline_binding_required')
-    if (settings.pipeline) {
+    if (settings.executionMode === 'assistant') {
+      if (settings.pipeline || settings.visibility !== 'private' || settings.delivery !== 'draft') throw new ReviewError('assistant_policy_invalid')
+      if (settings.enabled) await this.events.access(s)
+    } else {
+      if (settings.enabled && !settings.pipeline) throw new ReviewError('pipeline_binding_required')
+      if (settings.onWorkflowFailure || settings.onWorkflowTimeout) throw new ReviewError('workflow_requires_assistant')
+    }
+    if (settings.executionMode === 'pipeline' && settings.pipeline) {
       if (settings.visibility !== 'project' || settings.delivery !== 'draft') throw new ReviewError('pipeline_policy_invalid')
       await this.catalog.validate(s, settings.pipeline)
     }
     let binding = { githubIntegrationId: existing.githubIntegrationId, githubAppId: existing.githubAppId }
     // Revalidate GitHub authority before expanding unattended access. Pausing remains available when disconnected.
     if (settings.enabled) {
-      const identity = await this.app.inspect(s, existing.owner, existing.repository)
+      const identity = await this.app.inspect(s, existing.owner, existing.repository, settings.onWorkflowFailure || settings.onWorkflowTimeout)
       if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
       binding = { githubIntegrationId: identity.githubIntegrationId, githubAppId: identity.githubAppId }
     }
@@ -63,6 +71,12 @@ export class Repositories {
   }
   async github(s: Scope, id: string) {
     const p = await this.get(s, id)
-    return this.app.installation(p.installationId, p.repositoryId, s, p)
+    return this.app.installation(p.installationId, p.repositoryId, s, p, p.settings.onWorkflowFailure || p.settings.onWorkflowTimeout)
+  }
+  async assertAssistantExecution(s: Scope, id: string, revision: number, trial: boolean) {
+    const p = await this.get(s, id)
+    if (p.revision !== revision || (!p.settings.enabled && !trial) || p.settings.executionMode !== 'assistant') throw new ReviewError('policy_changed')
+    if (trial) await this.events.access(p)
+    else await this.events.assertListening(p)
   }
 }

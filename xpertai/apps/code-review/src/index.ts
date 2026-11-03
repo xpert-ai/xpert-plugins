@@ -13,7 +13,8 @@ import { PLUGIN, FEATURE, PROVIDER, MIDDLEWARE } from './domain.js'
 import { Review } from './entity.js'
 import { Reviews, CONTEXT } from './backend.js'
 import { ReviewWorkbench } from './workbench.js'
-import { ReviewView, icon } from './view.js'
+import { ReviewView } from './view.js'
+import { icon } from './icon.js'
 import { ReviewMiddleware } from './middleware.js'
 import { templates, appContribution } from './templates.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from './pipeline/entity.js'
@@ -23,6 +24,11 @@ import { ReviewPipelineAutomation } from './pipeline/automation.js'
 import { ReviewPipelineService } from './pipeline/service.js'
 import { ReviewPipelineOperations } from './pipeline/operations.js'
 import { reviewPipelineAdapters } from './pipeline/adapters.js'
+import { CodeReviewCapability } from './capability.js'
+import { ReviewEventSubscription, ReviewEvents } from './event-subscription.js'
+import { CodeReviewGitHubTrigger } from './github-trigger.js'
+import { WorkflowDiagnosis } from './workflow-entity.js'
+import { WorkflowDiagnostics } from './workflow-diagnostics.js'
 const packageJson = createRequire(import.meta.url)('../package.json') as {
   version: string
   xpert: {
@@ -33,6 +39,8 @@ const packageJson = createRequire(import.meta.url)('../package.json') as {
   }
 }
 const entities = [
+  ReviewEventSubscription,
+  WorkflowDiagnosis,
   Review,
   ReviewRepository,
   ReviewRun,
@@ -46,6 +54,10 @@ const entities = [
   entities,
   controllers: [GitHubWebhook],
   providers: [
+    CodeReviewCapability,
+    ReviewEvents,
+    CodeReviewGitHubTrigger,
+    WorkflowDiagnostics,
     Reviews,
     ReviewView,
     ReviewWorkbench,

@@ -17,8 +17,9 @@ import { ReviewPipelineService } from './pipeline/service.js'
 import { attachPipelineSchema } from './pipeline/contract.js'
 import { ReviewPipelineCatalog } from './pipeline/catalog.js'
 import { reviewPipelineConfigureSchema, reviewSourceSchema } from './pipeline/setup-contract.js'
+import { WorkflowDiagnostics } from './workflow-diagnostics.js'
+import { icon } from './icon.js'
 export const reviewDto = (r: Review) => ({ id: r.id, revision: r.revision, ref: r.ref, snapshot: r.snapshot, status: r.status, access: r.access, pinned: r.pinned, viewed: r.viewed, summary: r.summary, findings: r.findings, errorCode: r.errorCode, submissionUrl: r.submissionUrl, taskId: r.taskId, threadId: r.threadId, conversationId: r.conversationId, executionId: r.executionId, automationRunId: r.automationRunId, pipelineProjectId: r.pipelineProjectId })
-export const icon = { type: 'svg' as const, value: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="3"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><path d="M6 8v8m12 0V9a4 4 0 0 0-4-4h-2m2-3-3 3 3 3"/></svg>' }
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const selection = z.object({ id: idSchema, revision: z.number().int().positive() }).strict()
 const logger = new Logger('CodeReviewView')
@@ -26,7 +27,8 @@ const logger = new Logger('CodeReviewView')
 @Injectable()
 @ViewExtensionProvider(PROVIDER)
 export class ReviewView implements IXpertViewExtensionProvider {
-  constructor(private readonly reviews: Reviews, private readonly automation: Automation, private readonly pipelines: ReviewPipelineService, private readonly workbench: ReviewWorkbench) {}
+  constructor(private readonly reviews: Reviews, private readonly automation: Automation, private readonly pipelines: ReviewPipelineService, private readonly workbench: ReviewWorkbench,
+    private readonly workflows: WorkflowDiagnostics) {}
   supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' }
   getViewManifests(_c: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!['agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
@@ -49,6 +51,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
   async getViewData(c: XpertResolvedViewHostContext, viewKey: string, q: XpertViewQuery) {
     if (viewKey !== VIEW) throw new ReviewError('view_not_found')
     const s = scope(c), page = z.number().int().min(1).max(50).parse(q.page ?? 1)
+    if (q.parameters?.workflows) return this.workflows.list(s, page)
     if (q.parameters?.workbench) return this.workbench.page(s, workbenchQuerySchema.parse({ ...q.parameters, page }))
     if (q.parameters?.githubConnection) return { items: [], meta: { connection: await this.automation.repositories.app.connection(s) } }
     if (q.parameters?.automation) return { items: [], meta: await this.automation.overview(s, page, q.parameters.status ? runStatusSchema.parse(q.parameters.status) : undefined) }
@@ -107,7 +110,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
         case 'import-local': result = await this.reviews.importLocal(s, localGitImportSchema.parse(request.input)); break
         case 'open': { const v = z.object({ url: z.string().url(), access: z.enum(['public', 'connected']) }).strict().parse(request.input); result = await this.reviews.open(s, v.url, v.access); break }
         case 'refresh': { const v = selection.parse(request.input); result = await this.reviews.refresh(s, v.id, v.revision); break }
-        case 'start': throw new ReviewError('pipeline_binding_required')
+        case 'start': { const v = selection.extend({ instructions: z.string().max(6000).default('') }).strict().parse(request.input); result = await this.reviews.start(s, v.id, v.revision, v.instructions); break }
         case 'cancel': { const v = selection.parse(request.input); result = await this.reviews.cancel(s, v.id, v.revision); break }
         case 'mark': { const v = selection.extend({ pinned: z.boolean().optional(), viewed: z.array(z.string()).max(3000).optional() }).parse(request.input); result = await this.reviews.mark(s, v.id, v.revision, { ...(v.pinned !== undefined ? { pinned: v.pinned } : {}), ...(v.viewed ? { viewed: v.viewed } : {}) }); break }
         case 'submit': result = await this.reviews.submit(s, submitSchema.parse(request.input)); break

@@ -1,9 +1,25 @@
 ---
-title: "Automatic PR review"
-description: "Bind a repository to a Project pipeline and share one review and approval lifecycle"
+title: "GitHub event automation"
+description: "Run private Assistant reviews and workflow diagnoses, or use a governed Project pipeline"
 ---
 
 ## Relationships
+
+Repository rules select an explicit execution mode. **Current Assistant** handles private PR review and workflow diagnosis without a Project. **Project pipeline** uses the governance described below. Existing rules retain pipeline mode on upgrade; there is no implicit fallback between modes.
+
+## Current Assistant and workflow failures
+
+1. Enable **Code review** when creating or editing an Assistant. Select a model with tool calling.
+2. Open its Code Review view, connect GitHub, add an authorized repository and select **Current Assistant** in repository rules.
+3. Choose PR events and optionally workflow failure/timeout, exact branch/workflow-name filters, guidance and a daily limit. Save the rules.
+4. In the Assistant's **Triggers** settings, enable **GitHub events · Code review**. Event instructions apply alongside repository guidance. The subscription is bound to the configuring actor and survives API restarts.
+5. Inspect PR results in the review inbox and CI results in **Workflow diagnoses**. A failed branch workflow does not need a linked PR.
+
+Workflow diagnosis requires the GitHub App's **Actions: Read** permission and **Workflow run** subscription. The signed callback is the same `/api/code_review/github/webhook` endpoint. Use a public HTTPS origin; GitHub cannot deliver to localhost. Jobs and steps are read from the exact run attempt; logs are bounded and unavailable/truncated evidence remains explicit. The model saves private findings and suggestions, without executing repository content or publishing to GitHub.
+
+PR events are deduplicated by repository policy, commit and policy revision. Workflow events additionally distinguish run ID and attempt. PR pushes retain the 30-second debounce. PR and workflow executions share the repository's daily limit. Pausing the trigger or rules, removing the code-review capability, or revoking access prevents new Assistant work. Existing results remain private and inspectable. Only one automation owner may configure a given App installation/repository.
+
+For manual work, paste a PR URL into an ordinary Assistant conversation to request a review, or open the PR in the workbench and choose **Review with this Assistant**. A running review cannot recursively launch another review. Manual drafts retain the explicit GitHub submission action; automated Assistant results stay private.
 
 A **Project** owns review governance, evidence and pipeline configurations. A Project can have multiple repositories and saved configurations. A repository has one default automation binding per GitHub App installation: **repository → Project → saved pipeline configuration**. This prevents multiple automatic reviewers from independently posting to the same PR.
 
@@ -37,7 +53,7 @@ Defaults: automation paused, opened/reopened, ready-for-review and new-commit ev
 
 Push events wait at least 30 seconds. Signed webhook deliveries and worker retries share durable operation keys. The plugin persists its pipeline command identity before dispatch. A lost response is retried with the same command, rather than creating another Agent task. A new SHA replaces the active round according to the template's round policy; old snapshots are not overwritten. The template currently permits three rounds before requiring attention.
 
-All new reviews use platform dispatch. An unbound or unavailable configuration is an explicit setup error. There is no fallback to standalone Agent review. Manual startup and webhook startup use the same service and supported template validation.
+In Project pipeline mode, an unbound or unavailable configuration is an explicit setup error. There is no fallback to standalone Agent review. Manual pipeline startup and webhook pipeline startup use the same service and supported template validation.
 
 The inbox displays the platform instance and round. **Open review pipeline** navigates within Workbench to that instance. Human publication approval is recorded only by the Project pipeline. The inbox no longer has a second publication confirmation. The publish operation revalidates the exact subject, verified findings, decision digest and approver's current Project management access before posting GitHub `COMMENT`; it never merges or approves the PR.
 
@@ -53,7 +69,7 @@ Correctness and security Agents save independent findings. The verification node
 
 Apply `20261018-project-pipeline.sql`, `20261021-github-system-integration.sql`, then `20261022-repository-pipelines.sql` before starting the new API when schema synchronization is external. The last migration is additive and idempotent. It does not attach existing repositories, change private review visibility, select Assistants, or publish historical drafts.
 
-Old unbound rules require an explicit Project binding before new dispatch. Existing private results remain readable; automated drafts cannot publish from the inbox. Historical standalone manual drafts retain their explicit submission action, while newly started reviews use the Project gate. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
+Apply `20261102-assistant-events.sql` after these migrations. Old unbound rules still require a Project binding unless explicitly changed to Current Assistant mode. Existing private results remain readable; automated Assistant drafts cannot publish from the inbox. Manual standalone drafts retain their explicit submission action. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
 
 Use the Project pipeline to inspect blocked nodes and retry confirmed technical failures. The repository inbox retains trigger, commit, policy revision, platform instance/round and reason. A new current-head attempt is subject to the same binding, access checks and quota.
 
