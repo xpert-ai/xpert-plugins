@@ -28,6 +28,9 @@
     "dist",
     "index.cjs",
     "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.txt",
+    "env.example",
     "docs",
     "!**/*.tsbuildinfo"
   ],

@@ -6,6 +6,20 @@
 
 ![本地 Xpert 中的智能工单补全助手](docs/images/ticket-completion-workbench.png)
 
+以上为回答保存并再次整理后的真实 Xpert 工作台，环境、频率等来自已保存回答，人工标题与实际结果保留。
+
+![聊天工具启动的 AI 整理结果](docs/images/phase-three-workbench.png)
+
+虚构反馈经真实模型处理后生成报告字段和三条追问；未知项保持空白，人工标题受到保护。聊天入口的实际工具调用见 [完整聊天验收](docs/phase-three.md)。
+
+![真实失败记录与重试入口](docs/images/phase-two-failure.png)
+
+此图来自早期真实模型配置失败：页面展示失败原因，原文和人工标题保留，可在同一记录重试。后续已修复绑定并在真实页面重试成功，见 [第二阶段记录](docs/phase-two.md)。
+
+![人工确认后完整刷新恢复的报告快照](docs/images/confirmed-report.png)
+
+在真实页面核对虚构记录后确认，再完整刷新并打开快照，已确认状态和报告内容仍可恢复；未知字段仍标为待补充，确认不表示问题已修复。
+
 录入反馈 → AI 整理 → 回答关键追问并保存 → 重新整理 → 核对并人工确认。展开“查看 AI 来源”可查看原文引用；引用存在不代表推断必然正确，仍需核对含义。
 
 ## 本地开发
@@ -22,6 +36,8 @@ corepack pnpm --filter @community/apps-defect-intake verify:dist
 React 控件使用同仓库共享的 `@xpert-ai/plugin-shadcn-ui`。构建先生成共享 UI，再检查服务端与远程组件类型并生成独立 JS/CSS。运行包不依赖源码目录、共享 UI 源文件或 CDN。SDK 与契约使用已发布的 3.30.2 版本，SDK 为宿主提供的 peer dependency。
 
 ## 安装和入口
+
+环境要求、固定基线、可执行部署步骤与模型配置见 [安装与复现](docs/setup.md)。[env.example](env.example) 仅包含占位变量，真实配置应放在仓库外私有目录；模型密钥只配置在宿主提供商连接中。
 
 插件声明为 `system`，在 Default tenant 以 tenant scope 安装。通过所选 Xpert 宿主的 `plugin:deploy:local --plugin-dir <本插件目录> --scope tenant` 安装，凭证使用宿主支持的 Keychain 或当前进程环境变量；按部署结果重启 API。不要手工修改宿主插件暂存目录。
 
@@ -42,3 +58,9 @@ React 控件使用同仓库共享的 `@xpert-ai/plugin-shadcn-ui`。构建先生
 模拟宿主使用正式资产与单独的 fixture：在仓库根目录运行 `node tools/remote-view-preview/cli.mjs --config community/apps/defect-intake/preview.config.mjs --port 4417`。这是模拟交互验证，不等同于真实平台数据库验收。
 
 完整聊天工具链与双用户验收见 [第三阶段记录](docs/phase-three.md)，五分钟演示见 [演示流程](docs/demo.md)。AI 实现与早期验收见 [第二阶段记录](docs/phase-two.md)，人工闭环历史见 [第一阶段记录](docs/phase-one.md)，需求见 [产品规格](docs/product-spec.md)。
+
+## 交付与边界
+
+[交付核查](docs/delivery.md) 将面试要求映射到具体实现和证据；[复用来源](docs/reuse.md) 说明许可及自己的改动；[数据与隐私说明](docs/privacy.md) 说明存储、模型数据流和保留范围。
+
+当前聚焦文本缺陷工单补全，不接入真实业务日志，不自动诊断、分派、复现或修复，也不写入 Jira/GitHub。真实跨租户/跨组织矩阵、队列中断故障注入、长上下文压缩和 Cloud 产品兼容性尚未单独验证。下一步优先补充更广泛输入的模型稳定性评估，而不是扩大工单处理功能。
