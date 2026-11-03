@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod/v3'
 import { analyticsBindingObjectSchema, analyticsFieldSchema } from '@xpert-ai/plugin-sdk/analytics'
+import type { JSONValue } from '@xpert-ai/contracts'
 
 // Optional on legacy responses; schema authoring requires explicit declarations.
 export const dataXpertResultColumnSchema = analyticsFieldSchema
@@ -10,6 +11,13 @@ export const dataXpertResultColumnSchema = analyticsFieldSchema
   .strip()
 
 export const dataXpertOutputSchema = analyticsBindingObjectSchema.shape.output
+
+export function createDataXpertDatasetId(payload: JSONValue, requestedId?: string): string {
+  const parsed = dataXpertOutputSchema.shape.datasetId.safeParse(requestedId)
+  if (parsed.success) return parsed.data
+  // Native references are not output keys. Include the query projection to separate bindings.
+  return `dataset_${createHash('sha256').update(JSON.stringify(payload)).digest('hex')}`
+}
 
 export function createDataXpertOutput(datasetId: string, columns: z.output<typeof dataXpertResultColumnSchema>[]) {
   if (columns.length === 0 || columns.length > 80)

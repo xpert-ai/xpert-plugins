@@ -58,17 +58,22 @@ test('DataXpert schema discovery feeds real dashboard tool validation and previe
     target: { entityTypeCode: 'semantic_cube', entityRef: 'fixture::cube' },
     params: { dimensions: ['ACCOUNT'], measures: ['SignData'], limit: 20 }, parameterPaths: {} }
   const discovered = JSON.parse(await invoke('dashboard_discover', { source, providerId: 'data-xpert.ontology',
-    requestJson: JSON.stringify({ kind: 'query-schema', datasetId: 'expenses', payload }) }))
+    requestJson: JSON.stringify({ kind: 'query-schema', datasetId: 'datax-semantic-model-11111111-1111-4111-8111-111111111111::$/CPMB/KOITZYF', payload }) }))
   const binding = { source, providerId: 'data-xpert.ontology', parameters: [], payloadJson: JSON.stringify(payload),
     output: discovered.items[0].metadata.output }
   assert.equal(discovered.previewId, undefined)
+  assert.match(binding.output.datasetId, /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
+  const generated = JSON.parse(await invoke('dashboard_discover', { source, providerId: 'data-xpert.ontology',
+    requestJson: JSON.stringify({ kind: 'query-schema', payload }) }))
+  assert.deepEqual(generated.items[0].metadata.output, binding.output)
   const preview = JSON.parse(await invoke('dashboard_preview', { binding }))
   assert.ok(preview.previewId)
   assert.equal(preview.rows[0][binding.output.fields[1].id], '9007199254740993.123456789')
   assert.deepEqual(JSON.parse(preview.bindingJson).output, binding.output)
   assert.equal(JSON.parse(preview.bindingJson).operation, 'action')
-  assert.equal(requests.length, 2)
+  assert.equal(requests.length, 3)
   assert.deepEqual(requests[0], requests[1])
+  assert.deepEqual(requests[1], requests[2])
   denied = true
   await assert.rejects(invoke('dashboard_preview', { binding }), /DATAX_QUERY_HTTP_403/)
   console.log(`Verified SDK versions: DataXpert ${datax('@xpert-ai/plugin-sdk/package.json').version}; Live Dashboard ${dashboard('@xpert-ai/plugin-sdk/package.json').version}`)

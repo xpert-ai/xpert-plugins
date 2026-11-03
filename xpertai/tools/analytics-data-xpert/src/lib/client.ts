@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { dataXpertDiscoveryRequestSchema, dataXpertQueryContract } from './discovery'
-import { createDataXpertOutput, dataXpertOutputSchema, dataXpertResultColumnSchema } from './result-schema'
+import { createDataXpertDatasetId, createDataXpertOutput, dataXpertResultColumnSchema } from './result-schema'
 import {
   ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
@@ -24,7 +24,7 @@ export const dataXpertPayloadSchema = z.object({
   parameterPaths: z.record(z.array(z.string().min(1)).min(1).max(8)).default({})
 }).strict()
 const querySchemaRequestSchema = z.object({
-  kind: z.literal('query-schema'), datasetId: dataXpertOutputSchema.shape.datasetId,
+  kind: z.literal('query-schema'), datasetId: z.string().min(1).max(512).optional(),
   payload: dataXpertPayloadSchema, parameters: z.record(scalar).default({})
 }).strict()
 /** Trusted DataSource configuration; never merge it with payloads, controls or discovery requests. */
@@ -46,10 +46,11 @@ export class DataXpertAnalyticsClient {
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
     if (request && typeof request === 'object' && !Array.isArray(request) && request.kind === 'query-schema') {
       const parsed = querySchemaRequestSchema.parse(request)
-      const result = await this.query(parsed.datasetId, parsed.payload, parsed.parameters, context)
+      const datasetId = createDataXpertDatasetId(parsed.payload, parsed.datasetId)
+      const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
       return analyticsDiscoveryResultSchema.parse({
-        items: [{ id: parsed.datasetId, name: parsed.datasetId, kind: 'dataset',
-          metadata: { output: createDataXpertOutput(parsed.datasetId, result.effect.columns) } }],
+        items: [{ id: datasetId, name: datasetId, kind: 'dataset',
+          metadata: { output: createDataXpertOutput(datasetId, result.effect.columns) } }],
         queryContract: dataXpertQueryContract
       })
     }

@@ -21,8 +21,10 @@ Discovery preserves each adapter's `definition` (identity, version, native metad
 Before constructing a dashboard binding, call `dashboard_discover` with the selected source/provider and `requestJson` encoding:
 
 ```json
-{"kind":"query-schema","datasetId":"expenses","payload":{"resourceId":"<discovered-resource>","actionTypeCode":"<discovered-read-action>","target":{"entityRef":"<canonical-target>"},"params":{},"parameterPaths":{}},"parameters":{}}
+{"kind":"query-schema","payload":{"resourceId":"<discovered-resource>","actionTypeCode":"<discovered-read-action>","target":{"entityRef":"<canonical-target>"},"params":{},"parameterPaths":{}},"parameters":{}}
 ```
+
+Omit `datasetId` to let the provider generate a valid local output key from the native payload, including its projection. An optional `datasetId` accepts a nonempty string of up to 512 characters: valid output keys (a letter followed by up to 79 letters, digits, `_`, `.` or `-`) are preserved; native references or other aliases are replaced with a generated key. Native resource IDs and targets are unchanged. Copy the returned `output.datasetId` as well as its fields.
 
 Use the Action's actual bounded query arguments in `params`. This plugin-owned discovery request executes the same authorized `/agent-workbench/analytics/query` path as preview, with the current actor, host row limit and cancellation signal. It does not require a new DataXpert discovery endpoint. Copy `items[0].metadata.output` into the preview binding and use the same native payload and parameter values. The response includes no business rows and is not a preview receipt; a successful `dashboard_preview` is still required before saving.
 

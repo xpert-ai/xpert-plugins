@@ -118,6 +118,44 @@ function schemaResponse() {
   summary: { rowCount: 2, returnedRowCount: 2, truncated: false } } }
 }
 const schemaRequest = { kind: 'query-schema', datasetId: 'expenses', payload: simpleBinding.payload }
+test('schema discovery supplies valid output IDs for omitted IDs and native cube references', async t => {
+  const { provider, context, state } = await fixture(t, (_req, res) => res.end(JSON.stringify(schemaResponse())))
+  const payload = { ...simpleBinding.payload, resourceId: 'datax-semantic-model-11111111-1111-4111-8111-111111111111',
+    target: { entityTypeCode: 'semantic_cube', entityRef: '11111111-1111-4111-8111-111111111111::$/CPMB/KOITZYF' },
+    params: { dimensions: ['ACCOUNT'], measures: ['[Measures].[/CPMB/SDATA]'], limit: 20 } }
+  const request = { kind: 'query-schema', payload }
+  const omitted = (await provider.discover(request, context)).items[0]
+  const native = (await provider.discover({ ...request, datasetId: payload.resourceId + '::$/CPMB/KOITZYF' }, context)).items[0]
+  assert.deepEqual(native, omitted)
+  const output = native.metadata.output
+  assert.match(output.datasetId, /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
+  assert.equal(native.id, output.datasetId)
+  assert.equal(native.name, output.datasetId)
+  const binding = { ...simpleBinding, id: output.datasetId, providerId: 'data-xpert.ontology', payload, output }
+  const result = normalizeAnalyticsResult(binding, await provider.execute(binding, {}, context), 'preview', 100)
+  assert.equal(result.rows[0][output.fields[1].id], '9007199254740993.123456789')
+  assert.equal(state.requests.length, 3)
+  for (const { body } of state.requests) {
+    assert.equal(body.binding.id, output.datasetId)
+    assert.deepEqual(body.binding.target, payload.target)
+    assert.deepEqual(body.binding.params, payload.params)
+  }
+  const repeated = (await provider.discover(request, context)).items[0]
+  assert.equal(repeated.id, native.id)
+  for (const changed of [
+    { ...payload, params: { ...payload.params, dimensions: [] } },
+    { ...payload, target: { ...payload.target, entityRef: 'different-cube' } }
+  ]) assert.notEqual((await provider.discover({ ...request, payload: changed }, context)).items[0].id, native.id)
+})
+test('schema ID aliases remain bounded strings and cannot introduce identity overrides', async t => {
+  const { provider, context, state } = await fixture(t, (_req, res) => res.end('{}'))
+  for (const datasetId of [null, 1, {}, '', 'x'.repeat(513)]) {
+    await assert.rejects(provider.discover({ ...schemaRequest, datasetId }, context))
+  }
+  await assert.rejects(provider.discover({ kind: 'query-schema', payload: simpleBinding.payload, actor: { userId: 'owner' } }, context))
+  assert.equal(state.tokens, 0)
+  assert.equal(state.requests.length, 0)
+})
 test('declared result metadata survives HTTP parsing without converting exact decimals', async t => {
   const response = schemaResponse()
   const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
