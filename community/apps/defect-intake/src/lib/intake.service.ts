@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { z } from 'zod/v3'
-import { createSchema, emptyReport, ensureConfirmable, IntakeError, recordSchema, saveSchema, type Scope, type ViewData } from '../shared/contracts'
+import { createSchema, emptyReport, ensureConfirmable, IntakeError, recordSchema, reportKeys, saveSchema, type Scope, type ViewData } from '../shared/contracts'
 import { IntakeEntity } from './intake.entity'
+import { activeAnalysis, mergeAnswers, protectedFields } from './analysis/domain'
 
 @Injectable()
 export class IntakeService {
@@ -42,14 +43,19 @@ export class IntakeService {
 
   async save(scope: Scope, id: string, input: z.infer<typeof saveSchema>) {
     const values = saveSchema.parse(input)
-    await this.get(scope, id)
-    const result = await this.records.update({ ...this.where(scope), id, revision: values.revision }, { report: values.report, supplement: values.supplement, status: 'draft', revision: () => 'revision + 1' })
+    const record = await this.get(scope, id)
+    let answers
+    try { answers = mergeAnswers(record, values.answers) } catch { throw new IntakeError('invalid_input') }
+    const manualFields = [...new Set([...protectedFields(record), ...reportKeys.filter(key => record.report[key] !== values.report[key])])]
+    const analysis = activeAnalysis(record.analysis) && record.analysis ? { ...record.analysis, status: 'superseded' as const, completedAt: new Date().toISOString() } : record.analysis
+    const result = await this.records.update({ ...this.where(scope), id, revision: values.revision }, { report: values.report, supplement: values.supplement, answers, protectedFields: manualFields, analysis, status: 'draft', revision: () => 'revision + 1' })
     if (result.affected !== 1) throw new IntakeError('revision_conflict')
     return this.get(scope, id)
   }
 
   async confirm(scope: Scope, id: string, revision: number) {
     const record = await this.get(scope, id)
+    if (activeAnalysis(record.analysis)) throw new IntakeError('analysis_pending')
     // An idempotent repeat does not create another snapshot/revision.
     if (record.status === 'confirmed' && record.confirmed?.sourceRevision === revision) return record
     if (record.revision !== revision) throw new IntakeError('revision_conflict')

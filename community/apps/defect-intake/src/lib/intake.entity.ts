@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
 import { namespace } from './constants'
 import type { IntakeRecord, Report } from '../shared/contracts'
+import type { AnalysisResult, AnalysisState, Answer } from '../shared/analysis'
 
 @Entity(pluginArtifactTableName(namespace, 'record'))
 @Index(['tenantId', 'organizationId', 'ownerId', 'updatedAt'])
@@ -17,6 +18,10 @@ export class IntakeEntity {
   @Column({ type: 'jsonb' }) report!: Report
   @Column({ type: 'varchar', default: 'draft' }) status!: IntakeRecord['status']
   @Column({ type: 'integer', default: 1 }) revision!: number
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" }) protectedFields!: (keyof Report)[]
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" }) answers!: Answer[]
+  @Column({ type: 'jsonb', nullable: true }) analysis!: AnalysisState | null
+  @Column({ type: 'jsonb', nullable: true }) aiResult!: AnalysisResult | null
   @Column({ type: 'jsonb', nullable: true }) confirmed!: IntakeRecord['confirmed']
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date
   @UpdateDateColumn({ type: 'timestamptz' }) updatedAt!: Date

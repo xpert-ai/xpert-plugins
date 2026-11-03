@@ -4,8 +4,8 @@ import { artifact, feature, middlewareName, packageMeta } from './constants'
 
 const definition = {
   key: artifact('assistant'), title: '缺陷受理与澄清助手',
-  description: '在工作台保留原始反馈、补充事实、编辑并核对缺陷报告。',
-  startPrompts: ['如何录入和保存一份缺陷报告？', '确认报告之前需要核对什么？']
+  description: '保留原始反馈，由 AI 整理已有事实并提出追问，再由用户补充和核对报告。',
+  startPrompts: ['请查找我已保存的反馈，帮我整理缺陷报告并提出必要的追问。', '请查看我这份报告的分析状态和待补充事项。']
 }
 const primaryKey = 'Agent_Intake'
 type PortableWorkflow = Omit<TXpertTeamNode<'workflow'>, 'entity'> & { entity: Omit<IWFNMiddleware, 'id'> }
@@ -19,14 +19,14 @@ const middlewareNodes: PortableWorkflow[] = [
 export const assistantDraft = {
   team: {
     name: definition.key, type: XpertTypeEnum.Agent, title: definition.title, description: definition.description,
-    version: '1', agent: { key: primaryKey },
+    version: '2', agent: { key: primaryKey },
     features: { opener: { enabled: true, message: '', questions: definition.startPrompts }, suggestion: { enabled: false, prompt: '' }, textToSpeech: { enabled: false }, speechToText: { enabled: false } },
     options: { templateKey: definition.key, dataXpert: { requiredPlugins: [packageMeta.name] }, workbench: { initialLayout: XpertWorkbenchInitialLayoutEnum.WorkbenchMaximized } },
     agentConfig: { recursionLimit: 20 }, knowledgebases: [], toolsets: [], tags: []
   },
   nodes: [{ type: 'agent', key: primaryKey, position: { x: 380, y: 60 }, entity: {
     key: primaryKey, name: definition.key, title: definition.title,
-    prompt: '你帮助测试和技术支持整理缺陷报告。第一阶段请指导用户在缺陷受理工作台录入、编辑和保存。当前没有分析或记录写入工具，不能声称已读取、分析、保存或确认任何业务记录。只根据用户明确提供的信息回答，未知事实保持未知，不推断根因或伪造日志。报告确认由用户在工作台完成，确认不代表研发受理或修复。',
+    prompt: '你帮助测试和技术支持整理本人保存的缺陷反馈。使用工具读取真实记录，按用户意图发起后台 AI 整理或失败重试，并如实说明任务状态。排队中或分析中不表示已经生成报告。已有建议和追问可在缺陷受理工作台查看、回答与编辑；用户补充后先保存，再重新整理。只根据已提供的事实回答，未知信息保持未知，不推断根因、伪造日志或声称已查询外部业务系统。报告只能由用户在工作台确认，确认不表示研发受理或缺陷已修复。',
     options: { middlewares: { order: middlewareNodes.map(node => node.key) }, fileUnderstanding: { enabled: false } },
     collaboratorNames: [], toolsetIds: [], knowledgebaseIds: []
   } }, ...middlewareNodes],
@@ -38,5 +38,5 @@ export const templates: XpertTemplateContribution[] = [{
   type: XpertTypeEnum.Agent, category: '研发协作', targetApps: ['xpert'],
   targetAppMeta: { xpert: { types: ['business-assistant'], capabilities: [feature], requiredPlugins: [packageMeta.name] } },
   startPrompts: definition.startPrompts, dslContent: JSON.stringify(assistantDraft, null, 2),
-  releaseNotes: '第一阶段：反馈录入、人工编辑、数据库保存与恢复；尚未接入 AI 分析。', order: 60
+  releaseNotes: '第二阶段：有来源的 AI 建议、针对性追问、持久分析任务、失败重试及人工修改保护。', order: 60
 }]

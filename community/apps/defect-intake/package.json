@@ -1,6 +1,6 @@
 {
   "name": "@community/apps-defect-intake",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Human-reviewed defect intake and clarification workbench for Xpert.",
   "license": "AGPL-3.0",
   "author": "YumiCornzheng",
@@ -35,7 +35,7 @@
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && pnpm run typecheck && node scripts/build.mjs && tsc -p tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
-    "test": "pnpm run typecheck && node --test tests/domain.test.cjs",
+    "test": "pnpm run typecheck && node --test tests/*.test.cjs",
     "verify:dist": "node scripts/build.mjs --check"
   },
   "dependencies": {
@@ -48,7 +48,8 @@
     "@xpert-ai/contracts": "^3.30.2",
     "@xpert-ai/plugin-sdk": "^3.30.2",
     "typeorm": "^0.3.24",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@langchain/core": ">=0.3.68 <0.4.0"
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.6",
@@ -69,7 +70,8 @@
     "zod": "3.25.67",
     "lucide-react": "1.24.0",
     "@tailwindcss/cli": "^4.3.2",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "@langchain/core": "0.3.72"
   },
   "publishConfig": {
     "access": "public"

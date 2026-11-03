@@ -3,5 +3,5 @@
   "theme": "maple",
   "name": "缺陷受理与澄清",
   "colors": { "primary": "#0f766e" },
-  "navigation": { "groups": [{ "group": "设计与验收", "pages": ["product-spec", "phase-one", "ai-collaboration"] }] }
+  "navigation": { "groups": [{ "group": "设计与验收", "pages": ["product-spec", "phase-one", "phase-two", "ai-collaboration"] }] }
 }
