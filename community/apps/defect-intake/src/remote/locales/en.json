@@ -1,6 +1,6 @@
 {
-  "app.title": "Defect intake & clarification",
-  "app.description": "Turn feedback into a report your team can investigate.",
+  "app.title": "Smart Ticket Completion Assistant",
+  "app.description": "Organize feedback with AI, ask for missing details, and prepare a defect ticket for review.",
   "app.phase": "AI-assisted clarification",
   "app.phaseHint": "Organize known facts, answer focused questions, then review the report.",
   "action.create": "New feedback",

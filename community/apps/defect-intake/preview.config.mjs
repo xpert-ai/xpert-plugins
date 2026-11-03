@@ -9,7 +9,7 @@ const { buildAnalysisInput, mergeAnalysisReport, mergeAnswers, protectedFields, 
 
 /** Simulated host only; installed-platform persistence is verified separately. */
 export default {
-  title: '缺陷受理 · Simulated host', workspaceRoot: root, instanceId: 'defect-intake-preview',
+  title: '智能工单补全 · Simulated host', workspaceRoot: root, instanceId: 'defect-intake-preview',
   component: { root: join(root, 'dist/remote'), runtime: 'react', sandbox: 'allow-scripts', viewportBound: true },
   hostContext: { manifest: { key: 'defect_intake.intake' }, payload: {}, initialQuery: { parameters: {} }, locale: 'zh-Hans', theme: { mode: 'light', tokens: {} }, debug: { enabled: false, production: true } },
   /** @type {{ records: import('./dist/shared/contracts').IntakeRecord[], requestIds: Record<string, string>, failNextSave: boolean, failNextAnalysis: boolean, analysisDelayMs: number }} */

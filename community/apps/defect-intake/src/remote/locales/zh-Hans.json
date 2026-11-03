@@ -1,6 +1,6 @@
 {
-  "app.title": "缺陷受理与澄清",
-  "app.description": "把零散反馈整理成可交给研发排查的报告。",
+  "app.title": "智能工单补全助手",
+  "app.description": "AI 整理问题反馈，追问缺失信息，生成可核对的缺陷工单。",
   "app.phase": "AI 整理与澄清",
   "app.phaseHint": "整理已有事实，回答关键追问，再核对缺陷报告。",
   "action.create": "新建反馈",

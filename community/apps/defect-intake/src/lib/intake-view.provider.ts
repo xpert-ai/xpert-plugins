@@ -17,14 +17,14 @@ export class IntakeViewProvider implements IXpertViewExtensionProvider {
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(_context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!['agent.workbench.main', 'agent.workbench.fixed'].includes(slot)) return []
-    const viewIcon = { type: 'svg' as const, value: icon, alt: 'Defect intake' }
+    const viewIcon = { type: 'svg' as const, value: icon, alt: 'Smart Ticket Completion' }
     return [{
-      key: viewKey, title: { en_US: 'Defect intake', zh_Hans: '缺陷受理与澄清' },
-      description: { en_US: 'Capture feedback, edit reports and recover saved work.', zh_Hans: '录入反馈、编辑报告并恢复已保存的内容。' },
+      key: viewKey, title: { en_US: 'Smart Ticket Completion', zh_Hans: '智能工单补全助手' },
+      description: { en_US: 'Organize feedback with AI, ask for missing details, and prepare a defect ticket for review.', zh_Hans: 'AI 整理问题反馈，追问缺失信息，生成可核对的缺陷工单。' },
       hostType: 'agent', slot, order: 20, icon: viewIcon, refreshable: true,
       activation: { requiredFeatures: [feature] },
       source: { provider: providerKey, plugin: packageMeta.name },
-      ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: { en_US: 'Defect intake', zh_Hans: '缺陷受理' }, order: 20, icon: viewIcon } } } : {}),
+      ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: { en_US: 'Smart Ticket Completion', zh_Hans: '智能工单补全' }, order: 20, icon: viewIcon } } } : {}),
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: remoteEntry }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSearch: true, supportsParameters: true, defaultPageSize: 25 }, cache: { enabled: false } },
       hostEvents: { subscriptions: [{ key: 'analysis-started', event: 'assistant.tool.completed', filter: { sources: ['chatkit'], toolNames: ['defect_intake_analyze_record'] }, action: { type: 'forward', debounceMs: 300 } }] },
@@ -37,7 +37,7 @@ export class IntakeViewProvider implements IXpertViewExtensionProvider {
     const root = join(__dirname, '../remote')
     const [appScript, appCss] = await Promise.all([readFile(join(root, 'app.js'), 'utf8'), readFile(join(root, 'app.css'), 'utf8')])
     // React is bundled with the remote entry. No CDN or host filesystem dependency.
-    return { html: renderRemoteReactIframeHtml({ title: 'Defect intake', appScript, appCss, reactUmd: '', reactDomUmd: '' }), contentType: 'text/html; charset=utf-8' as const }
+    return { html: renderRemoteReactIframeHtml({ title: 'Smart Ticket Completion', appScript, appCss, reactUmd: '', reactDomUmd: '' }), contentType: 'text/html; charset=utf-8' as const }
   }
   async getViewData(context: XpertResolvedViewHostContext, key: string, query: XpertViewQuery) {
     if (key !== viewKey) throw new IntakeError('not_found')

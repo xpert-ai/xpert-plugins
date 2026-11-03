@@ -16,7 +16,7 @@ export const intakeToolNames = ['defect_intake_list_records', 'defect_intake_get
 export class IntakeMiddleware implements IAgentMiddlewareStrategy<z.infer<typeof analysisConfigSchema>> {
   constructor(private readonly service: IntakeService, private readonly analysis: AnalysisService) {}
   meta: TAgentMiddlewareMeta = {
-    name: middlewareName, label: { en_US: 'Defect intake', zh_Hans: '缺陷受理' },
+    name: middlewareName, label: { en_US: 'Smart Ticket Completion', zh_Hans: '智能工单补全' },
     description: { en_US: 'Read owned feedback and prepare evidence-linked suggestions; humans confirm reports.', zh_Hans: '读取本人反馈，生成有来源的建议稿和追问；报告由用户确认。' },
     icon: { type: 'svg', value: icon }, features: [feature],
     configSchema: { type: 'object', properties: {
