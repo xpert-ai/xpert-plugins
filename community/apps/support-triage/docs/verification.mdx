@@ -1,0 +1,46 @@
+---
+title: "Verification"
+description: "Checks, evidence and the installed-platform acceptance procedure"
+---
+
+Baseline platform main: `ef5125f1f73f6f30b1ca1e5d90e062c65aa4537e`.
+Baseline plugin main: `60794aa72edb1fddffebd5e5d071619b8c29014b`.
+
+Build/typecheck, backend tests with a simulated HTTP model provider, official lifecycle harness, and a real local Ollama call are separate evidence layers. Consult the README verification table for current outcomes.
+
+```sh
+# From this plugin
+corepack pnpm --ignore-workspace run build
+corepack pnpm --ignore-workspace test
+corepack pnpm --ignore-workspace run verify:dist
+# Optional real model call, requires Ollama or compatible endpoint
+corepack pnpm --ignore-workspace exec tsx tests/live-model.ts
+```
+
+```sh
+# From xpert-plugins; use harness-declared pnpm version
+corepack pnpm -C plugin-dev-harness --ignore-workspace install
+corepack pnpm -C plugin-dev-harness --ignore-workspace run build
+node plugin-dev-harness/dist/index.js \
+  --workspace ./community/apps/support-triage --plugin @community/apps-support-triage
+```
+
+The lifecycle harness uses database/runtime mocks. Its success proves module initialization and teardown, not the real platform data path.
+
+Installed-platform acceptance steps:
+
+1. Verify plugin is loaded at the tested version after any required restart.
+2. Show its Assistant template; create and publish an Assistant with a working model and middleware/View bindings.
+3. Open Workbench, save a customer message, analyze with the configured real model and check the stored suggestion.
+4. Edit the reply and confirm. Refresh/reopen and verify original, model and human results remain distinct.
+5. Create a separate ticket, enable the test-only failure demo, simulate failure and retry. Confirm that the same ticket is reused and attempts increment.
+6. Verify another user/organization/Assistant cannot read the record, and stale revisions cannot overwrite it.
+7. Capture actual Xpert screenshots for input, AI result, confirmed recovery and failure. Commit those in `docs/screenshots/` and reference them relatively in README.
+
+No screenshot from the development View Host can replace step 7.
+
+The local installed-platform run completed installation and restart, template creation and publication, tool/View activation, ticket intake, simulated failure, a real Ollama retry, human editing/confirmation, and recovery after reload and API restart. See the README's `xpert-*.png` images. The environment is a patched Windows checkout; exact source changes are recorded in [local-platform.md](local-platform.md) and [platform-windows.patch](platform-windows.patch).
+
+A slow local model can outlast the host's action request. The UI re-reads the persisted ticket after a transport error and polls an active processing lease, so it does not start a duplicate analysis. An interrupted process eventually becomes retryable through lease expiry. These are distinct from a provider validation failure, which is stored as a failed ticket.
+
+The domain tests cover tenant, organization, user and Assistant isolation, stale writes and concurrent analysis. The installed UI run uses a local administrator; it does not prove all production roles or enterprise identity integrations.

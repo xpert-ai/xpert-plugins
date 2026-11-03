@@ -1,0 +1,8 @@
+{
+  "title": "工单分诊", "subtitle": "从客户问题到可确认的处理建议", "new": "录入工单", "refresh": "刷新", "history": "我的工单", "empty": "还没有工单，先录入一条客户问题。",
+  "subject": "问题标题", "body": "客户原文", "create": "保存工单", "creating": "保存中…", "analyze": "开始 AI 分诊", "retry": "重试 AI 分诊", "working": "AI 正在分析…", "confirm": "确认并保存", "confirmed": "已确认并保存", "review": "复核处理建议", "original": "客户原文", "category": "问题分类", "priority": "优先级", "summary": "问题摘要", "evidence": "判断依据原文", "reply": "回复草稿", "note": "请复核并修改建议后保存。本应用不会自动发送回复。", "saved": "已保存到 Xpert", "loading": "加载中…", "select": "选择一条工单开始处理", "back": "上一页", "next": "下一页", "page": "第 {{page}} 页 · 共 {{total}} 条", "cancel": "取消", "sample": "填入示例", "demo": "模拟一次模型失败", "details": "处理详情", "attempts": "分析次数：{{count}}", "collapse": "展开或收起工单列表",
+  "status.new": "待分诊", "status.processing": "分析中", "status.review": "待复核", "status.confirmed": "已确认", "status.failed": "待重试",
+  "category.account": "账号问题", "category.billing": "账单支付", "category.technical": "技术故障", "category.other": "其他问题", "priority.low": "低", "priority.normal": "普通", "priority.urgent": "紧急",
+  "error.invalid_input": "标题需为 3–160 字，客户原文需为 10–12,000 字；判断依据必须来自客户原文。", "error.conflict": "工单已在其他页面更新。请刷新读取已保存版本，当前编辑仍被保留。", "error.invalid_state": "工单状态已变化，请刷新后继续。", "error.model_unavailable": "模型暂时不可用，请检查模型配置后重试这条工单。", "error.model_timeout": "模型响应超时，原文已保存，模型恢复后可重试。", "error.invalid_model_output": "模型返回的建议格式不正确或引用依据不在原文中，请重试。", "error.demo_failure": "已模拟一次模型失败，客户原文仍已保存。点击重试即可调用真实模型。", "error.demo_disabled": "失败演示未开启，请在测试插件配置中启用。", "error.generic": "操作未完成，当前编辑已保留，请刷新或重试。", "error.host_timeout": "平台响应超时，请刷新确认保存状态后再重试。",
+  "sample.subject": "订阅被重复扣款", "sample.body": "今天早上续费订阅，同一笔订单被扣了两次款。请帮忙核查重复扣费。我下午要给客户做演示，现在账号还显示未续费，无法使用。"
+}

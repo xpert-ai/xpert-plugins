@@ -1,0 +1,6 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint", "name": "Support Triage",
+  "colors": { "primary": "#0f766e", "light": "#14b8a6", "dark": "#115e59" },
+  "navigation": { "tabs": [{ "tab": "Guide", "groups": [{ "group": "Support Triage", "pages": ["index", "setup", "verification"] }] }] }
+}
