@@ -85,6 +85,7 @@
   "analysis.error.model_unavailable": "The analysis model is unavailable. Your content is kept; check the configured model and retry.",
   "analysis.error.model_timeout": "The model took too long. Your content is kept; retry when ready.",
   "analysis.error.invalid_output": "The model result failed format or source checks and was not applied. Your content is kept; retry the analysis.",
+  "analysis.error.output_truncated": "The model response reached its output limit and was not applied. Your content is kept; retry the analysis.",
   "analysis.error.interrupted": "The analysis was interrupted. Your content is kept; retry the analysis.",
   "analysis.error.access_denied": "The Assistant capability or access changed. Your content is kept; check access before retrying.",
   "analysis.superseded": "Saved content changed during analysis. The older result will not overwrite it. Analyze the latest saved version.",

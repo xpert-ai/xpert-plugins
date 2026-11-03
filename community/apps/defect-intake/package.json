@@ -1,6 +1,6 @@
 {
   "name": "@community/apps-defect-intake",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "AI-assisted ticket information completion with human review for Xpert.",
   "license": "AGPL-3.0",
   "author": "YumiCornzheng",

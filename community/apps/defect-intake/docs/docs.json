@@ -3,5 +3,5 @@
   "theme": "maple",
   "name": "智能工单补全助手",
   "colors": { "primary": "#0f766e" },
-  "navigation": { "groups": [{ "group": "设计与验收", "pages": ["product-spec", "phase-one", "phase-two", "ai-collaboration"] }] }
+  "navigation": { "groups": [{ "group": "设计与验收", "pages": ["product-spec", "phase-one", "phase-two", "phase-three", "demo", "ai-collaboration"] }] }
 }

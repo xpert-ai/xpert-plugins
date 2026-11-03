@@ -85,6 +85,7 @@
   "analysis.error.model_unavailable": "分析模型暂时不可用，已有内容已保留，请检查模型配置后重试。",
   "analysis.error.model_timeout": "模型响应超时，已有内容已保留，可以重新分析。",
   "analysis.error.invalid_output": "模型结果未通过格式或来源校验，未写入报告。已有内容已保留，请重试分析。",
+  "analysis.error.output_truncated": "模型响应因输出额度不足被截断，未写入报告。已有内容已保留，可重试分析。",
   "analysis.error.interrupted": "分析任务中断，已有内容已保留，可以重试分析。",
   "analysis.error.access_denied": "助手能力或访问权限发生变化，已有内容已保留，请检查权限后重试。",
   "analysis.superseded": "分析期间已保存新内容，旧结果不会覆盖它。可以根据最新内容重新整理。",

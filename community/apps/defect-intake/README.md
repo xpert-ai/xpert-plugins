@@ -2,7 +2,7 @@
 
 面向测试与技术支持，把零散用户反馈整理为可核对、可保存、可恢复的缺陷报告。使用 Xpert 的组织身份、领域中间件、Workbench Remote View 和 PostgreSQL 持久化，作为独立插件开发。
 
-当前版本 0.2.1 支持 AI 自动整理、最多三条针对性追问、保存回答后再次分析，以及分析失败后重试。原始反馈、人工补充、报告编辑、确认快照与分析记录均在服务端保存。AI 仅整理用户提供的材料，未知字段留空；人工修改的字段受到保护，确认仅表示人工核对。
+当前版本 0.2.2 支持 AI 自动整理、最多三条针对性追问、保存回答后再次分析，以及分析失败后重试。原始反馈、人工补充、报告编辑、确认快照与分析记录均在服务端保存。AI 仅整理用户提供的材料，未知字段留空；人工修改的字段受到保护，确认仅表示人工核对。
 
 ![本地 Xpert 中的智能工单补全助手](docs/images/ticket-completion-workbench.png)
 
@@ -31,12 +31,14 @@ React 控件使用同仓库共享的 `@xpert-ai/plugin-shadcn-ui`。构建先生
 
 ## 验证
 
-`test` 包含 13 项测试，覆盖输入边界、引用校验、回答、人工保护、过期结果、失败状态、翻译目录及模板一致性；`verify:dist` 重新生成并比较正式远程资产。仓库 `plugin-dev-harness` 用实际 dist 进行加载与生命周期检查，其数据库 mock 不代表持久化通过。
+`test` 包含 15 项测试，覆盖截断响应、输入边界、引用校验、回答、人工保护、过期结果、失败状态、翻译目录及模板一致性；`verify:dist` 重新生成并比较正式远程资产。仓库 `plugin-dev-harness` 用实际 dist 进行加载与生命周期检查，其数据库 mock 不代表持久化通过。
 
 真实平台验收脚本为 `tests/live.mjs`。先在当前进程配置 `XPERT_USERNAME`、`XPERT_PASSWORD`、`XPERT_ORG_ID`、`XPERT_ASSISTANT_ID`，可选 `XPERT_API_URL`（默认 `http://localhost:3000/api`），然后执行 `node tests/live.mjs`。脚本仅允许 loopback 地址，会留下明确标记的虚构验收记录；凭证、JWT 和部署身份不写入源码或输出。
 
 在同样的环境配置下执行 `node tests/analysis-live.mjs`，会通过已发布助手启动两轮真实模型分析，检查分析请求去重、来源、回答补全和人工字段保护。此测试调用已配置的模型并消耗其额度；可选 `XPERT_AI_LIVE_RECEIPT` 将验收回执保存到仓库外私有目录。
 
+双用户真实验收使用 `node tests/access-live.mjs`：另外设置 `XPERT_SECOND_USERNAME`、`XPERT_SECOND_PASSWORD`，第二账号须为同租户同组织的普通 `APP_USER`，已通过平台标准分享获得该助手使用权。它检验双向列表、读取、保存、分析与确认隔离，以及普通用户自己的真实模型分析和确认。脚本不会创建账号或授予权限，会留下虚构记录并消耗模型额度；可选 `XPERT_ACCESS_LIVE_RECEIPT` 保存私有回执。详见第三阶段记录。
+
 模拟宿主使用正式资产与单独的 fixture：在仓库根目录运行 `node tools/remote-view-preview/cli.mjs --config community/apps/defect-intake/preview.config.mjs --port 4417`。这是模拟交互验证，不等同于真实平台数据库验收。
 
-当前实现及真实验收范围见 [第二阶段记录](docs/phase-two.md)，人工闭环历史见 [第一阶段记录](docs/phase-one.md)，需求见 [产品规格](docs/product-spec.md)。
+完整聊天工具链与双用户验收见 [第三阶段记录](docs/phase-three.md)，五分钟演示见 [演示流程](docs/demo.md)。AI 实现与早期验收见 [第二阶段记录](docs/phase-two.md)，人工闭环历史见 [第一阶段记录](docs/phase-one.md)，需求见 [产品规格](docs/product-spec.md)。

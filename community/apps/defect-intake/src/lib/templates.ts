@@ -19,10 +19,12 @@ const middlewareNodes: PortableWorkflow[] = [
 export const assistantDraft = {
   team: {
     name: definition.key, type: XpertTypeEnum.Agent, title: definition.title, description: definition.description,
-    version: '3', agent: { key: primaryKey },
+    version: '4', agent: { key: primaryKey },
     features: { opener: { enabled: true, message: '', questions: definition.startPrompts }, suggestion: { enabled: false, prompt: '' }, textToSpeech: { enabled: false }, speechToText: { enabled: false } },
     options: { templateKey: definition.key, dataXpert: { requiredPlugins: [packageMeta.name] }, workbench: { initialLayout: XpertWorkbenchInitialLayoutEnum.WorkbenchMaximized } },
-    agentConfig: { recursionLimit: 20 }, knowledgebases: [], toolsets: [], tags: []
+    // Runtime graph steps include model, tool and baseline middleware nodes.
+    // Leave room for list -> read -> analyze -> final response within one turn.
+    agentConfig: { recursionLimit: 64 }, knowledgebases: [], toolsets: [], tags: []
   },
   nodes: [{ type: 'agent', key: primaryKey, position: { x: 380, y: 60 }, entity: {
     key: primaryKey, name: definition.key, title: definition.title,
@@ -38,5 +40,5 @@ export const templates: XpertTemplateContribution[] = [{
   type: XpertTypeEnum.Agent, category: '研发协作', targetApps: ['xpert'],
   targetAppMeta: { xpert: { types: ['business-assistant'], capabilities: [feature], requiredPlugins: [packageMeta.name] } },
   startPrompts: definition.startPrompts, dslContent: JSON.stringify(assistantDraft, null, 2),
-  releaseNotes: '名称统一为智能工单补全助手，明确 AI 整理、追问补充与人工核对的用途。', order: 60
+  releaseNotes: '为完整的查找、读取、分析工具链配置有界运行步数，避免正常聊天流程过早中断。', order: 60
 }]

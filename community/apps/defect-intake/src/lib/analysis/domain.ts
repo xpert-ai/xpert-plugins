@@ -4,6 +4,7 @@ import { reportKeys, reportSchema, type Report } from '../../shared/report'
 import type { IntakeRecord } from '../../shared/contracts'
 
 export class InvalidAnalysisOutput extends Error { constructor() { super('invalid_output') } }
+export class TruncatedAnalysisOutput extends InvalidAnalysisOutput {}
 export const questionId = (field: string, question: string) => `q_${createHash('sha256').update(`${field}:${question.normalize('NFKC').trim()}`).digest('hex').slice(0, 16)}`
 export const activeAnalysis = (analysis: IntakeRecord['analysis']) => analysis?.status === 'queued' || analysis?.status === 'running'
 
@@ -48,6 +49,15 @@ export function validateAnalysisOutput(value: unknown, input: AnalysisInput, att
   const answered = new Set(input.answers.filter(answer => answer.text.trim()).map(answer => answer.question.normalize('NFKC').trim()))
   if (questions.some(question => answered.has(question.question.normalize('NFKC').trim()))) throw new InvalidAnalysisOutput()
   return { attemptId, sourceRevision, completedAt: new Date().toISOString(), fields: output.fields, questions }
+}
+/** Provider token budgets can include reasoning; never accept a truncated response. */
+export function parseAnalysisResponse(text: string, finishReason: unknown, input: AnalysisInput, attemptId: string, sourceRevision: number): AnalysisResult {
+  if (finishReason === 'length') throw new TruncatedAnalysisOutput()
+  if (text.length > 64000) throw new InvalidAnalysisOutput()
+  const normalized = text.trim().replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/, '$1')
+  let value: unknown
+  try { value = JSON.parse(normalized) } catch { throw new InvalidAnalysisOutput() }
+  return validateAnalysisOutput(value, input, attemptId, sourceRevision)
 }
 export function mergeAnalysisReport(input: AnalysisInput, result: AnalysisResult): Report {
   const report = { ...input.report }

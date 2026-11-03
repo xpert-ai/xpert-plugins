@@ -18,7 +18,7 @@ export const analysisResultSchema = z.object({
   attemptId: z.string().uuid(), sourceRevision: z.number().int(), completedAt: z.string(),
   fields: z.array(suggestionSchema), questions: z.array(questionSchema)
 }).strict()
-export const analysisFailureSchema = z.enum(['queue_unavailable', 'model_unavailable', 'model_timeout', 'invalid_output', 'interrupted', 'access_denied'])
+export const analysisFailureSchema = z.enum(['queue_unavailable', 'model_unavailable', 'model_timeout', 'invalid_output', 'output_truncated', 'interrupted', 'access_denied'])
 export const analysisStateSchema = z.object({
   id: z.string().uuid(), status: z.enum(['queued', 'running', 'succeeded', 'failed', 'superseded']),
   sourceRevision: z.number().int(), createdAt: z.string(), completedAt: z.string().nullable(),

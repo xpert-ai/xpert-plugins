@@ -6,8 +6,8 @@ import { z } from 'zod/v3'
 import { packageMeta } from '../constants'
 import type { AnalysisFailure } from '../../shared/analysis'
 import { AnalysisService, analysisJob, analysisQueue } from './analysis.service'
-import { analysisConfigSchema } from './config'
-import { ANALYSIS_PROMPT, InvalidAnalysisOutput, validateAnalysisOutput } from './domain'
+import { analysisConfigSchema, modelInvocationOptions } from './config'
+import { ANALYSIS_PROMPT, InvalidAnalysisOutput, TruncatedAnalysisOutput, parseAnalysisResponse } from './domain'
 
 export const queuePayloadSchema = z.object({ attemptId: z.string().uuid() }).strict()
 export type QueuePayload = z.infer<typeof queuePayloadSchema>
@@ -33,20 +33,17 @@ export class AnalysisProcessor {
         const config = analysisConfigSchema.parse(resolved.options)
         const configured = config.model || await resolved.context.runtime.getDefaultChatModel?.()
         if (!configured?.model || !configured.copilotId) throw new Error('model_unavailable')
-        const client = await resolved.context.runtime.createModelClient<BaseChatModel>({ copilotId: configured.copilotId, model: configured.model, modelType: AiModelTypeEnum.LLM, options: { temperature: 0.2, maxRetries: 0, max_tokens: 2500 } }, { abortController: controller })
+        // The completion budget includes reasoning for some models, as well as JSON.
+        const client = await resolved.context.runtime.createModelClient<BaseChatModel>({ copilotId: configured.copilotId, model: configured.model, modelType: AiModelTypeEnum.LLM, options: modelInvocationOptions(configured.options) }, { abortController: controller })
         const response = await client.invoke([['system', ANALYSIS_PROMPT], ['human', JSON.stringify(attempt.input)]], { signal: controller.signal })
         const text = typeof response.content === 'string' ? response.content : response.content.flatMap(part => part.type === 'text' && typeof part.text === 'string' ? [part.text] : []).join('')
-        if (text.length > 64000) throw new InvalidAnalysisOutput()
-        const normalized = text.trim().replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/, '$1')
-        let value: unknown
-        try { value = JSON.parse(normalized) } catch { throw new InvalidAnalysisOutput() }
-        return validateAnalysisOutput(value, attempt.input, attempt.id, attempt.sourceRevision)
+        return parseAnalysisResponse(text, response.response_metadata?.finish_reason, attempt.input, attempt.id, attempt.sourceRevision)
       }
       const timeout = new Promise<never>((_resolve, reject) => { timer = setTimeout(() => { controller.abort(); reject(new ModelTimeout()) }, Math.max(1, Math.min(90000, attempt.deadlineAt.getTime() - Date.now()))) })
       const result = await Promise.race([work(), timeout])
       await this.service.finish(scope, attempt.id, result, null)
     } catch (error) {
-      const code: AnalysisFailure = error instanceof ModelTimeout ? 'model_timeout' : error instanceof InvalidAnalysisOutput ? 'invalid_output' : !authorizationResolved ? 'access_denied' : 'model_unavailable'
+      const code: AnalysisFailure = error instanceof ModelTimeout ? 'model_timeout' : error instanceof TruncatedAnalysisOutput ? 'output_truncated' : error instanceof InvalidAnalysisOutput ? 'invalid_output' : !authorizationResolved ? 'access_denied' : 'model_unavailable'
       // Transport bodies may contain secrets; only stable codes are persisted and displayed.
       await this.service.finish(scope, attempt.id, null, code)
     } finally { if (timer) clearTimeout(timer); controller.abort() }
