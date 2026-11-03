@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "module": "ESNext", "moduleResolution": "Bundler", "jsx": "react-jsx", "noEmit": true, "lib": ["ES2022", "DOM"], "types": ["react", "react-dom"] },
+  "include": ["src/remote/**/*.ts", "src/remote/**/*.tsx", "src/shared/**/*.ts"]
+}

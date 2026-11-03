@@ -217,6 +217,70 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  apps/defect-intake:
+    dependencies:
+      tslib:
+        specifier: ^2.8.1
+        version: 2.8.1
+    devDependencies:
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.6
+        version: 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^11.0.0
+        version: 11.0.0(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31)
+      '@tailwindcss/cli':
+        specifier: ^4.3.2
+        version: 4.3.3
+      '@types/node':
+        specifier: 22.18.6
+        version: 22.18.6
+      '@types/react':
+        specifier: ^18.3.24
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.31)
+      '@xpert-ai/contracts':
+        specifier: 3.30.2
+        version: 3.30.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: 3.30.2
+        version: 3.30.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+      '@xpert-ai/plugin-shadcn-ui':
+        specifier: workspace:*
+        version: link:../../../packages/shadcn-ui
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
+      lucide-react:
+        specifier: 1.24.0
+        version: 1.24.0(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tailwindcss:
+        specifier: ^4.3.2
+        version: 4.3.3
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.31(ts-node@10.9.1)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   apps/dockyard:
     dependencies:
       tslib:
@@ -12356,3 +12420,69 @@ packages:
     dependencies:
       tslib: 2.3.0
     dev: false
+  /@xpert-ai/chatkit-types@0.20.1(@a2ui/lit@0.8.3)(@langchain/core@0.3.72):
+    resolution: {integrity: sha512-JdK7kNoH8U5cHYAOBDOboYcUUpU9blQt33hlx6tLUcXBLsL+6BNqQzWhD337YhvdU+cCuYPiYUhAx38HLDURuA==}
+    peerDependencies:
+      '@a2ui/lit': ^0.8.1
+      '@langchain/core': ^1.0.2
+    dependencies:
+      '@a2ui/lit': 0.8.3(signal-polyfill@0.2.2)
+      '@langchain/core': 0.3.72
+    dev: true
+
+  /@xpert-ai/contracts@3.30.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67):
+    resolution: {integrity: sha512-Y52lpCQ1xH7HCIdM1xXS9jD26kvkLWmbMQSLF+YeUtJMX3Kuydg93fBUI1SU3O53tdKiFu2h6BmpcT7tQGNMnw==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@octokit/types': 13.10.0
+      '@types/json-schema': 7.0.15
+      '@xpert-ai/chatkit-types': 0.20.1(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)
+      zod: 3.25.67
+      zod-to-json-schema: 3.25.2(zod@3.25.67)
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - '@langchain/core'
+    dev: true
+
+  /@xpert-ai/plugin-sdk@3.30.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+    resolution: {integrity: sha512-0OGMDlatIXn9iFylxMu0sGkhj2JQ1dqQAQpRiiyLMn8huMcK5NlE+QKc46NrqJlvq8hpmPphFT9FzLB6+oEH/w==}
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@langchain/core': 0.3.72
+      '@langchain/openai': 0.6.9(@langchain/core@0.3.72)
+      '@nestjs/common': 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': 3.30.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      ajv: 8.20.0
+      express: 4.22.3
+      i18next: 25.6.0(typescript@5.9.2)
+      i18next-fs-backend: 2.6.8
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.18.1
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
+      yaml: 2.9.0
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - supports-color
+      - ws
+    dev: true

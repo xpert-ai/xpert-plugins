@@ -1,0 +1,13 @@
+{
+  "app.title": "缺陷受理与澄清", "app.description": "把零散反馈整理成可交给研发排查的报告。",
+  "app.phase": "录入与核对", "app.phaseHint": "AI 澄清将在下一阶段接入，目前只填写已知事实。",
+  "action.create": "新建反馈", "action.save": "保存草稿", "action.confirm": "确认报告", "action.refresh": "重新加载已保存内容", "action.cancel": "取消", "action.discard": "放弃修改", "action.continue": "继续编辑", "action.retry": "重试", "action.list": "反馈记录", "action.previous": "上一页", "action.next": "下一页",
+  "state.loading": "加载中…", "state.saving": "保存中…", "state.saved": "已保存", "state.unsaved": "有未保存修改", "state.draft": "草稿", "state.confirmed": "已确认", "state.total": "共 {{count}} 条记录", "state.page": "第 {{page}} 页", "state.savedAt": "上次保存于 {{date}}",
+  "list.search": "搜索原始反馈或报告标题", "list.empty": "还没有反馈记录", "list.emptyHint": "录入用户的原始反馈，开始整理第一份报告。", "list.noMatches": "没有匹配的记录", "list.untitled": "未命名报告",
+  "detail.empty": "选择一条记录继续处理", "detail.original": "原始反馈", "detail.originalHint": "保留提交时的原文，新事实请填写在下方补充区。", "detail.supplement": "用户补充", "detail.supplementHint": "记录用户回答、使用环境或复现条件等已知信息。", "detail.report": "缺陷报告草稿", "detail.reportHint": "不清楚的字段可以留空。确认仅表示人工核对，不表示缺陷已修复。", "detail.snapshot": "上次确认的报告", "detail.snapshotHint": "编辑新草稿时，这份确认快照保持不变。",
+  "field.title": "标题", "field.entry": "功能入口", "field.environment": "使用环境", "field.steps": "复现步骤", "field.expected": "预期结果", "field.actual": "实际结果", "field.occurredAt": "发生时间", "field.frequency": "发生频率", "field.impact": "影响范围", "field.questions": "待澄清事项", "field.unknown": "未知 / 待补充",
+  "create.title": "录入原始反馈", "create.hint": "粘贴用户实际描述的问题，创建后会保留这份原文。", "create.label": "原始反馈", "create.placeholder": "例如：导出订单一直转圈，没有下载文件……", "create.submit": "创建记录",
+  "discard.title": "当前有未保存的修改", "discard.hint": "可以继续编辑并保存，或放弃这次修改后继续。",
+  "confirm.title": "确认这份缺陷报告", "confirm.hint": "系统将保存当前报告及用户补充的快照。未知信息仍保持未知；确认不表示缺陷已受理或已修复。",
+  "error.invalid_input": "请检查输入长度和必要信息后重试。", "error.scope_required": "请登录并选择组织后使用工作台。", "error.not_found": "该记录不可用，请重新加载列表。", "error.revision_conflict": "这条记录已在其他页面更新，当前草稿仍保留。请先复制需要保留的修改，再加载最新版本。", "error.empty_report": "确认前请填写报告标题和实际结果，其他未知字段可以留空。", "error.storage_unavailable": "本次操作未完成，当前草稿仍保留。请检查连接后重试。", "error.unsupported_action": "当前操作不可用。", "error.host_timeout": "平台响应超时，当前草稿仍保留，请在连接恢复后重试。", "error.host_request_failed": "平台请求失败，当前草稿仍保留，请重试。", "error.blank_feedback": "请先填写原始反馈。"
+}
