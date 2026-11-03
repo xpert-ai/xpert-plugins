@@ -110,6 +110,102 @@ const effectResponse = (kind = 'rows', truncated = false) => ({
     summary: { rowCount: truncated ? 20 : 1, returnedRowCount: 1, truncated } },
   fetchedAt: '2026-10-16T00:00:00.000Z', fromCache: false, executionId: 'source-execution', auditRef: 'audit'
 })
+function schemaResponse() {
+  return { ...effectResponse(), effect: { version: 2, kind: 'rows', columns: [
+    { key: '/ACCOUNT', semanticRef: '[Account]', logicalType: 'string', role: 'dimension', nullable: false },
+    { key: 'SignData', semanticRef: '[Measures].[Amount]', logicalType: 'decimal', role: 'measure', nullable: true }
+  ], rows: [{ '/ACCOUNT': 'A', SignData: '9007199254740993.123456789' }, { '/ACCOUNT': 'B', SignData: null }],
+  summary: { rowCount: 2, returnedRowCount: 2, truncated: false } } }
+}
+const schemaRequest = { kind: 'query-schema', datasetId: 'expenses', payload: simpleBinding.payload }
+test('declared result metadata survives HTTP parsing without converting exact decimals', async t => {
+  const response = schemaResponse()
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  const result = await provider.execute(simpleBinding, {}, context)
+  assert.deepEqual(result.columns, response.effect.columns)
+  assert.deepEqual(result.rows, response.effect.rows)
+})
+test('query-schema discovery supplies the binding contract before a real normalized preview', async t => {
+  const response = schemaResponse()
+  const { provider, context, state } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  const discovery = await provider.discover(schemaRequest, context)
+  const output = discovery.items[0].metadata.output
+  assert.equal(output.datasetId, 'expenses'); assert.deepEqual(output.grain, [])
+  assert.deepEqual(output.fields.map(({ sourceField, logicalType, role, nullable }) => ({ sourceField, logicalType, role, nullable })),
+    response.effect.columns.map(({ key, logicalType, role, nullable }) => ({ sourceField: key, logicalType, role, nullable })))
+  const { analyticsBindingSchema } = require('@xpert-ai/plugin-sdk/analytics')
+  const binding = analyticsBindingSchema.parse({ id: 'expenses', providerId: 'data-xpert.ontology',
+    source: { kind: 'definition', definitionId: '11111111-1111-4111-8111-111111111111', versionId: '22222222-2222-4222-8222-222222222222' },
+    operation: discovery.queryContract.operation, contractVersion: discovery.queryContract.contractVersion,
+    payload: simpleBinding.payload, parameters: [], output })
+  const result = await provider.execute(binding, {}, context)
+  const dataset = normalizeAnalyticsResult(binding, result, 'preview', context.maxRows)
+  assert.equal(dataset.rows[0][output.fields[1].id], '9007199254740993.123456789')
+  assert.equal(dataset.rows[1][output.fields[1].id], null)
+  assert.equal(state.requests.length, 2)
+  for (const request of state.requests) {
+    assert.equal(request.url, '/api/agent-workbench/analytics/query')
+    assert.equal(request.body.maxRows, context.maxRows)
+    assert.equal(request.headers.authorization, 'Bearer viewer')
+  }
+  assert.equal(JSON.stringify(discovery).includes('9007199254740993'), false)
+  const wrong = structuredClone(binding); wrong.output.fields[1].logicalType = 'float64'
+  assert.throws(() => normalizeAnalyticsResult(wrong, result, 'bad-preview', 100), /TYPE_MISMATCH/)
+})
+test('empty results retain declared types and stable field IDs across column reordering', async t => {
+  const response = schemaResponse(); response.effect.rows = []; response.effect.summary = { rowCount: 0, returnedRowCount: 0, truncated: false }
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  const first = (await provider.discover(schemaRequest, context)).items[0].metadata.output
+  response.effect.columns.reverse()
+  const second = (await provider.discover(schemaRequest, context)).items[0].metadata.output
+  assert.deepEqual(first.fields, second.fields.reverse())
+})
+test('schema authoring refuses missing declarations and ambiguous keys while legacy execution stays compatible', async t => {
+  let response = schemaResponse()
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  for (const property of ['logicalType', 'role', 'nullable']) {
+    response = schemaResponse(); delete response.effect.columns[1][property]
+    await assert.rejects(provider.discover(schemaRequest, context), /DATAX_RESULT_SCHEMA_UNAVAILABLE/)
+  }
+  response = schemaResponse(); response.effect.columns.push(response.effect.columns[0])
+  await assert.rejects(provider.discover(schemaRequest, context), /DATAX_RESULT_SCHEMA_AMBIGUOUS/)
+  response = effectResponse()
+  assert.deepEqual((await provider.execute(simpleBinding, {}, context)).rows, response.effect.rows)
+})
+test('schema queries bind native parameters and reject identity overrides before requesting a token', async t => {
+  const { provider, context, state } = await fixture(t, (_req, res) => res.end(JSON.stringify(schemaResponse())))
+  const request = { ...schemaRequest, payload: { ...simpleBinding.payload, params: { category: 'actual' }, parameterPaths: { category: ['category'] } }, parameters: { category: 'budget' } }
+  await provider.discover(request, context)
+  assert.equal(state.requests[0].body.binding.params.category, 'budget')
+  assert.equal(request.payload.params.category, 'actual')
+  for (const invalid of [{ ...request, actor: { userId: 'owner' } }, { ...request, baseUrl: 'https://evil.test' }]) {
+    await assert.rejects(provider.discover(invalid, context))
+  }
+  await assert.rejects(provider.discover({ ...request, parameters: {} }, context), /MAPPING_INVALID/)
+  assert.equal(state.requests.length, 1); assert.equal(state.tokens, 1)
+})
+test('repeated semantic selectors use unique native keys and declared labels and units', async t => {
+  const response = schemaResponse()
+  response.effect.columns[0].semanticRef = response.effect.columns[1].semanticRef
+  response.effect.columns[1].label = 'Amount'; response.effect.columns[1].unit = 'CNY'
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  const output = (await provider.discover(schemaRequest, context)).items[0].metadata.output
+  assert.ok(output.fields.every(field => !Object.hasOwn(field, 'semanticRef')))
+  assert.equal(output.fields[1].label, 'Amount'); assert.equal(output.fields[1].unit, 'CNY')
+  const result = await provider.execute(simpleBinding, {}, context)
+  assert.equal(normalizeAnalyticsResult({ ...simpleBinding, output, providerId: 'data-xpert.ontology' }, result, 'preview', 100).rows[0][output.fields[1].id], '9007199254740993.123456789')
+})
+test('schema probes retain authorization failures, response limits and cancellation', async t => {
+  const { provider, context, state } = await fixture(t, (_req, res) => { res.writeHead(403); res.end('PRIVATE_DETAIL') })
+  await assert.rejects(provider.discover(schemaRequest, context), error => error.message === 'DATAX_QUERY_HTTP_403')
+  const controller = new AbortController(); controller.abort()
+  await assert.rejects(provider.discover(schemaRequest, { ...context, signal: controller.signal }), { name: 'AbortError' })
+  assert.equal(state.requests.length, 1); assert.equal(state.tokens, 1)
+  const wide = schemaResponse()
+  wide.effect.columns = Array.from({ length: 81 }, (_, index) => ({ ...wide.effect.columns[0], key: `column_${index}` }))
+  const f = await fixture(t, (_req, res) => res.end(JSON.stringify(wide)))
+  await assert.rejects(f.provider.discover(schemaRequest, f.context), /80/)
+})
 test('semantic and OData definitions, canonical targets and snapshot metadata pass through unchanged', async t => {
   const definitions = [
     { adapterId: 'semantic_model', contractVersion: 1, metadata: { analysisContract: { measures: ['Amount'], timeDimensions: [] } }, instructions: ['Use authored semantic fields.'] },
