@@ -20,7 +20,20 @@ The queue combines authorized manual reviews and webhook runs into one row per G
 
 ## Configure automatic reviews
 
-Automatic reviews require a configured GitHub App, an authorized account connection and enabled repository rules. Choose **Current Assistant** for private PR review and workflow diagnosis, then enable **GitHub events · Code review** in the Assistant's Triggers settings. Choose **Project pipeline** for governed multi-role review and publication. Existing rules retain pipeline mode; new rules default to Current Assistant. Saving the plugin configuration alone does not enable automatic reviews.
+Automatic reviews require a configured GitHub App, an authorized account connection and enabled repository rules. Choose **Current Assistant** for private PR review and workflow diagnosis, then enable **GitHub events · Code review** in the Assistant's Automation tab. Choose **Project pipeline** for governed multi-role review and publication. Existing rules retain pipeline mode; new rules default to Current Assistant. Saving the plugin configuration alone does not enable automatic reviews.
+
+### Supported events
+
+| GitHub event | Trigger | Execution |
+| --- | --- | --- |
+| `pull_request` | `opened` or `reopened` | Current Assistant or Project pipeline |
+| `pull_request` | `ready_for_review` | Current Assistant or Project pipeline |
+| `pull_request` | `synchronize` (new commits, with a 30-second wait) | Current Assistant or Project pipeline |
+| `workflow_run` | `completed` with conclusion `failure` or `timed_out` | Current Assistant only; no PR required |
+
+Enable each condition in the repository rules. Draft PRs are skipped, and bot-authored PRs are excluded unless enabled. Branch filters match exact PR base branches or Workflow run branches; Workflow names also match exactly. Empty filters include all values. PR updates use `pull_request.synchronize`, not a separate `push` subscription.
+
+Issues, comments, review requests, standalone push events, releases, check runs/suites and PR closing/merging do not start tasks. Successful, cancelled or skipped workflows do not start diagnosis. Subscribing to additional GitHub events does not add plugin support for them.
 
 ### 1. Install and initialize
 
@@ -86,11 +99,18 @@ The integration may be saved without a webhook secret, but signed and unsigned w
 3. Enter `owner/repository`, click **Add repository**, and open **Configure rules**.
 4. Enter the number of an existing open, non-draft PR and click **Try review (no publishing)**. Trials consume model usage and save results privately without publishing to GitHub.
 5. Inspect the trial result, select **Enable automatic reviews**, configure triggers, base branches, ignored paths, additional review guidance and the daily limit, then save the rules.
-6. For Current Assistant, enable **GitHub events · Code review** in its Triggers settings; automatic results stay private. For Project pipeline, bind a valid Code Review Project pipeline. Publication follows its human approval gate and posts a GitHub App `COMMENT`; it never approves, requests changes or merges PRs.
+6. For Current Assistant, enable **GitHub events · Code review** in its Automation tab; automatic results stay private. For Project pipeline, bind a valid Code Review Project pipeline. Publication follows its human approval gate and posts a GitHub App `COMMENT`; it never approves, requests changes or merges PRs.
 
-By default, automation is paused and delivery requires confirmation. Once enabled, the default triggers cover opened or reopened PRs, drafts marked ready for review, and new commits. Draft and bot-authored PRs are excluded by default. The daily limit is 20 review attempts per repository per UTC day, including trials.
+By default, automation is paused and delivery requires confirmation. Once enabled, the default triggers cover opened or reopened PRs, drafts marked ready for review, and new commits. Draft and bot-authored PRs are excluded by default. The default daily limit is 20 attempts per repository per UTC day, shared by PR reviews, trials and Workflow diagnosis.
 
 ### 5. Verify the setup
+
+**App parameters configured** only means that the saved App configuration can be parsed. It does not validate credentials, repository installation, event subscriptions or webhook connectivity; it can be shown before a Webhook secret is set. The displayed Webhook URL is generated from the current API address, not read back from GitHub. Local tests also need a public HTTPS endpoint, such as a tunnel to the backend; update GitHub when its address changes. Configure the OAuth callback separately.
+
+A PR trial verifies review execution, not webhook delivery or automatic triggering. For Current Assistant, publish its Code Review capability and enable both the repository rule and **GitHub events · Code review** in the Assistant's **Automation** tab. Project pipeline mode requires a valid pipeline binding and enabled repository rules.
+
+- **PR acceptance:** trigger one of the enabled PR actions, then check GitHub delivery history, the review inbox and run history.
+- **Workflow acceptance:** select Current Assistant, grant Actions: Read, subscribe to Workflow run, and enable the failure or timeout rule. Run a safe failing test workflow or redeliver a matching completed failure/timeout event. Check GitHub delivery history, the Assistant task and **Workflow diagnosis**. Duplicate deliveries are deduplicated and may not create another run.
 
 - Check the GitHub App's webhook delivery history to confirm that requests reach the configured URL. The plugin returns HTTP `202` for valid deliveries. This confirms webhook handling, not completion of the model review or comment publication.
 - In Code Review, check the repository's **Last event** timestamp and inbox records, then inspect the trial or event-triggered review result. New-commit events wait at least 30 seconds to combine consecutive pushes.
@@ -168,7 +188,7 @@ inline App configuration remains supported during migration.
 
 Repository rules explicitly select **Current Assistant** (private review/diagnosis) or **Project pipeline** (shared evidence and governed publication). Existing rules keep Project pipeline mode. The `code-review` Assistant capability can be enabled during blank creation or profile editing, and exposes review tools plus the gated workbench.
 
-For Assistant automation, configure authorized repositories and event filters in Code Review, then enable **GitHub events · Code review** in the Assistant's Triggers settings. This subscription runs on the server independently of Bosi. It supports PR opened/reopened/ready/synchronize and failed or timed-out `workflow_run.completed` events. Workflow diagnosis additionally requires **Actions: Read** and the **Workflow run** event subscription on the GitHub App. No GitHub publication or code execution is performed by diagnosis tools.
+For Assistant automation, configure authorized repositories and event filters in Code Review, then enable **GitHub events · Code review** in the Assistant's Automation tab. This subscription runs on the server independently of Bosi. It supports PR opened/reopened/ready/synchronize and failed or timed-out `workflow_run.completed` events. Workflow diagnosis additionally requires **Actions: Read** and the **Workflow run** event subscription on the GitHub App. No GitHub publication or code execution is performed by diagnosis tools.
 
 Apply `migrations/20261102-assistant-events.sql` after the existing migrations when schema synchronization is externally managed. It adds subscription/diagnosis records and request idempotency, preserves old pipeline policies, and does not change sharing or subscribe existing Assistants. See [setup, templates and migration](docs/automation.mdx).
 
