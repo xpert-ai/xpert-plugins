@@ -16,7 +16,7 @@ export const policySettingsSchema = z.object({
   ignoredPaths: z.array(z.string().trim().min(1).max(200)).max(30),
   instructions: z.string().max(6000),
   dailyLimit: z.number().int().min(1).max(200),
-  visibility: z.enum(['private', 'project']),
+  visibility: z.enum(['private', 'project', 'organization']),
   pipeline: pipelineTargetSchema.nullable().default(null)
 }).strict()
 export type PolicySettings = z.infer<typeof policySettingsSchema>

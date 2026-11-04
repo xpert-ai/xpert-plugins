@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { createRequire } from 'node:module'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { configSchema, type Config } from './automation-domain.js'
-import { ReviewRepository, ReviewRun, ReviewDelivery } from './automation-entities.js'
+import { ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit } from './automation-entities.js'
 import { GitHubApp } from './github-app.js'
 import { Repositories } from './repositories.js'
 import { Automation, AutomationProcessor } from './automation.js'
@@ -43,6 +43,7 @@ const entities = [
   WorkflowDiagnosis,
   Review,
   ReviewRepository,
+  ReviewPolicyAudit,
   ReviewRun,
   ReviewDelivery,
   ReviewPipelineBinding,
@@ -75,11 +76,27 @@ const entities = [
   ]
 })
 export class CodeReviewPlugin {
+  private recoveryTimer?: ReturnType<typeof setTimeout>
+  private stopped = false
   constructor(private readonly automation: Automation) {}
-  async onPluginBootstrap() {
-    await this.automation.recover()
+  onPluginBootstrap() { this.stopped = false; this.scheduleRecovery() }
+  onApplicationBootstrap() { this.scheduleRecovery() }
+  onPluginDestroy() { this.stopped = true; clearTimeout(this.recoveryTimer) }
+  private scheduleRecovery(delay = 0) {
+    if (this.stopped) return
+    clearTimeout(this.recoveryTimer)
+    this.recoveryTimer = setTimeout(() => {
+      this.recoveryTimer = undefined
+      // Plugin bootstrap can precede host CQRS registration. Let host startup finish;
+      // re-arm the existing idempotent queue only after live identity resolution succeeds.
+      void this.automation.recover().then(recovered => {
+        if (recovered === false) this.scheduleRecovery(5000)
+      }).catch(() => this.scheduleRecovery(5000))
+    }, delay)
+    this.recoveryTimer.unref?.()
   }
 }
+
 const plugin: XpertPlugin<Config> = {
   meta: {
     name: PLUGIN,

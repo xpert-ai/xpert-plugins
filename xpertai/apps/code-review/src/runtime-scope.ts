@@ -4,10 +4,18 @@ import type { RunnableConfig } from '@langchain/core/runnables'
 import { z } from 'zod/v3'
 import { ReviewError, scopeSchema, type Scope } from './domain.js'
 
-export function viewScope(c: Pick<XpertResolvedViewHostContext, 'tenantId' | 'organizationId' | 'userId' | 'hostId' | 'hostType' | 'workspaceId' | 'runtimeScope'>): Scope {
+const hostSnapshotSchema = z.object({
+  name: z.string(), title: z.string().nullish().transform(value => value ?? undefined),
+  organization: z.object({ name: z.string() }).nullish(), workspace: z.object({ name: z.string() }).nullish()
+})
+
+export function viewScope(c: Pick<XpertResolvedViewHostContext, 'tenantId' | 'organizationId' | 'userId' | 'hostId' | 'hostType' | 'workspaceId' | 'runtimeScope' | 'assistant' | 'permissions' | 'hostSnapshot'>): Scope {
   if (c.hostType !== 'agent') throw new ReviewError('view_not_found')
   return {
     ...scopeSchema.parse({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.hostId, workspaceId: c.workspaceId }),
+    assistant: c.assistant,
+    permissions: c.permissions,
+    hostSnapshot: c.hostSnapshot ? hostSnapshotSchema.parse(c.hostSnapshot) : undefined,
     runtime: { viewHost: { type: 'agent', id: c.hostId }, projectId: c.runtimeScope?.projectId }
   }
 }

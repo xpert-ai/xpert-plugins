@@ -35,8 +35,10 @@ export class ReviewWorkbench {
         'NULL::uuid AS "roundId"',
         'review."submissionUrl" AS "publicationUrl"'
       ])
+    const organizationAccess = await this.automation.repositories.access(s)
     const automatic = this.automation
       .visibleQuery(s, repositories)
+      .setParameter('organizationEvidence', organizationAccess.canRead)
       .innerJoin(
         this.automation.repositories.records.metadata.target,
         'repository',

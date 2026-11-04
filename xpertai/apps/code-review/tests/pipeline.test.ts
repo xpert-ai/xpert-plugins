@@ -175,7 +175,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     return { ...context, idempotencyKey: operationId, work: { ...work, operationId, nodeInstanceId: randomUUID() }, inputs: input }
   }
   const assistant = (base: ProjectPipelineOperationContext): ProjectPipelineAssistantContext => ({ ...base,
-    executor: { xpertId: randomUUID(), workspaceId: s.workspaceId!, publishedVersion: '1', executionId: base.work.operationId, conversationId: randomUUID() } })
+    executor: { userId: randomUUID(), xpertId: randomUUID(), workspaceId: s.workspaceId!, publishedVersion: '1', executionId: base.work.operationId, conversationId: randomUUID() } })
   const prepared = await service.prepare(context), snapshotRef = prepared.outputs.snapshot
   const outputs: ProjectPipelineEvidenceRef[] = []
   let verified: ProjectPipelineEvidenceRef, checkRef: ProjectPipelineEvidenceRef
@@ -185,7 +185,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
       const c = assistant(step({ snapshot: { kind: 'evidence', value: snapshotRef } }))
       const input = await service.prepareAssistant(c, pass)
       assert.equal(input.context.codeReview.headSha, head)
-      const scope = { ...s, assistantId: c.executor.xpertId }
+      const scope = { ...s, userId: c.executor.userId!, assistantId: c.executor.xpertId }
       await reviews.complete(scope, { configurable: { executionId: c.executor.executionId, context: input.context } }, { summary: `${pass} verified`, findings: [{ title: `${pass} candidate`, body: 'Candidate evidence to be independently checked', priority: 'P2', path: 'app.ts', side: 'RIGHT', line: 2 }] })
       outputs.push((await service.collect(c, pass)).findings)
     }
@@ -199,7 +199,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     assert.equal(input.context.codeReview.candidates.length, 2)
     // The model sees tool results, not the hidden runtime context object.
     const config = { configurable: { context: { codeReview: { reviewId: c.work.operationId, headSha: head } } } }
-    const verifierScope = { ...s, assistantId: c.executor.xpertId }
+    const verifierScope = { ...s, userId: c.executor.userId!, assistantId: c.executor.xpertId }
     const exposed = await reviews.evidence(verifierScope, config)
     assert.equal(exposed.role, 'verify')
     const candidates = await reviews.candidates(verifierScope, config, 0, 1)
@@ -209,7 +209,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     assert.equal((await reviews.candidates(verifierScope, config, 1, 1)).next, null)
     await assert.rejects(reviews.candidates(verifierScope, { configurable: { context: { codeReview: { reviewId: c.work.operationId, headSha: 'f'.repeat(40) } } } }, 0, 1), /stale_revision/)
 
-    await reviews.complete({ ...s, assistantId: c.executor.xpertId }, { configurable: { executionId: c.executor.executionId, context: input.context } },
+    await reviews.complete({ ...s, userId: c.executor.userId!, assistantId: c.executor.xpertId }, { configurable: { executionId: c.executor.executionId, context: input.context } },
       { summary: 'Both review passes independently verified', findings: [] })
     verified = (await service.collect(c, 'verify')).findings
     const policy = await operations.readiness(step({ findings: { kind: 'evidence', value: verified }, checks: { kind: 'evidence', value: checkRef } }))
@@ -270,7 +270,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     head = 'd'.repeat(40)
     await db.getRepository(Review).update(root.id, { snapshot: { ...snapshot, headSha: head } })
     assert.equal(await service.current(context, subject), false)
-    await assert.rejects(reviews.complete({ ...s, assistantId: c.executor.xpertId }, { configurable: { executionId: c.executor.executionId, context: input.context } },
+    await assert.rejects(reviews.complete({ ...s, userId: c.executor.userId!, assistantId: c.executor.xpertId }, { configurable: { executionId: c.executor.executionId, context: input.context } },
       { summary: 'late', findings: [] }), /stale_revision/)
     assert.equal(digest(await service.read(context, snapshotRef)), snapshotRef.digest)
   })

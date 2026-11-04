@@ -9,7 +9,7 @@ import { scopeSchema, ReviewError } from './domain.js'
 export const GITHUB_TRIGGER = 'code_review.github'
 const schema = z.object({ enabled: z.boolean().default(true), instructions: z.string().max(6000).default('') }).strict()
 type Config = z.input<typeof schema>
-type Params = TWorkflowTriggerParams<Config> & { additionalInstructions?: string; scope?: { tenantId: string; organizationId: string | null; userId?: string; workspaceId?: string } }
+type Params = TWorkflowTriggerParams<Config> & { additionalInstructions?: string; scope?: { tenantId: string; organizationId: string | null; userId?: string; assistantUserId?: string; workspaceId?: string } }
 
 @Injectable()
 @WorkflowTriggerStrategy(GITHUB_TRIGGER)
@@ -34,20 +34,24 @@ export class CodeReviewGitHubTrigger implements IWorkflowTriggerStrategy<Config>
       if (p.config.enabled === false) return []
       const s = scopeSchema.parse({ ...this.identity(p), userId: p.scope?.userId, workspaceId: p.scope?.workspaceId })
       await this.events.access(s)
-      const existing = await this.events.records.findOneBy(this.identity(p))
-      if (existing && existing.userId !== s.userId) throw new ReviewError('github_trigger_owner_mismatch')
       return []
-    } catch { return [{ message: 'Enable Code review and configure GitHub events as the subscription owner.' }] }
+    } catch { return [{ message: 'Enable Code review on this published Assistant.' }] }
   }
   async publish(p: Params) {
     const identity = this.identity(p), config = schema.parse(p.config)
     const existing = await this.events.records.findOneBy(identity)
-    // A bootstrap replay is allowed only for an existing, host-bound subscription.
-    const s = scopeSchema.parse({ ...identity, userId: existing?.userId ?? p.scope?.userId, workspaceId: p.scope?.workspaceId ?? existing?.workspaceId })
+    let principalUserId = p.scope?.assistantUserId
+    if (!principalUserId) {
+      const policies = await this.repositories.records.find({ where: { ...identity, ownership: 'assistant' }, take: 100 })
+      for (const policy of policies) {
+        try { principalUserId = (await this.repositories.execution(policy)).userId; break } catch { /* Disabled Assistant. */ }
+      }
+    }
+    const s = scopeSchema.parse({ ...identity, userId: principalUserId ?? existing?.userId,
+      workspaceId: p.scope?.workspaceId ?? existing?.workspaceId })
     if (!s.workspaceId) throw new ReviewError('workspace_required')
-    if (p.scope?.userId && existing && existing.userId !== p.scope.userId) throw new ReviewError('github_trigger_owner_mismatch')
-    let enabled = config.enabled
-    try { await this.events.access(s) } catch { enabled = false }
+    let enabled = config.enabled && !!principalUserId
+    if (enabled) { try { await this.events.access(s) } catch { enabled = false } }
     const instructions = [config.instructions, p.additionalInstructions].filter(Boolean).join('\n\n')
     await this.events.records.upsert({ ...s, workspaceId: s.workspaceId, enabled, instructions }, ['tenantId', 'organizationId', 'assistantId'])
   }
@@ -57,9 +61,9 @@ export class CodeReviewGitHubTrigger implements IWorkflowTriggerStrategy<Config>
     let available = false
     try {
       await this.events.access(scopeSchema.parse({ ...identity, userId: p.scope?.userId, workspaceId: p.scope?.workspaceId }))
-      available = !subscription || subscription.userId === p.scope?.userId
+      available = true
     } catch { /* The provider remains visible but cannot be enabled without its capability. */ }
-    const repositories = subscription ? await this.repositories.records.find({ where: { ...identity, userId: subscription.userId }, take: 100 }) : []
+    const repositories = subscription ? await this.repositories.records.find({ where: identity, take: 100 }) : []
     const application = available ? await this.repositories.app.config() : undefined
     return { available, connection: available && application?.webhookSecret && subscription?.enabled && repositories.some(p => p.settings.enabled) ? 'connected' as const : 'disconnected' as const,
       lastActivityAt: subscription?.lastEventAt?.toISOString() ?? null, lastRunAt: subscription?.lastRunAt?.toISOString() ?? null }

@@ -58,8 +58,8 @@ export class Reviews {
   }
   async recordGithub(s: Scope, r: Review) {
     if (r.pipelineRootReviewId) {
-      const binding = await this.records.manager.findOneByOrFail(ReviewPipelineBinding, { id: r.pipelineRootReviewId })
-      const root = await this.records.findOneByOrFail({ id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId, userId: r.userId })
+      const binding = await this.records.manager.findOneByOrFail(ReviewPipelineBinding, { id: r.pipelineRootReviewId, tenantId: s.tenantId, organizationId: s.organizationId, projectId: r.pipelineProjectId! })
+      const root = await this.records.findOneByOrFail({ id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId, userId: binding.userId })
       return root.automationPolicyId ? this.repositories.github({ ...s, userId: root.userId, assistantId: root.assistantId }, root.automationPolicyId) : this.github({ ...s, userId: root.userId, assistantId: root.assistantId, workspaceId: binding.workspaceId }, root.access)
     }
     return r.automationPolicyId ? this.repositories.github({ ...s, userId: r.userId }, r.automationPolicyId) : this.github(s, r.access)
@@ -75,7 +75,7 @@ export class Reviews {
     if (snapshot.files.length !== all) snapshot.warnings.push('ignored_files_excluded')
     if (!snapshot.files.length) throw new ReviewError('all_files_excluded')
     return this.records.save(this.records.create({ ...owner(p), ref, snapshot, access: 'connected', status: 'ready',
-      automationPolicyId: p.id, automationRunId: run.id, findings: [], viewed: [], summary: '', instructions: run.settings.instructions }))
+      organizationShared: p.ownership === 'assistant' && run.settings.visibility === 'organization', automationPolicyId: p.id, automationRunId: run.id, findings: [], viewed: [], summary: '', instructions: run.settings.instructions }))
   }
   async guidance(s: Scope, id: string, revision: number, instructions: string) {
     const r = await this.get(s, id)
@@ -88,9 +88,8 @@ export class Reviews {
     return r.instructions === instructions ? r : this.update(s, r, { instructions })
   }
   async list(s: Scope, page = 1) {
-    const projectIds = this.capabilities ? (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId } })).map(p => p.projectId) : []
-    const [items, total] = await this.records.findAndCount({ where: [owner(s), ...(projectIds.length ? [{ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, projectShared: true, pipelineProjectId: In(projectIds) }] : [])], order: { pinned: 'DESC', updatedAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
-      select: ['id', 'ref', 'status', 'pinned', 'revision', 'updatedAt', 'summary'] })
+    const [items, total] = await (await this.visibleQuery(s)).orderBy('review.pinned', 'DESC').addOrderBy('review."updatedAt"', 'DESC')
+      .take(20).skip((page - 1) * 20).select(['review.id', 'review.ref', 'review.status', 'review.pinned', 'review.revision', 'review.updatedAt', 'review.summary']).getManyAndCount()
     return { items, total, page, pageSize: 20 }
   }
   /** The workbench uses the same ownership / project visibility boundary as list(). */
@@ -98,18 +97,21 @@ export class Reviews {
     const projectIds = (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: {
       tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId
     } })).map(p => p.projectId)
+    const access = await this.repositories.access(s)
     return this.records.createQueryBuilder('review')
-      .where('review."tenantId" = :tenantId AND review."organizationId" = :organizationId AND review."assistantId" = :assistantId', s)
+      .where('review."tenantId" = :tenantId AND review."organizationId" = :organizationId ', s)
       .andWhere(new Brackets(q => {
-        q.where('review."userId" = :userId', s)
+        q.where('review."userId" = :userId AND review."assistantId" = :assistantId', s)
+        if (access.canRead) q.orWhere('review."organizationShared" = true AND review."assistantId" = :assistantId', s)
         if (projectIds.length) q.orWhere('review."projectShared" = true AND review."pipelineProjectId" IN (:...projectIds)', { projectIds })
       }))
   }
   async get(s: Scope, id: string) {
-    const record = await this.records.findOneBy({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, id })
-    if (record && record.userId !== s.userId && (!record.projectShared || !record.pipelineProjectId)) throw new ReviewError('review_not_found')
+    const record = await this.records.findOneBy({ tenantId: s.tenantId, organizationId: s.organizationId, id })
+    const organizationAccess = record?.organizationShared && record.assistantId === s.assistantId && (await this.repositories.access(s)).canRead
+    if (record && !organizationAccess && record.userId !== s.userId && (!record.projectShared || !record.pipelineProjectId)) throw new ReviewError('review_not_found')
     if (!record) throw new ReviewError('review_not_found')
-    await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
+    if (!organizationAccess) await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
     return record
   }
   private async update(s: Scope, r: Review, patch: Partial<Review>) {

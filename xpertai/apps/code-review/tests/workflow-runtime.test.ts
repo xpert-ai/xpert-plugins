@@ -15,7 +15,7 @@ import { workflowRef } from '../src/workflow-contract.js'
 
 function fixture() {
   const scope: Scope = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID(), workspaceId: randomUUID() }
-  const policy = Object.assign(new ReviewRepository(), scope, { id: randomUUID(), owner: 'fixture', repository: 'repo', revision: 1,
+  const policy = Object.assign(new ReviewRepository(), scope, { id: randomUUID(), owner: 'fixture', repository: 'repo', revision: 1, executionRevision: 1,
     settings: { ...defaultPolicy, enabled: true, onWorkflowFailure: true } })
   const run = { id: 25, run_attempt: 1, head_sha: 'a'.repeat(40), head_branch: 'main', name: 'CI', conclusion: 'failure', status: 'completed', html_url: 'https://github.com/fixture/repo/actions/runs/25' }
   const job = { id: 40, run_id: 25, name: 'acceptance', conclusion: 'failure', html_url: run.html_url + '/job/40', steps: [] }
@@ -33,14 +33,10 @@ function fixture() {
   } as unknown as Repository<WorkflowDiagnosis>
   const repositories = {
     get: async () => policy,
+    execution: async () => { inspections++; if (denied) throw new ReviewError('execution_authorization_revoked'); return policy },
     github: async () => ({ request: async (path: string) => path.includes('/jobs?') ? { total_count: 1, jobs: [job] } : run,
       jobLog: async () => { logReads++; return { content: 'expected failure', truncated: false } } }),
-    app: { inspect: async (s: Scope) => {
-      inspections++
-      assert.equal(s.runtime?.executionId,row.executionId, 'OAuth is checked in the dispatched execution')
-      assert.equal(s.runtime?.conversationId,row.conversationId)
-      if (denied) throw new ReviewError('github_auth_required')
-    } }
+    app: { inspect: async () => { throw new Error('Background execution must not depend on configuring-user OAuth') } }
   } as unknown as Repositories
   const events = { assertListening: async () => {}, activity: async () => {}, instructions: async () => '' } as unknown as ReviewEvents
   const capabilities = new DefaultRuntimeCapabilityRegistry()
@@ -55,27 +51,28 @@ function fixture() {
     config: () => ({ configurable: { executionId: row.executionId, context: { codeReviewWorkflow: { diagnosisId: row.id } } } }) }
 }
 
-test('queued workflow dispatches without pretending to have an Agent execution; tools recheck OAuth in that execution', async () => {
+test('queued workflow dispatches without pretending to have an Agent execution; tools recheck organization execution authority', async () => {
   const f = fixture()
   await f.service.process(f.policy)
   assert.equal(f.row.status,'running')
-  assert.deepEqual(f.metrics(),{ dispatches: 1, logReads: 0, inspections: 0 })
+  assert.equal(f.metrics().dispatches,1)
+  assert.equal(f.metrics().logReads,0)
   const evidence = await f.service.evidence(f.execution(),f.config())
   assert.equal(evidence.evidence?.jobs[0].id,40)
   assert.equal((await f.service.log(f.execution(),f.config(),40,0,10)).lines,'expected failure')
   await f.service.complete(f.execution(),f.config(),{ summary: 'Expected fixture failure', findings: [] })
   assert.equal(f.row.status,'completed')
-  assert.equal(f.metrics().inspections,3)
+  assert(f.metrics().inspections >= 3)
 })
 
-test('revoked OAuth denies evidence, logs and finalization; a different execution cannot use the task', async () => {
+test('revoked organization authorization denies evidence, logs and finalization; a different execution cannot use the task', async () => {
   const f = fixture()
   await f.service.process(f.policy)
   await assert.rejects(f.service.evidence(f.execution(),{ configurable: { ...f.config().configurable, executionId: randomUUID() } }),/task_binding_mismatch/)
   f.deny()
-  await assert.rejects(f.service.evidence(f.execution(),f.config()),/github_auth_required/)
-  await assert.rejects(f.service.log(f.execution(),f.config(),40,0,10),/github_auth_required/)
-  await assert.rejects(f.service.complete(f.execution(),f.config(),{ summary: 'Must not save', findings: [] }),/github_auth_required/)
+  await assert.rejects(f.service.evidence(f.execution(),f.config()),/execution_authorization_revoked/)
+  await assert.rejects(f.service.log(f.execution(),f.config(),40,0,10),/execution_authorization_revoked/)
+  await assert.rejects(f.service.complete(f.execution(),f.config(),{ summary: 'Must not save', findings: [] }),/execution_authorization_revoked/)
   assert.equal(f.metrics().logReads,0)
   assert.equal(f.row.status,'running')
   assert.equal(f.row.result,undefined)

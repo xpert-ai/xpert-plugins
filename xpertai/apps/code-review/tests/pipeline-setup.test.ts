@@ -15,7 +15,7 @@ function fixture() {
   const projectId = randomUUID(), saved = new Map<string, ProjectPipelineSavedConfiguration>()
   let allowed = true, configured = 0
   capabilities.register(ProjectAccessRuntimeCapability, {
-    async listReadable() { return [] }, async assertEdit() { throw new Error('unused') },
+    async listReadable() { return [] }, async assertEdit(c) { return this.assertManage(c) },
     async assertManage(c) {
       assert.equal(c.projectId, projectId); assert.equal(c.actor.tenantId, s.tenantId); assert.equal(c.actor.userId, s.userId)
       if (!allowed) throw new Error('access_denied')

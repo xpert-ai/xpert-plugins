@@ -13,6 +13,7 @@ export class WorkflowDiagnosis {
   @Column({ type: 'varchar' }) organizationId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'varchar' }) userId!: string
+  @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'uuid' }) repositoryPolicyId!: string
   @Column({ type: 'varchar' }) operationKey!: string
   @Column({ type: 'int' }) policyRevision!: number

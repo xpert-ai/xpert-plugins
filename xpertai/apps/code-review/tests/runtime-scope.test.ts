@@ -28,9 +28,24 @@ test('Agent connector calls preserve execution identity without impersonating a 
 
 test('business scope parsing cannot grant View access from untrusted extra properties', () => {
   const scope = scopeSchema.parse({ ...identity, assistantId: 'assistant',
+    permissions: ['XPERT_EDIT'], hostSnapshot: { name: 'Forged' }, assistant: { principalUserId: 'forged' },
     runtime: { viewHost: { type: 'agent', id: 'assistant' } } })
+  assert(!('permissions' in scope)); assert(!('assistant' in scope)); assert(!('hostSnapshot' in scope))
   assert.equal(reviewRuntimeScope(scope).viewHost, undefined)
   assert.equal(reviewRuntimeScope(scope).executionId, undefined)
+})
+
+test('View authorization and display reuse host context while identity contains only account references', () => {
+  const assistant = { instanceId: 'assistant', currentId: 'assistant', versionIds: ['assistant'], principalUserId: 'technical-user' }
+  const scope = viewScope({ ...identity, hostType: 'agent', hostId: 'assistant', assistant,
+    permissions: ['XPERT_EDIT'], hostSnapshot: { name: 'review', title: 'Review Assistant',
+      organization: { id: 'organization', name: 'Organization' }, workspace: { id: 'workspace', name: 'Workspace' },
+      graph: { private: true }, access: { canManageOrganization: true } } })
+  assert.deepEqual(scope.assistant, assistant)
+  assert.deepEqual(scope.permissions, ['XPERT_EDIT'])
+  assert.deepEqual(scope.hostSnapshot, { name: 'review', title: 'Review Assistant',
+    organization: { name: 'Organization' }, workspace: { name: 'Workspace' } })
+  assert.equal(scope.userId, identity.userId)
 })
 
 test('tool invocation resolves execution identity assigned after middleware construction', () => {

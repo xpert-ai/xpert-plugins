@@ -31,16 +31,16 @@ export class WorkflowDiagnostics {
   }
   async receive(p: ReviewRepository, input: z.infer<typeof workflowEventSchema>, deliveryId: string, digest: string) {
     let listening = true
-    try { await this.events.assertListening(p) } catch { listening = false }
+    try { await this.events.assertListening(await this.repositories.execution(p)) } catch { listening = false }
     await this.records.manager.transaction(async manager => {
       const policy = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write' } })
       const previous = await manager.findOneBy(ReviewDelivery, { deliveryId })
       if (previous) { if (previous.digest !== digest) throw new ReviewError('delivery_payload_mismatch'); return }
       const ref = workflowRef(input.workflow_run), reason = workflowDecision(policy.settings, input) ?? (listening ? null : 'github_trigger_paused')
-      const operationKey = `${ref.runId}-${ref.attempt}-${policy.revision}${reason ? '-skip-' + input.action : ''}`
+      const operationKey = `${ref.runId}-${ref.attempt}-${policy.executionRevision}${reason ? '-skip-' + input.action : ''}`
       let run = await manager.findOneBy(WorkflowDiagnosis, { repositoryPolicyId: policy.id, operationKey })
-      if (!run) run = await manager.save(WorkflowDiagnosis, manager.create(WorkflowDiagnosis, { ...ownership(policy), repositoryPolicyId: policy.id,
-        operationKey, policyRevision: policy.revision, settings: policy.settings, ref, status: reason ? 'skipped' : 'queued', reason,
+      if (!run) run = await manager.save(WorkflowDiagnosis, manager.create(WorkflowDiagnosis, { ...ownership(p), organizationShared: policy.ownership === 'assistant' && policy.settings.visibility === 'organization', repositoryPolicyId: policy.id,
+        operationKey, policyRevision: policy.executionRevision, settings: policy.settings, ref, status: reason ? 'skipped' : 'queued', reason,
         finishedAt: reason ? new Date() : null }))
       await manager.save(ReviewDelivery, manager.create(ReviewDelivery, { deliveryId, event: 'workflow_run', digest,
         tenantId: policy.tenantId, organizationId: policy.organizationId, runId: run.id, status: 'processed' }))
@@ -49,7 +49,8 @@ export class WorkflowDiagnostics {
     await this.events.activity(p, 'event')
   }
   async list(s: Scope, page: number) {
-    const [items, total] = await this.records.findAndCount({ where: ownership(s), order: { createdAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
+    const access = await this.repositories.access(s)
+    const [items, total] = await this.records.findAndCount({ where: [ownership(s), ...(access.canRead ? [{ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, organizationShared: true }] : [])], order: { createdAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
       select: ['id', 'ref', 'status', 'reason', 'result', 'createdAt', 'executionId', 'conversationId'] })
     return { items, total, page, pageSize: 20 }
   }
@@ -61,7 +62,7 @@ export class WorkflowDiagnostics {
     for (let r of records) {
       try {
         let stopped = p.revision !== r.policyRevision || !p.settings.enabled ? 'policy_changed' : null
-        try { await this.events.assertListening(p) } catch { stopped = 'github_trigger_paused' }
+        try { await this.events.assertListening(await this.repositories.execution(p)) } catch { stopped = 'github_trigger_paused' }
         if (stopped) {
           if (r.executionId) await this.tasks(p).cancelTask?.({ xpertId: p.assistantId, executionId: r.executionId, conversationId: r.conversationId ?? undefined })
           await this.finish(r, 'cancelled', stopped); continue
@@ -77,7 +78,7 @@ export class WorkflowDiagnostics {
             .parse(await github.request(`${path(p)}/runs/${r.ref.runId}/attempts/${r.ref.attempt}/jobs?per_page=100`))
           const claimed = await this.records.manager.transaction(async manager => {
             const policy = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write' } })
-            if (policy.revision !== r.policyRevision || !policy.settings.enabled) return false
+            if (policy.executionRevision !== r.policyRevision || !policy.settings.enabled) return false
             const midnight = new Date(); midnight.setUTCHours(0, 0, 0, 0)
             const where = { repositoryPolicyId: p.id, startedAt: MoreThanOrEqual(midnight) }
             const used = await manager.count(ReviewRun, { where }) + await manager.count(WorkflowDiagnosis, { where })
@@ -120,10 +121,10 @@ export class WorkflowDiagnostics {
     if (!r || r.status !== 'running' || r.executionId !== (binding.rootExecutionId ?? binding.executionId)) throw new ReviewError('task_binding_mismatch')
     const p = await this.repositories.get(s, r.repositoryPolicyId)
     if (p.revision !== r.policyRevision) throw new ReviewError('policy_changed')
-    await this.events.assertListening(p)
+    await this.events.assertListening(await this.repositories.execution(p))
     // A queue has no Agent execution yet. Recheck the OAuth actor from the real
     // tool execution before exposing evidence/logs or accepting a diagnosis.
-    await this.repositories.app.inspect(s, p.owner, p.repository, true)
+    await this.repositories.github(s, p.id)
     return { r, p }
   }
   async evidence(s: Scope, config?: RunnableConfig) {

@@ -36,7 +36,7 @@ export class ReviewEvents {
   }
   async assertListening(s: Scope) {
     const subscription = await this.records.findOneBy(this.where(s))
-    if (!subscription?.enabled || subscription.userId !== s.userId) throw new ReviewError('github_trigger_paused')
+    if (!subscription?.enabled) throw new ReviewError('github_trigger_paused')
     try { await this.access(s) } catch { throw new ReviewError('code_review_capability_unavailable') }
   }
   async activity(s: Scope, kind: 'event' | 'run') {
@@ -44,6 +44,8 @@ export class ReviewEvents {
   }
   async instructions(s: Scope) {
     const subscription = await this.records.findOneBy(this.where(s))
-    return subscription?.enabled && subscription.userId === s.userId ? subscription.instructions : ''
+    if (!subscription?.enabled) return ''
+    await this.access(s)
+    return subscription.instructions
   }
 }

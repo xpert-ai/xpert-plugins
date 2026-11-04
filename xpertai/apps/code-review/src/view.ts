@@ -9,7 +9,7 @@ import { Automation } from './automation.js'
 import { repositoryInput, savePolicySchema, runStatusSchema } from './automation-domain.js'
 import { FEATURE, PROVIDER, PLUGIN, VIEW, idSchema, ReviewError } from './domain.js'
 import { viewScope as scope } from './runtime-scope.js'
-import { ASSISTANT_CONTEXT_SET_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
+import { AIPermissionsEnum, ASSISTANT_CONTEXT_SET_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
 import type { Review } from './entity.js'
 import { ReviewWorkbench } from './workbench.js'
 import { workbenchQuerySchema } from './workbench-contract.js'
@@ -39,8 +39,9 @@ export class ReviewView implements IXpertViewExtensionProvider {
       ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: text('Code review', '代码审查'), icon, order: 35 } } } : {}),
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: 'code-review' }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSelection: true, supportsParameters: true, defaultPageSize: 20 }, cache: { enabled: false } },
-      actions: [...['open', 'refresh', 'start', 'cancel', 'mark', 'submit'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })),
-        ...['import-local', 'repository.add', 'repository.save', 'repository.trial', 'run.confirm', 'run.retry', 'pipeline.start', 'pipeline.start-saved', 'pipeline.configurations', 'pipeline.catalog', 'pipeline.configure'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, requiredHostAccess: 'manage' as const }))],
+      actions: [...['repository.add', 'repository.save', 'repository.trial', 'repository.preview', 'repository.bind', 'repository.history', 'repository.maintain', 'run.retry'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, permissions: [AIPermissionsEnum.XPERT_EDIT] })),
+        ...['open', 'refresh', 'start', 'cancel', 'mark', 'submit'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })),
+        ...['import-local', 'run.confirm', 'pipeline.start', 'pipeline.start-saved', 'pipeline.configurations', 'pipeline.catalog', 'pipeline.configure'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, requiredHostAccess: 'manage' as const }))],
       parameters: [{ key: 'inbox', type: 'string', label: text('Inbox', '收件箱') }] }]
   }
   async getRemoteComponentEntry(c: XpertResolvedViewHostContext, viewKey: string, component: XpertRemoteComponentViewSchema['component']) {
@@ -83,6 +84,14 @@ export class ReviewView implements IXpertViewExtensionProvider {
         return { success: true, data: await this.pipelines.attach(s, { ...start, projectId: c.runtimeScope.projectId }), refresh: true }
       }
       if (key === 'pipeline.start') return { success: true, data: await this.pipelines.attach(s, attachPipelineSchema.parse(request.input)), refresh: true }
+      if (key === 'repository.history') return { success: true, data: await this.automation.repositories.history(s, selection.parse(request.input).id) }
+      if (key === 'repository.maintain') { const v = selection.parse(request.input); return { success: true, data: await this.automation.repositories.maintain(s, v.id, v.revision), refresh: true } }
+      if (['repository.preview', 'repository.bind'].includes(key)) {
+        const v = selection.parse(request.input)
+        const p = key === 'repository.preview' ? await this.automation.repositories.preview(s, v.id)
+          : await this.automation.repositories.bind(s, v.id, v.revision)
+        return { success: true, data: p, refresh: true }
+      }
       if (key === 'repository.add') {
         const v = repositoryInput.parse(request.input), p = await this.automation.repositories.add(s, v.owner, v.repository)
         await this.automation.schedule(p)

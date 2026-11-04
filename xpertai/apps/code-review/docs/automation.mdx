@@ -1,25 +1,25 @@
 ---
 title: "GitHub event automation"
-description: "Run private Assistant reviews and workflow diagnoses, or use a governed Project pipeline"
+description: "Run organization-owned Assistant reviews and workflow diagnoses, or use a governed Project pipeline"
 ---
 
 ## Relationships
 
-Repository rules select an explicit execution mode. **Current Assistant** handles private PR review and workflow diagnosis without a Project. **Project pipeline** uses the governance described below. Existing rules retain pipeline mode on upgrade; there is no implicit fallback between modes.
+Repository rules select an explicit execution mode. **Current Assistant** handles organization-visible PR review and workflow diagnosis without a Project. **Project pipeline** uses the governance described below. Existing rules retain pipeline mode on upgrade; there is no implicit fallback between modes.
 
 ## Current Assistant and workflow failures
 
 1. Enable **Code review** when creating or editing an Assistant. Select a model with tool calling.
 2. Open its Code Review view, connect GitHub, add an authorized repository and select **Current Assistant** in repository rules.
-3. Choose PR events and optionally workflow failure/timeout, exact branch/workflow-name filters, guidance and a daily limit. Save the rules.
-4. In the Assistant's **Triggers** settings, enable **GitHub events · Code review**. Event instructions apply alongside repository guidance. The subscription is bound to the configuring actor and survives API restarts.
+3. Bind organization execution authority to the intended Assistant. Then choose PR events and optionally workflow failure/timeout, exact branch/workflow-name filters, guidance and a daily limit. Save the rules.
+4. In the Assistant's **Triggers** settings, enable **GitHub events · Code review**. Event instructions apply alongside repository guidance. The subscription belongs to the published Assistant. Execution uses the Assistant's existing account and is revalidated after restarts independently of the configuring user.
 5. Inspect PR results in the review inbox and CI results in **Workflow diagnoses**. A failed branch workflow does not need a linked PR.
 
-Workflow diagnosis requires the GitHub App's **Actions: Read** permission and **Workflow run** subscription. The signed callback is the same `/api/code_review/github/webhook` endpoint. Use a public HTTPS origin; GitHub cannot deliver to localhost. Jobs and steps are read from the exact run attempt; logs are bounded and unavailable/truncated evidence remains explicit. The model saves private findings and suggestions, without executing repository content or publishing to GitHub.
+Workflow diagnosis requires the GitHub App's **Actions: Read** permission and **Workflow run** subscription. The signed callback is the same `/api/code_review/github/webhook` endpoint. Use a public HTTPS origin; GitHub cannot deliver to localhost. Jobs and steps are read from the exact run attempt; logs are bounded and unavailable/truncated evidence remains explicit. The model saves authorized findings and suggestions, without executing repository content or publishing to GitHub.
 
-PR events are deduplicated by repository policy, commit and policy revision. Workflow events additionally distinguish run ID and attempt. PR pushes retain the 30-second debounce. PR and workflow executions share the repository's daily limit. Pausing the trigger or rules, removing the code-review capability, or revoking access prevents new Assistant work. Existing results remain private and inspectable. Only one automation owner may configure a given App installation/repository.
+PR events are deduplicated by repository policy, commit and policy revision. Workflow events additionally distinguish run ID and attempt. PR pushes retain the 30-second debounce. PR and workflow executions share the repository's daily limit. Pausing the trigger or rules, removing the code-review capability, or revoking access prevents new Assistant work. Existing private results retain their audience. New organization evidence follows organization access. One organization owns each App installation/repository policy.
 
-For manual work, paste a PR URL into an ordinary Assistant conversation to request a review, or open the PR in the workbench and choose **Review with this Assistant**. A running review cannot recursively launch another review. Manual drafts retain the explicit GitHub submission action; automated Assistant results stay private.
+For manual work, paste a PR URL into an ordinary Assistant conversation to request a review, or open the PR in the workbench and choose **Review with this Assistant**. A running review cannot recursively launch another review. Manual drafts retain the explicit GitHub submission action; shared automation results follow Assistant access.
 
 A **Project** owns review governance, evidence and pipeline configurations. A Project can have multiple repositories and saved configurations. A repository has one default automation binding per GitHub App installation: **repository → Project → saved pipeline configuration**. This prevents multiple automatic reviewers from independently posting to the same PR.
 
@@ -39,13 +39,13 @@ Lightweight review is a platform pipeline. It does not use a separate direct-Age
 2. Grant the GitHub App **Contents: Read** and **Pull requests: Read & write**; subscribe to **Pull request** events. Configure OAuth callback `https://YOUR-API-DOMAIN/api/connector/oauth/callback` and webhook `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Install the App on the selected repositories. GitHub cannot reach localhost directly.
 3. Select a **Code Review Project** in Bosi. You do not need to save a configuration in Project Tasks first.
 4. In **Code Review → Repositories**, connect GitHub using the selected integration, add `owner/repository`, and configure its rules. The authorizing GitHub account must have write/admin permission. In **Project review pipeline**, choose an available standard or lightweight template, select published Assistants for its roles and expand **Review parameters** to set CI/priority requirements. **Reuse saved configuration** is optional.
-5. Save the binding with automation paused first. Saving a Project binding explicitly makes subsequent review evidence visible to authorized Project editors; it does not migrate old private reviews.
+5. Save the Project configuration with automation paused, then explicitly bind the repository to the intended Assistant, reusing its technical account. Saving a Project binding explicitly makes subsequent review evidence visible to authorized Project editors; it does not migrate old private reviews.
 6. Enter a PR number and run **Try review (no publishing)**. Open its pipeline from the inbox, inspect Agent executions and the human gate. Trial runs cannot publish, including through the Project gate.
 7. After validating the results, enable automatic review. A matching webhook starts the saved template/Assistant/parameter binding. To review a manually opened PR, click **Start review** and choose a template directly in the dialog. Standard PR review has three Agent roles; lightweight PR review has one. Local Git reviews offer the local Git template.
 
 Choosing or cancelling a template does not save it. **Start review** and **Save rules** first create an immutable configuration in the current Project, then use its binding to start the review or update the repository rule. Retrying the same submission reuses that configuration. Existing repository bindings remain selected until explicitly changed. Configuration and dispatch still enforce Project type, management access, eligible Assistants and human publication approval; choosing a template does not bypass those checks.
 
-The configuration owner is the persisted automation actor. Their Project management, executor/model access and GitHub App integration must remain valid. A GitHub installation grants repository access; it does not grant Project or Assistant access. No environment-variable bypass is used.
+The published Assistant's existing technical account is the automation actor. The live Project binding, executor Assistants, model access and GitHub App installation must remain valid. The configuring human is provenance and is not used as the execution identity. A GitHub installation grants repository access; it does not grant Project or Assistant access. No environment-variable bypass is used.
 
 ## Trigger and approval behavior
 

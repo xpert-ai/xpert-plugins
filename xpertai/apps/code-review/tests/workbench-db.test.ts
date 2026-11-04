@@ -83,10 +83,11 @@ test(
       db.getRepository(ReviewDelivery),
       repositories,
       reviews,
-      {} as PluginContext,
+      capability,
       {} as ReviewPipelineAutomation,
       events,
-      new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, {} as PluginContext)
+      new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, {} as PluginContext),
+      { enqueue: async () => ({ jobId: 'fixture-job' }) } as never
     )
     const workbench = new ReviewWorkbench(reviews, automation),
       page = (input: Record<string, unknown> = {}, scope = s) =>

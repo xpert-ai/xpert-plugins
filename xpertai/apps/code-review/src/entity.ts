@@ -13,6 +13,7 @@ export class Review {
   @Column({ type: 'varchar' }) userId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'uuid', nullable: true }) automationPolicyId!: string | null
+  @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'boolean', default: false }) projectShared!: boolean
   @Column({ type: 'uuid', nullable: true }) pipelineProjectId!: string | null
   @Column({ type: 'uuid', nullable: true }) pipelineRootReviewId!: string | null
