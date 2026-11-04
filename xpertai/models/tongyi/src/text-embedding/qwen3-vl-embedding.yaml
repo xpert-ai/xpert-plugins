@@ -1,0 +1,31 @@
+# Source: langgenius/dify-official-plugins@3189f896; verified 2026-11-03.
+model: qwen3-vl-embedding
+model_type: text-embedding
+description: Text input through the native multimodal embedding endpoint (Beijing).
+model_properties:
+  context_size: 32000
+  max_chunks: 10
+pricing:
+  input: "0.7"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/qwen3-vl-embedding
+  rules:
+    - component: input
+      unit_price: 0.7
+      unit_size: 1000000
+parameter_rules:
+  - name: dimensions
+    label:
+      zh_Hans: 向量维度
+      en_US: Dimensions
+    type: int
+    default: 2560
+    options:
+      - "256"
+      - "512"
+      - "768"
+      - "1024"
+      - "1536"
+      - "2048"
+      - "2560"

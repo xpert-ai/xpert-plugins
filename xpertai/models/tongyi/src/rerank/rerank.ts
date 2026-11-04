@@ -5,7 +5,7 @@ import { BaseDocumentCompressor } from '@langchain/core/retrievers/document_comp
 import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { IRerank, RerankModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import { getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
+import { getTongyiHttpBaseUrl, isTongyiInternationalEndpointEnabled, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 @Injectable()
@@ -16,6 +16,9 @@ export class TongyiRerankModel extends RerankModel {
 
 	async getReranker(copilotModel: ICopilotModel, options?: TChatModelOptions): Promise<IRerank> {
 		const credentials = copilotModel.copilot.modelProvider.credentials as TongyiCredentials
+		if (copilotModel.model === 'qwen3-vl-rerank' && !credentials.api_host && isTongyiInternationalEndpointEnabled(credentials)) {
+			throw new Error('qwen3-vl-rerank is available in the Beijing region only')
+		}
 		return new TongyiRerank({
 			apiKey: credentials.dashscope_api_key,
 			model: copilotModel.model,

@@ -1,11 +1,13 @@
 {
     "Error": {
+    "ReplyRecoveryUnavailable": "未能恢复完整回复，请在 Xpert 中查看本次对话。",
         "CredentialsFailed": "凭证验证失败",
         "BotPermission": "可能尚未添加机器人能力或权限",
         "LarkConfigurationRequired": "飞书配置是必需的"
     },
     "integration": {
         "Lark": {
+            "HistoryContextReference": "飞书历史上下文",
             "EndConversation": "结束对话",
             "HelpDoc": "帮助文档",
             "ConversationEnded": "对话已结束。如果您有其他问题，欢迎随时再来咨询。",

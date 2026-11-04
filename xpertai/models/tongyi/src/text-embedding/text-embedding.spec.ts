@@ -240,3 +240,40 @@ describe('Tongyi native multimodal text embeddings', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('Qwen3 VL text embedding', () => {
+  afterEach(() => jest.restoreAllMocks())
+  it('uses the native endpoint and singular dimension parameter, preserving input order', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ output: { embeddings: [
+      { index: 1, type: 'text', embedding: Array(256).fill(2) },
+      { index: 0, type: 'text', embedding: Array(256).fill(1) }
+    ] } })))
+    const manager = new TongyiTextEmbeddingModel(new TongyiProviderStrategy())
+    const model = manager.getEmbeddingInstance(copilotModel('qwen3-vl-embedding', { max_chunks: 10, dimensions: 256 }))
+    expect(await model.embedDocuments(['a', 'b'])).toEqual([Array(256).fill(1), Array(256).fill(2)])
+    expect(fetchMock).toHaveBeenCalledWith(`https://dashscope.aliyuncs.com${nativePath}`, expect.objectContaining({ body: JSON.stringify({ model: 'qwen3-vl-embedding', input: { contents: [{ text: 'a' }, { text: 'b' }] }, parameters: { dimension: 256 } }) }))
+  })
+  it('rejects unsupported dimensions and the international region', () => {
+    const manager = new TongyiTextEmbeddingModel(new TongyiProviderStrategy())
+    expect(() => manager.getEmbeddingInstance(copilotModel('qwen3-vl-embedding', { max_chunks: 10, dimensions: 42 }))).toThrow('unsupported dimensions')
+    expect(() => manager.getEmbeddingInstance(copilotModel('qwen3-vl-embedding', { max_chunks: 10 }, { ...credentials, use_international_endpoint: true }))).toThrow('Beijing')
+  })
+  it('rejects vectors that do not match the configured dimension', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response())
+    const model = new TongyiMultimodalEmbeddings({ credentials, model: 'qwen3-vl-embedding', dimensions: 256 })
+    await expect(model.embedQuery('a')).rejects.toThrow('256-dimensional')
+  })
+})
+
+describe('native embedding accounting', () => {
+  afterEach(() => jest.restoreAllMocks())
+  it('reports provider text tokens once and does not retry a failed usage callback', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ output: { embeddings: [{ index: 0, type: 'text', embedding: Array(256).fill(1) }] }, usage: { input_tokens: 7 } })))
+    const handleModelUsage = jest.fn().mockRejectedValue(new Error('ledger failed'))
+    const manager = new TongyiTextEmbeddingModel(new TongyiProviderStrategy())
+    const model = manager.getEmbeddingInstance(copilotModel('qwen3-vl-embedding', { max_chunks: 10, dimensions: 256 }), { verbose: false, modelProperties: {}, handleLLMTokens: jest.fn(), handleModelUsage })
+    await expect(model.embedQuery('a')).rejects.toThrow('ledger failed')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(handleModelUsage).toHaveBeenCalledWith(expect.objectContaining({ model: 'qwen3-vl-embedding', metrics: [{ unit: 'token', authority: 'provider', promptTokens: 7, completionTokens: 0, totalTokens: 7 }] }))
+  })
+})

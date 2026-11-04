@@ -1,4 +1,4 @@
-import type { LanguagesEnum as TLanguagesEnum, TChatRequest } from '@xpert-ai/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatReference, TChatRequest } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -15,6 +15,7 @@ import { createHash, randomUUID } from 'crypto'
 import { LarkConversationService } from '../conversation.service.js'
 import { LanguagesEnum, STATE_VARIABLE_HUMAN } from '../contracts-compat.js'
 import { ChatLarkMessage } from '../message.js'
+import { translate } from '../i18n.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { DispatchLarkChatPayload } from './commands/dispatch-lark-chat.command.js'
 import { LarkChatRunStateService } from './lark-chat-run-state.service.js'
@@ -76,10 +77,12 @@ export class LarkChatDispatchService {
 
 	async enqueueDispatch(input: TLarkChatDispatchInput): Promise<ChatLarkMessage> {
 		const message = await this.buildDispatchMessage(input)
-		await this.handoffPermissionService.enqueue(message, {
-			delayMs: 0
-		})
+		await this.enqueuePreparedDispatch(message)
 		return input.larkMessage
+	}
+
+	async enqueuePreparedDispatch(message: HandoffMessage<AgentChatDispatchPayload>): Promise<void> {
+		await this.handoffPermissionService.enqueue(message, { delayMs: 0 })
 	}
 
 	async buildDispatchMessage(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
@@ -133,7 +136,7 @@ export class LarkChatDispatchService {
 			steerCandidate = this.isActiveMessageInProgress(activeMessage)
 		}
 		const followUpMode = conversationId && steerCandidate ? ('steer' as const) : undefined
-		const dispatchInput = this.composeDispatchInput(input.input, input.historyContext)
+		const dispatchReferences = this.createHistoryReferences(input.historyContext, larkMessage.language)
 		const dispatchFiles = this.mergeFiles(input.files, input.historyFiles)
 		// Dispatch must run under xpert creator context; request context is only a safety fallback.
 		const dispatchContext = await this.conversationService.resolveDispatchExecutionContext(
@@ -179,7 +182,9 @@ export class LarkChatDispatchService {
 		}
 
 		const runId =
-			input.options?.forceNewRun && currentInboundLogIds.length
+			input.options?.forceNewRun && input.options.recoverySourceMessageId
+				? this.buildRecoveryRunId(larkMessage.integrationId, [input.options.recoverySourceMessageId])
+				: input.options?.forceNewRun && currentInboundLogIds.length
 				? this.buildRecoveryRunId(larkMessage.integrationId, currentInboundLogIds)
 				: `lark-chat-${randomUUID()}`
 		const sessionKey = conversationId ?? runId
@@ -207,7 +212,8 @@ export class LarkChatDispatchService {
 				? {
 						followUpMode,
 						steerFallback: {
-							input: dispatchInput,
+							input: input.input,
+							historyContext: input.historyContext,
 							files: dispatchFiles,
 							message: this.toMessageSnapshotFromActive(activeMessage),
 							fromEndUserId: input.options?.fromEndUserId,
@@ -222,7 +228,7 @@ export class LarkChatDispatchService {
 		}
 
 		if (!followUpMode) {
-			await this.runStateService.save({
+			await this.runStateService.initialize({
 				sourceMessageId: runId,
 				nextSequence: 1,
 				responseMessageContent: '',
@@ -242,11 +248,7 @@ export class LarkChatDispatchService {
 				conversationId ?? 'n/a'
 			} recipientDirectoryKey=${larkMessage.recipientDirectoryKey ?? 'n/a'}`
 		)
-		const state = this.buildChatState({
-			...input,
-			input: dispatchInput,
-			files: dispatchFiles
-		})
+		const state = this.buildChatState({ ...input, files: dispatchFiles }, dispatchReferences)
 		const request = this.buildChatRequest({
 			conversationId,
 			activeMessageId: activeMessage?.id,
@@ -254,8 +256,9 @@ export class LarkChatDispatchService {
 			clientMessageId: currentInboundLogIds[0],
 			state,
 			options: input.options,
-			input: dispatchInput,
-			files: dispatchFiles
+			input: input.input,
+			files: dispatchFiles,
+			references: dispatchReferences
 		})
 		const dispatchOptions: LarkAgentChatDispatchOptions = {
 			xpertId,
@@ -421,15 +424,16 @@ export class LarkChatDispatchService {
 		}
 	}
 
-	private buildChatState(input: TLarkChatDispatchInput): Record<string, any> {
+	private buildChatState(input: TLarkChatDispatchInput, references: TChatReference[]): Record<string, any> {
 		const { larkMessage } = input
 		const sourceMessageLogIds = this.normalizeInboundLogIds(input.currentInboundLogIds)
 		const files = Array.isArray(input.files) && input.files.length > 0 ? input.files : undefined
 		const humanInput =
-			input.input !== undefined || files
+			input.input !== undefined || files || references.length
 				? {
 						input: input.input ?? '',
-						...(files ? { files } : {})
+						...(files ? { files } : {}),
+						...(references.length ? { references, referenceComposition: 'compose' as const } : {})
 				  }
 				: undefined
 		return {
@@ -473,6 +477,7 @@ export class LarkChatDispatchService {
 		options?: TLarkChatDispatchInput['options']
 		input?: string
 		files?: TLarkChatDispatchInput['files']
+		references: TChatReference[]
 	}): TChatRequest {
 		if (params.options?.confirm || params.options?.reject) {
 			if (!params.conversationId) {
@@ -504,7 +509,10 @@ export class LarkChatDispatchService {
 					...(params.clientMessageId ? { clientMessageId: params.clientMessageId } : {}),
 					input: {
 						input: params.input ?? '',
-						...(params.files?.length ? { files: params.files } : {})
+						...(params.files?.length ? { files: params.files } : {}),
+						...(params.references.length
+							? { references: params.references, referenceComposition: 'compose' as const }
+							: {})
 					}
 				},
 				target: {
@@ -521,7 +529,10 @@ export class LarkChatDispatchService {
 				...(params.clientMessageId ? { clientMessageId: params.clientMessageId } : {}),
 				input: {
 					input: params.input ?? '',
-					...(params.files?.length ? { files: params.files } : {})
+					...(params.files?.length ? { files: params.files } : {}),
+					...(params.references.length
+						? { references: params.references, referenceComposition: 'compose' as const }
+						: {})
 				}
 			},
 			state: params.state
@@ -574,12 +585,13 @@ export class LarkChatDispatchService {
 		throw new Error(message)
 	}
 
-	private composeDispatchInput(input?: string, historyContext?: string): string | undefined {
+	private createHistoryReferences(historyContext?: string, language?: string): TChatReference[] {
 		const history = typeof historyContext === 'string' ? historyContext.trim() : ''
 		if (!history) {
-			return input
+			return []
 		}
-		return `${history}\n\n[本次用户消息]\n${input ?? ''}`
+		const label = translate('integration.Lark.HistoryContextReference', { lng: language })
+		return [{ type: 'quote', label, source: label, text: history }]
 	}
 
 	private normalizeInboundLogIds(ids?: string[]): string[] {
