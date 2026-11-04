@@ -1,0 +1,20 @@
+{
+  "referenceRepository": "https://github.com/xpert-ai/xpert-plugins",
+  "referenceMainCommit": "dfad5423205811b3251628ee9bf59a79a4bcbd87",
+  "referenceAcquisition": "GitHub official API, files pinned by commit; full Git clone failed due local proxy and GitHub transport connectivity",
+  "originalStockRepositoryHead": "c8b2ea5fd3ea96e74d14a9036ff76b11fcd5d432",
+  "originalStockWorkingTree": "User changes present; original source files were not edited",
+  "sdk": "@xpert-ai/plugin-sdk@3.18.4",
+  "contracts": "@xpert-ai/contracts@3.18.4",
+  "nodeTested": "22.23.4",
+  "pnpmTested": "10.24.0 (standalone Linux); 8.15.8 (delivery community workspace)",
+  "platformMainCommit": "3ddc380ca20373f9113a77411090de3c3da75e37",
+  "platformCompatibilityVerified": true,
+  "realModelExecuted": true,
+  "upstreamForkCreated": true,
+  "pullRequestCreated": false,
+  "platformSdkContracts": "3.30.2",
+  "runtimeModel": "qwen3.8-flash",
+  "humanConfirmedAndRestored": true,
+  "deliveryAcquisition": "Official main cloned for isolated delivery; same reference SHA verified"
+}

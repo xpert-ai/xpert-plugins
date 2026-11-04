@@ -1,0 +1,13 @@
+@import "../../vendor/shadcn-ui/src/style.css";
+@source "./**/*.tsx";
+@source "../../vendor/shadcn-ui/src/components/**/*.tsx";
+.lab { display:grid; gap:1rem; padding:1rem; max-width:90rem; margin:auto; }
+.lab-columns { display:grid; grid-template-columns:minmax(17rem,1fr) minmax(0,2fr); gap:1rem; align-items:start; }
+.lab-panel { display:grid; gap:.75rem; }
+.lab-row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.lab-fields { display:grid; gap:.5rem; }
+.lab-fields textarea { min-height:6rem; }
+.lab-json { min-height:12rem !important; }
+.lab-scroll { max-height:24rem; overflow:auto; }
+.lab-evidence { overflow-wrap:anywhere; white-space:pre-wrap; }
+@media(max-width:800px){.lab-columns{grid-template-columns:1fr}}

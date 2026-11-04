@@ -1,0 +1,20 @@
+{
+  "title":"选股研究实验台", "subtitle":"冻结证据 · 四阶段研究 · 人工确认",
+  "newTask":"新建研究任务", "taskTitle":"任务名称", "objective":"研究目标", "snapshot":"冻结快照 JSON",
+  "snapshotHelp":"粘贴导出的快照，必须包含截止时间、来源及模拟／历史／实时标记。",
+  "create":"创建任务", "refresh":"刷新", "history":"研究历史", "empty":"尚无研究任务。",
+  "open":"查看", "previous":"上一页", "next":"下一页", "page":"第 {{page}} 页 · 共 {{total}} 条",
+  "reference":"引用到聊天研究", "referenceHint":"任务引用已加入聊天输入框，发送后由 AI 开始真实研究。",
+  "confirm":"确认研究结果", "retry":"按原快照重试", "recover":"恢复中断任务",
+  "busy":"处理中…", "error":"操作失败：{{code}}", "created":"任务已保存，请引用到聊天开始研究。",
+  "status.draft":"待研究", "status.running":"研究中", "status.ready":"待确认", "status.abstained":"弃选",
+  "status.confirmed":"已确认", "status.failed":"失败", "kind.synthetic":"模拟样例", "kind.historical":"历史快照", "kind.live":"实时快照",
+  "stage.fundamental":"基本面调查", "stage.technical":"技术研究", "stage.risk":"风险复核", "stage.decision":"研究决策",
+  "source":"数据来源", "cutoff":"证据截止时间", "hash":"快照指纹", "attempt":"第 {{attempt}} 次研究", "nextStage":"下一阶段",
+  "candidates":"冻结候选", "code":"代码", "name":"股票", "price":"价格", "amount":"成交额",
+  "financial":"财务证据", "available":"已提供", "missing":"未知", "reviews":"研究结论", "noReviews":"AI 尚未保存阶段结论。",
+  "evidence":"证据引用", "risks":"风险提示", "selection":"研究选择", "abstain":"弃选", "failure":"失败原因",
+  "frozen":"重试沿用原始冻结输入；本应用不执行交易。", "details":"证据与输入详情",
+  "instruction":"研究引用的任务，查阅证据，完成四阶段判断，并保存结果供我查看确认。",
+  "lease":"AI 研究意外中断时，五分钟执行期限到期后可恢复为失败，再按原快照重试。", "invalidJson":"快照 JSON 无效"
+}
