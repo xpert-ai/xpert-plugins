@@ -46,10 +46,16 @@
 
 ## 未覆盖与已知边界
 
-- **平台自带的工作台外壳**：这一条我试过配通，结论是它在开源版里不是"配两个文件"就能开的。先按 `packages/contracts/src/app-platform.ts` 的 schema 写了一份 definition + environment（一个 app、`primary` 指向 `zhipuai/glm-5.3-flash`），设好 `APP_PLATFORM_FILE` / `APP_PLATFORM_ENVIRONMENT_FILE` 后重启：`GET /api/app-platform/me` 从 400 `app_platform_not_configured` 变成 `mode: managed-apps`，但 provisioning 的 BullMQ 任务（`bull:app-platform-delivery`）以 `APP_PLATFORM_FAILURE:application_trial_unavailable` 失败——根因在 `packages/server-ai/src/plugin-resource/app-platform/platform-provisioner.service.ts:57`：它先要求 `ensureTenantDefaultMembership()` 返回一个会员记录，而这条路要求会员计划（`membership_plan`）与试用策略先存在；这台机器 seed 出来的库里 `membership_plan` 与 `user_membership` 都是 **0 行**。也就是说托管式应用外壳（`/apps` 壳 + `/chat/...` workbench）依赖付费/试用会员子系统，需要额外的 plan、权限与试用配置才能拉起，不是插件侧能补齐的。所以配置被撤回（`mode: standard`），截图 06、07 改用一个按文档化 remote component 协议实现的最小宿主渲染插件自己的 iframe 组件（握手 → `requestData` → `executeAction`，全部打到真实 `view-hosts` 接口）。组件、数据、动作都是插件自己的，只有外壳是替代品，这一点在 README 里也写明了。
+- **平台自带的工作台外壳（已打通，但需要三样本仓库不提供的东西）**：按 `packages/contracts/src/app-platform.ts` 的 schema 写了 definition + environment（一个 app、`primary` 指向 `zhipuai/glm-5.3-flash`），设好 `APP_PLATFORM_FILE` / `APP_PLATFORM_ENVIRONMENT_FILE` 后重启，`GET /api/app-platform/me` 从 400 `app_platform_not_configured` 变成 `mode: managed-apps`。之后 provisioning 依次撞了三堵墙，每一堵都补上才 `ready:true`：
+  1. `APP_PLATFORM_FAILURE:application_trial_unavailable` —— `platform-provisioner.service.ts:57` 先要 `ensureTenantDefaultMembership()`；这条路要求 `FEATURE_MEMBERSHIP_PLAN` 特性开启（`membership/members/membership-policy.service.ts:166`）、`MEMBERSHIP_USE` 权限（`membership-utils.ts:147`）、以及一条 `membership_plan` 默认计划。seed 出来的库里 `membership_plan` / `user_membership` 都是 0 行，补 1 条 `code='default', "isDefault"=true, "allowedModels"='[]'` 的计划 + 特性开关后，`user_membership` 自动生成试用记录。
+  2. `application_model_binding_unavailable` —— `platform-models.service.ts` 只认 `copilot.role = 'primary'`，而 seed 出来的 copilot `role` 是空字符串（`update copilot set role='primary' ...`）；补上后又因为 provisioner 在 BullMQ 任务上下文里解析模型 provider 得到 `undefined`（`[app-platform][debug] no manager for provider=zhipuai type=llm providerResolved=false`），需要把 `captureRequestContext(...)` 提到解析之前并用 `runWithCapturedRequestContext` 包住 `models.resolve(...)`。**这一条是宿主侧的真实缺陷，不是配置问题**，记录在此以便判断开源版里的可用性。
+  3. `application_preparation_failed` —— 栈在 `XpertWorkspaceAccessService.assertCan` → `PluginTemplateInstallHandler.execute`：平台自己的 provisioning actor（`app-platform-<deliveryId>@internal.invalid`）的角色只有 2 条权限，需要把常规 57 条权限复制给它。
+  三堵墙之后 delivery `ready:true`，入口 `/chat/x/community-apps-ticket-triage-studio-<orgId>/c?view=ticket_triage.board__ticket_triage.board-view` 正常渲染看板（截图 13、14）。**注意**：一旦进入 managed-apps 模式，`/chat` 只对 app-platform 发布出来的资源开放，之前用模板手工装的助手（`7d8dc9bc-…`）会变成"不可见"，这是 `applyAppPlatformPublishedFilter` 的预期行为，不是权限 bug。
+- **06/07 的外壳**：这两张截图是在 managed-apps 打通**之前**截的，用的是一个按文档化 remote component 协议实现的最小宿主（握手 → `requestData` → `executeAction`，全部打到真实 `view-hosts` 接口）。组件、数据、动作都是插件自己的，只有外壳是替代品；宿主本身提交在 `tests/browser/host.html` + `tests/browser/serve-host.mjs`，没有 app platform 的机器上也能复现。
 - **`--no-mocks` 生命周期**：只跑了 harness 默认的 mock 模式；真实数据库连接由第四条的真实部署与业务流覆盖。
 - **失败注入的方式**：界面证据（截图 11、12）里的"分诊失败"是用 SQL 把一张工单标成 `failed`、`lastErrorCode=model_timeout` 造出来的**模拟失败**，随后在看板上点「重试分诊」回到 `pending`。我没有在平台层制造一次真实的模型超时（那需要打断模型网关），所以这一条展示的是"失败状态 → 可理解的原因 → 重试不重复建单"的链路，而不是真实故障注入。被人工退回再重提的路径则由接口与截图 06/07 覆盖。
-- **权限与多租户**：只在单租户单组织下验证；租户隔离由单元测试（跨 tenantId 读不到）覆盖，未在平台层造第二个租户。
+- **13/14 里的"待确认"状态也是 SQL 造出来的**：截这两张图时，本机代理软件（Clash TUN）把 `open.bigmodel.cn` 解析到 `198.18.0.48`（fake-IP），模型调用直接 TLS 失败，没法再跑一次 AI 轮次；所以只把 T-1003 用 SQL 置成 `proposed/P1/logistics`，**确认那一下是真点的**（走真实 `executeAction` → `confirm_triage` → 201）。"真实模型产出建议"这件事由 03/04/05 与 `evidence.json` 的 `browserRun` 覆盖，两者不要混起来看。
+- **权限与多租户**：除单元测试外，平台层另造了一个租户（`Second Tenant` / `Second Company` / `admin@second.test`，权限集与主租户一致）实测：工作区列表 `total=0`；用主租户的 `xpertId` 打视图数据接口返回 **404 `Not found xpert '7d8dc9bc-…' in current tenant`**；对同一 `xpertId` 发对话返回 SSE `The requested record was not found`；模板列表里只有全局插件（`plugin-execution-observability`），没有 `@community/apps-ticket-triage`（本插件只在该组织作用域注册）。即跨租户既读不到数据，也看不到插件。
 
 ## 表 2 五个验收场景的对应证据
 
@@ -59,7 +65,7 @@
 | 保存与恢复 | 重启 API 后重新打开看板 | 记录与修订号逐条一致 | 截图 09（`全部 4 / 待处理 2 / 待确认 0 / 已确认 2`，T-1002 rev3、T-1004 rev4）；脚本 `tests/browser/capture-board.mjs --stage persisted` |
 | 输入与空状态 | 清空该助手工单后打开看板 | 有明确提示与下一步入口 | 截图 10（`全部 0`，"还没有工单。点『载入演示工单』开始。"）；`--stage empty` |
 | 失败与重试 | 把一张工单标成失败 → 看板上点「重试分诊」 | 呈现可理解原因，重试不重复产生业务结果 | 截图 11（`需重试 1`、尝试次数 1、失败原因 `model_timeout`、按钮「重试分诊」）、12（回到 `待处理 4`，尝试次数保留，行数仍为 4）；`--stage failed` / `--stage retry` |
-| 权限与数据范围 | 单元测试里跨租户读取 | 无权限不能读改他人数据 | `tests/domain.test.ts` 的跨租户隔离用例；平台层未造第二租户（见"未覆盖"） |
+| 权限与数据范围 | 第二个租户用主租户的 xpertId 打视图/对话/模板接口 | 无权限不能读改他人数据 | 四级实测：工作区 `total=0`；视图数据 **404 `Not found xpert '…' in current tenant`**；对话 SSE `The requested record was not found`；模板列表无本插件（只有全局 `plugin-execution-observability`）。单元测试另有跨 tenantId 用例 |
 
 造 `empty` / `failed` 两个状态用的 SQL 与前置条件写在 [tests/browser/README.md](../../tests/browser/README.md) 里。
 
@@ -72,7 +78,8 @@
 | 插件在 Xpert 中运行、版本正确 | [01-workspace-assistant.png](screenshots/01-workspace-assistant.png) | 已截 |
 | 模板带来了中间件与工具 | [02-agent-canvas.png](screenshots/02-agent-canvas.png)、[08-middleware-capabilities.png](screenshots/08-middleware-capabilities.png) | 已截 |
 | AI 处理结果真实 | [03-preview-composer.png](screenshots/03-preview-composer.png)、[04-preview-prompt.png](screenshots/04-preview-prompt.png)、[05-chat-tool-calls.png](screenshots/05-chat-tool-calls.png) | 已截 |
-| 人工确认 | [06-board-awaiting-human.png](screenshots/06-board-awaiting-human.png)、[07-board-confirmed.png](screenshots/07-board-confirmed.png) | 已截（外壳为替代宿主，见上） |
+| 人工确认 | [06-board-awaiting-human.png](screenshots/06-board-awaiting-human.png)、[07-board-confirmed.png](screenshots/07-board-confirmed.png) | 已截（外壳为替代宿主）；平台自带外壳版本见 13、14 |
+| 平台自带入口（文档要求的"实际入口"） | [13-platform-shell-board.png](screenshots/13-platform-shell-board.png)、[14-platform-shell-confirmed.png](screenshots/14-platform-shell-confirmed.png) | 已截（managed-apps provisioning 打通后，`/chat/...` 壳内的 `工单分诊` tab，含一次真人确认） |
 | 保存与恢复 | [09-board-persisted-after-restart.png](screenshots/09-board-persisted-after-restart.png) | 已截（重启 API 之后） |
 | 输入与空状态 | [10-board-empty-state.png](screenshots/10-board-empty-state.png) | 已截 |
 | 失败与重试 | [11-board-needs-retry.png](screenshots/11-board-needs-retry.png)、[12-board-retry-recovered.png](screenshots/12-board-retry-recovered.png) | 已截（失败为 SQL 模拟，见"未覆盖"） |
