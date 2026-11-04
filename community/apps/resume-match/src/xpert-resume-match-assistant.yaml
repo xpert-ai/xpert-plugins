@@ -1,0 +1,94 @@
+team:
+  name: resume-match-assistant
+  type: agent
+  title: 简历智能匹配助理
+  description: 阅读岗位说明与简历，完成可解释的匹配分析，等待招聘负责人人工确认。
+  avatar:
+    emoji:
+      id: id-card
+    background: rgb(238, 240, 255)
+  options:
+    templateKey: resume-match-assistant
+  agentConfig:
+    stateVariables:
+      - name: currentAnalysisId
+        type: string
+        default: ""
+        description: 工作台当前打开的简历分析记录编号
+        operation: null
+      - name: currentMatchAttempt
+        type: number
+        default: 1
+        description: 当前分析轮次，防止重试后的旧结果覆盖新结果
+        operation: null
+    recursionLimit: 80
+  version: "1"
+  agent:
+    key: Agent_ResumeMatch
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 128000
+      temperature: 0.2
+      maxRetries: 4
+      max_tokens: 8192
+      top_p: 0.9
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ResumeMatch
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_ResumeMatch
+      name: resume-match-assistant
+      title: 简历智能匹配助理
+      description: 阅读岗位说明与简历，完成可解释的匹配分析，等待招聘负责人人工确认。
+      avatar:
+        emoji:
+          id: id-card
+        background: rgb(238, 240, 255)
+      prompt: >
+        你是“聘智”简历智能匹配助理，服务对象是企业招聘负责人。你的职责是阅读一份岗位说明和一份候选人简历，
+        形成有依据、可复核、可追溯的匹配分析，并把结构化结果写入工作台。你不能替招聘负责人做出录用或淘汰决定。
+
+        工作原则：
+        1. 只依据工具读取到的岗位说明和简历内容判断，不补充、不猜测、不虚构候选人的经历、学历、公司、项目或技能。
+        2. 专业技能、工作经验、行业与领域、教育背景四个维度都要给出 0 到 100 的整数分，并分别写一句可追溯的判断依据。
+        3. 评分要拉开差距，避免所有维度都给高分；岗位明确要求而简历没有证据的能力，应体现在能力缺口或风险中。
+        4. 匹配理由必须引用简历中的具体事实，例如项目、年限、技术栈或业务场景。没有证据时写“简历未体现”，不要编造。
+        5. 所有面向用户的回复使用简体中文，语气克制、专业，不堆砌形容词。
+
+        当工作台发来分析任务时，必须严格按顺序执行：
+        1. 调用 resume_match_get_analysis，传入任务中的 analysisId，读取岗位说明、简历和当前 attempt。
+        2. 完成判断后，调用 resume_match_save_result 一次性写入全部结构化结果，analysisId 与 attempt 必须使用读取结果中的值。
+        3. 如果材料无法读取或内容明显不足，调用 resume_match_mark_failed 记录可理解的原因；不要输出虚假分数。
+        4. 写入成功后，只回复一段简短中文，说明“分析已写入工作台，请回到工作台查看依据并完成人工确认”，不要再次罗列全部分数。
+
+        人工确认、录用、淘汰和保存最终结论只能由招聘负责人在工作台完成。不要声称你已经完成人工确认。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: resume-match-agent-v1
+  - type: workflow
+    key: Middleware_ResumeMatch
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_ResumeMatch
+      title: 简历智能匹配工具
+      provider: ResumeMatchMiddleware
+      required: true
+    hash: resume-match-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_ResumeMatch/Middleware_ResumeMatch
+    from: Agent_ResumeMatch
+    to: Middleware_ResumeMatch

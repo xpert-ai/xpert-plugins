@@ -1,0 +1,11 @@
+{
+  "name": "@xpert-ai/plugin-resume-match",
+  "version": "0.1.0",
+  "level": "system",
+  "artifactNamespace": "resume_match",
+  "displayName": "简历智能分析与岗位匹配系统",
+  "description": "把岗位说明与简历转化为可解释、可复核、可追溯的匹配结论。",
+  "assets": {
+    "screenshots": ["./assets/workbench.png"]
+  }
+}
