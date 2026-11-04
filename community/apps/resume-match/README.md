@@ -69,7 +69,7 @@ corepack pnpm plugin:deploy:local \
 
 ![材料不足后原记录第二轮重试](docs/screenshots/retry.jpg)
 
-[输入页面](docs/screenshots/input.jpg) · [Assistant 安装完成](docs/screenshots/assistant-installed.jpg)
+[历史入口与已保存记录](docs/screenshots/history.jpg) · [输入页面](docs/screenshots/input.jpg) · [Assistant 安装完成](docs/screenshots/assistant-installed.jpg)
 
 这组失败证据来自真实模型判断“材料不足”，不代表模拟了供应商断网或限流。独立 PostgreSQL 集成测试另覆盖模拟模型超时、并发与数据范围边界，详见验证记录。`assets/workbench*.png` 是早期模拟预览，不作为平台验收证据。
 
