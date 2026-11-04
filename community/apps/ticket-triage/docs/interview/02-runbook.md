@@ -69,12 +69,12 @@ corepack pnpm plugin:deploy:local \
 ```bash
 # 数据库与缓存（示例值，按实际环境替换）
 export DB_TYPE=postgres
-export DB_HOST=192.168.52.130
+export DB_HOST=<db-host>            # 数据库主机；本机私网地址已隐去
 export DB_PORT=5432
 export DB_NAME=ocap
 export DB_USER=postgres
 export DB_PASS=<password>
-export REDIS_HOST=192.168.52.130
+export REDIS_HOST=<redis-host>      # 缓存主机；本机私网地址已隐去
 export REDIS_PORT=6379
 export REDIS_PASSWORD=<password>
 export API_BASE_URL=http://localhost:3000
