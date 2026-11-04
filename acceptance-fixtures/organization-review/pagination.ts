@@ -2,15 +2,18 @@
  * Preview pagination helper for the isolated Code Review acceptance fixture.
  * Page numbers are one-based. An empty input has zero pages.
  * This fixture is not imported by any application.
- * Acceptance revision 2 exercises organization-owned execution after recovery.
+ * Acceptance revision 3 includes the reviewed pagination fix.
  */
 export function pageCount(items: readonly unknown[], pageSize: number): number {
   if (!Number.isInteger(pageSize) || pageSize <= 0) {
     throw new RangeError('pageSize must be a positive integer')
   }
-  return Math.floor(items.length / pageSize)
+  return Math.ceil(items.length / pageSize)
 }
 
 export function hasNextPage(items: readonly unknown[], pageSize: number, currentPage: number): boolean {
+  if (!Number.isInteger(currentPage) || currentPage <= 0) {
+    throw new RangeError('currentPage must be a positive integer')
+  }
   return currentPage < pageCount(items, pageSize)
 }
