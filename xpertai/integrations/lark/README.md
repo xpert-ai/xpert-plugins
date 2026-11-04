@@ -73,6 +73,15 @@ Configure the Lark integration in the Xpert AI admin panel:
 - **Encrypt Key**: Key for message encryption (optional)
 - **Is Lark**: Set to true for international Lark, false for Feishu (China)
 
+## Conversation history references
+
+Locally captured Feishu history is attached to incoming Xpert messages as a text
+quote reference. The human message body preserves the current user's original
+text; the model receives the referenced history as background context through
+the platform's reference composition. Historical attachments remain available.
+The same behavior applies to in-flight follow-ups and their recovery retries.
+Previously saved message bodies are not rewritten.
+
 ## Webhook URL
 
 ```

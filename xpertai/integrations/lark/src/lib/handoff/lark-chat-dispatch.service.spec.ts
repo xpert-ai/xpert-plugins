@@ -7,12 +7,17 @@ jest.mock('@xpert-ai/plugin-sdk', () => {
 	})
 })
 
+jest.mock('../i18n.js', () => ({
+	translate: jest.fn(() => 'Feishu conversation history')
+}))
+
 import {
 	HANDOFF_PERMISSION_SERVICE_TOKEN,
 	MANAGED_QUEUE_SERVICE_TOKEN,
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
 import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
+import type { ChatLarkMessage } from '../message.js'
 
 import { createLarkMessage } from './testing/dispatch-message-fixture.js'
 
@@ -388,7 +393,7 @@ describe('LarkChatDispatchService', () => {
 		})
 	})
 
-	it('composes local history once while preserving the raw callback snapshot', async () => {
+	it('carries local history as a quote while preserving visible input, files and the callback snapshot', async () => {
 		mockRequestContext()
 		const { service, runStateService } = createFixture()
 		const larkMessage = createLarkMessage()
@@ -413,13 +418,21 @@ describe('LarkChatDispatchService', () => {
 			larkMessage: larkMessage as any
 		})
 
-		expect((message.payload as any).request.message.input).toEqual({
-			input: '[历史上下文]\n用户: 上一条\n\n[本次用户消息]\n请总结',
-			files: [currentFile, historyFile]
-		})
-		expect((message.payload as any).request.state.human.input).toBe(
-			'[历史上下文]\n用户: 上一条\n\n[本次用户消息]\n请总结'
-		)
+		const human = {
+			input: '请总结',
+			files: [currentFile, historyFile],
+			referenceComposition: 'compose',
+			references: [{
+				type: 'quote',
+				label: 'Feishu conversation history',
+				source: 'Feishu conversation history',
+				text: '[历史上下文]\n用户: 上一条'
+			}]
+		}
+		const request = message.payload.request
+		if (request.action !== 'send') throw new Error('Expected a send request')
+		expect(request.message.input).toEqual(human)
+		expect(request.state?.human).toEqual(human)
 		expect((message.payload as any).options.context).toEqual(
 			expect.objectContaining({
 				integrationId: 'integration-1',
@@ -436,6 +449,21 @@ describe('LarkChatDispatchService', () => {
 				})
 			})
 		)
+	})
+
+	it.each(['', ' \n\t'])('omits empty history references and preserves user whitespace for history %p', async (historyContext) => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			input: ' 继续聊一点什么 \n',
+			historyContext,
+			larkMessage: createLarkMessage() as unknown as ChatLarkMessage
+		})
+		const request = message.payload.request
+		if (request.action !== 'send') throw new Error('Expected a send request')
+		expect(request.message.input).toEqual({ input: ' 继续聊一点什么 \n' })
+		expect(request.state?.human).toEqual(request.message.input)
 	})
 
 	it('turns a new inbound message into a steer follow-up while the active response is still running', async () => {
@@ -480,8 +508,13 @@ describe('LarkChatDispatchService', () => {
 			message: {
 				clientMessageId: 'log-follow-up-1',
 				input: {
-					input: '[历史上下文]\n用户: 不应重复注入\n\n[本次用户消息]\n先调整成简版',
-					files: [currentFile, historyFile]
+					input: '先调整成简版',
+					files: [currentFile, historyFile],
+					referenceComposition: 'compose',
+					references: [{
+						type: 'quote', label: 'Feishu conversation history', source: 'Feishu conversation history',
+						text: '[历史上下文]\n用户: 不应重复注入'
+					}]
 				}
 			},
 			target: {
@@ -489,8 +522,13 @@ describe('LarkChatDispatchService', () => {
 			},
 			state: expect.objectContaining({
 				human: {
-					input: '[历史上下文]\n用户: 不应重复注入\n\n[本次用户消息]\n先调整成简版',
-					files: [currentFile, historyFile]
+					input: '先调整成简版',
+					files: [currentFile, historyFile],
+					referenceComposition: 'compose',
+					references: [{
+						type: 'quote', label: 'Feishu conversation history', source: 'Feishu conversation history',
+						text: '[历史上下文]\n用户: 不应重复注入'
+					}]
 				}
 			})
 		})
@@ -501,6 +539,12 @@ describe('LarkChatDispatchService', () => {
 				currentInboundLogIds: ['log-follow-up-1']
 			})
 		)
+		expect(message.payload.callback?.context).toEqual(expect.objectContaining({
+			steerFallback: expect.objectContaining({
+				input: '先调整成简版',
+				historyContext: '[历史上下文]\n用户: 不应重复注入'
+			})
+		}))
 		expect(larkMessage.update).not.toHaveBeenCalled()
 		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
 		expect(runStateService.initialize).not.toHaveBeenCalled()

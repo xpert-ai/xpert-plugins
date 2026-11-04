@@ -319,6 +319,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					createdById: context.userId
 				},
 				input: fallback.input,
+				historyContext: fallback.historyContext,
 				files: fallback.files,
 				currentInboundLogIds: context.currentInboundLogIds,
 				larkMessage,
