@@ -12,12 +12,17 @@ test('workflow events without a PR support exact branch/workflow filters and fai
   const enabled = { ...defaultPolicy, enabled: true, onWorkflowFailure: true }
   assert.equal(workflowDecision(enabled, payload), null)
   assert.equal(workflowDecision(defaultPolicy, payload), 'automation_paused')
-  assert.equal(workflowDecision({ ...enabled, executionMode: 'pipeline' }, payload), 'workflow_requires_assistant')
+  assert.equal(workflowDecision({ ...enabled, executionMode: 'pipeline' }, payload), null)
   assert.equal(workflowDecision({ ...enabled, branches: ['release'] }, payload), 'branch_excluded')
   assert.equal(workflowDecision({ ...enabled, workflows: ['Other CI'] }, payload), 'workflow_excluded')
   for (const conclusion of ['success', 'cancelled', 'skipped', 'timed_out'])
     assert.equal(workflowDecision(enabled, { ...payload, workflow_run: { ...payload.workflow_run, conclusion } }), 'trigger_disabled')
   assert.equal(workflowDecision({ ...enabled, onWorkflowTimeout: true }, { ...payload, workflow_run: { ...payload.workflow_run, conclusion: 'timed_out' } }), null)
+  const cancelled = { ...payload, workflow_run: { ...payload.workflow_run, conclusion: 'cancelled' } }
+  assert.equal(workflowDecision({ ...enabled, onWorkflowTimeout: true }, cancelled), null)
+  assert.equal(workflowDecision({ ...enabled, onWorkflowTimeout: true, branches: ['release'] }, cancelled), 'branch_excluded')
+  assert.equal(workflowDecision({ ...enabled, onWorkflowTimeout: true, workflows: ['Other CI'] }, cancelled), 'workflow_excluded')
+  assert.equal(workflowDecision({ ...enabled, onWorkflowTimeout: true }, { ...cancelled, action: 'in_progress' }), 'trigger_disabled')
   assert.equal(workflowRef({ ...payload.workflow_run, run_attempt: 2 }).attempt, 2)
 })
 test('legacy settings retain pipeline mode while new repositories default to Assistant mode', () => {

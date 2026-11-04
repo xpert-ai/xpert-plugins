@@ -15,6 +15,7 @@ import { CONTEXT } from './automation-domain.js'
 import { idSchema, ReviewError, type Scope } from './domain.js'
 import { reviewRuntimeScope } from './runtime-scope.js'
 import { workflowEventSchema, workflowRunSchema, workflowJobSchema, workflowDecision, workflowRef, workflowResultSchema, type WorkflowResult } from './workflow-contract.js'
+import { githubWorkflowTimeouts } from './github-workflow-timeout.js'
 
 const contextSchema = z.object({ executionId: idSchema, rootExecutionId: idSchema.optional(),
   context: z.object({ codeReviewWorkflow: z.object({ diagnosisId: idSchema }) }) })
@@ -39,7 +40,8 @@ export class WorkflowDiagnostics {
       const ref = workflowRef(input.workflow_run), reason = workflowDecision(policy.settings, input) ?? (listening ? null : 'github_trigger_paused')
       const operationKey = `${ref.runId}-${ref.attempt}-${policy.executionRevision}${reason ? '-skip-' + input.action : ''}`
       let run = await manager.findOneBy(WorkflowDiagnosis, { repositoryPolicyId: policy.id, operationKey })
-      if (!run) run = await manager.save(WorkflowDiagnosis, manager.create(WorkflowDiagnosis, { ...ownership(p), organizationShared: policy.ownership === 'assistant' && policy.settings.visibility === 'organization', repositoryPolicyId: policy.id,
+      // Workflow evidence follows Assistant access independently of the PR pipeline's Project audience.
+      if (!run) run = await manager.save(WorkflowDiagnosis, manager.create(WorkflowDiagnosis, { ...ownership(p), organizationShared: policy.ownership === 'assistant', repositoryPolicyId: policy.id,
         operationKey, policyRevision: policy.executionRevision, settings: policy.settings, ref, status: reason ? 'skipped' : 'queued', reason,
         finishedAt: reason ? new Date() : null }))
       await manager.save(ReviewDelivery, manager.create(ReviewDelivery, { deliveryId, event: 'workflow_run', digest,
@@ -76,6 +78,13 @@ export class WorkflowDiagnostics {
         if (r.status === 'queued') {
           const jobs = z.object({ total_count: z.number(), jobs: z.array(workflowJobSchema) })
             .parse(await github.request(`${path(p)}/runs/${r.ref.runId}/attempts/${r.ref.attempt}/jobs?per_page=100`))
+          const timeouts = current.conclusion === 'cancelled' ? await githubWorkflowTimeouts(github, p.owner, p.repository, current, jobs.jobs) : undefined
+          if (timeouts && !timeouts.length) {
+            if (jobs.total_count > jobs.jobs.length) throw new ReviewError('workflow_timeout_evidence_unavailable')
+            // Allow GitHub's check annotations to settle; errors/incomplete evidence stay queued and consume no model quota.
+            if (Date.now() - r.createdAt.getTime() < 60000) throw new ReviewError('workflow_timeout_evidence_pending')
+            await this.finish(r, 'skipped', 'workflow_cancelled'); continue
+          }
           const claimed = await this.records.manager.transaction(async manager => {
             const policy = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write' } })
             if (policy.executionRevision !== r.policyRevision || !policy.settings.enabled) return false
@@ -85,7 +94,7 @@ export class WorkflowDiagnostics {
             if (used >= r.settings.dailyLimit) { await manager.update(WorkflowDiagnosis, { id: r.id, status: 'queued' }, { status: 'skipped', reason: 'daily_limit_reached', finishedAt: new Date() }); return false }
             const result = await manager.update(WorkflowDiagnosis, { id: r.id, status: 'queued' }, { status: 'running', startedAt: new Date(),
               executionId: randomUUID(), conversationId: randomUUID(), reason: 'dispatch_pending_confirmation',
-              evidence: { jobs: jobs.jobs, truncated: jobs.total_count > jobs.jobs.length } })
+              evidence: { jobs: jobs.jobs, truncated: jobs.total_count > jobs.jobs.length, ...(timeouts ? { timeouts } : {}) } })
             return result.affected === 1
           })
           if (!claimed) continue

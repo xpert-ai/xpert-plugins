@@ -111,7 +111,7 @@ export class Repositories {
       const existing = await manager.findOne(ReviewRepository, { where: { id, tenantId: s.tenantId, organizationId: s.organizationId }, lock: { mode: 'pessimistic_write' } })
       if (!existing || existing.revision !== revision) throw new ReviewError('revision_conflict')
       if (await manager.countBy(ReviewRun, { repositoryPolicyId: id, status: In(['running', 'publishing', 'awaiting_confirmation', 'awaiting_revision', 'blocked', 'publication_unknown']) })) throw new ReviewError('publication_reconciliation_required')
-      const identity = await this.app.inspect(s, existing.owner, existing.repository, existing.settings.onWorkflowFailure || existing.settings.onWorkflowTimeout)
+      const identity = await this.app.inspect(s, existing.owner, existing.repository, existing.settings.onWorkflowFailure || existing.settings.onWorkflowTimeout, existing.settings.onWorkflowTimeout)
       if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
       if (existing.settings.executionMode === 'pipeline' && !existing.settings.pipeline) throw new ReviewError('pipeline_binding_required')
       if (existing.settings.pipeline) await this.catalog.validate(s, existing.settings.pipeline)
@@ -134,11 +134,11 @@ export class Repositories {
     if (existing.revision !== revision) throw new ReviewError('revision_conflict')
     if (settings.executionMode === 'assistant') {
       if (settings.pipeline || settings.visibility !== (existing.ownership === 'assistant' ? 'organization' : 'private') || settings.delivery !== 'draft') throw new ReviewError('assistant_policy_invalid')
-      if (settings.enabled) await this.events.access(await this.execution({ ...existing, settings }))
     } else {
       if (settings.enabled && !settings.pipeline) throw new ReviewError('pipeline_binding_required')
-      if (settings.onWorkflowFailure || settings.onWorkflowTimeout) throw new ReviewError('workflow_requires_assistant')
     }
+    if (settings.enabled && (settings.executionMode === 'assistant' || settings.onWorkflowFailure || settings.onWorkflowTimeout))
+      await this.events.access(await this.execution({ ...existing, settings }))
     if (settings.executionMode === 'pipeline' && settings.pipeline) {
       if (settings.visibility !== 'project' || settings.delivery !== 'draft') throw new ReviewError('pipeline_policy_invalid')
       await this.catalog.validate(s, settings.pipeline)
@@ -146,7 +146,7 @@ export class Repositories {
     let binding = { githubIntegrationId: existing.githubIntegrationId, githubAppId: existing.githubAppId }
     if (settings.enabled) {
       await this.execution({ ...existing, settings })
-      const identity = await this.app.inspect(s, existing.owner, existing.repository, settings.onWorkflowFailure || settings.onWorkflowTimeout)
+      const identity = await this.app.inspect(s, existing.owner, existing.repository, settings.onWorkflowFailure || settings.onWorkflowTimeout, settings.onWorkflowTimeout)
       if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
       binding = { githubIntegrationId: identity.githubIntegrationId, githubAppId: identity.githubAppId }
     }
@@ -161,7 +161,7 @@ export class Repositories {
   }
   async github(s: Scope, id: string) {
     const p = await this.get(s, id)
-    return this.app.installation(p.installationId, p.repositoryId, s, p, p.settings.onWorkflowFailure || p.settings.onWorkflowTimeout)
+    return this.app.installation(p.installationId, p.repositoryId, s, p, p.settings.onWorkflowFailure || p.settings.onWorkflowTimeout, p.settings.onWorkflowTimeout)
   }
   async assertAssistantExecution(s: Scope, id: string, revision: number, trial: boolean) {
     const p = await this.get(s, id)

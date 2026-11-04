@@ -10,18 +10,20 @@ export function EventSettings({ settings, onChange, locale }: { settings: Policy
     <label className="block space-y-2 text-sm"><span>{t('executionMode')}</span>
       <Select value={settings.executionMode} onValueChange={value => onChange(value === 'assistant'
         ? { executionMode: 'assistant', pipeline: null, visibility: 'private', delivery: 'draft' }
-        : { executionMode: 'pipeline', onWorkflowFailure: false, onWorkflowTimeout: false })}>
+        : { executionMode: 'pipeline' })}>
         <SelectTrigger><SelectValue/></SelectTrigger><SelectContent>
           <SelectItem value="assistant">{t('assistant')}</SelectItem><SelectItem value="pipeline">{t('pipeline')}</SelectItem>
         </SelectContent>
       </Select>
     </label>
-    {settings.executionMode === 'assistant' && <>
-      <p className="text-sm text-muted-foreground">{t('assistantHelp')}</p>
+    {settings.executionMode === 'assistant' && <p className="text-sm text-muted-foreground">{t('assistantHelp')}</p>}
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-medium">{t('diagnoses')}</legend>
+      <p className="text-sm text-muted-foreground">{t('workflowHelp')}</p>
       <label className="flex items-center gap-2 text-sm"><Checkbox checked={settings.onWorkflowFailure} onCheckedChange={value => onChange({ onWorkflowFailure: value === true })}/>{t('workflowFailure')}</label>
       <label className="flex items-center gap-2 text-sm"><Checkbox checked={settings.onWorkflowTimeout} onCheckedChange={value => onChange({ onWorkflowTimeout: value === true })}/>{t('workflowTimeout')}</label>
       <label className="block space-y-2 text-sm"><span>{t('workflows')}</span><Textarea value={settings.workflows.join('\n')} onChange={e => onChange({ workflows: e.target.value.split('\n') })}/></label>
       <p className="text-xs text-muted-foreground">{t('actionsHelp')}</p>
-    </>}
+    </fieldset>
   </div></RemoteI18nProvider>
 }
