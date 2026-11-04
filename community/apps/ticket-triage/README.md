@@ -116,6 +116,7 @@ never stores or reads a model key of its own.
 | AI collaboration notes | [docs/interview/04-ai-collaboration.md](docs/interview/04-ai-collaboration.md) |
 | Sources | [docs/interview/05-sources.md](docs/interview/05-sources.md) |
 | Known limits + PR plan | [docs/interview/06-gaps-and-pr.md](docs/interview/06-gaps-and-pr.md) |
+| Interview notes (not a deliverable, kept for the walkthrough) | [docs/interview/07-interview-notes.md](docs/interview/07-interview-notes.md) |
 
 ## Screenshots
 

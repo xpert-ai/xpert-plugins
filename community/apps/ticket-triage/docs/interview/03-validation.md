@@ -46,7 +46,7 @@
 
 ## 未覆盖与已知边界
 
-- **平台自带的工作台外壳**：本机没有配置 app platform（`APP_PLATFORM_FILE` / `APP_PLATFORM_ENVIRONMENT_FILE`），`/chat/...` 路由会被 `app-platform.guard` 重定向到 `/apps`，所以截图 06、07 是用一个按文档化 remote component 协议实现的最小宿主渲染插件自己的 iframe 组件（握手 → `requestData` → `executeAction`，全部打到真实 `view-hosts` 接口）。组件、数据、动作都是插件自己的，只有外壳是替代品，这一点在 README 里也写明了。
+- **平台自带的工作台外壳**：这一条我试过配通，结论是它在开源版里不是"配两个文件"就能开的。先按 `packages/contracts/src/app-platform.ts` 的 schema 写了一份 definition + environment（一个 app、`primary` 指向 `zhipuai/glm-5.3-flash`），设好 `APP_PLATFORM_FILE` / `APP_PLATFORM_ENVIRONMENT_FILE` 后重启：`GET /api/app-platform/me` 从 400 `app_platform_not_configured` 变成 `mode: managed-apps`，但 provisioning 的 BullMQ 任务（`bull:app-platform-delivery`）以 `APP_PLATFORM_FAILURE:application_trial_unavailable` 失败——根因在 `packages/server-ai/src/plugin-resource/app-platform/platform-provisioner.service.ts:57`：它先要求 `ensureTenantDefaultMembership()` 返回一个会员记录，而这条路要求会员计划（`membership_plan`）与试用策略先存在；这台机器 seed 出来的库里 `membership_plan` 与 `user_membership` 都是 **0 行**。也就是说托管式应用外壳（`/apps` 壳 + `/chat/...` workbench）依赖付费/试用会员子系统，需要额外的 plan、权限与试用配置才能拉起，不是插件侧能补齐的。所以配置被撤回（`mode: standard`），截图 06、07 改用一个按文档化 remote component 协议实现的最小宿主渲染插件自己的 iframe 组件（握手 → `requestData` → `executeAction`，全部打到真实 `view-hosts` 接口）。组件、数据、动作都是插件自己的，只有外壳是替代品，这一点在 README 里也写明了。
 - **`--no-mocks` 生命周期**：只跑了 harness 默认的 mock 模式；真实数据库连接由第四条的真实部署与业务流覆盖。
 - **失败注入的方式**：界面证据（截图 11、12）里的"分诊失败"是用 SQL 把一张工单标成 `failed`、`lastErrorCode=model_timeout` 造出来的**模拟失败**，随后在看板上点「重试分诊」回到 `pending`。我没有在平台层制造一次真实的模型超时（那需要打断模型网关），所以这一条展示的是"失败状态 → 可理解的原因 → 重试不重复建单"的链路，而不是真实故障注入。被人工退回再重提的路径则由接口与截图 06/07 覆盖。
 - **权限与多租户**：只在单租户单组织下验证；租户隔离由单元测试（跨 tenantId 读不到）覆盖，未在平台层造第二个租户。
