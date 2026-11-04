@@ -92,6 +92,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	followUpMode?: 'steer'
 	steerFallback?: {
 		input?: string
+		historyContext?: string
 		files?: LarkInboundFile[]
 		message: LarkChatMessageSnapshot
 		fromEndUserId?: string

@@ -1,3 +1,4 @@
+deprecated: true
 model: Qwen/Qwen3-30B-A3B
 label:
   zh_Hans: Qwen/Qwen3-30B-A3B

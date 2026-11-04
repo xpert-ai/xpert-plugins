@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  ChatOAICompatReasoningModel: jest.requireActual('@xpert-ai/plugin-sdk').ChatOAICompatReasoningModel,
   AIModelProviderStrategy: () => () => undefined,
   CredentialsValidateFailedError: class extends Error {},
   getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),

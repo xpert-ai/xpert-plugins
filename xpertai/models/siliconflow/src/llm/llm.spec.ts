@@ -1,6 +1,6 @@
 import { SiliconflowLargeLanguageModel } from './llm.js'
 import { SiliconflowProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature } from '@xpert-ai/contracts'
+import { AiProviderRole, ModelFeature } from '@xpert-ai/contracts'
 import { calculateLLMUsagePrice, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { SiliconflowModelCredentials } from '../types.js'
 
@@ -240,5 +240,22 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
 
     expect(model.invocationParams()['enable_thinking']).toBeUndefined()
     expect((model as unknown as { thinkingEnabled: boolean }).thinkingEnabled).toBe(true)
+  })
+})
+
+describe('November SiliconFlow reasoning models', () => {
+  it.each([
+    ['zai-org/GLM-5.3', {}, 'max'],
+    ['zai-org/GLM-5.3-Flash', {}, 'high'],
+    ['deepseek-ai/DeepSeek-V4.1-Flash', { enable_thinking: true }, 'max'],
+  ])('forwards reasoning_effort for %s', (model, options, effort) => {
+    const manager = new SiliconflowLargeLanguageModel(new SiliconflowProviderStrategy())
+    const client = manager.getChatModel({ model, copilot: { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test' } } }, options: { ...options, reasoning_effort: effort } })
+    expect(client.invocationParams()).toMatchObject({ reasoning_effort: effort })
+  })
+  it('omits reasoning effort when DeepSeek thinking is disabled', () => {
+    const manager = new SiliconflowLargeLanguageModel(new SiliconflowProviderStrategy())
+    const client = manager.getChatModel({ model: 'deepseek-ai/DeepSeek-V4.1-Flash', copilot: { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test' } } }, options: { enable_thinking: false, reasoning_effort: 'max' } })
+    expect(client.invocationParams()).not.toHaveProperty('reasoning_effort')
   })
 })

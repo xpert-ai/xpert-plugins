@@ -1,0 +1,15 @@
+# Source: langgenius/dify-official-plugins@3189f896; verified 2026-11-03.
+model: qwen3-vl-rerank
+model_type: rerank
+model_properties:
+  context_size: 120000
+description: Text query and documents through the rerank endpoint (Beijing).
+pricing:
+  input: "0.5"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/qwen3-vl-rerank
+  rules:
+    - component: input
+      unit_price: 0.5
+      unit_size: 1000000

@@ -7,64 +7,19 @@ jest.mock('@xpert-ai/plugin-sdk', () => {
 	})
 })
 
+jest.mock('../i18n.js', () => ({
+	translate: jest.fn(() => 'Feishu conversation history')
+}))
+
 import {
 	HANDOFF_PERMISSION_SERVICE_TOKEN,
 	MANAGED_QUEUE_SERVICE_TOKEN,
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
 import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
+import type { ChatLarkMessage } from '../message.js'
 
-function createLarkMessage(
-	overrides: Partial<{
-		id: string
-		messageId: string
-		status: string
-		language: string
-		header: unknown
-		elements: unknown[]
-		integrationId: string
-		chatId: string
-		chatType: string
-		senderOpenId: string
-		principalKey: string
-		scopeKey: string
-		legacyConversationUserKey: string
-		recipientDirectoryKey: string
-		replyToMessageId: string
-		typingReaction: {
-			messageId: string
-			reactionId: string
-			emojiType: string
-		}
-		update: jest.Mock
-		larkChannel: {
-			deleteMessageReaction: jest.Mock
-		}
-	}> = {}
-) {
-	const larkChannel = overrides.larkChannel ?? {
-		deleteMessageReaction: jest.fn().mockResolvedValue(undefined)
-	}
-	return {
-		id: 'lark-message-id',
-		messageId: 'chat-message-id',
-		status: 'thinking',
-		language: 'en_US',
-		header: null,
-		elements: [],
-		integrationId: 'integration-1',
-		chatId: 'chat-1',
-		chatType: 'group',
-		senderOpenId: 'ou_sender_1',
-		principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
-		scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
-		legacyConversationUserKey: 'open_id:ou_sender_1',
-		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
-		larkChannel,
-		update: jest.fn().mockResolvedValue(undefined),
-		...overrides
-	}
-}
+import { createLarkMessage } from './testing/dispatch-message-fixture.js'
 
 function mockRequestContext(params?: {
 	userId?: string
@@ -123,7 +78,7 @@ describe('LarkChatDispatchService', () => {
 			)
 		}
 		const runStateService = {
-			save: jest.fn().mockResolvedValue(undefined)
+			initialize: jest.fn().mockResolvedValue(undefined)
 		}
 		const handoffPermissionService = {
 			enqueue: jest.fn().mockResolvedValue(undefined)
@@ -363,7 +318,7 @@ describe('LarkChatDispatchService', () => {
 			lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
 		})
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
-		expect(runStateService.save).toHaveBeenCalledWith(
+		expect(runStateService.initialize).toHaveBeenCalledWith(
 			expect.objectContaining({
 				context: expect.objectContaining({
 					tenantId: 'binding-tenant-id',
@@ -438,7 +393,7 @@ describe('LarkChatDispatchService', () => {
 		})
 	})
 
-	it('composes local history once while preserving the raw callback snapshot', async () => {
+	it('carries local history as a quote while preserving visible input, files and the callback snapshot', async () => {
 		mockRequestContext()
 		const { service, runStateService } = createFixture()
 		const larkMessage = createLarkMessage()
@@ -463,13 +418,21 @@ describe('LarkChatDispatchService', () => {
 			larkMessage: larkMessage as any
 		})
 
-		expect((message.payload as any).request.message.input).toEqual({
-			input: '[历史上下文]\n用户: 上一条\n\n[本次用户消息]\n请总结',
-			files: [currentFile, historyFile]
-		})
-		expect((message.payload as any).request.state.human.input).toBe(
-			'[历史上下文]\n用户: 上一条\n\n[本次用户消息]\n请总结'
-		)
+		const human = {
+			input: '请总结',
+			files: [currentFile, historyFile],
+			referenceComposition: 'compose',
+			references: [{
+				type: 'quote',
+				label: 'Feishu conversation history',
+				source: 'Feishu conversation history',
+				text: '[历史上下文]\n用户: 上一条'
+			}]
+		}
+		const request = message.payload.request
+		if (request.action !== 'send') throw new Error('Expected a send request')
+		expect(request.message.input).toEqual(human)
+		expect(request.state?.human).toEqual(human)
 		expect((message.payload as any).options.context).toEqual(
 			expect.objectContaining({
 				integrationId: 'integration-1',
@@ -478,7 +441,7 @@ describe('LarkChatDispatchService', () => {
 				sourceMessageLogIds: ['log-1', 'log-2']
 			})
 		)
-		expect(runStateService.save).toHaveBeenCalledWith(
+		expect(runStateService.initialize).toHaveBeenCalledWith(
 			expect.objectContaining({
 				context: expect.objectContaining({
 					currentInboundLogIds: ['log-1', 'log-2'],
@@ -486,6 +449,21 @@ describe('LarkChatDispatchService', () => {
 				})
 			})
 		)
+	})
+
+	it.each(['', ' \n\t'])('omits empty history references and preserves user whitespace for history %p', async (historyContext) => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			input: ' 继续聊一点什么 \n',
+			historyContext,
+			larkMessage: createLarkMessage() as unknown as ChatLarkMessage
+		})
+		const request = message.payload.request
+		if (request.action !== 'send') throw new Error('Expected a send request')
+		expect(request.message.input).toEqual({ input: ' 继续聊一点什么 \n' })
+		expect(request.state?.human).toEqual(request.message.input)
 	})
 
 	it('turns a new inbound message into a steer follow-up while the active response is still running', async () => {
@@ -530,8 +508,13 @@ describe('LarkChatDispatchService', () => {
 			message: {
 				clientMessageId: 'log-follow-up-1',
 				input: {
-					input: '[历史上下文]\n用户: 不应重复注入\n\n[本次用户消息]\n先调整成简版',
-					files: [currentFile, historyFile]
+					input: '先调整成简版',
+					files: [currentFile, historyFile],
+					referenceComposition: 'compose',
+					references: [{
+						type: 'quote', label: 'Feishu conversation history', source: 'Feishu conversation history',
+						text: '[历史上下文]\n用户: 不应重复注入'
+					}]
 				}
 			},
 			target: {
@@ -539,8 +522,13 @@ describe('LarkChatDispatchService', () => {
 			},
 			state: expect.objectContaining({
 				human: {
-					input: '[历史上下文]\n用户: 不应重复注入\n\n[本次用户消息]\n先调整成简版',
-					files: [currentFile, historyFile]
+					input: '先调整成简版',
+					files: [currentFile, historyFile],
+					referenceComposition: 'compose',
+					references: [{
+						type: 'quote', label: 'Feishu conversation history', source: 'Feishu conversation history',
+						text: '[历史上下文]\n用户: 不应重复注入'
+					}]
 				}
 			})
 		})
@@ -551,9 +539,15 @@ describe('LarkChatDispatchService', () => {
 				currentInboundLogIds: ['log-follow-up-1']
 			})
 		)
+		expect(message.payload.callback?.context).toEqual(expect.objectContaining({
+			steerFallback: expect.objectContaining({
+				input: '先调整成简版',
+				historyContext: '[历史上下文]\n用户: 不应重复注入'
+			})
+		}))
 		expect(larkMessage.update).not.toHaveBeenCalled()
 		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
-		expect(runStateService.save).not.toHaveBeenCalled()
+		expect(runStateService.initialize).not.toHaveBeenCalled()
 	})
 
 	it('forces stale steer recovery into a normal send while reusing the same card and client message id', async () => {
@@ -603,7 +597,7 @@ describe('LarkChatDispatchService', () => {
 		expect(duplicate.id).toBe(message.id)
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalled()
-		expect(runStateService.save).toHaveBeenCalled()
+		expect(runStateService.initialize).toHaveBeenCalled()
 	})
 
 	it('uses a normal send only after the active response completes while waiting for its conversation', async () => {
@@ -637,7 +631,7 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).request.conversationId).toBeUndefined()
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalledTimes(1)
-		expect(runStateService.save).toHaveBeenCalledTimes(1)
+		expect(runStateService.initialize).toHaveBeenCalledTimes(1)
 	})
 
 	it('does not fall back to a second response card while an active response lacks a conversation binding', async () => {
@@ -674,7 +668,7 @@ describe('LarkChatDispatchService', () => {
 			'reaction-1'
 		)
 		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
-		expect(runStateService.save).not.toHaveBeenCalled()
+		expect(runStateService.initialize).not.toHaveBeenCalled()
 	})
 
 	it('keeps the normal send path after the active response has completed', async () => {
@@ -705,7 +699,7 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).callback.context.followUpMode).toBeUndefined()
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(conversationService.setActiveMessage).toHaveBeenCalledTimes(1)
-		expect(runStateService.save).toHaveBeenCalledTimes(1)
+		expect(runStateService.initialize).toHaveBeenCalledTimes(1)
 	})
 
 	it('buildDispatchMessage continues when deleting typing reaction fails', async () => {

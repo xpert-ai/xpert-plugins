@@ -1,3 +1,4 @@
+deprecated: true
 model: Qwen/Qwen2.5-Coder-32B-Instruct
 label:
   en_US: Qwen/Qwen2.5-Coder-32B-Instruct

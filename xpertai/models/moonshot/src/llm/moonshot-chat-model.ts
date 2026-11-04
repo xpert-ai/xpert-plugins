@@ -1,9 +1,10 @@
 import { ChatOpenAI, ChatOpenAICompletions, ChatOpenAIFields } from '@langchain/openai'
+import { ChatOAICompatReasoningModel } from '@xpert-ai/plugin-sdk'
 import { normalizeMoonshotJsonSchema } from './moonshot-json-schema.js'
 
 type MoonshotInvocationParams = ReturnType<ChatOpenAICompletions['invocationParams']>
 
-export class MoonshotChatOpenAICompletions extends ChatOpenAICompletions {
+export class MoonshotChatOpenAICompletions extends ChatOAICompatReasoningModel {
   override invocationParams(
     options?: this['ParsedCallOptions'],
     extra?: {

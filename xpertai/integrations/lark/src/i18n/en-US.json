@@ -1,11 +1,13 @@
 {
     "Error": {
+    "ReplyRecoveryUnavailable": "The complete reply could not be recovered. Please check the conversation in Xpert.",
         "CredentialsFailed": "Credentials verification failed",
         "BotPermission": "Maybe the bot capabilities or permissions have not been added",
         "LarkConfigurationRequired": "Lark configuration is required"
     },
     "integration": {
         "Lark": {
+            "HistoryContextReference": "Feishu conversation history",
             "EndConversation": "End",
             "HelpDoc": "Help",
             "ConversationEnded": "This conversation has ended. If you have any other questions, please feel free to contact us.",

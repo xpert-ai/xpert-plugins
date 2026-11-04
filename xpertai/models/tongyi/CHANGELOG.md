@@ -1,5 +1,23 @@
 # @xpert-ai/plugin-tongyi
 
+## 0.2.4
+
+### Patch Changes
+
+- a66ebb6: Add 30 provider model entries, including MiniMax M3.1 Flash, Kimi K3.1 Pro, Step 5, StepAudio 3 and Qwen3 VL/ASR. Wire provider-specific reasoning, embedding and audio requests; mark eight retired SiliconFlow models deprecated while retaining their schemas. Verify catalog limits and pricing against provider sources.
+
+## 0.2.3
+
+### Patch Changes
+
+- fc131b9: Require SDK and contracts 3.30.0 or newer for the shared embedding usage adapter, and pin development dependencies to that minimum so frozen release builds resolve the supported API.
+
+## 0.2.2
+
+### Patch Changes
+
+- 769e003: Use the Plugin SDK's OpenAICompatibleEmbeddings adapter for authoritative text-embedding usage callbacks instead of a Tongyi-specific metering subclass. Keep native multimodal routing unchanged. Build and deploy with the SDK release introducing OpenAICompatibleEmbeddings; older installed SDKs do not export this adapter.
+
 ## 0.2.1
 
 ### Patch Changes

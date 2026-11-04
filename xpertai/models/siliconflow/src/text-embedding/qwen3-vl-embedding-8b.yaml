@@ -1,0 +1,15 @@
+# Source: langgenius/dify-official-plugins@3189f896; verified 2026-11-03.
+model: Qwen/Qwen3-VL-Embedding-8B
+model_type: text-embedding
+model_properties:
+  context_size: 32768
+  max_chunks: 1
+pricing:
+  input: "0.7"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://cloud-rd.siliconflow.cn/pricing
+  rules:
+    - component: input
+      unit_price: 0.7
+      unit_size: 1000000
