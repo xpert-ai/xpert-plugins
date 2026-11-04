@@ -97,7 +97,7 @@ node plugin-dev-harness/dist/index.js --workspace community/apps/funds-query --p
 
 ## 配置与验证
 
-环境变量示例见 [env.example](env.example)，图形配置与服务器要求见安装文档。元信息、生命周期与业务验证分别记录，当前插件检查共 112 项通过，配套启动脚本 16 项通过。真实模型历史联调、用户人工验收和实际截图证据见[验证记录](docs/validation.mdx)。
+环境变量示例见 [env.example](env.example)，图形配置与服务器要求见安装文档。元信息、生命周期与业务验证分别记录，当前插件检查共 112 项通过，配套启动脚本 16 项通过，Community 工作区依赖与锁文件通过 pnpm 8.15.8 冻结校验。真实模型历史联调、用户人工验收和实际截图证据见[验证记录](docs/validation.mdx)。
 
 ## 已知限制
 

@@ -61,6 +61,16 @@ node --test tools/scripts/start-api.test.mjs
 
 当前结果基于本地工作区，基线与平台补丁见兼容性文档。提交后的实际 Git 版本将在 PR 描述中记录。
 
-## 提交检查待办
+## 提交检查结果
 
-暂存区实体表名检查通过。仓库的依赖及锁文件一致性检查首次因包管理器缓存目录权限失败，后续申请执行时自动审批因用量限制未完成，该检查尚未通过。完成检查后再确认提交状态。
+暂存区实体表名检查通过。候选人在 2026-11-04 执行 Community 工作区的依赖与锁文件检查，并提供以下通过结果。
+
+```bash
+node scripts/check-release-dependencies.mjs --workspace community
+```
+
+```text
+community: working-tree dependencies pass pnpm 8.15.8 frozen validation
+```
+
+该检查确认工作区依赖声明、仓库内引用和锁文件可通过 pnpm 8.15.8 的冻结校验。首次执行遇到的缓存目录权限及自动审批用量问题已由候选人终端执行结果补齐。
