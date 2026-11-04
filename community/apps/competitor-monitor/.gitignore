@@ -1,0 +1,17 @@
+# Local dependencies and generated output
+/node_modules/
+/dist/
+/coverage/
+*.tsbuildinfo
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Local browser artifacts; curated evidence lives in docs/screenshots/
+/playwright-report/
+/test-results/
+/docs/ui-preview/
