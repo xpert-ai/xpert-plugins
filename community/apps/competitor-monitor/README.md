@@ -16,6 +16,7 @@
 - [运行说明](docs/运行说明.md)：实现、依赖、构建安装、配置与使用。
 - [功能说明书 HTML](docs/功能说明书.html)：下载后可在浏览器打开。
 - [测试报告](docs/测试报告.md)：四层测试、命令、实际结果与未验证项。
+- [AI 协作说明](docs/AI%20协作说明.md)：使用的工具与模型、代表性协作过程、人工选择与工具限制。
 - [限制边界](docs/限制边界.md)：适用范围、未完成项与改进优先级。
 - [核心代码导读](docs/核心代码导读.md)：关键调用链与实现逻辑。
 
@@ -262,7 +263,7 @@ node plugin-dev-harness/dist/index.js \
 
 工作台已拆分为 React/TypeScript 组件，使用当前仓库共享 shadcn、typed i18n 和宿主主题适配；同轮重试、人工审核及删除确认保留。正式插件不再借用相邻包的依赖目录。
 
-新依赖目录与新 pnpm store 的冻结安装、构建、类型检查、28 项测试、产物一致性和 Harness 安装／构建／生命周期均通过。完整命令、版本、结果与未验证部分见 [前端迁移与干净环境验证](docs/前端迁移与干净环境验证.md)。在仓库根目录运行 `node community/apps/competitor-monitor/scripts/verify-clean.mjs` 可复验。
+新依赖目录与新 pnpm store 的冻结安装、构建、类型检查、28 项测试、产物一致性和 Harness 安装／构建／生命周期均通过。完整命令、版本、结果与未验证部分见 [测试报告](docs/测试报告.md)。在仓库根目录运行 `node community/apps/competitor-monitor/scripts/verify-clean.mjs` 可复验。
 
 下图是**模拟宿主预览**，不是迁移后的真实平台运行证据；真实宿主需要重新部署并验收。
 
