@@ -12,9 +12,10 @@
   "platformCompatibilityVerified": true,
   "realModelExecuted": true,
   "upstreamForkCreated": true,
-  "pullRequestCreated": false,
+  "pullRequestCreated": true,
   "platformSdkContracts": "3.30.2",
   "runtimeModel": "qwen3.8-flash",
   "humanConfirmedAndRestored": true,
-  "deliveryAcquisition": "Official main cloned for isolated delivery; same reference SHA verified"
+  "deliveryAcquisition": "Official main cloned for isolated delivery; same reference SHA verified",
+  "pullRequestUrl": "https://github.com/xpert-ai/xpert-plugins/pull/836"
 }
