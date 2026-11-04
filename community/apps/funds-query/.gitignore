@@ -1,0 +1,12 @@
+.venv/
+local-config.json
+data/
+test-results/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+node_modules/
+.runtime/
+dist/
+python/vendor/
+release/

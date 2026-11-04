@@ -1,0 +1,90 @@
+{
+  "name": "@xpert-ai/plugin-funds-query",
+  "version": "0.2.4",
+  "description": "Python + Vue transaction analytics workbench with evidence-backed AI queries for Xpert.",
+  "type": "module",
+  "license": "AGPL-3.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "python/funds_engine",
+    "python/launch.py",
+    "python/vendor",
+    "python/requirements.txt",
+    "scripts/prepare-runtime.mjs",
+    "README.md",
+    "docs",
+    "examples",
+    "!**/__pycache__/**",
+    "!**/*.tsbuildinfo",
+    "LICENSE",
+    "env.example"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/funds-query"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "funds_query"
+    }
+  },
+  "scripts": {
+    "build:ui": "corepack pnpm --filter @xpert-ai/plugin-shadcn-vue build",
+    "build": "node scripts/bundle-python.mjs && pnpm run build:ui && tsc -p tsconfig.lib.json && node scripts/build-remote.mjs && node scripts/copy-assets.mjs && node scripts/build-remote.mjs --check",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit",
+    "test": "pnpm run typecheck && node --test tests/*.test.mjs",
+    "test:python": "node scripts/test-python.mjs",
+    "test:ui": "node tests/browser.e2e.mjs && node tests/interaction.e2e.mjs && node tests/import.e2e.mjs",
+    "verify:dist": "node scripts/build-remote.mjs --check",
+    "prepare:python": "node scripts/prepare-runtime.mjs",
+    "fixtures": "node scripts/generate-fixtures.mjs",
+    "package": "node scripts/build-remote.mjs --check && node scripts/package-plugin.mjs"
+  },
+  "dependencies": {
+    "vue": "3.5.40",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@xpert-ai/contracts": "^3.27.0",
+    "@xpert-ai/plugin-sdk": "^3.27.0",
+    "@langchain/core": ">=0.3.0 <0.4.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@xpert-ai/contracts": "3.27.0",
+    "@xpert-ai/plugin-sdk": "3.27.0",
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/typeorm": "11.0.0",
+    "typeorm": "0.3.24",
+    "@types/node": "^22.13.0",
+    "zod": "3.25.67",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "@vitejs/plugin-vue": "6.0.8",
+    "vue-tsc": "3.3.7",
+    "@xpert-ai/plugin-shadcn-vue": "workspace:*",
+    "playwright-core": "1.55.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
