@@ -2,6 +2,7 @@
  * Preview pagination helper for the isolated Code Review acceptance fixture.
  * Page numbers are one-based. An empty input has zero pages.
  * This fixture is not imported by any application.
+ * Acceptance revision 2 exercises organization-owned execution after recovery.
  */
 export function pageCount(items: readonly unknown[], pageSize: number): number {
   if (!Number.isInteger(pageSize) || pageSize <= 0) {
