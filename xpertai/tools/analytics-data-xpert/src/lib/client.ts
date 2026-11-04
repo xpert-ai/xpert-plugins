@@ -1,9 +1,10 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { dataXpertDiscoveryRequestSchema, dataXpertQueryContract } from './discovery'
+import { dataXpertParameterError, readAnalyticsHttpDiagnostic } from './diagnostic'
 import {
-  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, AnalyticsProvider, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, AnalyticsProvider, AnalyticsProviderError, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AnalyticsQueryProvider, type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 
@@ -59,8 +60,9 @@ export class DataXpertAnalyticsClient {
       body: JSON.stringify({ assistant: { code: options.assistantCode, xpertId: options.assistantXpertId, workspaceId: options.workspaceId }, ...body })
     })
     if (!response.ok) {
-      // Do not retain an unconsumed upstream error stream or expose its potentially sensitive body.
-      await response.body?.cancel().catch(() => undefined)
+      const diagnostic = await readAnalyticsHttpDiagnostic(response, context.signal, context.deadlineAt)
+      context.signal.throwIfAborted()
+      if (diagnostic) throw new AnalyticsProviderError(diagnostic)
       throw new Error(`DATAX_QUERY_HTTP_${response.status}`)
     }
     return response
@@ -83,23 +85,23 @@ export class DataXpertAnalyticsClient {
 export function bindParameters(params: Record<string, JSONValue>, paths: Record<string, string[]>, parameters: Record<string, AnalyticsValue>) {
   const result = structuredClone(params)
   if (Object.keys(parameters).some((name) => !Object.hasOwn(paths, name)) || Object.keys(paths).some((name) => !Object.hasOwn(parameters, name)))
-    throw new Error('DATAX_PARAMETER_MAPPING_INVALID')
+    throw dataXpertParameterError('DATAX_PARAMETER_MAPPING_INVALID')
   if (new Set(Object.values(paths).map((path) => JSON.stringify(path))).size !== Object.keys(paths).length)
-    throw new Error('DATAX_PARAMETER_MAPPING_INVALID')
+    throw dataXpertParameterError('DATAX_PARAMETER_MAPPING_INVALID')
   for (const [name, path] of Object.entries(paths)) {
     let current: JSONValue = result
     for (const [index, key] of path.entries()) {
       if (['__proto__', 'prototype', 'constructor'].includes(key) || !current || typeof current !== 'object' || !Object.hasOwn(current, key))
-        throw new BadRequestException('DATAX_PARAMETER_PATH_INVALID: parameterPaths are relative to params. Omit the leading params segment and target an existing scalar, for example ["slicers","1","value"].')
+        throw dataXpertParameterError('DATAX_PARAMETER_PATH_INVALID')
       if (Array.isArray(current)) {
-        if (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= current.length) throw new Error('DATAX_PARAMETER_PATH_INVALID')
+        if (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= current.length) throw dataXpertParameterError('DATAX_PARAMETER_PATH_INVALID')
         const position = Number(key)
         if (index === path.length - 1) {
-          if (current[position] !== null && typeof current[position] === 'object') throw new Error('DATAX_PARAMETER_PATH_NOT_SCALAR')
+          if (current[position] !== null && typeof current[position] === 'object') throw dataXpertParameterError('DATAX_PARAMETER_PATH_NOT_SCALAR')
           current[position] = parameters[name]
         } else current = current[position]
       } else if (index === path.length - 1) {
-        if (current[key] !== null && typeof current[key] === 'object') throw new Error('DATAX_PARAMETER_PATH_NOT_SCALAR')
+        if (current[key] !== null && typeof current[key] === 'object') throw dataXpertParameterError('DATAX_PARAMETER_PATH_NOT_SCALAR')
         current[key] = parameters[name]
       } else current = current[key]
     }

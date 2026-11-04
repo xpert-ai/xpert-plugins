@@ -19,3 +19,14 @@ Run `corepack pnpm exec nx run @xpert-ai/plugin-analytics-data-xpert:test` with 
 Discovery preserves each adapter's `definition` (identity, version, native metadata and instructions) and each Action's input schema. Semantic Model, OData and future registered read-only adapters share this transport without sharing query syntax.
 
 See [architecture and Binding usage](docs/index.mdx) and [compatibility and verification](docs/verification.mdx).
+# Public query diagnostics
+
+Non-success HTTP responses may contain the shared `xpert.analytics.diagnostic` v1 envelope.
+Only validated public causes and opaque audit references cross into `AnalyticsProviderError`.
+Malformed, sensitive, oversized or unfinished bodies use the existing status-only fallback.
+Parameter mapping failures use provider-authored repair guidance without echoing values.
+
+This change requires the paired Contracts/SDK Analytics diagnostic exports and updated Xpert
+runtime. Publish those packages, then update this plugin's dependency pins and lockfile before
+release. Local paired-source tests do not establish compatibility with the currently pinned
+published SDK. No production deployment is implied.
