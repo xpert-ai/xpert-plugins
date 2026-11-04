@@ -193,3 +193,27 @@ test('catalog scenarios persist exact changes, stable items stay unchanged, and 
     assert.equal(await db.getRepository(Snapshot).countBy({ itemId: 'demo-legacy' }), 0)
   } finally { await db.destroy() }
 })
+
+// 真实服务 DTO 必须通过前端边界，避免精简动作回执被误当完整列表拒绝。
+test('real service list and collection receipts satisfy the remote schemas', async () => {
+  const { datasetSchema, actionDataSchema } = await import('../src/remote/types.js')
+  const db = await new DataSource({ type: 'sqljs', entities: ENTITIES, synchronize: true }).initialize()
+  try {
+    const service = new MonitorService(db.getRepository(MonitorItem), db.getRepository(CollectionRound), db.getRepository(Snapshot), db.getRepository(MonitorChange), db.getRepository(Advice))
+    const scope = { tenantId: 'remote-contract', organizationId: 'org' }
+    await service.addItem(scope, { itemId: '6543210', title: '耳机' })
+    const baseline = actionDataSchema.parse(await service.collect(scope, { idempotencyKey: 'baseline' }))
+    assert.equal(baseline.round?.status, 'success')
+    const changed = actionDataSchema.parse(await service.collect(scope, { idempotencyKey: 'changed' }))
+    assert.equal(changed.changes?.length, 3)
+    const failed = actionDataSchema.parse(await service.collect(scope, { idempotencyKey: 'failed', failOnItemId: '6543210' }))
+    assert.equal(failed.round?.status, 'failed')
+    assert.ok(failed.round?.errorReason?.includes('6543210'))
+    const retried = actionDataSchema.parse(await service.retryCollection(scope, failed.round!.id))
+    assert.equal(retried.round?.id, failed.round?.id)
+    const dataset = datasetSchema.parse(await service.data(scope))
+    assert.equal(dataset.items.length, 1)
+    assert.equal(dataset.rounds.length, 3)
+    assert.ok(dataset.changes.length >= 3)
+  } finally { await db.destroy() }
+})

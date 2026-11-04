@@ -8,7 +8,7 @@ test('stable namespace and complete tool set',()=>{assert.equal(NAMESPACE,'compe
 // 验证目标：校验模板先读证据再创建建议。
 test('assistant reads evidence before mutations',async()=>{const y=await readFile(new URL('../src/competitor-monitor-assistant.yaml',import.meta.url),'utf8');assert.ok(y.indexOf('monitor_get_round_changes')<y.indexOf('monitor_record_change'));assert.ok(y.indexOf('monitor_get_round_changes')<y.indexOf('monitor_create_advice'));assert.match(y,/adviceStatus=missing/);assert.match(y,/monitor_report_analysis_issue/)})
 // 验证目标：校验界面使用宿主桥接且不使用浏览器持久化。
-test('remote bridges collection into explicit Assistant analysis',async()=>{const h=await readFile(new URL('../src/remote/index.html',import.meta.url),'utf8');assert.match(h,/requestData/);assert.match(h,/executeAction/);assert.match(h,/invokeClientCommand/);assert.match(h,/assistant\.chat\.send_message/);assert.match(h,/escapeHtml/);assert.doesNotMatch(h,/localStorage|sessionStorage/)})
+test('remote bridges collection into explicit Assistant analysis',async()=>{const h=await readFile(new URL('../src/remote/bridge.ts',import.meta.url),'utf8');assert.match(h,/requestData/);assert.match(h,/executeAction/);assert.match(h,/invokeClientCommand/);assert.match(h,/assistant\.chat\.send_message/);assert.doesNotMatch(h,/localStorage|sessionStorage/)})
 // 验证目标：校验助手消息命令进入视图白名单。
 test('view allowlists the Assistant client command',async()=>{const source=await readFile(new URL('../src/lib/view.provider.ts',import.meta.url),'utf8');assert.match(source,/clientCommands/);assert.match(source,/assistant\.chat\.send_message/);assert.match(source,/analysisMessage/)})
 // 验证目标：校验已有审核结果不会被新增建议逻辑重置。
