@@ -5,7 +5,7 @@ import { RemoteI18nProvider } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import { data, type Host } from './bridge'
 import { workflowRefSchema, workflowResultSchema } from '../../../src/workflow-contract'
 import { statusLabel } from './workbench-model'
-import { eventI18n } from './event-i18n'
+import { eventI18n, eventMessage } from './event-i18n'
 
 const response = z.object({ items: z.array(z.object({ id: z.string(), ref: workflowRefSchema, status: z.string(),
   reason: z.string().nullable(), result: workflowResultSchema.nullable(), createdAt: z.string() })), total: z.number() })
@@ -32,7 +32,7 @@ export function WorkflowDiagnoses({ host }: { host: Host | null }) {
         <Button variant="ghost" aria-expanded={expanded === run.id} onClick={() => setExpanded(expanded === run.id ? null : run.id)}><span className="flex flex-wrap items-center gap-3">{run.ref.name} · #{run.ref.runId} · {t('attempt', { attempt: run.ref.attempt })}<Badge variant="secondary">{statusLabel(run.status, host?.locale)}</Badge></span></Button>
         {expanded === run.id && <div className="mt-3 space-y-3">
           <p className="text-xs text-muted-foreground">{eventI18n.date(run.createdAt)} · {run.ref.headSha.slice(0, 12)}</p>
-          {run.reason && <p>{run.reason}</p>}
+          {run.reason && <p>{eventMessage(run.reason) ?? run.reason}</p>}
           {run.result && <><p className="whitespace-pre-wrap">{run.result.summary}</p>{run.result.findings.map((finding, i) => <article key={i} className="space-y-2 border-t pt-3">
             <p><strong>{t('cause')}</strong> · {finding.cause}</p><p className="whitespace-pre-wrap"><strong>{t('evidence')}</strong> · {finding.evidence}</p><p><strong>{t('suggestion')}</strong> · {finding.suggestion}</p>
           </article>)}</>}

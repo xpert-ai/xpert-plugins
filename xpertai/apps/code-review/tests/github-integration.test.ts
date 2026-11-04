@@ -144,3 +144,23 @@ test('App installation and restricted bot tokens use the selected integration an
   assert.ok(config)
   assert.throws(() => assertGitHubRepositoryApplication(config, { ...binding, githubIntegrationId: randomUUID() }), /revalidation_required/)
 })
+
+test('timeout setup requires installation Checks read and requests only read access in scoped tokens', async t => {
+  const f = fixture()
+  const permissions: { contents: string; pull_requests: string; actions: string; checks?: string } = { contents: 'read', pull_requests: 'write', actions: 'read' }
+  const tokenRequests: unknown[] = []
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    if (url.endsWith('/repos/owner/repo')) return Response.json({ id: 77, name: 'repo', owner: { login: 'owner' }, permissions: { push: true } })
+    if (url.endsWith('/installation')) return Response.json({ id: 88, permissions })
+    tokenRequests.push(JSON.parse(String(init.body)))
+    return Response.json({ token: 'fixture-token' })
+  })
+  await assert.rejects(f.app.inspect(scope, 'owner', 'repo', true, true), /checks_permission_required/)
+  const failureOnly = await f.app.inspect(scope, 'owner', 'repo', true)
+  await f.app.installation('88', '77', scope, failureOnly, true)
+  assert.deepEqual(tokenRequests[0], { repository_ids: [77], permissions: { contents: 'read', pull_requests: 'write', actions: 'read' } })
+  permissions.checks = 'read'
+  const timeout = await f.app.inspect(scope, 'owner', 'repo', true, true)
+  await f.app.installation('88', '77', scope, timeout, true, true)
+  assert.deepEqual(tokenRequests[1], { repository_ids: [77], permissions: { contents: 'read', pull_requests: 'write', actions: 'read', checks: 'read' } })
+})
