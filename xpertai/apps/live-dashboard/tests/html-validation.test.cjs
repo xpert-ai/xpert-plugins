@@ -36,3 +36,33 @@ test('HTML runtime errors return actionable failure and clean up without saving'
 test('standard Data Analytics dashboards do not require Browser Runtime', async () => {
   const s = setup({}); assert.equal(await s.validation.validate(context, example, []), null); assert.equal(s.calls.length, 0)
 })
+
+test('preflight failure exposes binding identity differences in both the response and Error.message', async () => {
+  const bindingIds = manifest.bindings.map(binding => binding.id)
+  const s = setup({ ok: false, errors: [`DOCUMENT_INITIAL_BINDING_MISSING: ${bindingIds[0]}`],
+    requestedBindings: ['new-probe', 'new-probe'], renderedTextLength: 20 })
+  await assert.rejects(s.validation.validate(context, manifest, [{ datasetId: 'private', rows: [{ secret: 'private-row-marker' }] }]), error => {
+    const response = error.getResponse()
+    assert.equal(response.code, 'DASHBOARD_HTML_PREFLIGHT_FAILED')
+    assert.deepEqual(response.bindingDiagnostics, { expectedBindingIds: bindingIds, requestedBindingIds: ['new-probe'],
+      missingQueryBindingIds: bindingIds, unexpectedQueryBindingIds: ['new-probe'] })
+    assert.ok(error.message.includes(JSON.stringify(response.bindingDiagnostics)))
+    assert.match(error.message, /dashboard_preview_binding/)
+    assert.match(error.message, /omitted components remain saved/)
+    assert.match(error.message, /No dashboard was saved/)
+    assert.ok(!JSON.stringify(response).includes('private-row-marker'))
+    assert.ok(!JSON.stringify(response).includes('parameterPaths'))
+    return true
+  })
+  assert.deepEqual([...new Set(s.removed)], ['private-report', 'private-input'])
+})
+
+test('a denied query before host observation does not invent an unexpected binding ID', async () => {
+  const s = setup({ ok: false, errors: ['DOCUMENT_BINDING_DENIED'], requestedBindings: [], renderedTextLength: 0 })
+  await assert.rejects(s.validation.validate(context, manifest, []), error => {
+    assert.deepEqual(error.getResponse().bindingDiagnostics.unexpectedQueryBindingIds, [])
+    assert.deepEqual(error.getResponse().bindingDiagnostics.missingQueryBindingIds, manifest.bindings.map(binding => binding.id))
+    assert.match(error.message, /not a static list/)
+    return true
+  })
+})
