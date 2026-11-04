@@ -1,6 +1,16 @@
 # 部署与运行说明
 
-整理日期：2026-11-03；对应插件版本 `@community/apps-ticket-triage` 0.1.0。
+整理日期：2026-11-03（2026-11-04 补充浏览器层复现命令）；对应插件版本 `@community/apps-ticket-triage` 0.1.0。
+
+## 基线版本（复现请用这两个 SHA）
+
+| 仓库 | 分支 / commit | 获取方式 |
+| --- | --- | --- |
+| `xpert-ai/xpert` | `main` @ `3ddc380ca20373f9113a77411090de3c3da75e37` | `git clone --depth 1 https://github.com/xpert-ai/xpert` |
+| `xpert-ai/xpert-plugins` | `main` @ `dfad5423205811b3251628ee9bf59a79a4bcbd87` | `git clone --depth 1 https://github.com/xpert-ai/xpert-plugins` |
+
+上表是开发与测试实际使用的版本；本 PR 的分支基于 `dfad542`。换版本后需要重新跑一遍下面第 5 节
+与 [03-validation.md](03-validation.md) 里记录的内容（尤其工具参数校验那一节，它与模型适配层有关）。
 
 ## 前置条件
 
@@ -88,7 +98,7 @@ XPERT_ORG_ID=           # 安装所属组织
 2. 宿主仓库：`corepack pnpm install`，然后 `corepack pnpm schema:sync`（建表 + 校验）。
 3. 起 API：`corepack pnpm start:api`（或直接用已构建产物 `node dist/apps/api/main.js`）。
 4. 起 Cloud UI：`corepack pnpm start:cloud`，浏览器打开 `http://localhost:4200`。
-5. 首次使用需初始化数据：`corepack pnpm seed:module --name Default`（建默认租户、组织、角色与管理员账号）。
+5. 首次使用需初始化数据：`corepack pnpm seed:module Default`（建默认租户、组织、角色与管理员账号；**只传位置参数，写成 `--name Default` 会变成 `--name "--name" "Default"`**）。seed 会重置数据库，之后必须重启 API。
 6. 登录 → 安装模型提供方 → 配置模型凭证。
 7. 按上文部署本插件（必要时重启 API）。
 8. 从模板「Support ticket triage / 客服工单分诊」创建助手，打开工作台视图。
@@ -103,6 +113,34 @@ curl --noproxy '*' -s "$XPERT_API_URL/api/plugin/by-names" \
 ```
 
 返回里应能看到插件记录与 `enabled` 状态；看不到说明安装没落到当前租户/组织范围。
+
+## 浏览器层复现（界面集成 / 平台业务流程）
+
+```bash
+# 1) 构建出工作台视图的 self-contained HTML
+corepack pnpm run build            # -> dist/remote/ticket-triage.html
+
+# 2) 平台 UI 侧：截图脚本用系统 Chrome 驱动，不需要 playwright install
+export PLAYWRIGHT="file://<platform-repo>/node_modules/playwright-core/index.mjs"
+export XPERT_UI_URL=http://127.0.0.1:4300 \
+       XPERT_WORKSPACE_ID=<workspace-uuid> XPERT_XPERT_ID=<assistant-uuid> \
+       XPERT_EMAIL=you@example.com XPERT_PASSWORD=...
+node tests/browser/capture-chat.mjs
+
+# 3) 工作台视图侧：配了 app platform 的环境直接访问 /chat/...；
+#    没配的环境用自带的最小宿主（只转发协议，不造假数据）
+XPERT_API_URL=http://127.0.0.1:3000 XPERT_EMAIL=... XPERT_PASSWORD=... \
+XPERT_TENANT_ID=<tenant-uuid> XPERT_ORG_ID=<org-uuid> XPERT_XPERT_ID=<assistant-uuid> \
+node tests/browser/serve-host.mjs        # -> http://127.0.0.1:4310
+
+HOST_URL=http://127.0.0.1:4310 node tests/browser/capture-board.mjs --stage persisted
+HOST_URL=http://127.0.0.1:4310 node tests/browser/capture-board.mjs --stage empty
+HOST_URL=http://127.0.0.1:4310 node tests/browser/capture-board.mjs --stage failed
+HOST_URL=http://127.0.0.1:4310 node tests/browser/capture-board.mjs --stage retry
+```
+
+`empty` 与 `failed` 两个状态需要一个数据库前置动作，SQL 写在
+[tests/browser/README.md](../../tests/browser/README.md)。
 
 ## 已知环境坑（本机实测）
 
