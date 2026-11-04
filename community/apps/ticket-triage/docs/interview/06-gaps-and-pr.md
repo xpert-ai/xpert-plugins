@@ -12,7 +12,7 @@
 1. **工作台外壳不是平台自带的那个**。平台自带工作台（`/chat/...`）走托管式应用外壳，我按 schema 配了 app platform 的两个 YAML 并重启验证：`/api/app-platform/me` 变成 `mode: managed-apps`，但 provisioning 以 `APP_PLATFORM_FAILURE:application_trial_unavailable` 失败——它要求先有会员计划（`membership_plan` 与 `user_membership` 在当前 seed 出来的库里都是 0 行）。这条链路属于付费/试用会员子系统，不是插件侧能补齐的，所以配置已撤回。看板截图改用一个按文档化 remote component 协议实现的最小宿主渲染插件自己的 iframe 组件（`requestData` / `executeAction` 全部打到真实 `view-hosts` 接口）。组件、数据、动作都是插件自己的，只有外壳是替代品；在配了会员计划的托管环境里应当换成真实外壳再复验一次（细节见 [03-validation.md](03-validation.md#未覆盖与已知边界)）。
 2. **只在 Windows 宿主 + Linux 容器基础设施的组合上验证**。宿主侧为了让平台在 Windows 上跑起来改动了若干上游文件（进程 spawn 的 `.cmd` 调用、目录 fsync、插件动态 import、插件声明目录推断），这些改动**不进本 PR**，但意味着"别的机器上一键跑通"还没有被证明。
 3. **`--no-mocks` 生命周期没有单独跑**。默认 harness 用 mock 的 TypeORM/运行能力；真实数据库路径由真实部署 + 对话流程覆盖。
-4. **失败注入只到单元层**。平台层演示的是"人工退回 → 重试"，`failed` 状态（`markFailed`）与 `reset_ticket` 只有单元测试覆盖。
+4. **失败状态是造出来的，不是真实故障**。界面证据（截图 11、12）里那张"需重试"的工单，是用 SQL 把它标成 `failed` + `lastErrorCode=model_timeout` 得到的，随后在看板上点「重试分诊」回到待处理、尝试次数保留、表里仍是 4 行。所以它证明的是"失败状态可读、可重试、重试不重复建单"这条链路，而不是真实模型超时下的行为；真实故障注入需要打断模型网关，没有做。
 5. **单租户单组织**。租户隔离由单元测试覆盖，未在平台层建第二个租户验证。
 6. **模型选择受限**。智谱插件自带的 `validateCredentials` 固定用 `thinking: disabled` 试调，`glm-5.3-flash` 因"始终思考"无法通过平台的模型校验；演示用 `glm-5.3-flash` 是把它加进 `copilot_provider.options.enabledModels` 后由平台内置 yaml 提供元数据。更便宜的 `glm-4.5-flash` 校验通过但一次工具调用约 16 s。
 7. **`workspaceId`/`userId` 保留在表结构里但不再参与归属键**。看板按 `tenantId + organizationId + xpertId` 归属（团队共享看板），两列写空字符串以兼容既有 DDL；如果要按用户隔离看板，需要重新引入并同步修改视图与智能体两侧的 scope 计算。
