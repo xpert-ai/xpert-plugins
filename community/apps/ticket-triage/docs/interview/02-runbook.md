@@ -61,6 +61,7 @@ corepack pnpm plugin:deploy:local \
 * `xpert.plugin.level=tenant` 必须配 `--scope tenant`（本插件声明为 tenant 级，用 organization scope 会被拒）。
 * 若输出 `restartRequired`，重启 API 后插件才真正生效。
 * `--skip-build` / `--skip-test` 只在已经构建过、只想重新部署时使用。
+* `--plugin-dir` 给的是**宿主进程能读到的路径**。本轮 API 与插件源码在同一台机器上，所以直接给本地目录成立；按题面 [112]，若宿主在另一台机器，必须把构建产物放到宿主可访问的位置，不能直接用个人电脑路径（我们这轮没有走远程宿主）。
 
 ## 环境变量
 

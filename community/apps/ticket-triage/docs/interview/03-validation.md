@@ -11,8 +11,10 @@
 | 一、业务逻辑 | `corepack pnpm run typecheck` 与 `corepack pnpm run test`（`tsx --test tests/domain.test.ts`） | 类型检查通过；**11/11 用例通过**（8.6 s） | 用的是内存 Fake 仓库，模拟唯一约束与乐观锁，不覆盖真实 SQL 方言 |
 | 二、插件加载 | `node plugin-dev-harness/dist/index.js --workspace ./community --plugin @community/apps-ticket-triage` | `Plugin loaded successfully.` | harness 默认启用 mock DB 与运行能力，不证明真实数据库和权限 |
 | 二、插件加载（真实平台） | `corepack pnpm plugin:deploy:local ... --scope tenant` → 重启 API → `POST /api/plugin/by-names` | `refreshed and staged successfully`；descriptor 的 `meta` 完整（version 0.1.0、level tenant、artifactNamespace `ticket_triage`、types `business-app/assistant-template/workbench-view`、capabilities `ticket_triage.board`） | 不证明视图在浏览器里渲染正确 |
-| 三、界面集成 | `GET /api/view-hosts/agent/<xpertId>/slots/agent.workbench.main/views`、`.../data`、`.../actions/<actionKey>`；并用浏览器在真实界面里点确认、点重试、看重启后数据（脚本见 `tests/browser/`） | 槽位返回视图 key `ticket_triage.board__ticket_triage.board-view`；`data` 返回 200；`seed_tickets`、`confirm_triage`、`reject_triage`、`reset_ticket` 均 201；浏览器里点「确认分诊」「重试分诊」同样走通（截图 06、07、11、12） | 视图宿主 HTTP 接口与浏览器点击都覆盖了，但没有覆盖平台自带工作台外壳本身（见"未覆盖"第一条） |
+| 三、界面集成 | `GET /api/view-hosts/agent/<xpertId>/slots/agent.workbench.main/views`、`.../data`、`.../actions/<actionKey>`；并用浏览器在真实界面里点确认、点重试、看重启后数据（脚本见 `tests/browser/`） | 槽位返回视图 key `ticket_triage.board__ticket_triage.board-view`；`data` 返回 200；`seed_tickets`、`confirm_triage`、`reject_triage`、`reset_ticket` 均 201；浏览器里点「确认分诊」「重试分诊」同样走通（截图 06、07、11、12） | 视图宿主 HTTP 接口与浏览器点击都覆盖了；平台自带工作台外壳另用 `?view=` 打开验证（截图 13、14，启动条件见"未覆盖"第一条） |
 | 四、平台业务流程 | `POST /api/xpert-template/<id>/install` → `POST /api/chat` → 视图动作 | 模板安装成功；真实模型调用并触发两个工具；人工确认后工单关闭；重启后数据仍在 | 见下"未覆盖"一节 |
+
+关于 lint：本包 `package.json` 定义了 `typecheck` / `build` / `test` / `verify:dist` / `check`，**没有** lint 脚本（`community/apps` 下的 dockyard 等同样不定义）。按题面 [117]「存在 lint、typecheck 或界面测试脚本时一并执行」的口径，这一层执行的是 typecheck + 领域测试 + 构建与产物校验；仓库级检查也跑过：`community` 的 `check:entity-names` → `All community entity names start with "plugin_".`，根目录的 `check:plugin-metadata` → `Plugin metadata check passed (working-tree, 0 plugins).`
 
 ## 四层之四：一次完整业务流程的实测轨迹
 
@@ -97,3 +99,18 @@
 
 复现方式：按 [02-runbook.md](02-runbook.md) 起 API 与 Cloud UI，登录后进工作区 → 助手 → 预览，发一条"列出待处理工单并给某张工单提建议"的消息；然后在工作台视图里点确认。本轮用的是生产构建（`nx build cloud --configuration=production`，并把 `dist` 里的 `DOCKER_API_BASE_URL` 等占位符改成本机值），因为 Windows 上 `nx serve cloud` 的 vite 依赖预打包会把 `XpAuthStrategy` 解析成 undefined。
 
+
+## 题面的"最小完整示例"（[83]–[91]）：招聘方没给，我们自己走了一遍
+
+题面 [83] 要求招聘方在发出题目前给出一个已验证的"提交内容 → AI 处理 → 人工确认 → 保存结果"示例，且地址与验证材料一栏写明`【招聘方发出题目前补齐】`——本仓库拿到的版本里这一栏仍是空的，[91] 也明确"目前列出的源码目录和 Skills 可以作为开发参考，不能替代这一经过验证的完整示例"。所以我把 [85]–[90] 那六步当成清单，自己走了一遍：
+
+| 题面步骤 | 我的实际操作 | 证据 |
+| --- | --- | --- |
+| [85] 安装插件 | `plugin:deploy:local --scope tenant`（先 build + verify:dist + test）→ `installed and staged successfully` | 03 的第二层第二行；`06-gaps-and-pr.md` 的部署命令 |
+| [86] 重启平台并验证加载 | 重启 API → `Plugin installation committed`、`POST /api/plugin/by-names` 返回完整 descriptor | 同上 |
+| [87] 展示插件提供的助手模板 | `GET /api/xpert-template` 里第一条即 `@community/apps-ticket-triage:ticket-triage-assistant`（`source: plugin`） | 截图 02 / 08 的中间件与工具卡片 |
+| [88] 基于模板创建助手 | `POST /api/xpert-template/<encoded-id>/install {workspaceId, publish:true}` → xpert `7d8dc9bc-…` | 03 的第四层；截图 01 |
+| [89] 绑定工具与工作台 | 模板 DSL 自带 `TicketTriageMiddleware`（两个工具）与 `viewProvider`（看板视图），安装后即绑定 | 截图 02、08 |
+| [90] 一次真实模型调用 + 人工确认 + 保存 | glm-5.3-flash 两轮工具调用 → 看板点「确认分诊」201 → 重启 API 后数据仍在 | 截图 05、13、14、09 |
+
+这也是我为什么在 [06-gaps-and-pr.md](06-gaps-and-pr.md) 里把"缺少已验证示例"列为对题面的建议：**一个没有示例的题目，候选人只能靠读源码反推宿主行为**，我这次踩到的坑（`team` 参数被静默丢弃、app-platform 三堵墙）本来都可以被这样一份示例提前暴露。

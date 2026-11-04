@@ -48,3 +48,19 @@
 * 视图动作走 `executeViewAction`，失败返回 `{ success: false, data: { code } }`，视图据此提示。
 * 插件表名由 `pluginArtifactTableName(namespace, name)` 生成，`artifactNamespace` 必须与 `package.json` 中 `xpert.plugin.artifactNamespace` 一致。
 * `xpert.plugin.level` 决定可用的安装 scope：`organization` → `organization`；`system` / `tenant` → `tenant`。
+
+## 许可、复用范围与自己的改动
+
+题面要求说明"来源、适用许可、复用范围和自己的改动"（[26]、[75]、表 1 的"复用来源"）。
+
+| 项 | 内容 |
+| --- | --- |
+| 上游许可 | `xpert-ai/xpert-plugins` 为 **AGPL-3.0**（仓库根 `LICENSE` 34523 B），`xpert-ai/xpert` 同为 AGPL-3.0 |
+| 本插件许可 | `package.json` 的 `license` 写成 **AGPL-3.0**，与宿主仓库一致；未公开发布 npm 包（题面不要求） |
+| 复用方式 | **只参考工程结构与协议约定，源码逐行自写**：目录布局、`package.json` 的 `xpert.plugin.*` 字段、视图 manifest 形状、`scripts/build-remote.mjs` 的构建套路，均按 `community/apps/dockyard` 的形态重写；未复制 dockyard 的业务码（它做的是工作台布局预览，与本选题无关） |
+| 协议复用 | `xpertai.remote_component` v1 握手/请求/错误约定按宿主协议文档与 dockyard 的 bridge 实现理解后自写（`src/lib/remote/bridge.ts`），不是拷贝 |
+| 依赖复用 | `@xpert-ai/plugin-sdk`、`@xpert-ai/contracts`（3.18.4，与 dockyard 同版本）作为**直接依赖**使用类型与装饰器，不做代码复制；其余依赖为 `typeorm`、`esbuild`（构建）、`tsx`（测试）、`zod`、`@langchain/core/tools`、`@nestjs/*`，全部为公开 npm 包，无内部包 |
+| 自己的改动 | 全部业务语义是本选题原创：工单实体与 `tenantId + organizationId + xpertId` 三元归属、`pending/proposed/confirmed/failed` 状态机与 `revision` 乐观锁、两个工具（`list_pending_tickets` / `propose_ticket_triage`）、看板视图与四个动作（`seed_tickets` / `confirm_triage` / `reject_triage` / `reset_ticket`）、助手 DSL 与 prompt、11 条领域测试 |
+| 生成方式 | 代码由 AI 编码代理起草、人工逐段审阅与修改（分工见 `04-ai-collaboration.md`）；不涉及第三方素材、字体、图标资源（图标用平台内置 `ri-*` 字体图标名） |
+
+一句话：**协议和骨架学上游，业务码自己写；许可跟随上游 AGPL-3.0；没有引入任何未声明的第三方素材。**
