@@ -18,6 +18,20 @@ in the workbench board** — nothing is closed by the model.
 * It does not auto-close tickets, send replies, or call any external system.
 * It is not a wrapper around one third-party API.
 
+## Reading order for reviewers
+
+Each document opens with a 30-second summary, then the evidence, then an appendix with the plumbing:
+
+| # | Document | Read it for |
+| --- | --- | --- |
+| 1 | [Product and scope](docs/interview/01-product.md) | the user, the flow, the two screen wireframes, the trade-offs |
+| 2 | [Run it](docs/interview/02-runbook.md) | five steps from clone to a confirmed ticket, plus the pitfalls |
+| 3 | [Validation](docs/interview/03-validation.md) | four layers with commands and results, five acceptance scenarios, known limits |
+| 4 | [AI collaboration](docs/interview/04-ai-collaboration.md) | what the agent did, what the human did, and the one isolation experiment |
+| 5 | [Sources and licence](docs/interview/05-sources.md) | pinned commits, reused skeleton vs. own code (AGPL-3.0) |
+| 6 | [Gaps and the PR](docs/interview/06-gaps-and-pr.md) | limits graded by "does it affect the demo" |
+| 7 | [Interview notes](docs/interview/07-interview-notes.md) | walkthrough script, 10 follow-ups, numbers (not a deliverable) |
+
 ## Workspace layout
 
 ```
