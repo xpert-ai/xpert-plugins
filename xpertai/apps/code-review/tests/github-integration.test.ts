@@ -145,6 +145,24 @@ test('App installation and restricted bot tokens use the selected integration an
   assert.throws(() => assertGitHubRepositoryApplication(config, { ...binding, githubIntegrationId: randomUUID() }), /revalidation_required/)
 })
 
+test('repository ownership inspection requires live GitHub write or admin permission', async t => {
+  const f = fixture()
+  let permissions: { push?: boolean; admin?: boolean } = {}
+  let installationReads = 0
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    if (url.endsWith('/repos/owner/repo')) return Response.json({ id: 77, name: 'repo', owner: { login: 'owner' }, permissions })
+    assert(url.endsWith('/installation')); installationReads++
+    return Response.json({ id: 88, permissions: { contents: 'read', pull_requests: 'write' } })
+  })
+  for (permissions of [{}, { push: false, admin: false }])
+    await assert.rejects(f.app.inspect(scope, 'owner', 'repo'), /repository_management_required/)
+  assert.equal(installationReads, 0)
+  for (permissions of [{ push: true }, { admin: true }]) assert.equal((await f.app.inspect(scope, 'owner', 'repo')).repositoryId, '77')
+  permissions = { push: false, admin: false }
+  await assert.rejects(f.app.inspect(scope, 'owner', 'repo'), /repository_management_required/)
+  assert.equal(installationReads, 2, 'revocation is checked afresh')
+})
+
 test('timeout setup requires installation Checks read and requests only read access in scoped tokens', async t => {
   const f = fixture()
   const permissions: { contents: string; pull_requests: string; actions: string; checks?: string } = { contents: 'read', pull_requests: 'write', actions: 'read' }

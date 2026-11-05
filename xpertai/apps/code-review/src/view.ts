@@ -19,6 +19,7 @@ import { ReviewPipelineCatalog } from './pipeline/catalog.js'
 import { reviewPipelineConfigureSchema, reviewSourceSchema } from './pipeline/setup-contract.js'
 import { WorkflowDiagnostics } from './workflow-diagnostics.js'
 import { icon } from './icon.js'
+import { RepositoryConflictError } from './repository-conflict.js'
 export const reviewDto = (r: Review) => ({ id: r.id, revision: r.revision, ref: r.ref, snapshot: r.snapshot, status: r.status, access: r.access, pinned: r.pinned, viewed: r.viewed, summary: r.summary, findings: r.findings, errorCode: r.errorCode, submissionUrl: r.submissionUrl, taskId: r.taskId, threadId: r.threadId, conversationId: r.conversationId, executionId: r.executionId, automationRunId: r.automationRunId, pipelineProjectId: r.pipelineProjectId })
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const selection = z.object({ id: idSchema, revision: z.number().int().positive() }).strict()
@@ -138,6 +139,8 @@ export class ReviewView implements IXpertViewExtensionProvider {
       }
       return { success: true, data: reviewDto(result), refresh: true }
     } catch (error) {
+      if (error instanceof RepositoryConflictError)
+        return { success: false, refresh: false, data: { code: error.code, conflict: error.conflict } }
       if (!(error instanceof ReviewError) && !(error instanceof z.ZodError)) logger.error(error instanceof Error ? error.name : 'Unknown error')
       return { success: false, refresh: false, data: { code: error instanceof ReviewError ? error.code : error instanceof z.ZodError ? 'invalid_input' : 'operation_failed' } }
     }

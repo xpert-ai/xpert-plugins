@@ -35,6 +35,21 @@ function bridgeFixture() {
   return { sent, bridge, emit, disconnect, delays }
 }
 
+test('repository action errors preserve structured ownership details without changing generic errors', async t => {
+  const f = bridgeFixture(); t.after(f.disconnect)
+  const conflict = { kind: 'other_tenant', repository: { owner: 'fixture', name: 'repo' } }
+  const pending = f.bridge.action('repository.add', { owner: 'fixture', repository: 'repo' })
+  const rejected = assert.rejects(pending, error => {
+    assert(error instanceof f.bridge.ActionError)
+    assert.equal(error.message, 'repository_owned_elsewhere')
+    assert.deepEqual(error.detail, { code: 'repository_owned_elsewhere', conflict })
+    return true
+  })
+  f.emit({ type: 'actionResult', requestId: f.sent.at(-1)?.requestId,
+    result: { success: false, data: { code: 'repository_owned_elsewhere', conflict } } })
+  await rejected
+})
+
 test('the real view bridge preserves host connection error codes for localized messages', async (t) => {
   const f = bridgeFixture()
   t.after(f.disconnect)

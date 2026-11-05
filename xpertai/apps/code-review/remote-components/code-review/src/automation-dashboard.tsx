@@ -14,6 +14,8 @@ import { useGitHubConnection } from './use-github-connection'
 import { EventSettings } from './event-settings'
 import { eventI18n, eventMessage } from './event-i18n'
 import { GitHubSetupGuide } from './github-setup-guide'
+import { conflictFromError, RepositoryConflictNotice } from './repository-conflict'
+import type { RepositoryConflict } from '../../../src/repository-conflict-contract'
 
 const repositorySchema = z.object({ id: z.string(), owner: z.string(), repository: z.string(), revision: z.number(), settings: policySettingsSchema,
   ownership: z.enum(['user', 'organization', 'assistant']).default('user'), configuredById: z.string().nullish(), userId: z.string(), updatedById: z.string().nullish(), responsibleUserId: z.string().nullish(), assistantId: z.string(), workspaceId: z.string(), executionUserId: z.string().nullish(),
@@ -32,6 +34,9 @@ export function AutomationDashboard({ host, section: view, onNavigate: setView }
   const locale = useRemoteLocale(eventI18n)
   const t = eventI18n.t
   const [overview, setOverview] = useState<Overview | null>(null), [error, setError] = useState('')
+  const contextKey = `${host?.instanceId}:${host?.scopeRevision}`
+  const currentContext = useRef(contextKey); currentContext.current = contextKey
+  const [conflict, setConflict] = useState<{ contextKey: string; detail: RepositoryConflict } | null>(null)
   const [working, setWorking] = useState(false)
   const [repoInput, setRepoInput] = useState('')
   const [editing, setEditing] = useState<Repo | null>(null), [settings, setSettings] = useState<PolicySettings | null>(null), [trial, setTrial] = useState('')
@@ -49,9 +54,16 @@ export function AutomationDashboard({ host, section: view, onNavigate: setView }
   }, [host])
   useEffect(() => { void load(); const interval = setInterval(() => void load(), 10000); return () => { generation.current++; clearInterval(interval) } }, [load])
   async function perform(fn: () => Promise<unknown>) {
-    setWorking(true); setError('')
+    const startedContext = contextKey
+    setWorking(true); setError(''); setConflict(null)
     try { await fn(); setConfirm(null); await load() }
-    catch (e) { setConfirm(null); setError(e instanceof Error ? e.message : 'operation_failed') }
+    catch (e) {
+      if (startedContext !== currentContext.current) return
+      setConfirm(null)
+      const detail = conflictFromError(e)
+      if (detail) setConflict({ contextKey: startedContext, detail })
+      else setError(e instanceof Error ? e.message : 'operation_failed')
+    }
     finally { setWorking(false) }
   }
   const explain = (code: string) => eventMessage(code) ?? errorMessage(code, locale)
@@ -60,6 +72,7 @@ export function AutomationDashboard({ host, section: view, onNavigate: setView }
   const patch = (change: Partial<PolicySettings>) => setSettings(s => s ? { ...s, ...change } : s)
   const openSettings = (repo: Repo) => { setEditing(repo); setHistory([]); setPipelineChoice(null); setSettings(structuredClone(repo.settings)); setView('repositories') }
   return <RemoteI18nProvider i18n={eventI18n}><div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+    {conflict?.contextKey === contextKey && <RepositoryConflictNotice conflict={conflict.detail}/>}
     {error && <div role="alert" className="border-b bg-muted px-5 py-3 text-sm">{explain(error)}</div>}
     <main className="min-h-0 flex-1 overflow-auto p-5">
       {!overview ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/>{t('automation.loading.reviews')}</p> : <>
@@ -70,7 +83,7 @@ export function AutomationDashboard({ host, section: view, onNavigate: setView }
             {connection.status === 'loading' ? <LoaderCircle className="size-4 animate-spin"/> : connection.status === 'connected' ? <Check className="size-4"/> : <Link2 className="size-4"/>}
             {connection.status === 'loading' ? t('automation.checking.github.connection') : connection.status === 'connected' ? `${t('automation.github.connected')} · @${connection.login}` : t('automation.connect.github')}
           </Button>{overview.app.installUrl && <Button variant="outline" asChild><a href={overview.app.installUrl} target="_blank" rel="noreferrer">{t('automation.install.app.manage.access')}<ArrowUpRight className="size-4"/></a></Button>}</div>{connection.status === 'integration_mismatch' && <p role="alert" className="mt-2 text-sm text-muted-foreground">{explain('github_integration_mismatch')}</p>}{connection.status === 'unavailable' && <p role="status" className="mt-2 text-sm text-muted-foreground">{t('automation.github.connection.status.is.temporarily.unavailable.refresh')}</p>}{!overview.app.configured && <div className="mt-4 rounded-lg bg-muted p-4 text-sm leading-6">{t('automation.github.app.is.not.configured.an.administrator')}<Button variant="link" className="h-auto px-1" onClick={() => setView('settings')}>{t('automation.setup.instructions')}</Button></div>}
-          <form className="mt-4 flex gap-2" onSubmit={e => { e.preventDefault(); const match = repoInput.trim().match(/^([\w.-]+)\/([\w.-]+)$/); if (!match) { setError('invalid_input'); return }; void perform(async () => { await action('repository.add', { owner: match[1], repository: match[2] }); setRepoInput('') }) }}><Input aria-label={t('automation.repository.name')} placeholder="owner/repository" value={repoInput} onChange={e => setRepoInput(e.target.value)} required/><Button disabled={disabled || !overview.app.configured || !repoInput}><Plus className="size-4"/>{t('automation.add.repository')}</Button></form></section>
+          <form className="mt-4 flex gap-2" onSubmit={e => { e.preventDefault(); const match = repoInput.trim().match(/^([\w.-]+)\/([\w.-]+)$/); if (!match) { setError('invalid_input'); return }; void perform(async () => { await action('repository.add', { owner: match[1], repository: match[2] }); setRepoInput('') }) }}><Input aria-label={t('automation.repository.name')} placeholder="owner/repository" value={repoInput} onChange={e => { setRepoInput(e.target.value); setConflict(null) }} required/><Button disabled={disabled || !overview.app.configured || !repoInput}><Plus className="size-4"/>{t('automation.add.repository')}</Button></form></section>
           <section className="divide-y border-t">{overview.repositories.map(repo => <div key={repo.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div><h3 className="text-sm font-medium">{repo.owner}/{repo.repository}</h3><p className="mt-1 text-xs text-muted-foreground">{repo.errorCode ? t('automation.needs.attention') : repo.settings.enabled ? t('automation.automation.enabled') : t('automation.paused')} · {repo.settings.delivery === 'draft' ? t('automation.confirm.before.publishing') : t('automation.automatic.comments')} · v{repo.revision}</p><p className="mt-2 text-xs text-muted-foreground">{t('automation.owner')}{repo.ownership === 'assistant' ? overview.access.organizationName : t('automation.legacy.personal.policy')} · {t('automation.configured.by')}{label('users', repo.configuredById ?? repo.userId)} · {t('automation.maintainer')}{label('users', repo.responsibleUserId)}</p><p className="mt-1 text-xs text-muted-foreground">{t('automation.last.updated')}{label('users', repo.updatedById)}</p><p className="mt-1 text-xs text-muted-foreground">{t('automation.execution')}{label('assistants', repo.assistantId)} / {label('workspaces', repo.workspaceId)} · {repo.executionUserId && repo.ownership === 'assistant' ? t('automation.assistant.execution.account') : t('automation.assistant.binding.required')}</p>{repo.errorCode && <p className="mt-2 text-xs text-destructive">{explain(repo.errorCode)}</p>}<p className="mt-1 text-xs text-muted-foreground">{repo.lastEventAt ? t('automation.last.event') + eventI18n.date(repo.lastEventAt, { dateStyle: 'medium', timeStyle: 'short' }) : t('automation.no.github.events.received.yet')}</p></div><Button size="sm" variant="outline" disabled={disabled} onClick={() => openSettings(repo)}>{t('automation.configure.rules')}</Button></div>)}</section>
           {editing && settings && <section className="space-y-5 rounded-xl border p-5"><div><h2 className="font-semibold">{editing.owner}/{editing.repository}</h2><p className="mt-1 text-xs text-muted-foreground">{t('automation.rules.retain.the.bound.assistant.rebinding.is')}</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={disabled} onClick={() => { setWorking(true); void (async () => {
               const preview = z.object({ blocked: z.boolean(), revision: z.number(), targetLabels: z.object({ assistant: z.string(), workspace: z.string() }) }).parse(await action('repository.preview', { id: editing.id, revision: editing.revision }))
