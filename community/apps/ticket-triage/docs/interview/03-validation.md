@@ -117,12 +117,17 @@ ID、动作与返回摘要已脱敏摘录进 [evidence.json](evidence.json)。
 
 ## 附录 · 本机宿主补丁（不进 PR，只为复现）
 
-宿主仓库 `xpert-ai/xpert` 需要五处补丁才能在这台 Windows 机器上构建运行：
+宿主仓库 `xpert-ai/xpert` 在这台 Windows 机器上需要 **16 个文件的本地改动**（`git diff --stat` 口径；`package.json`、`pnpm-lock.yaml` 是 `pnpm plugin:install` 的自动改写，`timeline/app.css|js` 是构建产物，均不计入）：
 
-1. `packages/server/tsconfig.lib.json` 的 `exclude` 加 `"**/*.fixture.ts"`（否则 `TS2742`，与 `@redis/time-series` 类型推断有关）。
-2. `packages/server/src/plugin/plugin-loader.ts`：动态 import 改 `new Function('s','return import(s)')`（TS 会把 `import()` 降级成 `require`，`file:///C:/...` 必然找不到）。
-3. 四处 `build.mjs` 在 win32 下用 `cmd /c` 调 `tailwindcss` / `npm`（无扩展名 POSIX shim 与 `.cmd` 都不能无 shell spawn）。
-4. `packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts`：`file:///C:/...` 剥前缀后再删多余前导 `/`，否则 provider 的 YAML schema 定位失败，报 `This provider has no credential schema.`
-5. `packages/server-ai/src/plugin-resource/app-platform/platform-provisioner.service.ts`：把 `captureRequestContext(...)` 提到 `models.resolve()` 之前（见第 5 节第 1 条第二堵墙）。
+| 类 | 文件数 | 涉及文件 | 为什么 |
+| --- | --- | --- | --- |
+| A 进程 spawn | 8 | `server-ai/scripts/build-remote-react.mjs`、`server-ai/src/agent-invocation/remote-components/{agent-results,coding-execution}/build.mjs`、`server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs`、`server/src/plugin/installation/install-process.ts`、`server/src/plugin/organization-plugin.store.ts`、`server/src/plugin/plugin-sdk-versioning.ts`、`tools/scripts/deploy-local-plugin.mjs` | Windows 上 `tailwindcss` / `npm` / `corepack` 是 `.cmd` 或无扩展名 shim，不能无 shell spawn → 统一改走 `cmd /c` |
+| B 文件系统语义 | 2 | `server-ai/src/xpert-template/sync/template-sync-state.ts`、`server/src/core/seeds/seed-data.service.ts` | 目录 `fsync` Windows 不支持；`rimraf` 的 `!(...)` 通配报 `Illegal characters in path` |
+| C ESM / 路径解析 | 2 | `server/src/plugin/plugin-loader.ts`、`plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts` | TS 把 `import()` 降级成 `require`，`file:///C:/...` 必然找不到；`file:///C:` 剥前缀后留下的前导 `/` 让 provider 的 YAML schema 定位失败（报 `This provider has no credential schema.`） |
+| D TS 编译 | 1 | `packages/server/tsconfig.lib.json` | `TS2742`（`@redis/time-series` 类型推断）→ `exclude` 加 `**/*.fixture.ts` |
+| E app-platform 打通 | 2 | `platform-models.service.ts`（临时调试日志）、`platform-provisioner.service.ts`（`captureRequestContext` 前移） | 与 OS 无关：让托管外壳的 provisioning 能解析到模型（见第 5 节第一堵墙的第二条） |
+| F 前端构建离线 | 1 | `apps/cloud/project.json` | 本机访问不到 `fonts.googleapis.com`，关掉字体内联（`optimization.fonts: false`） |
+
+A/B/C/D 十三个文件只在 Windows 需要，Linux 下上游原样即可；E/F 与 OS 无关。
 
 复现：按 [02-runbook.md](02-runbook.md) 起 API 与 Cloud UI → 工作区 → 助手 → 预览，发"列出待处理工单并给某张提建议" → 工作台视图里点确认。本轮用生产构建（`nx build cloud --configuration=production`，并把 `dist` 里 `DOCKER_API_BASE_URL` 等占位符改成本机值），因为 Windows 上 `nx serve cloud` 的 vite 预打包会把 `XpAuthStrategy` 解析成 undefined。

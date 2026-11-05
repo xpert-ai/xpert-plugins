@@ -26,7 +26,7 @@
    - `application_model_binding_unavailable` → `copilot.role` 是空串 + provisioner 在 BullMQ 上下文里取不到 provider（**宿主侧真实缺陷**：需把 `captureRequestContext` 提到 `models.resolve()` 之前）；
    - `application_preparation_failed` → 平台自己的 provisioning actor 只有 2 条权限。
    补齐后 `ready:true`，`/chat/x/community-apps-ticket-triage-studio-<orgId>/c?view=ticket_triage.board__ticket_triage.board-view` 能看到 `工单分诊` tab（截图 13/14）。所以这条不是"外壳不可用"，而是"**托管外壳需要会员计划与 provisioning actor 权限，seed 默认数据不提供**"。没配的机器上仍可用替身宿主复现 06/07。
-2. **只在 Windows 宿主 + Linux 容器基础设施上验证**。宿主侧为跑通改了 5 处上游文件（spawn `.cmd`、目录 fsync、插件动态 `import`、provider 目录推断、provisioner 请求上下文），**这些不进本 PR**，意味着"别的机器一键跑通"还没被证明。
+2. **只在 Windows 宿主 + Linux 容器基础设施上验证**。宿主侧为跑通改了 **16 个上游文件**（六类：进程 spawn 8、文件系统语义 2、ESM/路径 2、TS 编译 1、app-platform 打通 2、前端构建离线 1，逐条见 [03-validation.md](03-validation.md) 附录），**这些不进本 PR**，意味着"别的机器一键跑通"还没被证明。
 3. **`--no-mocks` 生命周期没单独跑**：只跑了 harness 默认 mock 模式；真实数据库路径由真实部署 + 业务流覆盖。
 4. **模型选择受限**：智谱插件 `validateCredentials` 固定 `thinking: disabled` 试调，`glm-5.3-flash` 因"始终思考"过不了平台校验，是加进 `copilot_provider.options.enabledModels` 后由内置 yaml 提供元数据；`glm-4.5-flash` 校验通过但一次工具调用约 16 s。
 5. **工具参数名踩过平台的坑**：`team` 每轮被静默丢弃（`Received tool input did not match expected schema`），改 `owningTeam` 后正常；换模型/版本需重验（见 [03-validation.md](03-validation.md) 第 4 节）。
