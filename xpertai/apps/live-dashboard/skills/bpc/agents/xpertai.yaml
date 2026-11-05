@@ -1,6 +1,6 @@
 interface:
   display_name: "BPC"
-  short_description: "BPC 通用父技能：按所选语义模型加载子技能并统一校验交付"
+  short_description: "BPC 通用父技能：按所选模型和分析任务加载子技能并统一校验交付"
   default_prompt: "使用 $bpc，定位我指定的 BPC 语义模型，加载对应子技能，按该模型口径完成任务。"
 runtime:
   required_tools:

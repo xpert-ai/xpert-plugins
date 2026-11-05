@@ -31,9 +31,9 @@ When `dashboard_open` or `dashboard_history` returns `selection_required`, displ
 
 ## BPC model workflows
 
-For a user-selected BPC model, load the bundled `bpc` skill from the installed skill catalog with `read_skill_file`. It selects a compatible model child, currently `bpc-cost-expense`, and validates the current model binding before queries. Model rules belong to that child; this skill continues to own source discovery, Binding previews, HTML editing and draft saves. Do not classify a model from customer names or similar field names. For style-only changes, preserve the existing verified bindings. Missing child skills or model access are explicit setup gaps, not permission to substitute another dataset.
+For a user-selected BPC model, load the bundled `bpc` skill from the installed skill catalog with `read_skill_file`. Use the requested analysis and the verified model binding to select `bpc-cost-expense` for monthly production cost budget versus actual or `bpc-financial-planning` for annual sales, expense and investment budgets. The same instance can support both. Model rules belong to that child; this skill continues to own source discovery, Binding previews, HTML editing and draft saves. Do not classify a model from customer names or similar field names. For style-only changes, preserve the existing verified bindings. Missing child skills or model access are explicit setup gaps, not permission to substitute another dataset.
 
-The default author template declares all three skills. Existing or custom Assistants need the corresponding skill dependencies enabled; plugin packaging alone does not update their configuration.
+The default author template declares these four skills. Existing or custom Assistants need the corresponding skill dependencies enabled; plugin packaging alone does not update their configuration.
 
 ## Prerequisites
 

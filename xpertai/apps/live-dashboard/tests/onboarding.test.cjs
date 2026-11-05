@@ -17,7 +17,7 @@ test('App links one project-required author template with runnable file and skil
   assert.deepEqual(app.knowledgebases, [])
   assert.equal(app.entry.type, 'assistant-chat')
   assert.deepEqual(author.dependencies.plugins, ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'])
-  assert.deepEqual(author.dependencies.skills, ['live-dashboard', 'bpc', 'bpc-cost-expense'].map(componentKey => ({
+  assert.deepEqual(author.dependencies.skills, ['live-dashboard', 'bpc', 'bpc-cost-expense', 'bpc-financial-planning'].map(componentKey => ({
     componentKey, targetAgentKey: 'Agent_Dashboard'
   })))
   const bundle = require('../.xpertai-plugin/plugin.json')

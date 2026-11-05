@@ -1,44 +1,33 @@
-# BPC model workflow in Live Dashboard
+# BPC analysis in Live Dashboard
 
-The plugin ships three sibling skill components. Their parent/child relationship
-is an instruction workflow, not nested installation or an extra Agent runtime.
-The default author template explicitly binds all three to `Agent_Dashboard`.
+The default author template binds four sibling skills to `Agent_Dashboard`.
+The BPC parent matches the requested analysis to rules supported by the selected model.
 
 ```mermaid
 flowchart TD
-    Request[User selects a model and dashboard task] --> Live[live-dashboard: authoring workflow]
-    Live --> Parent[bpc: confirm model and select child]
-    Parent --> Cost[bpc-cost-expense: cost model contract]
-    Parent -. future model .-> Future[Additional model child]
-    Binding[Authorized environment: model instance and native member mapping] --> Cost
-    Cost --> Query[Separate budget and actual queries with aligned scope]
-    Future -. verified model rules .-> Query
-    Query --> Check{Preview, filters, completeness and exact totals verified?}
-    Check -->|No| Resolve[Report the gap and resolve it without substituting data]
-    Resolve --> Query
-    Check -->|Yes| Draft[Live Dashboard tools save the existing or new draft]
-    Draft --> Receipt[Return the actual saved revision and resource card]
-    Receipt --> Review[User reviews the draft]
-    Review -->|Explicit human confirmation| Publish[Publish in Workbench]
+    Request[User selects a BPC model and task] --> Live[live-dashboard]
+    Live --> Parent[bpc: confirm the model and the requested analysis]
+    Parent -->|Monthly production cost execution| Cost[bpc-cost-expense]
+    Parent -->|Annual sales, expense and investment budgets| Planning[bpc-financial-planning]
+    Binding[Authorized model and native member mapping] --> Cost
+    Binding --> Planning
+    Cost --> Compare[Query budget and actual separately for the same month]
+    Planning --> Reconcile[Query one budget version, reconcile annual and monthly values by account group]
+    Compare --> Check{Scope, grain and completeness verified?}
+    Reconcile --> Check
+    Check -->|No| Gap[Identify the affected figures and resolve the discrepancy]
+    Gap --> Parent
+    Check -->|Yes| Intent{Requested output}
+    Intent -->|Analysis| Report[Report figures, verified scope and open business questions]
+    Intent -->|Dashboard| Draft[Save draft and return its revision for user review]
+    Draft -->|Explicit human confirmation| Publish[Publish in Workbench]
 ```
 
-For analysis-only requests, report the verified findings without creating or
-editing a dashboard. Style-only edits retain verified bindings. Loading a child
-does not restart discovery already completed in the same task.
+A single model instance can support both branches. Changing the version, period
+or organization reuses the selected child with fresh bindings. For another
+company, resolve authorized model and member identities in that environment.
 
-## Reuse and extension
-
-- Same semantic contract, another company: provide that environment's authorized
-  model and member mapping. Reuse the child; amounts and available periods remain
-  live data.
-- Same model, another month or budget version: change verified query selections.
-- Different model contract: add a sibling skill with its own semantic contract,
-  mapping guide and focused tests; register its explicit route in
-  [model-routing.md](model-routing.md) and its dependency in the plugin author
-  template. Validate package discovery and Agent binding together.
-- Existing/custom Assistants: enable the required skills through their normal
-  configuration workflow. Merely updating the plugin does not migrate them.
-
-The current cost child covers monthly production-cost comparisons. Future
-budget, revenue or investment children are extension points, not delivered
-capabilities. No customer instance or credential belongs in the plugin package.
+To add a different business contract, add a sibling skill, register its task and
+model requirements in [model-routing.md](model-routing.md) and declare the
+dependency in the plugin author template. Verify package discovery and Agent
+binding. Existing or custom Assistants enable the skills in their own configuration.

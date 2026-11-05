@@ -1,0 +1,53 @@
+{
+  "title": "Example annual financial planning budget",
+  "dimensions": [
+    {
+      "dimensionId": "[ACCOUNT]",
+      "hierarchy": "[ACCOUNT].[PARENTH1]",
+      "level": "[ACCOUNT].[PARENTH1].[LEVEL02]"
+    }
+  ],
+  "measures": [
+    "[Measures].[SignData]"
+  ],
+  "slicers": [
+    {
+      "field": "[CATEGORY]",
+      "op": "in",
+      "value": [
+        "[CATEGORY].[ExampleBudget]"
+      ]
+    },
+    {
+      "field": "[PLANYEAR]",
+      "op": "in",
+      "value": [
+        "[PLANYEAR].[2030]"
+      ]
+    },
+    {
+      "field": "[TIME]",
+      "op": "in",
+      "value": [
+        "[TIME].[PARENTH1].[2031.TOTAL]"
+      ]
+    },
+    {
+      "field": "[RPTCURRENCY]",
+      "op": "in",
+      "value": [
+        "[RPTCURRENCY].[ExampleCurrency]"
+      ]
+    },
+    {
+      "field": "[ACCOUNT]",
+      "op": "in",
+      "value": [
+        "[ACCOUNT].[PARENTH1].[AC01]",
+        "[ACCOUNT].[PARENTH1].[AC08]",
+        "[ACCOUNT].[PARENTH1].[AC05]"
+      ]
+    }
+  ],
+  "limit": 100
+}

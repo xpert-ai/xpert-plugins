@@ -1,0 +1,10 @@
+interface:
+  display_name: "BPC 财务规划预算"
+  short_description: "按单一预算版本核对年度销售、费用、投资预算及月度分布"
+  default_prompt: "使用 $bpc-financial-planning，对选定模型的年度销售、费用和投资预算逐组核对，并说明待确认的业务口径。"
+runtime:
+  required_tools:
+    - kind: agent-middleware-tool
+      provider: skillsMiddleware
+      name: read_skill_file
+      required: true

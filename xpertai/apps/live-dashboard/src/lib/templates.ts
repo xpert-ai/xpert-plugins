@@ -48,12 +48,12 @@ export const dashboardTemplates: XpertTemplateContribution[] = [false, true].map
   targetApps: ['xpert', 'data-xpert'], targetAppMeta: { xpert: { types: ['business-assistant'],
     capabilities: [monitor ? 'live_dashboard.monitor' : 'live_dashboard'], requiredPlugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'] } },
   dependencies: { plugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'],
-    skills: monitor ? [] : ['live-dashboard', 'bpc', 'bpc-cost-expense'].map(componentKey => ({
+    skills: monitor ? [] : ['live-dashboard', 'bpc', 'bpc-cost-expense', 'bpc-financial-planning'].map(componentKey => ({
       componentKey, targetAgentKey: 'Agent_Dashboard'
     })) },
   category: 'Analytics',
   promptWorkflows: monitor ? undefined : dashboardWorkspacePrompts,
   startPrompts: monitor ? [] : startPrompts,
-  releaseNotes: monitor ? undefined : 'Bundles the BPC parent and cost/expense model skills with the author template. Compatible model instances reuse the same semantic rules through environment-specific mappings; existing dashboards and Assistant configurations are not rewritten.',
+  releaseNotes: monitor ? undefined : 'Adds BPC routing, monthly production cost execution and annual financial planning skills to the author template. Each analysis uses the selected environment’s model and member mappings.',
   dslContent: dsl(monitor), default: false, order: monitor ? 36 : 35
 }))
