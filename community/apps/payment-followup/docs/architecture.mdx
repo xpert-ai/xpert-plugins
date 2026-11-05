@@ -1,0 +1,14 @@
+---
+title: 业务架构
+description: 作用域、持久化、模型与人工操作的边界。
+---
+
+工作台通过 Xpert View Host 取得数据和执行动作；身份由宿主提供。每条记录限定 tenantId、organizationId、userId、assistantId。
+
+状态依次为 draft → processing → review → confirmed。失败进入 failed，允许重新开始。重试保留输入，创建新的 attemptId；旧工具结果无法覆盖新一轮。人工确认携带 revision，防止另一窗口静默覆盖。
+
+工具只有 payment_followup_read、payment_followup_submit、payment_followup_fail。确认动作只出现在工作台，不提供给 Agent。
+
+数据库使用 plugin_payment_followup_case 表。金额为整数分；AI 结果与人工确认稿分开保存在 JSONB 中。事务通过行锁串行化同一记录的操作。原文保持不变，界面按行号显示服务端证据。
+
+模型输出可能语义错误；证据存在校验不能代替人工审核。原文中的指令不应改变系统规则；插件没有外发、付款或核销能力。
