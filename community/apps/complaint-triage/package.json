@@ -1,0 +1,91 @@
+{
+  "name": "@community/apps-complaint-triage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Complaint triage desk: AI extracts, grades and drafts replies for customer complaints; a human reviews and confirms.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "packageManager": "pnpm@8.15.8",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/complaint-triage"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "complaint_triage"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json && node scripts/build-remote.mjs",
+    "test:unit": "tsx --test tests/*.test.ts",
+    "test": "pnpm run typecheck && pnpm run build && pnpm run test:unit && pnpm run verify:dist",
+    "verify:dist": "node scripts/build-remote.mjs --check",
+    "lint": "echo \"(todo) add lint\""
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.6",
+    "@xpert-ai/plugin-sdk": "^3.18.6",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/cqrs": "11.0.3",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "22.18.6",
+    "@types/react": "18.3.24",
+    "@types/react-dom": "18.3.7",
+    "@xpert-ai/contracts": "3.18.6",
+    "@xpert-ai/plugin-sdk": "3.18.6",
+    "esbuild": "0.25.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "0.2.2",
+    "sql.js": "1.13.0",
+    "tsx": "4.20.5",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "zod": "3.25.67"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@xpert-ai/contracts@3.18.6": {
+        "dependencies": {
+          "short-unique-id": "5.3.2"
+        }
+      },
+      "@xpert-ai/plugin-sdk@3.18.6": {
+        "dependencies": {
+          "axios": "1.12.2"
+        }
+      }
+    }
+  }
+}
