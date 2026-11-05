@@ -13,7 +13,7 @@ import { defaultPolicy } from '../src/automation-contract.js'
 import { Review } from '../src/entity.js'
 import { Reviews } from '../src/backend.js'
 import { GitHub } from '../src/github.js'
-import type { Repositories } from '../src/repositories.js'
+import { Repositories } from '../src/repositories.js'
 import { parsePullUrl, VIEW, type Snapshot, type Scope } from '../src/domain.js'
 import { ReviewPipelineService } from '../src/pipeline/service.js'
 import { ReviewPipelineOperations } from '../src/pipeline/operations.js'
@@ -83,7 +83,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
   const capabilities = new DefaultRuntimeCapabilityRegistry()
   const s: Scope = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID(), workspaceId: randomUUID() }
   const projectId = randomUUID(), actor = { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId }
-  const reviews = new Reviews(db.getRepository(Review), {} as PluginContext, {} as Repositories, capabilities)
+  const reviews = new Reviews(db.getRepository(Review), {} as PluginContext, { access: Repositories.prototype.access } as Repositories, capabilities)
   const service = new ReviewPipelineService(db.getRepository(ReviewPipelineBinding), db.getRepository(ReviewPipelineEvidence), db.getRepository(Review), reviews, capabilities)
   const operations = new ReviewPipelineOperations(service, reviews, db.getRepository(ReviewPipelineDelivery), capabilities)
   let permitted = true, head = 'a'.repeat(40), posts = 0, receiptFound = false, marker = '', submittedBody = '', receiptAuthor = 12
@@ -216,7 +216,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     const policy = await operations.readiness(step({ findings: { kind: 'evidence', value: verified }, checks: { kind: 'evidence', value: checkRef } }))
     assert.equal(policy.status, 'decided'); assert.ok(policy.status === 'decided' && policy.outcome === 'human')
   })
-  await t.test('published PR detail reads only the accepted report of the selected round', async () => {
+  await t.test('published PR detail reads only the accepted report of the selected round', async t => {
     const run = await db.getRepository(ReviewRun).save({ ...s, reviewId: root.id, repositoryPolicyId: randomUUID(),
       operationKey: randomUUID(), number: 1, headSha: head, title: 'Published review', trigger: 'opened',
       settings: { ...defaultPolicy, pipeline: { projectId, bindingId: randomUUID() } }, policyRevision: 1,
@@ -230,8 +230,12 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
       { summary: 'Single reviewer conclusion', findings: [finding] })
     const singleReport = (await service.collect(single, 'review')).findings
     let full = false, finalReady = true, roundDigest = work.inputDigest
+    const memberId = randomUUID()
+    let graphAvailable = true, graphReads = 0, expectedGraphUser = actor.userId
     capabilities.register(ProjectPipelinesRuntimeCapability, { async graph(context, instanceId, input) {
-      assert.deepEqual(context.actor, actor)
+      graphReads++
+      if (!graphAvailable) throw new Error('graph unavailable')
+      assert.deepEqual(context.actor, { ...actor, userId: expectedGraphUser })
       assert.equal(input?.roundId, work.roundId, 'use the selected run even if another round has the same SHA')
       return { projectId, instance: { id: instanceId }, roundId: work.roundId, round: { inputDigest: roundDigest },
         definition: (full ? reviewPipelineConfiguration() : lightweightReviewPipelineConfiguration()).template,
@@ -241,8 +245,9 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
         ] } as never
     } } as ProjectPipelinesApi)
     const view = new ReviewView(reviews, {} as never, service, {} as never, {} as never)
-    const detail = async () => (await view.getViewData({ ...s, hostType: 'agent', hostId: s.assistantId } as never,
-      VIEW, { selectionId: root.id } as never) as { meta: { detail: Review } }).meta.detail
+    const host = { ...s, hostType: 'agent' as const, hostId: s.assistantId }
+    const detail = async (scope: Partial<Scope> = {}) => (await view.getViewData({ ...host, ...scope } as never,
+      VIEW, { selectionId: root.id } as never) as { meta: { detail: Review & { reportUnavailable?: boolean } } }).meta.detail
     assert.equal((await detail()).summary, 'Single reviewer conclusion')
     assert.deepEqual((await detail()).findings, [finding])
     full = true
@@ -253,10 +258,62 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     assert.equal((await reviews.get(s, root.id)).status, 'ready', 'viewing the result never changes the root or republishes')
     finalReady = true
     roundDigest = '0'.repeat(64)
-    await assert.rejects(detail(), /pipeline_evidence_unavailable/)
+    await assert.rejects(service.finalReport(s, await reviews.get(s, root.id)), /pipeline_evidence_unavailable/)
+    const invalid = await detail()
+    assert.equal(invalid.reportUnavailable, true)
+    assert.deepEqual([invalid.summary, invalid.findings], ['', []])
+    roundDigest = work.inputDigest
     permitted = false
     await assert.rejects(detail(), /project_access_revoked/)
     permitted = true
+    await t.test('an organization reader retains the snapshot but not the protected report', async () => {
+      const member = { userId: memberId, assistant: { instanceId: s.assistantId, currentId: s.assistantId, versionIds: [] } }
+      await db.getRepository(Review).update(root.id, { organizationShared: true })
+      try {
+        expectedGraphUser = memberId
+        full = false
+        assert.deepEqual((await detail(member)).findings, [finding])
+        permitted = false
+        const value = await detail(member)
+        assert.deepEqual(value.snapshot, snapshot)
+        assert.equal(value.reportUnavailable, true)
+        assert.equal(value.summary, '')
+        assert.deepEqual(value.findings, [])
+        assert.equal(value.status, 'ready')
+        const before = graphReads
+        await assert.rejects(detail({ userId: memberId }), /project_access_revoked/)
+        await assert.rejects(detail({ ...member, organizationId: randomUUID() }), /review_not_found/)
+        assert.equal(graphReads, before, 'never read a report for an unauthorized root')
+      } finally {
+        permitted = true
+        expectedGraphUser = actor.userId
+        full = true
+        await db.getRepository(Review).update(root.id, { organizationShared: false })
+      }
+    })
+    await t.test('mark returns its committed revision even when the subsequent report refresh fails', async () => {
+      const before = graphReads, revision = (await reviews.get(s, root.id)).revision
+      const mark = (input: object) => view.executeViewAction(host as never, VIEW, 'mark', { input } as never)
+      graphAvailable = false
+      try {
+        const result = await mark({ id: root.id, revision, pinned: true, viewed: ['app.ts'] })
+        assert.equal(result.success, true)
+        assert.equal(result.refresh, true)
+        const saved = await db.getRepository(Review).findOneByOrFail({ id: root.id })
+        assert.deepEqual([saved.pinned, saved.viewed, saved.revision], [true, ['app.ts'], revision + 1])
+        assert.equal((result.data as { revision: number }).revision, saved.revision)
+        assert.equal(graphReads, before, 'writing must not query the report')
+        const refreshed = await detail()
+        assert.equal(refreshed.reportUnavailable, true)
+        assert.deepEqual([refreshed.pinned, refreshed.viewed, refreshed.revision], [true, ['app.ts'], saved.revision])
+        assert.equal(graphReads, before + 1)
+        const stale = await mark({ id: root.id, revision, pinned: false })
+        assert.equal(stale.success, false)
+        assert.deepEqual(stale.data, { code: 'revision_conflict' })
+        assert.equal((await mark({ id: root.id, revision: saved.revision, pinned: false })).success, true)
+      } finally { graphAvailable = true }
+      assert.equal((await detail()).summary, 'Both review passes independently verified')
+    })
     await db.getRepository(Review).update(root.id, { automationRunId: null })
   })
   await t.test('versioned evidence rejects tampering, cross-project reads, revoked access and content replacement', async () => {
@@ -266,7 +323,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     await assert.rejects(service.read(context, snapshotRef), /project_access_revoked/)
     permitted = true
     await assert.rejects(service.write(context, 'snapshot', refs.snapshot, { reviewId: root.id, ref: root.ref, snapshot, instructions: 'changed' }), /pipeline_evidence_immutable/)
-    await assert.rejects(reviews.start(s, root.id, root.revision, ''), /pipeline_managed_review/)
+    await assert.rejects(reviews.start(s, root.id, (await reviews.get(s, root.id)).revision, ''), /pipeline_managed_review/)
   })
   await t.test('CI waits for exact required checks and returns failed evidence for the rule to evaluate', async () => {
     checks[0].status = 'in_progress'

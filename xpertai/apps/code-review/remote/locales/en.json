@@ -1,5 +1,6 @@
 {
   "workbench.eventRecord": "Event only",
+  "workbench.reportUnavailable": "The pipeline report is unavailable. You can still view this review’s snapshot and code changes.",
   "setup.title": "GitHub connection and event automation",
   "setup.intro": "PR reviews and Workflow diagnosis use the selected GitHub system integration. Manage credentials in System integrations; this view never receives secrets.",
   "setup.events.title": "Supported events",

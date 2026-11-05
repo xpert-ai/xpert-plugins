@@ -31,8 +31,14 @@ export class ReviewView implements IXpertViewExtensionProvider {
     private readonly workflows: WorkflowDiagnostics) {}
   private async detail(s: Scope, record: Review) {
     const dto = reviewDto(record)
-    const report = await this.pipelines.finalReport(s, record)
-    return report ? { ...dto, status: 'reviewed' as const, summary: report.summary, findings: report.findings } : dto
+    // The root has already passed its own access check. Its pipeline evidence has separate permissions.
+    try {
+      const report = await this.pipelines.finalReport(s, record)
+      return report ? { ...dto, status: 'reviewed' as const, summary: report.summary, findings: report.findings } : dto
+    } catch (error) {
+      logger.warn(`Pipeline report unavailable for review ${record.id}: ${error instanceof ReviewError ? error.code : error instanceof Error ? error.name : 'unknown'}`)
+      return { ...dto, reportUnavailable: true, summary: '', findings: [] }
+    }
   }
   supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' }
   getViewManifests(_c: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
@@ -130,7 +136,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
         case 'submit': result = await this.reviews.submit(s, submitSchema.parse(request.input)); break
         default: throw new ReviewError('unknown_action')
       }
-      return { success: true, data: await this.detail(s, result), refresh: true }
+      return { success: true, data: reviewDto(result), refresh: true }
     } catch (error) {
       if (!(error instanceof ReviewError) && !(error instanceof z.ZodError)) logger.error(error instanceof Error ? error.name : 'Unknown error')
       return { success: false, refresh: false, data: { code: error instanceof ReviewError ? error.code : error instanceof z.ZodError ? 'invalid_input' : 'operation_failed' } }

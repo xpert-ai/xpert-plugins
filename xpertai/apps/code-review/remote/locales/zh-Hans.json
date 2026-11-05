@@ -1,5 +1,6 @@
 {
   "workbench.eventRecord": "事件记录",
+  "workbench.reportUnavailable": "暂时无法查看流水线报告。你仍可查看此次审查的快照和代码变更。",
   "setup.title": "GitHub 连接与事件自动化",
   "setup.intro": "PR 审查与 Workflow 诊断共用所选 GitHub 系统集成。密钥只在系统集成中维护，不经过插件视图。",
   "setup.events.title": "支持的事件",

@@ -67,6 +67,7 @@ const reviewSchema = z.object({
   viewed: z.array(z.string()),
   summary: z.string(),
   findings: z.array(findingSchema),
+  reportUnavailable: z.literal(true).optional(),
   errorCode: z.string().nullable(),
   submissionUrl: z.string().nullable()
 })
@@ -131,10 +132,15 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
           ? current
           : result.meta.detail.snapshot.files[0]?.filename ?? ''
       )
-      await publishSelection(result.meta.detail)
+      await publishSelection(result.meta.detail).catch((e) => {
+        if (generation === epoch.current && request.current === n)
+          setError(e instanceof Error ? e.message : 'operation_failed')
+      })
     } catch (e) {
-      if (generation === epoch.current && request.current === n)
+      if (generation === epoch.current && request.current === n) {
+        setReview(null)
         setError(e instanceof Error ? e.message : 'operation_failed')
+      }
     } finally {
       if (generation === epoch.current && request.current === n) setLoading(false)
     }
@@ -180,8 +186,13 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
     await perform(async () => {
       const result = reviewSchema.parse(await action(key, { id: review.id, revision: review.revision, ...input }))
       if (generation !== epoch.current) return
-      setReview(result)
-      await publishSelection(result)
+      request.current++ // An older detail read must not replace the committed revision.
+      if (key === 'mark') {
+        // Mark only changes these fields; the refreshed detail supplies the report.
+        setReview(current => current && current.id === result.id
+          ? { ...current, revision: result.revision, pinned: result.pinned, viewed: result.viewed }
+          : result)
+      } else setReview(result)
       if (key === 'submit') setSubmitOpen(false)
     })
   }
@@ -207,6 +218,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
   const file = review?.snapshot.files.find((f) => f.filename === path)
   const projectId = entry.projectId ?? review?.pipelineProjectId
   const submissionUrl = entry.publicationUrl ?? review?.submissionUrl
+  const reportNotice = review?.reportUnavailable ? eventI18n.t('workbench.reportUnavailable') : null
   const endedWithoutReport = !review?.summary && entry.reason && ['cancelled', 'skipped', 'failed', 'superseded'].includes(entry.status)
     ? message(entry.reason)
     : null
@@ -218,7 +230,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
   const tabs = [
     { key: 'summary', label: t('detailSummary') },
     { key: 'changes', label: t('detailChanges') },
-    { key: 'findings', label: `${t('detailFindings')} (${review?.findings.length ?? 0})` },
+    { key: 'findings', label: reportNotice ? t('detailFindings') : `${t('detailFindings')} (${review?.findings.length ?? 0})` },
     { key: 'history', label: t('runHistory') },
     { key: 'checks', label: t('checks') }
   ]
@@ -460,7 +472,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
                 <section>
                   <h3 className="mb-2 text-sm font-medium">{t('reviewSummary')}</h3>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                    {review.summary || endedWithoutReport || t(review.pipelineProjectId ? 'reviewManagedByPipeline' : 'startAReviewToGenerateADraftWith')}
+                    {reportNotice || review.summary || endedWithoutReport || t(review.pipelineProjectId ? 'reviewManagedByPipeline' : 'startAReviewToGenerateADraftWith')}
                   </p>
                 </section>
                 <section>
@@ -493,7 +505,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
               <div className="space-y-3 p-5">
                 {review.findings.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    {endedWithoutReport ?? (review.status === 'reviewed'
+                    {reportNotice ?? endedWithoutReport ?? (review.status === 'reviewed'
                       ? t('noSupportedBugsWereFoundInTheReviewed')
                       : t('findingsWillAppearAfterTheReview'))}
                   </p>
