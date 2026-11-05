@@ -1,0 +1,278 @@
+{
+  "note": "脱敏摘录：只保留 ticketCode 与状态推进，不含 token、密码、模型密钥或租户明文凭据。采集时间 2026-11-03（接口驱动）与 2026-11-04（浏览器界面驱动）。",
+  "browserRun": {
+    "ui": "Cloud UI production build (nx build cloud --configuration=production), served locally, real API + real model + real confirm click",
+    "screenshots": "docs/interview/screenshots/01..08",
+    "aiTurns": [
+      {
+        "prompt": "请调用 list_pending_tickets 列出待处理工单，然后只对 T-1002 提交分诊建议：priority=P2、team=billing",
+        "tools": [
+          { "name": "list_pending_tickets", "durationMs": 87 },
+          { "name": "propose_ticket_triage", "durationMs": 82 }
+        ],
+        "result": { "ticketCode": "T-1002", "status": "proposed", "priority": "P2", "team": "billing", "revision": 2 }
+      },
+      {
+        "prompt": "请列出待处理工单，然后只对 T-1004 提交分诊建议：priority=P1、team=product",
+        "tools": [
+          { "name": "list_pending_tickets", "durationMs": 63 },
+          { "name": "propose_ticket_triage", "durationMs": 77 }
+        ],
+        "result": { "ticketCode": "T-1004", "status": "proposed", "priority": "P1", "team": "product", "revision": 3 }
+      }
+    ],
+    "humanClicks": {
+      "T-1004": { "action": "confirm_triage", "expectedRevision": 3, "response": { "success": true, "data": { "ticketCode": "T-1004", "revision": 4 } } },
+      "T-1002": { "action": "confirm_triage", "expectedRevision": 2, "response": { "success": true, "data": { "ticketCode": "T-1002", "revision": 3 } }, "via": "workbench view in browser (screenshot 07)" }
+    },
+    "boardAfterClicks": {
+      "summary": { "total": 4, "pending": 2, "proposed": 0, "confirmed": 2, "failed": 0 }
+    }
+  },
+  "platformIntegrationBug": {
+    "symptom": "propose_ticket_triage failed with 'Received tool input did not match expected schema': the hosted model omitted the required `team` argument on every turn",
+    "isolation": "the same JSON Schema sent directly to the model API produced complete arguments, so the loss happened in the model adapter layer",
+    "fix": "renamed the tool argument `team` -> `owningTeam` (domain field unchanged) and repeated 'REQUIRED' plus the enum list in describe(); both subsequent runs succeeded",
+    "takeaway": "tool argument names that collide with platform concepts can be silently dropped; verify by letting the model run, not by hand-writing JSON examples"
+  },
+  "pluginDescriptor": {
+    "name": "@community/apps-ticket-triage",
+    "level": "tenant",
+    "targetApps": null,
+    "artifactNamespace": null
+  },
+  "viewManifest": {
+    "key": "ticket_triage.board__ticket_triage.board-view",
+    "slot": "agent.workbench",
+    "hostType": "agent",
+    "activation": {
+      "requiredFeatures": [
+        "ticket_triage.board"
+      ]
+    },
+    "workbench": {
+      "fixed": true,
+      "menu": {
+        "enabled": true,
+        "label": {
+          "en_US": "Ticket triage",
+          "zh_Hans": "工单分诊"
+        },
+        "order": 30
+      },
+      "openMode": "auto"
+    },
+    "actions": [
+      "seed_tickets",
+      "confirm_triage",
+      "reject_triage",
+      "reset_ticket"
+    ]
+  },
+  "assistantModel": {
+    "provider": "zhipuai",
+    "model": "glm-5.3-flash",
+    "role": "primary"
+  },
+  "seedTickets": {
+    "success": true,
+    "count": 4
+  },
+  "aiToolCalls": [
+    {
+      "turn": "T-1001",
+      "tools": [
+        {
+          "name": "list_pending_tickets",
+          "status": "success",
+          "summary": "{\"total\":4,\"pending\":4}"
+        },
+        {
+          "name": "propose_ticket_triage",
+          "status": "success",
+          "output": "{\"success\":true,\"ticketCode\":\"T-1001\",\"revision\":2}"
+        }
+      ]
+    },
+    {
+      "turn": "T-1003 first",
+      "tools": [
+        {
+          "name": "list_pending_tickets",
+          "status": "success"
+        },
+        {
+          "name": "propose_ticket_triage",
+          "status": "success",
+          "output": "{\"success\":true,\"ticketCode\":\"T-1003\",\"revision\":2}"
+        }
+      ]
+    },
+    {
+      "turn": "T-1003 retry",
+      "tools": [
+        {
+          "name": "list_pending_tickets",
+          "status": "success"
+        },
+        {
+          "name": "propose_ticket_triage",
+          "status": "success",
+          "output": "{\"success\":true,\"ticketCode\":\"T-1003\",\"revision\":4}"
+        }
+      ]
+    }
+  ],
+  "templateInstall": {
+    "template": "@community/apps-ticket-triage:ticket-triage-assistant",
+    "workspaceId": "4b08cd05-c8b3-4baa-98e9-959175f04f6b",
+    "xpertId": "7d8dc9bc-4324-4ce1-8719-7674ae566e22",
+    "title": "Support ticket triage",
+    "type": "agent",
+    "workspaceDataScope": "shared",
+    "installations": [],
+    "pendingAuth": []
+  },
+  "humanActions": {
+    "T-1001": {
+      "success": true,
+      "data": {
+        "ticketCode": "T-1001",
+        "revision": 3
+      }
+    },
+    "rejectT-1003": {
+      "success": true,
+      "data": {
+        "ticketCode": "T-1003",
+        "revision": 3
+      }
+    },
+    "confirmT-1003": {
+      "success": true,
+      "data": {
+        "ticketCode": "T-1003",
+        "revision": 5
+      }
+    }
+  },
+  "boardSnapshots": {
+    "afterFirstConfirm": {
+      "summary": {
+        "total": 4,
+        "pending": 3,
+        "proposed": 0,
+        "confirmed": 1,
+        "failed": 0
+      },
+      "items": [
+        {
+          "ticketCode": "T-1002",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1003",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1004",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1001",
+          "status": "confirmed",
+          "priority": "P1",
+          "team": "billing",
+          "revision": 3
+        }
+      ]
+    },
+    "afterRejectAndRetryConfirm": {
+      "summary": {
+        "total": 4,
+        "pending": 2,
+        "proposed": 0,
+        "confirmed": 2,
+        "failed": 0
+      },
+      "items": [
+        {
+          "ticketCode": "T-1002",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1004",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1001",
+          "status": "confirmed",
+          "priority": "P1",
+          "team": "billing",
+          "revision": 3
+        },
+        {
+          "ticketCode": "T-1003",
+          "status": "confirmed",
+          "priority": "P1",
+          "team": "customer_success",
+          "revision": 5
+        }
+      ]
+    },
+    "afterApiRestart": {
+      "summary": {
+        "total": 4,
+        "pending": 2,
+        "proposed": 0,
+        "confirmed": 2,
+        "failed": 0
+      },
+      "items": [
+        {
+          "ticketCode": "T-1002",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1004",
+          "status": "pending",
+          "priority": null,
+          "team": null,
+          "revision": 1
+        },
+        {
+          "ticketCode": "T-1001",
+          "status": "confirmed",
+          "priority": "P1",
+          "team": "billing",
+          "revision": 3
+        },
+        {
+          "ticketCode": "T-1003",
+          "status": "confirmed",
+          "priority": "P1",
+          "team": "customer_success",
+          "revision": 5
+        }
+      ]
+    }
+  }
+}
