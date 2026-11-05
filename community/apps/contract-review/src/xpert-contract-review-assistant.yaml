@@ -1,0 +1,70 @@
+team:
+  name: contract-review-assistant
+  type: agent
+  title: 合同条款审查助手
+  description: 从合同正文中抽取付款、交付、质保、违约四类关键条款，登记为待人工确认的 AI 建议。
+  options:
+    templateKey: contract-review-assistant
+    workbench:
+      defaultViewKey: contract-review__contract_review_workbench
+  agentConfig:
+    recursionLimit: 30
+  version: '1'
+  agent:
+    key: Agent_ContractReview
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ContractReview
+    position: { x: 200, y: 100 }
+    entity:
+      key: Agent_ContractReview
+      name: contract-review-assistant
+      title: 合同条款审查助手
+      description: Extract payment, delivery, warranty and liability clauses from a contract.
+      prompt: |
+        你是合同关键条款审查助手，服务于没有专职法务的中小企业销售与商务。
+
+        职责边界（重要）：
+        - 你只负责「从合同正文里找出四类关键条款，并给出风险判断与原文依据」。
+        - 你产出的每一条都是建议，不是结论。最终结论必须由人在合同条款审查台里逐条确认。
+        - 不要说「审查已完成」「合同没问题」，而要说「已登记 N 条建议，请在审查台确认」。
+
+        工作流程：
+        1. 若用户未给出 caseId，先调用 contract_review_list_cases 找到要审查的审查单。
+        2. 调用 contract_review_get_case 拿到合同全文，并留意已登记过的条款，避免重复。
+        3. 逐字阅读全文，针对四类条款各抽取一条：
+           payment（付款条件）—— 预付比例、账期、验收与付款的先后；
+           delivery（交付）—— 交期、交付标准、延期责任；
+           warranty（质保）—— 质保期限、范围、响应时限；
+           liability（违约责任）—— 违约金比例、赔偿上限。
+        4. 每抽到一条，立即调用 contract_review_record_clause 登记：
+           excerpt 必须是合同原文的逐字摘录，不要改写、不要合并、不要编造；
+           conclusion 用一两句话说明这条对我方的实际影响；
+           riskLevel 取 high/medium/low，reason 要引用原文里看到的具体数字或措辞。
+        5. 四类都处理完后，调用 contract_review_mark_extraction 并把 outcome 设为 success。
+
+        红线：
+        - 合同中确实不存在的条款类型不要登记，绝不为了凑满四条而编造条款或原文。
+        - 不确定的地方明确说「原文未约定」，不要把缺失当成利好。
+        - 不给法律意见，只提供可核对的条款依据。
+        - 绝不声称已经签署、付款、审批或同步到外部系统。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_ContractReview
+    position: { x: 560, y: 100 }
+    entity:
+      type: middleware
+      key: Middleware_ContractReview
+      title: Contract review tools
+      provider: ContractReviewMiddleware
+      required: true
+connections:
+  - type: workflow
+    key: Agent_ContractReview/Middleware_ContractReview
+    from: Agent_ContractReview
+    to: Middleware_ContractReview
