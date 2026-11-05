@@ -156,6 +156,19 @@ test('failed data/filter/HTML preflight never commits a draft', async () => {
   assert.equal(s.artifacts.size, 0)
 })
 
+test('failed HTML update preserves the previous draft and published version', async () => {
+  const s = setup(), published = await sharePublished(s)
+  const before = structuredClone(s.drafts.get(published.artifactId)), fileCount = s.files.size
+  s.calls.invalidHtml = true
+  await assert.rejects(s.service.update(s.context, published.artifactId, before.revision, {
+    charts: [], tables: [], presentation: { type: 'html', html: '<html><body>unmatched bindings</body></html>' }
+  }, published.versionId), /PREFLIGHT_FAILED/)
+  assert.deepEqual(s.drafts.get(published.artifactId), before)
+  assert.equal(s.artifacts.get(published.artifactId).currentVersionId, published.versionId)
+  assert.equal(s.files.size, fileCount)
+  assert.equal(s.versions.length, 1)
+})
+
 
 test('non-default filter probes preserve the host validation error for Agent repair', async () => {
   const s = setup()

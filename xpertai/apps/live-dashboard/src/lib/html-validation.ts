@@ -8,6 +8,7 @@ import { MANAGED_QUEUE_SERVICE_TOKEN, PluginJobProcessor, SandboxJobsRuntimeCapa
   type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import type { DashboardManifest } from './dashboard.schema'
 import { verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
+import { htmlPreflightFailure } from './html-validation-feedback'
 
 const PLUGIN = '@xpert-ai/plugin-live-dashboard', ACTION = 'live_dashboard.validate-html', POOL = 'sandbox-browser'
 const reportSchema = z.object({ ok: z.boolean(), errors: z.array(z.string().max(300)).max(16),
@@ -55,7 +56,7 @@ export class HtmlDashboardValidation {
         if (state?.state === 'completed') {
           const report = reportSchema.parse(JSON.parse(await redis.get(`${key}:report`) ?? 'null'))
           finished = true
-          if (!report.ok) throw new BadRequestException(`DASHBOARD_HTML_PREFLIGHT_FAILED: ${JSON.stringify(report.errors)}. Repair the Workspace HTML or include every required previewId, then retry. No dashboard was saved.`)
+          if (!report.ok) throw htmlPreflightFailure(manifest, report)
           return { jobId, requestedBindings: report.requestedBindings, status: 'passed' }
         }
         await delay(250)

@@ -1,10 +1,11 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { z } from 'zod/v3'
-import type { AnalyticsBinding, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
+import type { AnalyticsBinding, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { dataXpertDiscoveryRequestSchema, dataXpertQueryContract } from './discovery'
+import { createDataXpertDatasetId, createDataXpertOutput, dataXpertResultColumnSchema } from './result-schema'
 import {
-  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, AnalyticsProvider, XPERT_RUNTIME_CAPABILITIES_TOKEN,
-  type AnalyticsQueryProvider, type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
+  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 
 export type DataXpertClientContext = Pick<AnalyticsProviderContext, 'actor' | 'options' | 'signal' | 'deadlineAt' | 'maxRows'>
@@ -22,6 +23,10 @@ export const dataXpertPayloadSchema = z.object({
   params: z.record(json),
   parameterPaths: z.record(z.array(z.string().min(1)).min(1).max(8)).default({})
 }).strict()
+const querySchemaRequestSchema = z.object({
+  kind: z.literal('query-schema'), datasetId: z.string().min(1).max(512).optional(),
+  payload: dataXpertPayloadSchema, parameters: z.record(scalar).default({})
+}).strict()
 /** Trusted DataSource configuration; never merge it with payloads, controls or discovery requests. */
 const optionsSchema = z.object({
   baseUrl: z.string().url(), audience: z.string().min(1),
@@ -29,7 +34,7 @@ const optionsSchema = z.object({
 }).strict()
 const responseSchema = z.object({
   effect: z.object({ version: z.literal(2), kind: z.enum(['rows', 'series', 'entity']),
-    columns: z.array(z.object({ key: z.string(), semanticRef: z.string().optional() })),
+    columns: z.array(dataXpertResultColumnSchema),
     rows: z.array(z.record(scalar)),
     summary: z.object({ rowCount: z.number().int().nonnegative(), returnedRowCount: z.number().int().nonnegative(), truncated: z.boolean() }) }),
   fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false)
@@ -39,6 +44,16 @@ const responseSchema = z.object({
 export class DataXpertAnalyticsClient {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
+    if (request && typeof request === 'object' && !Array.isArray(request) && request.kind === 'query-schema') {
+      const parsed = querySchemaRequestSchema.parse(request)
+      const datasetId = createDataXpertDatasetId(parsed.payload, parsed.datasetId)
+      const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
+      return analyticsDiscoveryResultSchema.parse({
+        items: [{ id: datasetId, name: datasetId, kind: 'dataset',
+          metadata: { output: createDataXpertOutput(datasetId, result.effect.columns) } }],
+        queryContract: dataXpertQueryContract
+      })
+    }
     const empty = request && typeof request === 'object' && !Array.isArray(request) && Object.keys(request).length === 0
     const parsed = dataXpertDiscoveryRequestSchema.parse(empty ? { kind: 'resources' } : request)
     const response = await this.request('discover', context, { request: parsed })
@@ -67,15 +82,18 @@ export class DataXpertAnalyticsClient {
   }
   async execute(binding: AnalyticsBinding, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext): Promise<AnalyticsProviderResult> {
     const payload = dataXpertPayloadSchema.parse(binding.payload)
-    const response = await this.request('query', context, {
-      binding: { id: binding.id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode, target: payload.target,
-        params: bindParameters(payload.params, payload.parameterPaths, parameters) }, maxRows: context.maxRows })
-    const result = responseSchema.parse(await boundedJson(response))
+    const result = await this.query(binding.id, payload, parameters, context)
     return { columns: result.effect.columns, rows: result.effect.rows,
       completeness: { returnedRows: result.effect.summary.returnedRowCount, totalRows: result.effect.summary.rowCount,
         totalAccuracy: result.effect.summary.truncated ? 'unknown' : 'exact', scope: result.effect.summary.truncated ? 'page' : 'full_query_result',
         truncated: result.effect.summary.truncated }, sourceFetchedAt: result.fetchedAt,
       upstreamExecutionId: result.executionId, auditRef: result.auditRef }
+  }
+  private async query(id: string, payload: z.output<typeof dataXpertPayloadSchema>, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext) {
+    const response = await this.request('query', context, {
+      binding: { id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode, target: payload.target,
+        params: bindParameters(payload.params, payload.parameterPaths, parameters) }, maxRows: context.maxRows })
+    return responseSchema.parse(await boundedJson(response))
   }
 }
 

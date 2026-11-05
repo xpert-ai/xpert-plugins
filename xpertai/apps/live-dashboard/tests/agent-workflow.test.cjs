@@ -140,6 +140,19 @@ test('registered canonical bindings automatically discover contracts and retain 
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /REVOKED/)
 })
 
+test('JSON diagnostics identify tool input fields before querying or saving', async () => {
+  const s = setup(), { binding } = draft()
+  await assert.rejects(s.invoke('dashboard_discover', {
+    source: binding.source, providerId: binding.providerId, requestJson: '{"kind":"inspect"}}'
+  }), /DASHBOARD_INVALID_JSON: requestJson.*offset/)
+  await assert.rejects(s.invoke('dashboard_preview_binding', { bindingJson: '{"id":"binding"}}' }),
+    /DASHBOARD_INVALID_JSON: bindingJson.*offset/)
+  assert.equal(s.calls.length, 0)
+  await assert.rejects(s.invoke('dashboard_preview', { binding: { ...binding, payloadJson: '{"query":"x"}}' } }),
+    /DASHBOARD_INVALID_JSON: binding.payloadJson.*offset/)
+  assert.deepEqual(s.calls.map(call => call[0]), ['discover'])
+})
+
 test('preview contracts reuse explicit discovery and stay scoped to source, provider and run', async () => {
   const s = setup(), { binding } = draft()
   await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: '{"kind":"inspect"}' })
@@ -357,6 +370,44 @@ test('library discovery returns pins only and explicit edits select the packaged
   assert.equal(dependencies[0].version, '5.6.0')
   assert.match(dependencies[0].sha256, /^[a-f0-9]{64}$/)
   await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, libraries: ['https://untrusted.invalid/script.js'] }))
+})
+
+test('canonical edit previews preserve stable Binding IDs independently of dataset IDs', async () => {
+  const s = setup()
+  s.saved.manifest.charts = []; s.saved.manifest.tables = []
+  s.saved.manifest.presentation = { type: 'html', html: '<html><body><main id="sales-view">Sales</main></body></html>' }
+  s.saved.manifest.bindings[0].output.datasetId = 'existing-result'
+  const lookup = { ...structuredClone(example.bindings[0]), id: 'lookup', parameters: [],
+    payload: { sql: 'SELECT region, amount FROM lookup' }, output: { ...example.bindings[0].output, datasetId: 'lookup-result' } }
+  s.saved.manifest.bindings.push(lookup)
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  const changed = structuredClone(opened.bindings[0])
+  changed.parameters[0].defaultValue = 'east'
+  changed.output.datasetId = 'filtered-result'
+  const controls = structuredClone(opened.controls); controls[0].defaultValue = 'east'
+  const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(changed) }))
+  assert.equal(JSON.parse(preview.bindingJson).id, 'sales')
+  await s.invoke('dashboard_update', { ...opened.saveArguments, previewIds: [preview.previewId], controls })
+  const changes = s.calls.find(c => c[0] === 'update')[4]
+  assert.deepEqual(changes.bindings, [changed, lookup])
+  assert.deepEqual(changes.controls, controls)
+  assert.equal(changes.presentation.html, s.saved.manifest.presentation.html)
+})
+
+test('a new preview ID adds a Binding and omitting previews does not register HTML query names', async () => {
+  const s = setup()
+  s.saved.manifest.charts = []; s.saved.manifest.tables = []
+  s.saved.manifest.presentation = { type: 'html', html: '<html><body>Existing page</body></html>' }
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  const probe = { ...structuredClone(opened.bindings[0]), id: 'new-probe', output: { ...opened.bindings[0].output, datasetId: 'new-probe' } }
+  const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(probe) }))
+  const args = { editId: opened.editId, expectedRevision: opened.expectedRevision,
+    expectedCurrentVersionId: opened.expectedCurrentVersionId, title: opened.title }
+  await s.invoke('dashboard_update', { ...args, previewIds: [preview.previewId] })
+  assert.deepEqual(s.calls.find(c => c[0] === 'update')[4].bindings.map(b => b.id), ['sales', 'new-probe'])
+  s.files.set('dashboards/probe.html', Buffer.from('<html><body><script>window.xpertDashboard.query("new-probe")</script></body></html>'))
+  await s.invoke('dashboard_update', { ...args, htmlPath: 'dashboards/probe.html' })
+  assert.deepEqual(s.calls.filter(c => c[0] === 'update').at(-1)[4].bindings, opened.bindings)
 })
 
 test('data updates require fresh complete preview receipts and never accept identity or raw bindings', async () => {

@@ -27,6 +27,7 @@ import { emitDashboardCard } from './resource-card'
 import { dashboardIcon } from './dashboard-icon'
 import { createPreviewRetryGuard } from './preview-retry'
 import { dashboardPromptWorkflows } from './prompt-workflows'
+import { parseJsonInput } from './json-input'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional(),
   maxModelCalls: z.number().int().min(1).max(64).default(24) }).strict().default({})
@@ -231,8 +232,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return preview(binding)
       }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover to inspect business metadata or repair invalid queries. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
         schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
-      tool(async ({ bindingJson }: { bindingJson: string }) => preview(analyticsBindingSchema.parse(JSON.parse(bindingJson))), {
-        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. Serialize the complete canonical Binding (for example discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover for business metadata. Returns the same previewId receipt for dashboard_create.',
+      tool(async ({ bindingJson }: { bindingJson: string }) => preview(analyticsBindingSchema.parse(parseJsonInput(bindingJson, 'bindingJson'))), {
+        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. When editing an existing dashboard, copy dashboard_open.bindings[], preserve binding.id and existing parameters[].controlId, and change only the requested query/parameters. Binding ID is independent of output.datasetId. Serialize the complete Binding (also supported: discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input, which derives binding.id from output.datasetId. Automatically discovers the source/provider query contract when absent in this run. Returns a current-run previewId for dashboard_create or dashboard_update; include every intended changed/new Binding receipt and matching controls in the same save.',
         schema: z.object({ bindingJson: z.string().min(2).max(200000) }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),
