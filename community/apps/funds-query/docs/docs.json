@@ -1,0 +1,36 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "资金交易问数",
+  "colors": {
+    "primary": "#254B37"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "使用指南",
+        "groups": [
+          {
+            "group": "产品与使用",
+            "pages": [
+              "product",
+              "installation",
+              "acceptance",
+              "architecture"
+            ]
+          },
+          {
+            "group": "面试交付",
+            "pages": [
+              "validation",
+              "ai-collaboration",
+              "reuse",
+              "compatibility",
+              "screenshots"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

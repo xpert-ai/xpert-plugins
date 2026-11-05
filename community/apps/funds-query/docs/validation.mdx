@@ -1,0 +1,76 @@
+---
+title: 验证记录
+---
+
+插件版本 **0.2.4**，验证日期 **2026-11-04**。本轮补齐新增的数据目录检查，候选人已报告实际平台测试通过。
+
+## 当前自动检查
+
+| 检查 | 结果 | 覆盖范围 |
+| --- | --- | --- |
+| Python 规则测试 | 43/43 | Excel、金额、日期、继承、事务、并发及数据隔离 |
+| 原生接口与安装包 | 28/28 | SDK 工具、View、中间件、真实回复、包解析、隔离依赖、环境恢复和目录检查 |
+| 浏览器主流程 | 16/16 | 导入、问答、交易依据、图表、多会话和布局 |
+| 浏览器时序与恢复 | 16/16 | 导航回执丢失、消息排序、超时、草稿和历史恢复 |
+| 浏览器导入与环境 | 9/9 | 运行环境提示、文件行号、取消与重试、空文件和已有数据保留 |
+
+合计 **112 项**。构建、TypeScript/Vue 类型、资源新鲜度、插件元信息和 plugin-dev-harness 生命周期检查通过。插件没有单独声明 lint 脚本。
+
+配套 Xpert 本地启动脚本本轮通过 **16 项**检查。ChatKit 修复构建此前通过 52 项相关组件检查和 3 项页面浏览器检查，本轮插件文档整理未修改 ChatKit 源码。
+
+## 执行命令
+
+在插件目录执行以下命令，平台不在默认同级目录时设置 XPERT_PLATFORM_ROOT。
+
+```bash
+source .runtime/use-env.sh
+corepack pnpm run build
+corepack pnpm run test
+corepack pnpm run test:python
+corepack pnpm run test:ui
+corepack pnpm run verify:dist
+```
+
+在插件仓库根目录执行以下命令。
+
+```bash
+node scripts/check-plugin-metadata.mjs --package community/apps/funds-query
+node plugin-dev-harness/dist/index.js --workspace community/apps/funds-query --plugin @xpert-ai/plugin-funds-query
+```
+
+平台启动脚本检查在 Xpert 仓库执行。
+
+```bash
+node --test tools/scripts/start-api.test.mjs
+```
+
+## 实际平台证据
+
+| 证据 | 已知结果 | 范围 |
+| --- | --- | --- |
+| 真实模型三轮联调 | 90000.13/4 → 60000.00/1 → 90000.13/4，同一会话和线程 | 0.2.2 的历史联调，使用标准合成样例和现有模型 |
+| 页面上传与重启 | 管理页面上传 0.2.4，页面请求重启后完成加载 | 实际后台和管理页面 |
+| 最新人工验收 | 候选人报告 0.2.4 测试通过 | 候选人实际操作确认，已提供首问、追问、账号选择、依据和异常截图 |
+
+自动浏览器回归使用夹具模型，同时执行真实 Vue、View、中间件、Python 和 SQLite。它用于可重复的业务规则与时序验证。候选人提供的五张真实平台截图已嵌入 README，图中业务范围和文件名按实际画面说明。
+
+## 尚待确认
+
+- 招聘方对当前平台接入补丁和测试基线的接受方式。
+- 草稿 PR 的远程 CI 结果。
+
+当前结果基于本地工作区，基线与平台补丁见兼容性文档。提交后的实际 Git 版本将在 PR 描述中记录。
+
+## 提交检查结果
+
+暂存区实体表名检查通过。候选人在 2026-11-04 执行 Community 工作区的依赖与锁文件检查，并提供以下通过结果。
+
+```bash
+node scripts/check-release-dependencies.mjs --workspace community
+```
+
+```text
+community: working-tree dependencies pass pnpm 8.15.8 frozen validation
+```
+
+该检查确认工作区依赖声明、仓库内引用和锁文件可通过 pnpm 8.15.8 的冻结校验。首次执行遇到的缓存目录权限及自动审批用量问题已由候选人终端执行结果补齐。
