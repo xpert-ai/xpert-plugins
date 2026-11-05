@@ -1,0 +1,109 @@
+{
+  "source": "Existing shadow experiment 2026-10-30; bounded public snapshot export; restricted to candidates with three available financial metrics",
+  "kind": "historical",
+  "cutoff": "2026-10-30T14:52:00+08:00",
+  "stocks": [
+    {
+      "code": "603986",
+      "name": "兆易创新",
+      "quote_time": "2026-10-30T14:50:25+08:00",
+      "price": 260.0,
+      "amount": 9177590000.0,
+      "change_pct": -5.79,
+      "turnover_pct": 5.13,
+      "volume_ratio": null,
+      "pe_ratio": 15.74
+    },
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "quote_time": "2026-10-30T14:50:07+08:00",
+      "price": 1389.97,
+      "amount": 7437550000.0,
+      "change_pct": 2.66,
+      "turnover_pct": 0.43,
+      "volume_ratio": null,
+      "pe_ratio": 21.34
+    },
+    {
+      "code": "002384",
+      "name": "东山精密",
+      "quote_time": "2026-10-30T14:50:45+08:00",
+      "price": 86.31,
+      "amount": 6837320000.0,
+      "change_pct": -8.32,
+      "turnover_pct": 5.55,
+      "volume_ratio": null,
+      "pe_ratio": 46.84
+    },
+    {
+      "code": "603259",
+      "name": "药明康德",
+      "quote_time": "2026-10-30T14:50:18+08:00",
+      "price": 142.21,
+      "amount": 5560590000.0,
+      "change_pct": -0.48,
+      "turnover_pct": 1.57,
+      "volume_ratio": null,
+      "pe_ratio": 16.3
+    },
+    {
+      "code": "600183",
+      "name": "生益科技",
+      "quote_time": "2026-10-30T14:50:03+08:00",
+      "price": 87.02,
+      "amount": 5546060000.0,
+      "change_pct": -7.54,
+      "turnover_pct": 2.58,
+      "volume_ratio": null,
+      "pe_ratio": 27.75
+    }
+  ],
+  "financials": [
+    {
+      "code": "002384",
+      "disclosed_at": "2026-08-23T00:00:00+08:00",
+      "report_date": "2026-06-30",
+      "source": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+      "revenue_yoy_pct": 63.95,
+      "profit_yoy_pct": 290.09,
+      "roe_pct": 12.88
+    },
+    {
+      "code": "600183",
+      "disclosed_at": "2026-08-16T00:00:00+08:00",
+      "report_date": "2026-06-30",
+      "source": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+      "revenue_yoy_pct": 50.05,
+      "profit_yoy_pct": 130.42,
+      "roe_pct": 18.17
+    },
+    {
+      "code": "600519",
+      "disclosed_at": "2026-08-16T00:00:00+08:00",
+      "report_date": "2026-06-30",
+      "source": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+      "revenue_yoy_pct": 1.3,
+      "profit_yoy_pct": -1.95,
+      "roe_pct": 16.75
+    },
+    {
+      "code": "603259",
+      "disclosed_at": "2026-10-28T00:00:00+08:00",
+      "report_date": "2026-09-30",
+      "source": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+      "revenue_yoy_pct": 38.59,
+      "profit_yoy_pct": 60.64,
+      "roe_pct": 22.42
+    },
+    {
+      "code": "603986",
+      "disclosed_at": "2026-08-20T00:00:00+08:00",
+      "report_date": "2026-06-30",
+      "source": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+      "revenue_yoy_pct": 178.67,
+      "profit_yoy_pct": 1091.5,
+      "roe_pct": 23.13
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "inputValidation": true,
+  "createIdempotency": true,
+  "registeredTools": 6,
+  "controlledToolFailure": true,
+  "retryPreservesIdAndSnapshot": true,
+  "attemptHistoryPersisted": true,
+  "anonymousAccessDenied": true,
+  "modelExecution": "not performed by this test; fault injected through official middleware tool test API",
+  "verifiedAt": "2026-11-04T12:31:08.961Z"
+}
