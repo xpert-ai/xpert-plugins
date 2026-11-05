@@ -22,13 +22,13 @@ function fixture() {
   const row = Object.assign(new WorkflowDiagnosis(), scope, { id: randomUUID(), repositoryPolicyId: policy.id, policyRevision: 1, settings: policy.settings,
     ref: workflowRef(run), status: 'queued' as const, createdAt: new Date(), updatedAt: new Date() })
   let denied = false, dispatches = 0, logReads = 0, inspections = 0, quotaReads = 0
-  const state = { annotation: 'The job has exceeded the maximum execution time of 1m0s', unavailable: false, used: 0, totalJobs: 1 }
+  const state = { annotation: 'The job has exceeded the maximum execution time of 1m0s', unavailable: false, used: 0, totalJobs: 1, loseReceipt: false }
   const records = {
     find: async () => [structuredClone(row)], findOneByOrFail: async () => structuredClone(row),
     findOneBy: async (where: Partial<WorkflowDiagnosis>) => Object.entries(where).every(([key,value]) => Reflect.get(row,key) === value) ? structuredClone(row) : null,
     update: async (_where: unknown, patch: Partial<WorkflowDiagnosis>) => { Object.assign(row,patch); return { affected: 1 } },
     manager: { transaction: async (work: (manager: EntityManager) => unknown) => work({
-      findOneOrFail: async () => policy, count: async () => { quotaReads++; return state.used },
+      findOne: async () => policy, count: async () => { quotaReads++; return state.used },
       update: async (_entity: unknown, _where: unknown, patch: Partial<WorkflowDiagnosis>) => { Object.assign(row,patch); return { affected: 1 } }
     } as unknown as EntityManager) }
   } as unknown as Repository<WorkflowDiagnosis>
@@ -47,14 +47,17 @@ function fixture() {
     app: { inspect: async () => { throw new Error('Background execution must not depend on configuring-user OAuth') } }
   } as unknown as Repositories
   const events = { assertListening: async () => {}, activity: async () => {}, instructions: async () => '' } as unknown as ReviewEvents
+  const accepted = new Set<string>()
   const capabilities = new DefaultRuntimeCapabilityRegistry()
   capabilities.register(AssistantTaskRuntimeCapability, {
-    startTask: async input => { dispatches++; assert.equal(input.executionId,row.executionId); return { executionId: input.executionId!, conversationId: input.conversationId!, taskId: randomUUID() } },
+    startTask: async input => { dispatches++; assert.equal(input.executionId,row.executionId); accepted.add(input.executionId!);
+      if (state.loseReceipt) { state.loseReceipt = false; throw new Error('receipt lost after acceptance') }
+      return { executionId: input.executionId!, conversationId: input.conversationId!, taskId: randomUUID() } },
     getTaskStatus: async () => ({ status: 'unknown' })
   })
   const context = { resolve: () => ({ createScopedApi: (_s: AgentMiddlewareRuntimeScope) => ({ capabilities }) }) } as unknown as PluginContext
   return { service: new WorkflowDiagnostics(records,repositories,events,context), policy, row, scope, run, job, state,
-    deny: () => { denied=true }, metrics: () => ({ dispatches, logReads, inspections, quotaReads }),
+    deny: () => { denied=true }, metrics: () => ({ dispatches, logReads, inspections, quotaReads, accepted: accepted.size }),
     execution: () => ({ ...scope, runtime: { executionId: row.executionId!, conversationId: row.conversationId! } }),
     config: () => ({ configurable: { executionId: row.executionId, context: { codeReviewWorkflow: { diagnosisId: row.id } } } }) }
 }
@@ -66,8 +69,10 @@ for (const executionMode of ['assistant', 'pipeline'] as const) test(`${executio
     f.policy.settings.pipeline = { projectId: randomUUID(), bindingId: randomUUID() }
     f.policy.settings.visibility = 'project'
   }
-  await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id)
   assert.equal(f.row.status,'running')
+  assert.equal(f.metrics().dispatches,0, 'preparation never dispatches')
+  await f.service.process(f.policy, f.row.id)
   assert.equal(f.metrics().dispatches,1)
   assert.equal(f.metrics().logReads,0)
   const evidence = await f.service.evidence(f.execution(),f.config())
@@ -88,8 +93,10 @@ function cancelledFixture() {
 
 test('cancelled job timeout claims quota only after proof and retains proof for the Assistant finalizer', async () => {
   const f = cancelledFixture()
-  await f.service.process(f.policy)
-  assert.equal(f.row.status, 'running'); assert.equal(f.metrics().dispatches, 1)
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.row.status, 'running'); assert.equal(f.metrics().dispatches, 0)
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.metrics().dispatches, 1)
   assert.equal(f.row.evidence?.timeouts?.[0].source, 'check_run_annotation')
   assert.equal(f.row.ref.conclusion, 'cancelled')
   await f.service.complete(f.execution(), f.config(), { summary: 'Confirmed job timeout', findings: [{ jobId: 40, cause: 'Job limit exceeded', evidence: f.state.annotation, suggestion: 'Check the stalled step' }] })
@@ -99,7 +106,7 @@ test('cancelled job timeout claims quota only after proof and retains proof for 
 test('ordinary manual/concurrency/fail-fast cancellations skip without starting a model or reserving quota', async () => {
   for (const message of ['The operation was canceled.', 'Canceling since a higher priority waiting request exists', 'Cancelled by fail-fast']) {
     const f = cancelledFixture(); f.state.annotation = message
-    await f.service.process(f.policy)
+    await f.service.process(f.policy, f.row.id)
     assert.equal(f.row.status, 'skipped'); assert.equal(f.row.reason, 'workflow_cancelled')
     assert.equal(f.metrics().dispatches, 0); assert.equal(f.metrics().quotaReads, 0)
     assert.equal(f.row.startedAt, undefined)
@@ -108,31 +115,31 @@ test('ordinary manual/concurrency/fail-fast cancellations skip without starting 
 
 test('unavailable and settling evidence retries without consuming quota; recovered timeout dispatches once', async () => {
   const f = cancelledFixture(); f.state.unavailable = true
-  await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id)
   assert.equal(f.row.status, 'queued'); assert.equal(f.metrics().dispatches, 0); assert.equal(f.metrics().quotaReads, 0)
   f.state.unavailable = false; f.state.annotation = 'The operation was canceled.'; f.row.createdAt = new Date()
-  await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id)
   assert.equal(f.row.reason, 'workflow_timeout_evidence_pending'); assert.equal(f.metrics().quotaReads, 0)
   f.state.annotation = 'The job has exceeded the maximum execution time of 1m0s'
-  await f.service.process(f.policy); await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id); await f.service.process(f.policy, f.row.id)
   assert.equal(f.metrics().dispatches, 1); assert.equal(f.row.status, 'running')
 })
 
 test('incomplete evidence cannot skip cancellations and quota/attempt guards still apply', async () => {
   const f = cancelledFixture(); f.state.totalJobs = 101; f.state.annotation = 'The operation was canceled.'
-  await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id)
   assert.equal(f.row.status, 'queued'); assert.equal(f.row.reason, 'workflow_timeout_evidence_unavailable'); assert.equal(f.metrics().quotaReads, 0)
   const limited = cancelledFixture(); limited.state.used = limited.policy.settings.dailyLimit
-  await limited.service.process(limited.policy)
+  await limited.service.process(limited.policy, limited.row.id)
   assert.equal(limited.row.status, 'skipped'); assert.equal(limited.row.reason, 'daily_limit_reached'); assert.equal(limited.metrics().dispatches, 0)
   const stale = cancelledFixture(); stale.run.run_attempt++
-  await stale.service.process(stale.policy)
+  await stale.service.process(stale.policy, stale.row.id)
   assert.equal(stale.row.status, 'superseded'); assert.equal(stale.metrics().dispatches, 0); assert.equal(stale.metrics().quotaReads, 0)
 })
 
 test('revoked organization authorization denies evidence, logs and finalization; a different execution cannot use the task', async () => {
   const f = fixture()
-  await f.service.process(f.policy)
+  await f.service.process(f.policy, f.row.id)
   await assert.rejects(f.service.evidence(f.execution(),{ configurable: { ...f.config().configurable, executionId: randomUUID() } }),/task_binding_mismatch/)
   f.deny()
   await assert.rejects(f.service.evidence(f.execution(),f.config()),/execution_authorization_revoked/)
@@ -141,4 +148,23 @@ test('revoked organization authorization denies evidence, logs and finalization;
   assert.equal(f.metrics().logReads,0)
   assert.equal(f.row.status,'running')
   assert.equal(f.row.result,undefined)
+})
+
+test('a lost workflow dispatch receipt reuses committed execution handles across separate stage jobs', async () => {
+  const f = fixture()
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.metrics().dispatches, 0)
+  assert.equal(f.row.reason, 'dispatch_pending_confirmation')
+  const executionId = f.row.executionId, conversationId = f.row.conversationId
+  f.state.loseReceipt = true
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.row.reason, 'dispatch_pending_confirmation')
+  assert.equal(f.metrics().accepted, 1)
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.row.executionId, executionId)
+  assert.equal(f.row.conversationId, conversationId)
+  assert.equal(f.metrics().accepted, 1)
+  assert.equal(f.row.reason, null)
+  await f.service.process(f.policy, f.row.id)
+  assert.equal(f.metrics().dispatches, 2, 'observation does not dispatch again')
 })

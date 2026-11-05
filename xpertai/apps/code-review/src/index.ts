@@ -5,7 +5,7 @@ import { configSchema, type Config } from './automation-domain.js'
 import { ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit } from './automation-entities.js'
 import { GitHubApp } from './github-app.js'
 import { Repositories } from './repositories.js'
-import { Automation, AutomationProcessor } from './automation.js'
+import { Automation, AutomationProcessor, AutomationStepProcessor } from './automation.js'
 import { GitHubWebhook } from './webhook.js'
 import { configForm } from './config-form.js'
 import { XpertServerPlugin, type XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -29,6 +29,7 @@ import { ReviewEventSubscription, ReviewEvents } from './event-subscription.js'
 import { CodeReviewGitHubTrigger } from './github-trigger.js'
 import { WorkflowDiagnosis } from './workflow-entity.js'
 import { WorkflowDiagnostics } from './workflow-diagnostics.js'
+import { ReviewWebhookInbox } from './webhook-inbox.js'
 const packageJson = createRequire(import.meta.url)('../package.json') as {
   version: string
   xpert: {
@@ -59,6 +60,7 @@ const entities = [
     ReviewEvents,
     CodeReviewGitHubTrigger,
     WorkflowDiagnostics,
+    ReviewWebhookInbox,
     Reviews,
     ReviewView,
     ReviewWorkbench,
@@ -67,6 +69,7 @@ const entities = [
     Repositories,
     Automation,
     AutomationProcessor,
+    AutomationStepProcessor,
     ReviewPipelineContribution,
     ReviewPipelineService,
     ReviewPipelineCatalog,
@@ -78,6 +81,7 @@ const entities = [
 export class CodeReviewPlugin {
   private recoveryTimer?: ReturnType<typeof setTimeout>
   private stopped = false
+  private recovering = false
   constructor(private readonly automation: Automation) {}
   onPluginBootstrap() { this.stopped = false; this.scheduleRecovery() }
   onApplicationBootstrap() { this.scheduleRecovery() }
@@ -89,9 +93,12 @@ export class CodeReviewPlugin {
       this.recoveryTimer = undefined
       // Plugin bootstrap can precede host CQRS registration. Let host startup finish;
       // re-arm the existing idempotent queue only after live identity resolution succeeds.
+      if (this.recovering) return
+      this.recovering = true
+      // Keep reconciling after startup: an acknowledged inbox event must survive a lost queue wakeup.
       void this.automation.recover().then(recovered => {
-        if (recovered === false) this.scheduleRecovery(5000)
-      }).catch(() => this.scheduleRecovery(5000))
+        this.scheduleRecovery(recovered === false ? 5000 : 30000)
+      }).catch(() => this.scheduleRecovery(5000)).finally(() => { this.recovering = false })
     }, delay)
     this.recoveryTimer.unref?.()
   }

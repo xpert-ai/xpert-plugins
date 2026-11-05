@@ -2,6 +2,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn, Create
 import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
 import type { PolicySettings, RunStatus } from './automation-domain.js'
 import { NAMESPACE } from './domain.js'
+import type { StoredWebhook } from './webhook-inbox.js'
 
 @Entity(pluginArtifactTableName(NAMESPACE, 'repository'))
 @Index(['installationId', 'repositoryId'], { unique: true })
@@ -68,6 +69,7 @@ export class ReviewRun {
 
 @Entity(pluginArtifactTableName(NAMESPACE, 'delivery'))
 @Index(['deliveryId'], { unique: true })
+@Index('plugin_code_review_delivery_pending', ['repositoryPolicyId', 'status', 'retryAt'])
 export class ReviewDelivery {
   @PrimaryGeneratedColumn('uuid') id!: string
   @Column({ type: 'varchar' }) deliveryId!: string
@@ -77,6 +79,11 @@ export class ReviewDelivery {
   @Column({ type: 'varchar', nullable: true }) organizationId!: string | null
   @Column({ type: 'uuid', nullable: true }) runId!: string | null
   @Column({ type: 'varchar' }) status!: 'received' | 'processed'
+  @Column({ type: 'uuid', nullable: true }) repositoryPolicyId!: string | null
+  @Column({ type: 'jsonb', nullable: true }) payload!: StoredWebhook | null
+  @Column({ type: 'int', default: 0 }) attempts!: number
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' }) retryAt!: Date
+  @Column({ type: 'varchar', nullable: true }) errorCode!: string | null
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date
 }
 

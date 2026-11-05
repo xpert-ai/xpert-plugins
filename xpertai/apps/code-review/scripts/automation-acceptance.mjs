@@ -9,7 +9,7 @@ import { DataSource } from 'typeorm'
 import { GitHub } from '../dist/github.js'
 import { GitHubApp } from '../dist/github-app.js'
 import { Review } from '../dist/entity.js'
-import { ReviewRepository, ReviewRun, ReviewDelivery } from '../dist/automation-entities.js'
+import { ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit } from '../dist/automation-entities.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from '../dist/pipeline/entity.js'
 import { ReviewPipelineCatalog } from '../dist/pipeline/catalog.js'
 import { ReviewPipelineService } from '../dist/pipeline/service.js'
@@ -18,12 +18,14 @@ import { lightweightReviewPipelineConfiguration } from '../dist/pipeline/configu
 import { Repositories } from '../dist/repositories.js'
 import { Reviews } from '../dist/backend.js'
 import { Automation } from '../dist/automation.js'
+import { ReviewWebhookInbox } from '../dist/webhook-inbox.js'
+import { AIPermissionsEnum } from '@xpert-ai/contracts'
 import { ReviewEvents, ReviewEventSubscription } from '../dist/event-subscription.js'
 import { WorkflowDiagnosis } from '../dist/workflow-entity.js'
 import { WorkflowDiagnostics } from '../dist/workflow-diagnostics.js'
 import { defaultPolicy, QUEUE } from '../dist/automation-domain.js'
 import { PLUGIN } from '../dist/domain.js'
-import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelinesRuntimeCapability, SYSTEM_GLOBAL_SCOPE, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { DefaultRuntimeCapabilityRegistry, AssistantMiddlewareAccessRuntimeCapability, ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelinesRuntimeCapability, SYSTEM_GLOBAL_SCOPE, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability } from '@xpert-ai/plugin-sdk'
 
 const url = process.env.XPERT_PIPELINE_TEST_DATABASE_URL
 if (url && !/^\/xpert_pipeline_test_[a-z0-9_]+$/.test(new URL(url).pathname)) throw new Error('Dedicated test database required')
@@ -38,9 +40,10 @@ await admin.connect()
 await admin.query(`CREATE SCHEMA "${schema}"`)
 const db = new DataSource({ type: 'postgres', driver: pg, ...options, ...(url ? { url } : { username: options.user }), schema,
   extra: { options: `-c search_path=${schema},public` },
-  entities: [ReviewEventSubscription, WorkflowDiagnosis, Review, ReviewRepository, ReviewRun, ReviewDelivery, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery], synchronize: true, logging: false })
+  entities: [ReviewEventSubscription, WorkflowDiagnosis, Review, ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery], synchronize: true, logging: false })
 const tenantId = randomUUID(), organizationId = randomUUID(), assistantId = randomUUID(), userId = randomUUID(), workspaceId = randomUUID()
-const scope = { tenantId, organizationId, assistantId, userId, workspaceId }
+const scope = { tenantId, organizationId, assistantId, userId, workspaceId,
+  permissions: [AIPermissionsEnum.XPERT_EDIT], assistant: { currentId: assistantId, instanceId: assistantId, versionIds: [assistantId], principalUserId: userId } }
 const secret = 'test-only-webhook-secret-never-deployed'
 const states = new Map(), posts = [], dispatches = [], jobs = [], failures = new Set()
 const sha = n => n.toString(16).padStart(40, '0')
@@ -109,13 +112,25 @@ try {
     if (!bindingValid || id !== bindingId) throw new Error('pipeline_binding_unavailable')
     return { id, configuration, revision: 1, createdAt: new Date().toISOString() }
   } })
+  capabilities.register(AssistantMiddlewareAccessRuntimeCapability, { assertAccess: async () => {}, runAsAssistant: async (_input, work) => work() })
+  const leaseValues = new Map()
+  const queue = { enqueue: async input => { jobs.push(input); return { jobId: input.jobId } }, getRedis: async () => ({
+    set: async (key, token) => { if (leaseValues.has(key)) return null; leaseValues.set(key, token); return 'OK' },
+    eval: async (script, _count, key, token) => {
+      if (leaseValues.get(key) !== token) return 0
+      if (script.includes("redis.call('del'")) leaseValues.delete(key)
+      return 1
+    }
+  }) }
   const catalog = new ReviewPipelineCatalog(capabilities)
   const events = new ReviewEvents(db.getRepository(ReviewEventSubscription), capabilities)
   const repositories = new Repositories(db.getRepository(ReviewRepository), new GitHubApp(pluginContext), catalog, capabilities, events)
   const reviews = new Reviews(db.getRepository(Review), pluginContext, repositories, capabilities)
   const service = new ReviewPipelineService(db.getRepository(ReviewPipelineBinding), db.getRepository(ReviewPipelineEvidence), db.getRepository(Review), reviews, capabilities)
   const pipelines = new ReviewPipelineAutomation(service, reviews, catalog, capabilities)
-  const automation = new Automation(db.getRepository(ReviewRun), db.getRepository(ReviewDelivery), repositories, reviews, pluginContext, pipelines, events, new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, pluginContext))
+  const workflows = new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, pluginContext)
+  const inbox = new ReviewWebhookInbox(db.getRepository(ReviewDelivery), repositories, events, workflows)
+  const automation = new Automation(db.getRepository(ReviewRun), inbox, repositories, reviews, capabilities, pipelines, events, workflows, queue)
   capabilities.register(ProjectPipelineCommandsRuntimeCapability, {
     start: async (c, input) => {
       access(c)
@@ -148,7 +163,7 @@ try {
   ok('routing migration is idempotent and leaves existing private ownership intact')
   let policy = await repositories.add(scope, 'fixture', 'repo')
   assert.equal(policy.githubIntegrationId, integrationId); assert.equal(policy.githubAppId, '42')
-  await assert.rejects(repositories.add({ ...scope, organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID() }, 'fixture', 'repo'), /repository_already_configured/)
+  await assert.rejects(repositories.add({ ...scope, organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID() }, 'fixture', 'repo'), /repository_owned_elsewhere/)
   ok('one owner per installation and repository across organizations')
   const ctx = { pluginName: PLUGIN, queueName: QUEUE, jobName: 'supervise', scopeKey: SYSTEM_GLOBAL_SCOPE, tenantId, organizationId, userId }
   const receive = async (n, action = 'opened', deliveryId = randomUUID()) => {
@@ -156,7 +171,27 @@ try {
     const raw = Buffer.from(JSON.stringify({ action, installation: { id: 888 }, repository: { id: 777, name: 'repo', owner: { login: 'fixture' } }, pull_request: states.get(n) }))
     return automation.receive(raw, 'sha256=' + createHmac('sha256', secret).update(raw).digest('hex'), deliveryId, 'pull_request')
   }
-  const tick = () => automation.process(policy.id, ctx, 'fixture-job')
+  const taskErrors = []
+  const tick = async () => {
+    const from = jobs.length
+    await automation.process(policy.id, ctx, 'fixture-scan')
+    // Drive separate queue invocations; delayed observation jobs wait for the next fixture tick.
+    for (let i = from; i < jobs.length; i++) {
+      assert(i - from < 1000, 'queue stages must yield rather than loop while waiting')
+      const job = jobs[i]
+      if (job.delayMs) continue
+      if (job.jobName === 'supervise') await automation.process(job.payload.repositoryId, ctx, job.jobId, job.payload.after)
+      else {
+        try { await automation.processStep(job.payload, { ...ctx, jobName: 'step' }, job.jobId) }
+        catch (error) { taskErrors.push(error) } // Managed Queue retries failures; recovery scans persisted state.
+      }
+    }
+  }
+  const drainInbox = async () => {
+    const p = await repositories.execution(await repositories.records.findOneByOrFail({ id: policy.id }))
+    for (const delivery of await inbox.deliveries.findBy({ repositoryPolicyId: p.id, status: 'received' }))
+      await automation.processStep({ repositoryId: p.id, id: delivery.id, kind: 'delivery', phase: 'accept', version: delivery.retryAt.toISOString() }, { ...ctx, jobName: 'step' })
+  }
   const runFor = n => automation.runs.findOneByOrFail({ repositoryPolicyId: policy.id, number: n })
   const ping = Buffer.from('{"zen":"fixture"}')
   const sign = key => 'sha256=' + createHmac('sha256', key).update(ping).digest('hex')
@@ -187,6 +222,8 @@ try {
     pipeline: { projectId, bindingId }, visibility: 'project' })
   await assert.rejects(repositories.save(scope, policy.id, policy.revision, { ...policy.settings, delivery: 'automatic' }), /pipeline_policy_invalid/)
   const delivery = randomUUID(); await Promise.all([receive(2, 'opened', delivery), receive(2, 'opened', delivery), receive(2)])
+  assert.equal(await automation.runs.countBy({ number: 2 }), 0, 'HTTP acknowledgement precedes processing')
+  await drainInbox()
   assert.equal(await automation.runs.countBy({ number: 2 }), 1)
   await assert.rejects(receive(12, 'opened', delivery), /delivery_payload_mismatch/)
   loseStartReceipt = true
@@ -194,13 +231,14 @@ try {
   assert.equal(pipelineStarts.length, 1); assert.equal(nextRounds.length, 0); assert.equal(dispatches.length, 0)
   let run = await runFor(2)
   assert(run.pipelineInstanceId); assert(run.pipelineRoundId); assert(run.startedAt)
-  const sharedScope = { ...scope, userId: projectEditor, runtime: { projectId } }
+  const sharedScope = { ...scope, assistant: undefined, permissions: [], userId: projectEditor, runtime: { projectId } }
   const sharedInbox = await automation.overview(sharedScope)
   assert(sharedInbox.runs.some(item => item.id === run.id))
   assert(!sharedInbox.runs.some(item => item.number === 1 || item.number === 10))
   assert((await automation.overview(scope)).runs.some(item => item.number === 10))
-  assert.equal((await automation.overview({ ...sharedScope, assistantId: randomUUID() })).runs.length, 0)
-  ok('Project inbox shares bound reviews without exposing old private runs or another Assistant')
+  assert.equal((await automation.overview({ ...sharedScope, organizationId: randomUUID() })).runs.length, 0)
+  await assert.rejects(automation.overview({ ...sharedScope, runtime: { projectId: randomUUID() } }), /project_access_revoked/)
+  ok('Project inbox shares bound reviews without exposing old private runs or crossing organization/Project authority')
   const firstReviewId = run.reviewId, firstRound = run.pipelineRoundId
   ok('duplicate deliveries, concurrent workers and a lost receipt produce one platform start, zero direct dispatches')
   const graph = graphs.get(run.pipelineInstanceId)
@@ -210,6 +248,7 @@ try {
   assert.equal(posts.length, 0); ok('inbox points to the platform human gate without a second approval or publication path')
   states.get(2).head.sha = sha(222)
   await receive(2, 'synchronize')
+  await drainInbox()
   await automation.runs.update({ number: 2, status: 'queued' }, { notBefore: new Date(0) })
   await tick(); await tick()
   const latest = await automation.runs.findOneOrFail({ where: { number: 2, headSha: sha(222) } })
@@ -230,7 +269,7 @@ try {
   bindingValid = true
   ok('unavailable saved configuration is explicit and never dispatches a fallback Agent')
   await assert.rejects(automation.process(policy.id, { ...ctx, tenantId: randomUUID() }), /queue_scope_mismatch/)
-  await assert.rejects(repositories.get({ ...scope, userId: randomUUID() }, policy.id), /project_access_revoked/)
+  await assert.rejects(repositories.get({ ...scope, assistant: undefined, permissions: [], userId: randomUUID() }, policy.id), /project_access_revoked/)
   permitted = false
   await receive(3); await tick(); assert.equal(pipelineStarts.length, 1)
   permitted = true
@@ -245,6 +284,7 @@ try {
   policy = await repositories.save(scope, policy.id, policy.revision, { ...policy.settings, enabled: true, dailyLimit: 1 })
   await receive(7); await tick(); assert.equal((await runFor(7)).reason, 'daily_limit_reached')
   ok('daily quota still uses durable reservations')
+  assert(taskErrors.every(error => ['fixture_receipt_lost', 'project_access_revoked', 'pipeline_project_unavailable'].some(code => error.message.includes(code))), `Unexpected task errors: ${taskErrors.map(error => error.message).join(', ')}`)
   await automation.recover(); assert(jobs.length > 0)
   assert(!JSON.stringify(jobs).includes('privateKey')); assert(!JSON.stringify(jobs).includes('accessToken'))
   assert.equal(dispatches.length, 0); assert.equal(posts.length, 0)

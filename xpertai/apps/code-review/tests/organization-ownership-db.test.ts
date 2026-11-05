@@ -10,6 +10,7 @@ import { DefaultRuntimeCapabilityRegistry, AssistantMiddlewareAccessRuntimeCapab
   type ManagedQueueService, type PluginContext, type PluginLogger } from '@xpert-ai/plugin-sdk'
 import { ReviewRepository, ReviewRun, ReviewPolicyAudit, ReviewDelivery } from '../src/automation-entities.js'
 import { Automation } from '../src/automation.js'
+import type { ReviewWebhookInbox } from '../src/webhook-inbox.js'
 import type { ReviewPipelineAutomation } from '../src/pipeline/automation.js'
 import type { WorkflowDiagnostics } from '../src/workflow-diagnostics.js'
 import { Review } from '../src/entity.js'
@@ -75,7 +76,7 @@ test('Assistant identity, migration, CAS and historical privacy use actual Postg
   const records = db.getRepository(ReviewRepository), events = new ReviewEvents(db.getRepository(ReviewEventSubscription), registry)
   const service = new Repositories(records, app, new ReviewPipelineCatalog(registry), registry, events)
   const reviews = new Reviews(db.getRepository(Review), context, service, registry)
-  const automation = new Automation(db.getRepository(ReviewRun), db.getRepository(ReviewDelivery), service, reviews,
+  const automation = new Automation(db.getRepository(ReviewRun), {} as ReviewWebhookInbox, service, reviews,
     registry, {} as ReviewPipelineAutomation, events, {} as WorkflowDiagnostics, queue)
   const [created, replay] = await Promise.all([service.add(scope, 'fixture', 'repo'), service.add(otherManager, 'fixture', 'repo')])
   assert.equal(created.id, replay.id, 'concurrent same-org additions return one policy')
