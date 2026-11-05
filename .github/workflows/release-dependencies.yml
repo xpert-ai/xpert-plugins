@@ -65,17 +65,17 @@ jobs:
         run: |
           pnpm -C xpertai exec nx build @xpert-ai/plugin-maps
           pnpm -C xpertai exec nx run-many -t test,typecheck,verify:dist -p @xpert-ai/plugin-maps --parallel=1
-      - name: Build content and review plugins against published SDKs
+      - name: Build content, review and DataXpert plugins against published SDKs
         if: matrix.workspace == 'xpertai'
         run: >-
           pnpm -C xpertai exec nx run-many -t build
-          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli
+          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli,@xpert-ai/plugin-analytics-data-xpert
           --parallel=1
-      - name: Test content and review plugins
+      - name: Test content, review and DataXpert plugins
         if: matrix.workspace == 'xpertai'
         run: >-
           pnpm -C xpertai exec nx run-many -t test
-          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli
+          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli,@xpert-ai/plugin-analytics-data-xpert
           --parallel=1
       - name: Build community plugins
         if: matrix.workspace == 'community'

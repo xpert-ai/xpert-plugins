@@ -1,21 +1,27 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { DataXpertAnalyticsClient } = require('../dist/lib/client.js')
-const { readAnalyticsHttpDiagnostic } = require('../dist/lib/diagnostic.js')
+const { AnalyticsProviderError } = require('@xpert-ai/plugin-sdk')
+const { readAnalyticsHttpError } = require('../dist/lib/diagnostic.js')
 
 const diagnostic = { schema: 'xpert.analytics.diagnostic', version: 1, code: 'FILTER_OPERATOR_INVALID', stage: 'validation', retryable: false,
   message: 'Filter operator is invalid at filters.0.op. Inspect the action schema.', upstreamExecutionId: 'source-run', auditRef: 'audit-run' }
 const context = { actor: { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }, signal: new AbortController().signal, maxRows: 10,
   options: { baseUrl: 'https://analytics.example/api', audience: 'analytics', assistantCode: 'assistant',
     assistantXpertId: '11111111-1111-4111-8111-111111111111', workspaceId: '22222222-2222-4222-8222-222222222222' } }
-test('both discovery and execution carry the same validated SDK provider error', async t => {
+test('discovery and execution expose upstream diagnostics only through a validating SDK', async t => {
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(diagnostic), { status: 400, headers: { 'content-type': 'application/json' } }))
   const client = new DataXpertAnalyticsClient({ require: () => ({ createScopedApi: () => ({ getToken: async () => ({ token: 'private-viewer-token' }) }) }) })
   for (const call of [() => client.discover({}, context), () => client.execute({ id: 'b', payload: {
     resourceId: 'r', actionTypeCode: 'mdx.query_cube_slice', target: { entityId: 'e' }, params: {} } }, {}, context)]) {
     await assert.rejects(call(), error => {
-      assert.equal(error.name, 'AnalyticsProviderError')
-      assert.deepEqual(error.diagnostic, diagnostic)
+      if (AnalyticsProviderError) {
+        assert.ok(error instanceof AnalyticsProviderError)
+        assert.deepEqual(error.diagnostic, diagnostic)
+      } else {
+        assert.equal(error.message, 'DATAX_QUERY_HTTP_400')
+        assert.equal(error.diagnostic, undefined)
+      }
       assert.doesNotMatch(error.message, /private/)
       return true
     })
@@ -33,6 +39,6 @@ test('unfinished JSON error streams are cancelled within the remaining deadline'
   let cancelled = false
   const response = new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{')) }, cancel() { cancelled = true } }),
     { status: 400, headers: { 'content-type': 'application/json' } })
-  assert.equal(await readAnalyticsHttpDiagnostic(response, context.signal, Date.now() + 20), undefined)
+  assert.equal(await readAnalyticsHttpError(response, context.signal, Date.now() + 20), undefined)
   assert.equal(cancelled, true)
 })

@@ -2,4 +2,4 @@
 "@xpert-ai/plugin-analytics-data-xpert": patch
 ---
 
-Read bounded structured Analytics error responses and retain actionable parameter diagnostics through the provider/runtime boundary. Requires the paired Analytics diagnostic Contracts/SDK release; update published dependency pins before releasing this plugin.
+Read bounded structured Analytics error responses when the SDK supports validated diagnostics. On SDK 3.31, keep upstream failures status-only and return repair guidance for local parameter errors.

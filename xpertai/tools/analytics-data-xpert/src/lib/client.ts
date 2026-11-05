@@ -2,13 +2,13 @@ import { Inject, Injectable } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { dataXpertDiscoveryRequestSchema, dataXpertQueryContract } from './discovery'
-import { dataXpertParameterError, readAnalyticsHttpDiagnostic } from './diagnostic'
+import { dataXpertParameterError, readAnalyticsHttpError } from './diagnostic'
 import { dataXpertPayloadSchema } from './payload'
 export { dataXpertPayloadSchema } from './payload'
 import { importTargetRequest, discoverImportTargets } from './import-targets'
 import { createDataXpertDatasetId, createDataXpertOutput, dataXpertResultColumnSchema } from './result-schema'
 import {
-  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, AnalyticsProviderError, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 
@@ -69,10 +69,9 @@ export class DataXpertAnalyticsClient {
       body: JSON.stringify({ assistant: { code: options.assistantCode, xpertId: options.assistantXpertId, workspaceId: options.workspaceId }, ...body })
     })
     if (!response.ok) {
-      const diagnostic = await readAnalyticsHttpDiagnostic(response, context.signal, context.deadlineAt)
+      const error = await readAnalyticsHttpError(response, context.signal, context.deadlineAt)
       context.signal.throwIfAborted()
-      if (diagnostic) throw new AnalyticsProviderError(diagnostic)
-      throw new Error(`DATAX_QUERY_HTTP_${response.status}`)
+      throw error ?? new Error(`DATAX_QUERY_HTTP_${response.status}`)
     }
     return response
   }
