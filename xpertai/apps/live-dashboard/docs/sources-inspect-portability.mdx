@@ -1,0 +1,115 @@
+---
+title: Sources、Inspect 与看板迁移
+description: 查看真实查询来源，从页面组件追溯配置，并通过完整档案迁移看板。
+---
+
+Live Dashboard 支持查询来源侧栏、组件 Inspect、ZIP 档案导出与跨项目导入。本页由 2026-11-04 的实施计划在验收后转换，实际验证范围见[验收记录](./sources-inspect-portability-acceptance)。
+
+## 查看来源
+
+有定义编辑权限时，工具栏显示“数据来源”和来源数量。每个已保存 `binding` 对应一个来源；同一物理数据源上的多条请求分别列出，筛选候选项请求也包含在内。
+
+点击来源进入详情，返回按钮回到列表。桌面端使用约 380px 的右侧栏；视图宽度小于 900px 时使用抽屉。开关面板保留当前 iframe 和筛选状态，不额外发起查询。界面使用共享 shadcn 组件与宿主主题，提供英文、简体中文、繁体中文文本。
+
+| 分组 | 内容 |
+| --- | --- |
+| 概览 | 名称、说明、bindingId、datasetId、执行状态 |
+| 使用此来源的组件 | 可展开的指标、图表、表格和筛选组件列表 |
+| 查询配置 | 资源引用、providerId、operation、contractVersion、完整原生 payload；可复制 |
+| 筛选与参数 | controlId/name 映射、类型、必填、保存的默认值、最近提交值、允许值 |
+| 输出字段 | 字段标识、来源字段、标签、类型、单位、可空性、粒度 |
+| 最近查询结果 | 请求时间、完整性、获取时间、执行标识、对应筛选值、最多 50 行预览 |
+
+`null`、空字符串、零分别展示。重新查询失败时保留上次成功预览，并标明它是旧结果。每个 binding 按 requestId 接受最新响应，晚到的旧响应不会覆盖新请求。切换看板或版本会清理运行状态；结果预览只保存在页面内存中，不写入定义或导出档案。
+
+这里展示 Provider 实际接收的配置。语义查询不会被虚构成 SQL；没有显式转换定义时，不生成 Transform 分组。首版来源配置只读，修改仍通过原有定义编辑或 Agent 更新流程。
+
+## 从页面检查组件
+
+点击“检查组件来源”开启 Inspect，悬停或键盘聚焦会高亮已关联组件：
+
+- 单来源组件直接打开详情。
+- 多来源组件先列出使用的请求。
+- 未关联区域显示未声明来源提示，不猜测数据来源。
+- Inspect 中的点击不触发原组件的筛选或导航；按 Esc 或再次点击工具栏按钮退出。
+
+HTML 模式使用显式组件声明，Canvas 图表定位到其容器。标准模式自动按 chart/table → datasetId → bindingId 建立关联，适配渲染器实际的 `chart:id` / `table:id` DOM 标记。
+
+### HTML 作者与 Agent 的声明
+
+Manifest 可选字段：
+
+```json
+{
+  "sourceMetadata": [
+    { "bindingId": "sales", "title": "销售汇总", "description": "按当前区域汇总销售额" }
+  ],
+  "components": [
+    {
+      "id": "sales-total",
+      "elementId": "sales-total-card",
+      "title": "销售额",
+      "kind": "metric",
+      "sources": [{ "bindingId": "sales", "fieldIds": ["amount"] }]
+    }
+  ]
+}
+```
+
+查询仅保存在 `bindings`，组件声明只保存引用。`kind` 可为 `metric`、`chart`、`table`、`filter`、`text`。校验重复 ID、未知 binding/field，以及 HTML 中缺失或重复的静态容器 ID。最多 8 条来源元数据、160 个组件。ID 以字母开头，允许字母、数字、下划线、点和连字符，最长 80 字符。
+
+容器必须在运行时保持稳定。自定义筛选若用新 DOM 替换原标签，应把原容器 ID 转移到新容器；不能只把 ID 留在被删除的标签或隐藏的原生 select 上。静态校验不能替代实际渲染验收。
+
+`dashboard_create` / `dashboard_create_html` 接受这些可选声明；`dashboard_update` 以 bindingId/component id 合并，省略时保留，删除组件使用 `removals.componentIds`。删除绑定会移除对应来源元数据；剩余组件不能引用已删除的绑定。作者说明见插件技能的 `references/source-inspection.md`。
+
+## 导出与导入
+
+在“更多操作”中选择“导出看板”。导出固定当前已保存草稿 revision 或发布版本；草稿在导出期间已变化时会报冲突，需要重新打开最新版。下载链接在准备完成后显示。
+
+```text
+看板.xpert-dashboard.zip
+  package.json       档案格式版本、条目大小、SHA-256
+  dashboard.json     权威文档包：Manifest、HTML、依赖锁和依赖字节
+  dashboard.html     HTML 模式的便于查看副本
+  requirements.json  Provider、资源引用、外部资源说明
+```
+
+标准模式不合成 HTML。HTML 的固定图库依赖随包保留，导入不要求目标环境安装同版本图库。档案不额外带入查询结果、连接凭据、访问策略或发布权限；已有 HTML/原生 payload 是作者定义的一部分。
+
+`dashboard.html` 不是脱离平台运行的离线应用。实时查询仍需要授权宿主；在线 CDN、图片、动态资源不自动下载。`requirements.json` 列出静态 src/href 外部引用，并提示 HTML 可能包含动态资源。
+
+导入流程：
+
+1. 先选择目标项目，在“更多操作”中选择“导入看板文件”。
+2. 上传 ZIP、原始 Manifest JSON 或已有文档包 JSON。
+3. 检查每个数据请求的目标来源；同环境有效引用可以直接保留。
+4. 跨环境时使用“映射目标环境中的资源”。没有迁移扩展的 Provider 可以通过“高级请求配置”填写其原生 payload。
+5. 点击“验证并导入草稿”。服务器按当前账号重新查询并执行已有控件与 HTML 页面校验；全部通过后才创建独立草稿。
+
+内部 binding/control/component ID 保留，新的 dashboard 身份由服务器生成。原看板不被覆盖，不自动发布，也不复制授权。查询、字段或目标资源不匹配时保留准备界面，可修正后重试。同一导入会话成功后再次提交相同配置返回同一结果。
+
+### 格式与会话限制
+
+- 上传档案最大 12,000,000 字节；权威文档包最大 9,000,000 字节。
+- 解压同时限制条目与实际展开总量，不向文件系统解压路径。
+- 只允许约定条目；重复路径、未知条目、不支持版本、哈希/大小不符、HTML 副本或 requirements 不一致、缺失/损坏依赖均拒绝。
+- 导入准备会话保存在进程内，30 分钟过期，最多 16 个；绑定租户、组织、用户、宿主及项目。服务重启或项目切换后需重新选择文件。
+
+## Provider 迁移边界
+
+看板层不判断 SQL 或 MDX，也不按名称猜测、替换字符串。迁移通过现有 Analytics discovery 的显式扩展完成：
+
+- `queryContract.payloadSchema["x-xpert-import"]` 声明 `{ version: 1, request: {...} }`。
+- 初次迁移请求在该声明上附加原始 `payload`；后续使用返回的 `inspectRequest` / `nextRequest`。
+- 可选目标的 metadata 为 `{ schema: "xpert.analytics.import-target", version: 1, payloadPatch: {...} }`。
+- `payloadPatch` 对原 payload 做顶层字段替换，不是递归合并或任意字符串替换。
+
+Data Xpert Provider 实现资源和实体浏览，返回明确的 `resourceId`、`target` 替换值；保留原生 Action、参数和参数路径。是否可查询、Action/字段是否兼容仍以保存阶段的真实验证为准。
+
+## 权限与隔离
+
+完整查询配置、Inspect、导入、导出沿用定义编辑权限。服务器检查权限；只读视图与共享展示中的 binding payload 被投影为空对象，不能仅依靠隐藏按钮保护配置。实时查询仍按当前 actor 执行，不扩大资源权限。
+
+Inspect 使用插件内的只读元数据通道，每代 iframe 使用随机 nonce，并校验消息 Window 身份。宿主只接受声明的 componentId，不接受页面传来的查询配置。查询仍走原有隔离文档 MessagePort；本功能没有新增 SDK API 或放宽页面查询权限。
+
+实现按来源声明、运行状态、Inspect 协议、来源面板、档案解析、导入服务和 UI 分文件维护。历史验收文档保留，当前验证证据单独记录。

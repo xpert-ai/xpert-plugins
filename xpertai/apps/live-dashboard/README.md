@@ -4,6 +4,10 @@ System plugin `@xpert-ai/plugin-live-dashboard`: versioned live dashboards using
 
 See [implementation and installed-runtime acceptance](docs/acceptance.md) and [one-sentence Agent acceptance](docs/agent-acceptance.md). `examples/` contains equivalent PostgreSQL and data-xpert bindings for the same chart.
 
+Sources, component Inspect and portable dashboard archives are tracked in the
+[feature guide](docs/sources-inspect-portability.mdx) and
+[current acceptance record](docs/sources-inspect-portability-acceptance.mdx).
+
 ## Ownership and flow
 
 ```text

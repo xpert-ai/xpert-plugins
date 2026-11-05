@@ -4,6 +4,7 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const { randomUUID, createHash } = require('node:crypto')
 const { DashboardService } = require('../dist/lib/dashboard.service.js')
+const { DashboardArchiveService } = require('../dist/lib/archive.service.js')
 const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
 const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { DashboardProjectsService } = require('../dist/lib/projects.service.js')
@@ -22,8 +23,8 @@ const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = n
 const links = new Map()
 const receipts = { queries: 0, parameters: [], saves: 0, selection: null, navigation: [], hostType, hostId: scope.hostId }
 const manifest = require('../examples/postgres-sales.json')
-const source = { source: manifest.bindings[0].source, name: 'Acceptance sales', providers: [{ id: manifest.bindings[0].providerId },
-  { id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
+const source = { source: manifest.bindings[0].source, name: 'Acceptance sales', providers: [{ id: manifest.bindings[0].providerId, operations: [{ name: manifest.bindings[0].operation, contractVersion: 1 }] },
+  { id: 'private-provider', operations: [], sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
   'platform.project.access': {
     async listReadable({ projectIds }) { return projects.filter(item => !projectIds || projectIds.includes(item.projectId)) },
@@ -108,15 +109,15 @@ const capabilities = {
   }
 }
 const runtime = { require(key) { const api = capabilities[key.id]; if (!api) throw new Error(`Missing capability ${key.id}`); return api } }
-const service = new DashboardService(runtime, { async validate(_context, manifest) { if (manifest.presentation) throw Error('HTML validation requires the real Sandbox Jobs host'); return null } })
-const provider = new DashboardViewProvider(service, new DashboardSharingService(service, runtime), new DashboardProjectsService(runtime))
-const host = `<!doctype html><html><head><meta charset="utf-8"><title>Live Dashboard acceptance host</title><style>html,body,iframe{margin:0;width:100%;height:100%;border:0}</style></head><body><iframe id="view" title="Dashboard workbench" src="/view" sandbox="allow-scripts"></iframe><script>
+const service = new DashboardService(runtime, { async validate(_context, manifest) { if (manifest.presentation && process.env.DASHBOARD_FIXTURE_HTML !== 'true') throw Error('HTML validation requires the real Sandbox Jobs host'); return null } })
+const provider = new DashboardViewProvider(service, new DashboardSharingService(service, runtime), new DashboardProjectsService(runtime), new DashboardArchiveService(service, runtime))
+const host = `<!doctype html><html><head><meta charset="utf-8"><title>Live Dashboard acceptance host</title><style>html,body,iframe{margin:0;width:100%;height:100%;border:0}</style></head><body><iframe id="view" title="Dashboard workbench" src="/view" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts"></iframe><script>
 const frame=document.getElementById('view');const instanceId='acceptance-host';
 function send(message){frame.contentWindow.postMessage({channel:'xpertai.remote_component',protocolVersion:1,instanceId,...message},'*')}
 window.addEventListener('message',async event=>{if(event.source!==frame.contentWindow||event.origin!=='null'||event.data.channel!=='xpertai.remote_component')return;const message=event.data;
 if(message.type==='ready'){send({type:'init',locale:'zh-Hans',theme:{mode:'light',density:'default',tokens:{}},manifest:{},payload:{}});return}
-if(message.instanceId!==instanceId||!['requestData','executeAction','invokeClientCommand'].includes(message.type))return;
-try{const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(message.commandKey==='workbench.navigation.open')send({type:'init',locale:'zh-Hans',initialQuery:{selectionId:message.payload.selectionId,parameters:message.payload.parameters}});if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
+if(message.instanceId!==instanceId||!['requestData','executeAction','invokeClientCommand','executeFileAction','requestFileAccess'].includes(message.type))return;
+try{if(message.file?.buffer)message.file.bytes=Array.from(new Uint8Array(message.file.buffer));const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(message.commandKey==='workbench.navigation.open')send({type:'init',locale:'zh-Hans',initialQuery:{selectionId:message.payload.selectionId,parameters:message.payload.parameters}});if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
 </script></body></html>`
 const server = http.createServer(async (request, response) => {
   try {
@@ -124,11 +125,12 @@ const server = http.createServer(async (request, response) => {
     if (request.url === '/') { response.setHeader('Content-Type', 'text/html'); response.end(host); return }
     if (request.url === '/view') { response.setHeader('Content-Type', 'text/html'); response.end((await provider.getRemoteComponentEntry()).html); return }
     response.setHeader('Content-Type', 'application/json')
+    if (request.url.startsWith('/download?')) { const bytes = files.get(new URL(request.url, 'http://fixture').searchParams.get('path')); if (!bytes) throw Error('Missing fixture file'); response.setHeader('Content-Type', 'application/zip'); response.end(bytes); return }
     if (request.url === '/manifest') { response.end(JSON.stringify(manifest)); return }
-    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, projects, projectId: scope.runtimeScope.projectId, links: [...links.values()], artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.values()].map((buffer) => JSON.parse(buffer.toString())) })); return }
+    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, projects, projectId: scope.runtimeScope.projectId, links: [...links.values()], artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.entries()].filter(([name]) => !name.endsWith('.zip')).map(([,buffer]) => JSON.parse(buffer.toString())) })); return }
     if (request.url === '/rpc' && request.method === 'POST') {
       const chunks = []; let size = 0
-      for await (const chunk of request) { size += chunk.length; if (size > 600000) throw new Error('Too large'); chunks.push(chunk) }
+      for await (const chunk of request) { size += chunk.length; if (size > 20_000_000) throw new Error('Too large'); chunks.push(chunk) }
       const message = JSON.parse(Buffer.concat(chunks).toString())
       if (message.type === 'invokeClientCommand') {
         if (message.commandKey === 'workbench.navigation.open') {
@@ -142,6 +144,14 @@ const server = http.createServer(async (request, response) => {
         if (message.commandKey !== 'assistant.context.set' || message.payload.key !== 'live_dashboard') throw Error('Unsupported command')
         receipts.selection = message.payload.context
         response.end(JSON.stringify({ success: true })); return
+      }
+      if (message.type === 'executeFileAction') {
+        const file = { buffer: Buffer.from(message.file.bytes), originalName: message.file.name, mimeType: message.file.type, size: message.file.size }
+        response.end(JSON.stringify(await provider.executeViewFileAction(scope, 'live-dashboard', message.actionKey, { input: message.input }, file))); return
+      }
+      if (message.type === 'requestFileAccess') {
+        const file = await provider.resolveViewFile(scope, 'live-dashboard', message)
+        response.end(JSON.stringify({ fileName: file.fileName, url: `http://127.0.0.1:${server.address().port}/download?path=${encodeURIComponent(file.reference.filePath)}` })); return
       }
       const result = message.type === 'requestData' ? await provider.getViewData(scope, 'live-dashboard', message.query) : await provider.executeViewAction(scope, 'live-dashboard', message.actionKey, { input: message.input })
       response.end(JSON.stringify(result)); return

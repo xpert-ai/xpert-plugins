@@ -3,6 +3,9 @@ import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue, AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { dataXpertDiscoveryRequestSchema, dataXpertQueryContract } from './discovery'
 import { dataXpertParameterError, readAnalyticsHttpDiagnostic } from './diagnostic'
+import { dataXpertPayloadSchema } from './payload'
+export { dataXpertPayloadSchema } from './payload'
+import { importTargetRequest, discoverImportTargets } from './import-targets'
 import {
   ActorTokenRuntimeFactoryCapability, analyticsDiscoveryResultSchema, AnalyticsProvider, AnalyticsProviderError, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AnalyticsQueryProvider, type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry
@@ -12,17 +15,6 @@ export type DataXpertClientContext = Pick<AnalyticsProviderContext, 'actor' | 'o
 
 const scalar = z.union([z.string(), z.number().finite(), z.boolean(), z.null()])
 const json: z.ZodType<JSONValue> = z.lazy(() => z.union([scalar, z.array(json), z.record(json)]))
-/** Native Action arguments stay plugin-owned; the host only interprets Dataset/Binding. */
-export const dataXpertPayloadSchema = z.object({
-  resourceId: z.string().min(1).max(160), actionTypeCode: z.string().min(1).max(160),
-  target: z.object({
-    entityId: z.string().trim().min(1).max(256).optional(),
-    entityTypeCode: z.string().trim().min(1).max(256).optional(),
-    entityRef: z.string().trim().min(1).max(512).optional()
-  }).strict().refine(target => Boolean(target.entityId || target.entityRef), 'Target reference is required'),
-  params: z.record(json),
-  parameterPaths: z.record(z.array(z.string().min(1)).min(1).max(8)).default({})
-}).strict()
 /** Trusted DataSource configuration; never merge it with payloads, controls or discovery requests. */
 const optionsSchema = z.object({
   baseUrl: z.string().url(), audience: z.string().min(1),
@@ -40,6 +32,8 @@ const responseSchema = z.object({
 export class DataXpertAnalyticsClient {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
+    const importing = importTargetRequest.safeParse(request)
+    if (importing.success) return discoverImportTargets(importing.data, browse => this.discover(browse, context))
     const empty = request && typeof request === 'object' && !Array.isArray(request) && Object.keys(request).length === 0
     const parsed = dataXpertDiscoveryRequestSchema.parse(empty ? { kind: 'resources' } : request)
     const response = await this.request('discover', context, { request: parsed })

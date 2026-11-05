@@ -98,6 +98,8 @@ async function setup(t) {
         if (id === './bridge') return bridge
         if (id.endsWith('.css')) return {}
         if (id === './html-dashboard') return { HtmlDashboard: React.forwardRef(() => null) }
+        if (id === './standard-dashboard') return { StandardDashboard: () => null }
+        if (['./sources-panel', './import-dialog', './import-targets'].includes(id)) return load(id.slice(2) + '.tsx')
         if (id === './share-dialog') return { ShareDialog: () => null }
         if (id === './viewer-controls') return { ViewerControls: ({ children }) => children }
         if (id === './i18n') return load('i18n.ts')
@@ -249,7 +251,7 @@ test('dashboard deletion UI', async t => {
     await harness.reset()
     assert.equal(harness.button('New dashboard'), undefined)
     assert.equal(harness.button('Edit working draft'), undefined)
-    assert.equal(harness.button('Import definition'), undefined)
+    assert.equal(harness.button('Import dashboard file'), undefined)
     assert.doesNotMatch(document.querySelector('header').textContent, /Editing Dashboard/)
     assert.match(document.querySelector('header').textContent, /Draft r1/)
     await harness.click(harness.picker())
@@ -260,7 +262,7 @@ test('dashboard deletion UI', async t => {
     assert.match(harness.picker().textContent, /Choose a dashboard/)
     assert.equal(harness.selections.at(-1), null)
     await harness.click(harness.button('More actions'))
-    assert.ok(harness.button('Import definition'))
+    assert.ok(harness.button('Import dashboard file'))
     assert.equal(harness.button('Delete dashboard'), undefined)
   })
   await t.test('two columns search and paginate independently and keep the active project highlighted', async () => {

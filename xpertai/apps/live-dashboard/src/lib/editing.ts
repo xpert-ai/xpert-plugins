@@ -84,6 +84,9 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
       const changedBindings = previewIds ? resolvePreviews(previewIds) : undefined
       const bindings = upsertComponents(saved.manifest.bindings, changedBindings, item => item.id, removals?.bindingIds)
       const controls = upsertComponents(saved.manifest.controls, changes.controls, item => item.controlId, removals?.controlIds)
+      const sourceMetadata = upsertComponents(saved.manifest.sourceMetadata ?? [], changes.sourceMetadata, item => item.bindingId,
+        removals?.bindingIds.filter(id => saved.manifest.sourceMetadata?.some(item => item.bindingId === id)))
+      const components = upsertComponents(saved.manifest.components ?? [], changes.components, item => item.id, removals?.componentIds)
       if (removals?.viewIds.some(id => ![...saved.manifest.charts, ...saved.manifest.tables].some(view => view.id === id)))
         throw new Error('DASHBOARD_REMOVAL_INVALID: copy existing view IDs')
       const charts = upsertComponents(saved.manifest.charts, changes.charts, item => item.id, removals?.viewIds.filter(id => saved.manifest.charts.some(item => item.id === id)))
@@ -106,6 +109,7 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
       }
       assertHtmlPreserved(saved.manifest.presentation, presentation, removals?.htmlElementIds)
       const manifest = dashboardSchema.parse({ ...saved.manifest, ...changes, bindings, controls, charts, tables,
+        ...(sourceMetadata.length || saved.manifest.sourceMetadata ? { sourceMetadata } : {}), ...(components.length || saved.manifest.components ? { components } : {}),
         ...(presentation ? { presentation } : {}) })
       validateFinal(manifest, previewIds !== undefined, changedBindings?.map(item => item.id))
       const { schema, id, ...update } = manifest

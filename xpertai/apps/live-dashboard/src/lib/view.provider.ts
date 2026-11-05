@@ -2,9 +2,9 @@ import { DashboardProjectsService, projectSearchSchema } from './projects.servic
 import { dashboardSearchSchema } from './projects.schema'
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { z } from 'zod/v3'
-import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery } from '@xpert-ai/contracts'
+import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery, XpertViewFileAccessRequest } from '@xpert-ai/contracts'
 import { ARTIFACT_PRESENTATION_OPEN_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
-import { ViewExtensionProvider, type IXpertViewExtensionProvider } from '@xpert-ai/plugin-sdk'
+import { ViewExtensionProvider, type IXpertViewExtensionProvider, type XpertViewFileActionFile } from '@xpert-ai/plugin-sdk'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardRemoteEntry } from './remote-entry'
 import { DashboardSharingService, shareInput } from './sharing.service'
@@ -13,6 +13,8 @@ import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { dashboardNavigationSchema, dashboardNavigationTarget } from './dashboard-navigation'
 import { DASHBOARD_PROJECT_TYPE } from './project'
 import { dashboardIcon } from './dashboard-icon'
+import { publicDashboardManifest } from './dashboard-sources'
+import { DashboardArchiveService, importInputSchema, importBrowseSchema } from './archive.service'
 
 export const VIEW_KEY = 'live-dashboard'
 export const VIEW_PROVIDER = 'live-dashboard'
@@ -21,7 +23,7 @@ const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 
 @ViewExtensionProvider(VIEW_PROVIDER)
 export class DashboardViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: DashboardService, private readonly sharing: DashboardSharingService, private readonly projects: DashboardProjectsService) {}
+  constructor(private readonly service: DashboardService, private readonly sharing: DashboardSharingService, private readonly projects: DashboardProjectsService, private readonly archives: DashboardArchiveService) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench', 'agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
@@ -31,6 +33,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       workbench: { projectType: DASHBOARD_PROJECT_TYPE, fixed: true, openMode: 'on-demand', menu: { enabled: true, label: text('Live dashboards', '实时看板'), icon: dashboardIcon, order: 35 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 50 }, cache: { enabled: false } },
+      fileAccess: { purposes: ['download'] },
       clientCommands: [{ key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
         { key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, label: text('Create with Assistant', '交给助理制作') },
         { key: ARTIFACT_PRESENTATION_OPEN_COMMAND, label: text('Open shared page', '打开独立页面') },
@@ -38,6 +41,8 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       hostEvents: { subscriptions: [{ key: 'dashboard-created', event: 'assistant.tool.completed',
         filter: { toolNames: DASHBOARD_MUTATION_TOOLS }, action: { type: 'forward', debounceMs: 0 } }] },
       actions: [
+        { key: 'import-preview', label: text('Import dashboard file', '导入看板文件'), actionType: 'invoke', transport: 'file' },
+        ...['import-commit', 'import-discard', 'import-browse'].map(key => ({ key, label: text('Import dashboard', '导入看板'), actionType: 'invoke' as const })),
         ...[
           { key: 'dashboards', label: text('Select dashboard', '选择看板') },
           { key: 'projects', label: text('Select project', '选择项目') },
@@ -66,14 +71,18 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       : undefined
     const versions = params.artifactId ? await this.service.history(context, params.artifactId) : undefined
     const unavailable = params.artifactId && mode === 'published' && !params.versionId && !versions?.some(version => version.current)
+    const saved = !unavailable && params.artifactId ? await this.service.openDocument(context, params.artifactId, params.versionId, params.draftRevision, mode) : undefined
     return { meta: { navigationTarget: dashboardNavigationTarget(context), access, mode, currentProject,
       dashboards: page.items, selectedDashboard, pagination: { page: page.page, pageSize: page.pageSize, hasMore: page.hasMore },
       sources: access.canEdit ? await this.service.sources(context) : [],
       ...(unavailable ? { notice: 'not_published' as const } : params.artifactId ? {
-        saved: await this.service.openDocument(context, params.artifactId, params.versionId, params.draftRevision, mode), versions } : {}) } }
+        saved: saved && { ...saved, manifest: access.canEdit ? saved.manifest : publicDashboardManifest(saved.manifest) }, versions } : {}) } }
   }
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)
+    if (action === 'import-commit') return { success: true, data: await this.archives.commit(context, importInputSchema.parse(request.input)), refresh: false }
+    if (action === 'import-browse') return { success: true, data: await this.archives.browse(context, importBrowseSchema.parse(request.input)), refresh: false }
+    if (action === 'import-discard') return { success: true, data: await this.archives.discard(context, z.object({ importId: z.string().uuid() }).strict().parse(request.input).importId), refresh: false }
     if (action === 'dashboards') {
       const parsed = dashboardSearchSchema.safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_INVALID_PICKER_QUERY')
@@ -108,7 +117,8 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     }
     if (action === 'query') {
       const input = querySchema.parse(request.input)
-      return { success: true, data: await this.service.query(context, input.artifactId, input.versionId, input.controls, input.draftRevision), refresh: false }
+      const result = await this.service.query(context, input.artifactId, input.versionId, input.controls, input.draftRevision)
+      return { success: true, data: { datasets: result.datasets, failures: result.failures, ...('payload' in result ? { payload: result.payload } : {}) }, refresh: false }
     }
     if (action === 'query-binding') {
       const parsed = queryBindingSchema.safeParse(request.input)
@@ -117,6 +127,16 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       return { success: true, data: await this.service.queryBinding(context, input.artifactId, input.versionId, input.bindingId, input.controls, input.draftRevision), refresh: false }
     }
     throw new BadRequestException('DASHBOARD_ACTION_UNSUPPORTED')
+  }
+  async executeViewFileAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, _request: XpertViewActionRequest, file: XpertViewFileActionFile) {
+    assertView(viewKey)
+    if (action !== 'import-preview') throw new BadRequestException('DASHBOARD_ACTION_UNSUPPORTED')
+    return { success: true, data: await this.archives.prepare(context, file.buffer), refresh: false }
+  }
+  async resolveViewFile(context: XpertResolvedViewHostContext, viewKey: string, request: XpertViewFileAccessRequest) {
+    assertView(viewKey)
+    if (request.purpose !== 'download') throw new ForbiddenException('DASHBOARD_ACTION_UNSUPPORTED')
+    return this.archives.exportFile(context, request.fileKey)
   }
 }
 function assertView(key: string) { if (key !== VIEW_KEY) throw new BadRequestException('DASHBOARD_VIEW_UNSUPPORTED') }

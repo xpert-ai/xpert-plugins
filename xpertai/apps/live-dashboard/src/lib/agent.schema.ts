@@ -25,6 +25,8 @@ export const createToolSchema = dashboardSchema.innerType().omit({ schema: true,
   controls: jsonEncodedSchema(agentControlsSchema),
   charts: jsonEncodedSchema(dashboardSchema.innerType().shape.charts),
   tables: jsonEncodedSchema(dashboardSchema.innerType().shape.tables),
+  sourceMetadata: jsonEncodedSchema(dashboardSchema.innerType().shape.sourceMetadata.unwrap()).optional(),
+  components: jsonEncodedSchema(dashboardSchema.innerType().shape.components.unwrap()).optional(),
   previewIds: jsonEncodedSchema(z.array(z.string().min(1)).min(1).max(8).describe('Exact previewId receipts from successful dashboard_preview calls. Do not repeat bindings.'))
 }).strict()
 export const htmlPathSchema = workspaceRelativeFilePathSchema.refine(path => {

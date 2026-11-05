@@ -68,7 +68,7 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
   window.addEventListener('message', listener); post('ready')
   return () => { window.removeEventListener('message', listener); for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('View closed')) }; pending.clear() }
 }
-export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClientCommand', body: object): Promise<unknown> {
+export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClientCommand' | 'executeFileAction' | 'requestFileAccess', body: object): Promise<unknown> {
   if (!instanceId) return Promise.reject(new Error('View is not connected'))
   const requestId = `dashboard-${++sequence}`
   return new Promise((resolve, reject) => {

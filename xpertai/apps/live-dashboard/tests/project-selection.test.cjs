@@ -36,6 +36,8 @@ test('Project members consume the published version and cannot read/edit the new
   assert.equal(result.meta.mode, 'published')
   assert.equal(result.meta.saved.manifest.title, example.title)
   assert.equal(result.meta.access.canEdit, false)
+  assert.deepEqual(result.meta.saved.manifest.bindings.map(binding => binding.payload), [{}])
+  assert.deepEqual(result.meta.sources, [])
   assert.equal(result.meta.dashboards[0].title, example.title)
   await assert.rejects(f.service.open(f.context, first.artifactId), /DRAFT_ACCESS_DENIED/)
   await assert.rejects(view.getViewData(f.context, 'live-dashboard', { selectionId: first.artifactId, parameters: { mode: 'draft' } }), /DRAFT_ACCESS_DENIED/)

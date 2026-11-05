@@ -38,7 +38,9 @@
               "evolution-acceptance",
               "retry-regression-acceptance",
               "fixed-build-multimodel-acceptance",
-              "verification"
+              "verification",
+              "sources-inspect-portability",
+              "sources-inspect-portability-acceptance"
             ]
           },
           {

@@ -6,6 +6,8 @@ import {
   type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord
 } from '@xpert-ai/plugin-sdk'
 import { dashboardSchema, dashboardChangesSchema, type DashboardManifest, type DashboardChanges } from './dashboard.schema'
+import { assertComponentElements } from './source-validation'
+import { verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
 import { toDataAnalyticsPayload } from './renderer'
 import { queryDashboard, queryDashboardBinding, queryDashboardPartial } from './dashboard-queries'
 import { HtmlDashboardValidation } from './html-validation'
@@ -83,17 +85,20 @@ export class DashboardService {
     await this.runtime.require(ArtifactDraftsRuntimeCapability).setRecycled({ artifactId, expectedRevision, recycled: true })
     return { artifactId }
   }
-  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0) {
+  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0, importedDependencies?: ArtifactDocumentDependencyAsset[]) {
     await this.authorizeProject(context, 'write')
     const scopedActor = actor(context)
     const parsed = dashboardSchema.parse(manifest)
+    assertComponentElements(parsed)
     const artifacts = this.runtime.require(ArtifactsRuntimeCapability)
     const source = { pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceId: `${hostPrefix(context)}${parsed.id}` }
     const existing = await artifacts.findArtifactBySource(source)
     if (existing) { assertOwned(context, existing); if (existing.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED') }
     // A failed first upload can leave an Artifact with no saved content; revision 0 initializes it.
     const previous = existing && (existing.currentVersionId || expectedRevision > 0) ? await this.openDocument(context, existing.id) : null
-    const dependencies = await resolveLibraryAssets(parsed.presentation?.dependencies ?? [], previous?.dependencies)
+    if (importedDependencies && existing) throw new BadRequestException('DASHBOARD_IMPORT_NEW_ID_REQUIRED')
+    const dependencies = importedDependencies ? verifyArtifactDocumentDependencies(importedDependencies, parsed.presentation?.dependencies ?? [])
+      : await resolveLibraryAssets(parsed.presentation?.dependencies ?? [], previous?.dependencies)
     const buffer = encodeDashboardPackage(parsed, dependencies)
     if (buffer.byteLength > MAX_DASHBOARD_PACKAGE_BYTES) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
     const digest = createHash('sha256').update(buffer).digest('hex')

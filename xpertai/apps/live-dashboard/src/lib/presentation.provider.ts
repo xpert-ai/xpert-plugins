@@ -9,6 +9,7 @@ import { dashboardRemoteEntry } from './remote-entry'
 import { querySchema, queryBindingSchema } from './dashboard.schema'
 import { queryDashboardPartial, queryDashboardBinding } from './dashboard-queries'
 import { toDataAnalyticsPayload } from './renderer'
+import { publicDashboardManifest } from './dashboard-sources'
 
 @ArtifactPresentationProvider({ pluginName: PLUGIN_NAME, resourceType: 'live-dashboard' })
 export class DashboardPresentationProvider implements IArtifactPresentationProvider {
@@ -17,7 +18,7 @@ export class DashboardPresentationProvider implements IArtifactPresentationProvi
   getEntry() { return dashboardRemoteEntry(true) }
   async read(context: ArtifactPresentationContext) {
     const saved = this.open(context)
-    return { meta: { saved, dashboards: [{ artifactId: saved.artifactId, versionId: saved.versionId, title: saved.title }], sources: [], versions: [] } }
+    return { meta: { saved: { ...saved, manifest: publicDashboardManifest(saved.manifest) }, dashboards: [{ artifactId: saved.artifactId, versionId: saved.versionId, title: saved.title }], sources: [], versions: [] } }
   }
   async query(context: ArtifactPresentationContext, request: ArtifactPresentationQuery) {
     const saved = this.open(context)
