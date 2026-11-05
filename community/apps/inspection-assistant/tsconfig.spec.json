@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "strict": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "rootDir": ".",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
