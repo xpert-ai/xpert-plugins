@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-code-review
 
+## 0.5.1
+
+### Patch Changes
+
+- 6fc3fe9: Show repository binding ownership and maintainer details after live repository authorization, distinguish same-organization Assistant conflicts, and redact cross-tenant ownership information.
+
 ## 0.5.0
 
 ### Minor Changes
