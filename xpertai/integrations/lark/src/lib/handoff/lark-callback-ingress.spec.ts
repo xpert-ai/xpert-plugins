@@ -7,7 +7,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => {
 })
 import type { HandoffMessage, ProcessContext } from '@xpert-ai/plugin-sdk'
 import type { LarkChatStreamCallbackPayload } from './lark-chat.types.js'
-import { createFixture, createRunState, createStreamMessage } from './testing/callback-fixture.js'
+import { createFixture, createRunState, createStaleSteerContext, createStreamMessage } from './testing/callback-fixture.js'
 
 function message(): HandoffMessage<LarkChatStreamCallbackPayload> {
 	const context = createRunState().context
@@ -67,4 +67,37 @@ it('honors a legacy history enqueue receipt after a plugin upgrade', async () =>
 	await processor.process(input, processContext)
 	expect(dispatchService.buildDispatchMessage).not.toHaveBeenCalled()
 	expect(dispatchService.enqueuePreparedDispatch).not.toHaveBeenCalled()
+})
+
+it('preserves history separately from user text when recovering a stale follow-up', async () => {
+	const { processor, conversationService, dispatchService } = createFixture()
+	const staleContext = createStaleSteerContext()
+	const context = {
+		...staleContext,
+		steerFallback: {
+			...staleContext.steerFallback,
+			historyContext: 'Earlier user: acceptance code 42'
+		}
+	}
+	conversationService.getActiveMessage.mockResolvedValue({
+		thirdPartyMessage: { ...context.steerFallback.message, status: 'success' }
+	})
+	dispatchService.buildDispatchMessage.mockResolvedValue({ id: 'recovered-run' })
+	const input = message()
+	input.payload = {
+		kind: 'error',
+		sourceMessageId: 'stale-run',
+		sequence: 1,
+		errorCode: 'steer_target_not_running',
+		context
+	}
+	await processor.process(input, processContext)
+	expect(dispatchService.buildDispatchMessage).toHaveBeenCalledWith(
+		expect.objectContaining({
+			input: 'follow up',
+			historyContext: 'Earlier user: acceptance code 42',
+			options: expect.objectContaining({ forceNewRun: true })
+		})
+	)
+	expect(dispatchService.enqueuePreparedDispatch).toHaveBeenCalledTimes(1)
 })

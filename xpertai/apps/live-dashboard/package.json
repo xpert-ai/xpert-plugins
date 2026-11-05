@@ -39,12 +39,12 @@
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
+    "@langchain/langgraph": "^0.4.7",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@xpert-ai/contracts": "^3.30.0",
     "@xpert-ai/plugin-sdk": "^3.30.0",
-    "zod": "3.25.67",
-    "@langchain/langgraph": "^0.4.7"
+    "zod": "3.25.67"
   },
   "devDependencies": {
     "@langchain/core": "0.3.72",
@@ -78,6 +78,7 @@
     "access": "public"
   },
   "dependencies": {
+    "fflate": "0.8.3",
     "parse5": "7.2.1"
   }
 }

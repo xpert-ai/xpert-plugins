@@ -1,11 +1,14 @@
 import { z } from 'zod/v3'
 import { analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai/plugin-sdk/artifact-document'
+import { sourceMetadataSchema, dashboardComponentsSchema } from './dashboard-sources'
 
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
   schema: z.literal('xpert.live-dashboard'), id: z.string().uuid(), title: z.string().min(1).max(160),
   bindings: z.array(analyticsBindingSchema).max(8),
+  sourceMetadata: sourceMetadataSchema.optional(),
+  components: dashboardComponentsSchema.optional(),
   presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),
   controls: z.array(z.object({ controlId: id, type: z.enum(['string', 'number', 'boolean', 'date']),
     defaultValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
@@ -21,6 +24,19 @@ export const dashboardSchema = z.object({
   if (!manifest.bindings.length && (manifest.presentation || manifest.controls.length || manifest.charts.length || manifest.tables.length)) ctx.addIssue({ code: 'custom', message: 'An unconfigured draft must contain no views or controls' })
   unique(manifest.bindings.map((binding) => binding.id), 'binding')
   unique(manifest.bindings.map((binding) => binding.output.datasetId), 'dataset')
+  unique((manifest.sourceMetadata ?? []).map(item => item.bindingId), 'source metadata')
+  unique((manifest.components ?? []).map(item => item.id), 'component')
+  unique((manifest.components ?? []).map(item => item.elementId), 'component element')
+  for (const metadata of manifest.sourceMetadata ?? []) if (!manifest.bindings.some(binding => binding.id === metadata.bindingId))
+    ctx.addIssue({ code: 'custom', message: 'Source metadata references an undeclared Binding' })
+  for (const component of manifest.components ?? []) {
+    unique(component.sources.map(source => source.bindingId), 'component source')
+    for (const source of component.sources) {
+      const binding = manifest.bindings.find(item => item.id === source.bindingId)
+      if (!binding || source.fieldIds?.some(field => !binding.output.fields.some(item => item.id === field)))
+        ctx.addIssue({ code: 'custom', message: 'Component references an undeclared Binding or field' })
+    }
+  }
   unique(manifest.controls.map((control) => control.controlId), 'control')
   unique([...manifest.charts, ...manifest.tables].map((view) => view.id), 'view')
   if (manifest.bindings.length && !manifest.presentation && !manifest.charts.length && !manifest.tables.length) ctx.addIssue({ code: 'custom', message: 'At least one chart or table is required' })
@@ -62,7 +78,7 @@ export const dashboardSchema = z.object({
 export type DashboardManifest = z.output<typeof dashboardSchema>
 /** Updates never choose identity or source scope; those come from the authorized saved version. */
 export const dashboardChangesSchema = dashboardSchema.innerType().pick({ title: true, bindings: true,
-  controls: true, charts: true, tables: true, presentation: true }).partial().strict()
+  controls: true, charts: true, tables: true, presentation: true, sourceMetadata: true, components: true }).partial().strict()
 export type DashboardChanges = z.output<typeof dashboardChangesSchema>
 export const controlsSchema = z.record(z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()]))
 export const saveSchema = z.object({ manifest: dashboardSchema, expectedVersionId: z.string().uuid().nullable(), expectedRevision: z.number().int().nonnegative().default(0) }).strict()

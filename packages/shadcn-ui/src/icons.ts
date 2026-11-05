@@ -1,4 +1,6 @@
 export {
+  Database,
+  MousePointer2,
   Table2,
   ListTodo,
   Minus,

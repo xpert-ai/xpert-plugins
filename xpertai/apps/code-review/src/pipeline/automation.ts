@@ -23,7 +23,7 @@ export class ReviewPipelineAutomation {
     const target = run.settings.pipeline
     if (!target || !run.reviewId) throw new ReviewError('pipeline_binding_required')
     const context = projectContext(p, target.projectId)
-    await this.capabilities.require(ProjectAccessRuntimeCapability).assertManage(context)
+    await this.capabilities.require(ProjectAccessRuntimeCapability).assertEdit(context)
       .catch(() => { throw new ReviewError('pipeline_project_unavailable') })
     if (!run.pipelineInstanceId || !run.pipelineRoundId) {
       await this.validate(p, run)

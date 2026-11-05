@@ -1,6 +1,6 @@
 import { i18n, type MessageKey } from './i18n'
 import type { WorkbenchEntry } from '../../../src/workbench-contract'
-export type Section = 'inbox' | 'repositories' | 'settings' | 'recent' | 'requested' | 'authored'
+export type Section = 'inbox' | 'workflows' | 'repositories' | 'settings' | 'recent' | 'requested' | 'authored'
 export type ViewState = {
   section: Section
   page: number
@@ -11,7 +11,7 @@ export type ViewState = {
   tab: string
   pinned: boolean
 }
-const sections: Section[] = ['inbox', 'repositories', 'settings', 'recent', 'requested', 'authored']
+const sections: Section[] = ['inbox', 'workflows', 'repositories', 'settings', 'recent', 'requested', 'authored']
 export function viewState(parameters: Record<string, unknown> = {}): ViewState {
   return {
     section: sections.includes(parameters.section as Section) ? (parameters.section as Section) : 'inbox',

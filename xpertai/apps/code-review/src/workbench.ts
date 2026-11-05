@@ -22,6 +22,7 @@ export class ReviewWorkbench {
         "review.snapshot->>'title' AS title",
         "CASE WHEN review.ref->>'provider' = 'local_git' THEN 'local_git' ELSE 'manual' END AS source",
         "'manual'::text AS trigger",
+        'false AS "eventOnly"',
         'review.status AS status',
         'review.snapshot->>\'headSha\' AS "headSha"',
         'review."createdAt" AS "createdAt"',
@@ -35,8 +36,10 @@ export class ReviewWorkbench {
         'NULL::uuid AS "roundId"',
         'review."submissionUrl" AS "publicationUrl"'
       ])
+    const organizationAccess = await this.automation.repositories.access(s)
     const automatic = this.automation
       .visibleQuery(s, repositories)
+      .setParameter('organizationEvidence', organizationAccess.canRead)
       .innerJoin(
         this.automation.repositories.records.metadata.target,
         'repository',
@@ -53,6 +56,9 @@ export class ReviewWorkbench {
         'run.title AS title',
         "'automatic'::text AS source",
         'run.trigger AS trigger',
+        `(run.status = 'skipped' AND run."startedAt" IS NULL
+          AND (run.trigger IN ('closed', 'converted_to_draft')
+            OR run.reason IN ('pull_request_closed', 'draft_pull_request', 'trigger_disabled'))) IS TRUE AS "eventOnly"`,
         'run.status AS status',
         'run."headSha" AS "headSha"',
         'run."createdAt" AS "createdAt"',
@@ -70,8 +76,14 @@ export class ReviewWorkbench {
     const keyed = `SELECT entries.*, CASE WHEN ref->>'provider' = 'github'
       THEN 'github:' || lower(ref->>'owner') || '/' || lower(ref->>'repository') || '#' || (ref->>'number')
       ELSE 'local_git:' || id::text END AS key FROM (${union}) entries`
-    const ranked = `SELECT keyed.*, row_number() OVER (PARTITION BY key ORDER BY "createdAt" DESC, id DESC) AS rank,
-      count(*) OVER (PARTITION BY key) AS count, bool_or(pinned) OVER (PARTITION BY key) AS "groupPinned" FROM (${keyed}) keyed`
+    // Prefer the actual review on the latest visible head. A skipped event on a new
+    // head must still take precedence over a successful review of an older commit.
+    const heads = `SELECT keyed.*,
+      first_value("headSha") OVER (PARTITION BY key ORDER BY "createdAt" DESC, id DESC) AS "latestHead",
+      max("createdAt") OVER (PARTITION BY key) AS "lastActivity" FROM (${keyed}) keyed`
+    const ranked = `SELECT heads.*, row_number() OVER (PARTITION BY key ORDER BY
+      ("headSha" = "latestHead") DESC, "eventOnly", "createdAt" DESC, id DESC) AS rank,
+      count(*) OVER (PARTITION BY key) AS count, bool_or(pinned) OVER (PARTITION BY key) AS "groupPinned" FROM (${heads}) heads`
     const query = this.automation.runs.manager
       .createQueryBuilder()
       .select('entry.*')
@@ -96,7 +108,7 @@ export class ReviewWorkbench {
     const counter = await query.clone().select('count(*)', 'total').getRawOne<{ total: string }>()
     const rows: unknown[] = await query
       .orderBy(input.history ? 'entry."createdAt"' : 'entry."groupPinned"', 'DESC')
-      .addOrderBy('entry."createdAt"', 'DESC')
+      .addOrderBy(input.history ? 'entry."createdAt"' : 'entry."lastActivity"', 'DESC')
       .addOrderBy('entry.id', 'DESC')
       .limit(20)
       .offset((input.page - 1) * 20)

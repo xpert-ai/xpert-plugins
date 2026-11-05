@@ -35,3 +35,11 @@ Release compatibility: this path uses existing exports from the published SDK/co
 After building this plugin and Live Dashboard, run `node plugin-dev-harness/verify-datax-dashboard-schema.mjs` from the repository root. It invokes the real discovery and preview tools, provider and HTTP parser with published SDKs. Its local HTTP source and host-service fixtures do not establish customer SSO, SAP or browser acceptance.
 
 See [architecture and Binding usage](docs/index.mdx) and [compatibility and verification](docs/verification.mdx).
+# Public query diagnostics
+
+Non-success HTTP responses may contain the shared `xpert.analytics.diagnostic` v1 envelope.
+Only validated public causes and opaque audit references cross into `AnalyticsProviderError`.
+Malformed, sensitive, oversized or unfinished bodies use the existing status-only fallback.
+Parameter mapping failures use provider-authored repair guidance without echoing values.
+
+Structured diagnostics require `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` 3.32.0 or a compatible later 3.x release.

@@ -18,6 +18,9 @@ import { lightweightReviewPipelineConfiguration } from '../dist/pipeline/configu
 import { Repositories } from '../dist/repositories.js'
 import { Reviews } from '../dist/backend.js'
 import { Automation } from '../dist/automation.js'
+import { ReviewEvents, ReviewEventSubscription } from '../dist/event-subscription.js'
+import { WorkflowDiagnosis } from '../dist/workflow-entity.js'
+import { WorkflowDiagnostics } from '../dist/workflow-diagnostics.js'
 import { defaultPolicy, QUEUE } from '../dist/automation-domain.js'
 import { PLUGIN } from '../dist/domain.js'
 import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelinesRuntimeCapability, SYSTEM_GLOBAL_SCOPE, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability } from '@xpert-ai/plugin-sdk'
@@ -35,7 +38,7 @@ await admin.connect()
 await admin.query(`CREATE SCHEMA "${schema}"`)
 const db = new DataSource({ type: 'postgres', driver: pg, ...options, ...(url ? { url } : { username: options.user }), schema,
   extra: { options: `-c search_path=${schema},public` },
-  entities: [Review, ReviewRepository, ReviewRun, ReviewDelivery, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery], synchronize: true, logging: false })
+  entities: [ReviewEventSubscription, WorkflowDiagnosis, Review, ReviewRepository, ReviewRun, ReviewDelivery, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery], synchronize: true, logging: false })
 const tenantId = randomUUID(), organizationId = randomUUID(), assistantId = randomUUID(), userId = randomUUID(), workspaceId = randomUUID()
 const scope = { tenantId, organizationId, assistantId, userId, workspaceId }
 const secret = 'test-only-webhook-secret-never-deployed'
@@ -107,11 +110,12 @@ try {
     return { id, configuration, revision: 1, createdAt: new Date().toISOString() }
   } })
   const catalog = new ReviewPipelineCatalog(capabilities)
-  const repositories = new Repositories(db.getRepository(ReviewRepository), new GitHubApp(pluginContext), catalog, capabilities)
+  const events = new ReviewEvents(db.getRepository(ReviewEventSubscription), capabilities)
+  const repositories = new Repositories(db.getRepository(ReviewRepository), new GitHubApp(pluginContext), catalog, capabilities, events)
   const reviews = new Reviews(db.getRepository(Review), pluginContext, repositories, capabilities)
   const service = new ReviewPipelineService(db.getRepository(ReviewPipelineBinding), db.getRepository(ReviewPipelineEvidence), db.getRepository(Review), reviews, capabilities)
   const pipelines = new ReviewPipelineAutomation(service, reviews, catalog, capabilities)
-  const automation = new Automation(db.getRepository(ReviewRun), db.getRepository(ReviewDelivery), repositories, reviews, pluginContext, pipelines)
+  const automation = new Automation(db.getRepository(ReviewRun), db.getRepository(ReviewDelivery), repositories, reviews, pluginContext, pipelines, events, new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, pluginContext))
   capabilities.register(ProjectPipelineCommandsRuntimeCapability, {
     start: async (c, input) => {
       access(c)
@@ -175,11 +179,11 @@ try {
   await repositories.records.update(policy.id, pinned)
   ok('fresh system integration lookup, webhook secret rotation and App switch guards')
   await receive(1); await tick(); assert.equal((await runFor(1)).status, 'skipped'); assert.equal(dispatches.length, 0); ok('disabled automation does not dispatch')
-  await assert.rejects(repositories.save(scope, policy.id, policy.revision, { ...defaultPolicy, enabled: true }), /pipeline_binding_required/)
-  await repositories.records.update(policy.id, { settings: { ...defaultPolicy, enabled: true } })
+  await assert.rejects(repositories.save(scope, policy.id, policy.revision, { ...defaultPolicy, executionMode: 'pipeline', enabled: true }), /pipeline_binding_required/)
+  await repositories.records.update(policy.id, { settings: { ...defaultPolicy, executionMode: 'pipeline', enabled: true } })
   await receive(10); await tick(); assert.equal((await runFor(10)).status, 'needs_configuration'); assert.equal(dispatches.length, 0)
   ok('unbound legacy configuration never falls back to a direct Agent')
-  policy = await repositories.save(scope, policy.id, policy.revision, { ...defaultPolicy, enabled: true,
+  policy = await repositories.save(scope, policy.id, policy.revision, { ...defaultPolicy, executionMode: 'pipeline', enabled: true,
     pipeline: { projectId, bindingId }, visibility: 'project' })
   await assert.rejects(repositories.save(scope, policy.id, policy.revision, { ...policy.settings, delivery: 'automatic' }), /pipeline_policy_invalid/)
   const delivery = randomUUID(); await Promise.all([receive(2, 'opened', delivery), receive(2, 'opened', delivery), receive(2)])

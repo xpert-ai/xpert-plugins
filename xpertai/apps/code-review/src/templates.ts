@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { XpertTypeEnum, type PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import { FEATURE, PLUGIN, PROVIDER, REVIEW_PROJECT_TYPE } from './domain.js'
-import { icon } from './view.js'
+import { icon } from './icon.js'
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 export const templates: XpertTemplateContribution[] = [{
   key: 'code-review-assistant', name: 'Code Review Assistant', title: '代码审查', icon,

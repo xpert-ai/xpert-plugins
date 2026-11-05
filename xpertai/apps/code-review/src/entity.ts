@@ -6,11 +6,14 @@ import { NAMESPACE, type ReviewRef, type Snapshot, type Finding } from './domain
 @Index(['tenantId', 'organizationId', 'userId', 'assistantId'])
 export class Review {
   @PrimaryGeneratedColumn('uuid') id!: string
+  @Index({ unique: true })
+  @Column({ type: 'varchar', nullable: true }) requestKey!: string | null
   @Column({ type: 'varchar' }) tenantId!: string
   @Column({ type: 'varchar' }) organizationId!: string
   @Column({ type: 'varchar' }) userId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'uuid', nullable: true }) automationPolicyId!: string | null
+  @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'boolean', default: false }) projectShared!: boolean
   @Column({ type: 'uuid', nullable: true }) pipelineProjectId!: string | null
   @Column({ type: 'uuid', nullable: true }) pipelineRootReviewId!: string | null

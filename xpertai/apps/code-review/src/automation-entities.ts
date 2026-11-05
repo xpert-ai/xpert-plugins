@@ -13,6 +13,11 @@ export class ReviewRepository {
   @Column({ type: 'varchar' }) workspaceId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'varchar' }) userId!: string
+  @Column({ type: 'varchar', default: 'user' }) ownership!: 'user' | 'organization' | 'assistant'
+  @Column({ type: 'varchar', nullable: true }) configuredById!: string | null
+  @Column({ type: 'varchar', nullable: true }) updatedById!: string | null
+  @Column({ type: 'varchar', nullable: true }) responsibleUserId!: string | null
+  @Column({ type: 'varchar', nullable: true }) executionUserId!: string | null
   @Column({ type: 'varchar' }) installationId!: string
   @Column({ type: 'varchar' }) repositoryId!: string
   @Column({ type: 'uuid', nullable: true }) githubIntegrationId!: string | null
@@ -21,6 +26,7 @@ export class ReviewRepository {
   @Column({ type: 'varchar' }) repository!: string
   @Column({ type: 'jsonb' }) settings!: PolicySettings
   @Column({ type: 'int', default: 1 }) revision!: number
+  @Column({ type: 'int', default: 1 }) executionRevision!: number
   @Column({ type: 'varchar', nullable: true }) errorCode!: string | null
   @Column({ type: 'timestamptz', nullable: true }) lastEventAt!: Date | null
   @Column({ type: 'timestamptz', nullable: true }) confirmedAt!: Date | null
@@ -36,6 +42,8 @@ export class ReviewRun {
   @Column({ type: 'varchar' }) tenantId!: string
   @Column({ type: 'varchar' }) organizationId!: string
   @Column({ type: 'varchar' }) assistantId!: string
+  @Column({ type: 'varchar', nullable: true }) evidenceUserId!: string | null
+  @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'uuid' }) repositoryPolicyId!: string
   @Column({ type: 'varchar' }) operationKey!: string
   @Column({ type: 'int' }) number!: number
@@ -69,5 +77,19 @@ export class ReviewDelivery {
   @Column({ type: 'varchar', nullable: true }) organizationId!: string | null
   @Column({ type: 'uuid', nullable: true }) runId!: string | null
   @Column({ type: 'varchar' }) status!: 'received' | 'processed'
+  @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date
+}
+
+@Entity(pluginArtifactTableName(NAMESPACE, 'policy_audit'))
+@Index(['tenantId', 'organizationId', 'repositoryPolicyId', 'revision'], { unique: true })
+export class ReviewPolicyAudit {
+  @PrimaryGeneratedColumn('uuid') id!: string
+  @Column({ type: 'varchar' }) tenantId!: string
+  @Column({ type: 'varchar' }) organizationId!: string
+  @Column({ type: 'uuid' }) repositoryPolicyId!: string
+  @Column({ type: 'int' }) revision!: number
+  @Column({ type: 'varchar' }) actorId!: string
+  @Column({ type: 'varchar' }) action!: 'created' | 'saved' | 'adopted' | 'rebound' | 'revoked' | 'maintained'
+  @Column({ type: 'jsonb' }) snapshot!: Record<string, unknown>
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date
 }

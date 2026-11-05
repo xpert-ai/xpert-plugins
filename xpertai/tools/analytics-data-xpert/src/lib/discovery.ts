@@ -22,6 +22,7 @@ export const dataXpertDiscoveryRequestSchema = z.discriminatedUnion('kind', [
 export const dataXpertQueryContract: AnalyticsDiscoveryResult['queryContract'] = {
   operation: 'action', contractVersion: 1,
   payloadSchema: {
+    'x-xpert-import': { version: 1, request: { kind: 'import-targets' } },
     type: 'object', additionalProperties: false,
     required: ['resourceId', 'actionTypeCode', 'target', 'params', 'parameterPaths'],
     properties: {

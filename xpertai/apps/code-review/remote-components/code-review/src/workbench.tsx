@@ -49,6 +49,8 @@ import { action, command, connect, data, type Host } from './bridge'
 import { workbenchEntrySchema, workbenchPageSchema, type WorkbenchEntry } from '../../../src/workbench-contract'
 import { i18n, errorMessage } from './i18n'
 import { AutomationDashboard } from './automation-dashboard'
+import { WorkflowDiagnoses } from './workflow-diagnoses'
+import { eventI18n } from './event-i18n'
 import { LocalGitImport } from './local-git-import'
 import { ReviewDetail } from './review-detail'
 import {
@@ -98,7 +100,7 @@ export function Workbench() {
   selectedRef.current = selected
   hostRef.current = host
   const { t, locale, formatDate } = i18n(host?.locale)
-  const management = state.section === 'repositories' || state.section === 'settings'
+  const management = state.section === 'workflows' || state.section === 'repositories' || state.section === 'settings'
   const queueResize = useQueueResize(!management && queueOpen)
   const githubInbox = state.section === 'requested' || state.section === 'authored'
   const reload = () => setRefresh((n) => n + 1)
@@ -114,6 +116,7 @@ export function Workbench() {
           setItems([])
           setError('')
         }
+        eventI18n.setLocale(h.locale)
         setHost(h)
         const next = viewState(h.initialQuery?.parameters)
         setState(next)
@@ -273,12 +276,13 @@ export function Workbench() {
     reload()
   }
   const changeSection = (section: Section) => {
-    if (section === 'repositories' || section === 'settings')
+    if (section === 'workflows' || section === 'repositories' || section === 'settings')
       void command(ASSISTANT_CONTEXT_SET_COMMAND, { key: 'codeReview', clear: true }).catch(() => {})
     navigate({ ...stateRef.current, section, page: 1 })
   }
   const navItems = [
     { section: 'inbox' as const, label: t('reviewInbox'), Icon: Inbox },
+    { section: 'workflows' as const, label: eventI18n.t('diagnoses'), Icon: GitBranch },
     { section: 'repositories' as const, label: t('repositories'), Icon: FolderGit2 },
     { section: 'settings' as const, label: t('settings'), Icon: Settings2 },
     { section: 'recent' as const, label: t('recentPinned'), Icon: Star },
@@ -287,10 +291,9 @@ export function Workbench() {
   ]
   return (
     <div className="review-workbench flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background text-foreground">
-      <header className="review-toolbar flex shrink-0 items-center gap-3 border-b px-4 py-2">
+      <header className="review-toolbar flex shrink-0 items-center gap-3 border-b py-2 pl-2 pr-4">
         <Button
           variant="ghost"
-          size="icon"
           aria-label={t(navOpen ? 'hideNavigation' : 'showNavigation')}
           title={t(navOpen ? 'hideNavigation' : 'showNavigation')}
           onClick={() => setNavOpen((v) => !v)}
@@ -415,11 +418,11 @@ export function Workbench() {
         </aside>
         {management ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-            <AutomationDashboard
+            {state.section === 'workflows' ? <WorkflowDiagnoses host={host}/> : <AutomationDashboard
               host={host}
               section={state.section as 'repositories' | 'settings'}
               onNavigate={changeSection}
-            />
+            />}
           </div>
         ) : (
           <>
@@ -606,7 +609,7 @@ export function Workbench() {
           if (!busy) setCreateOpen(value)
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogTitle>{t('openGithubPr')}</DialogTitle>
           <DialogDescription>{t('openPrHelp')}</DialogDescription>
           <form

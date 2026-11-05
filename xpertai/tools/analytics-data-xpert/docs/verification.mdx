@@ -5,9 +5,10 @@ description: "Separate transport-contract tests from real SSO and end-to-end das
 
 ## Compatibility
 
-Development dependencies pin published SDK/contracts 3.26.1, which export AnalyticsProvider,
-AnalyticsQueryProvider, ActorTokenRuntimeFactoryCapability and the shared Dataset/Binding
-contracts. The host must provide the corresponding runtime capabilities.
+Development dependencies pin `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` to 3.32.0.
+Both peer dependencies require `^3.32.0`. The plugin validates upstream error responses with
+`parseAnalyticsDiagnostic` and returns accepted diagnostics through `AnalyticsProviderError`.
+The host must provide the Analytics and Actor Token runtime capabilities.
 
 Data-xpert must expose `POST /agent-workbench/analytics/discover` and
 `POST /agent-workbench/analytics/query` under the configured API base. Discovery returns

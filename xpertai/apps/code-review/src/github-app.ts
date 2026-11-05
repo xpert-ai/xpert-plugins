@@ -71,27 +71,29 @@ export class GitHubApp {
     try { return `${unsigned}.${signer.sign(key).toString('base64url')}` }
     catch { throw new ReviewError('github_app_invalid_key') }
   }
-  async inspect(s: Scope, owner: string, repository: string) {
+  async inspect(s: Scope, owner: string, repository: string, actions = false, checks = false) {
     const config = await this.config(s)
     if (!config) throw new ReviewError('github_app_not_configured')
     const github = await this.connected(s, config)
     const repo = repositorySchema.parse(await github.request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`))
     if (!repo.permissions?.admin && !repo.permissions?.push) throw new ReviewError('repository_management_required')
     const installation = z.object({ id: z.number().int().positive(), suspended_at: z.string().nullable().optional(),
-      permissions: z.object({ contents: z.string().optional(), pull_requests: z.string().optional() }) })
+      permissions: z.object({ contents: z.string().optional(), pull_requests: z.string().optional(), actions: z.string().optional(), checks: z.string().optional() }) })
       .parse(await new GitHub(this.jwt(config)).request(`/repos/${encodeURIComponent(repo.owner.login)}/${encodeURIComponent(repo.name)}/installation`))
     if (installation.suspended_at || installation.permissions.contents !== 'read' && installation.permissions.contents !== 'write' || installation.permissions.pull_requests !== 'write')
       throw new ReviewError('installation_permissions_required')
+    if (actions && !['read', 'write'].includes(installation.permissions.actions ?? '')) throw new ReviewError('actions_permission_required')
+    if (checks && !['read', 'write'].includes(installation.permissions.checks ?? '')) throw new ReviewError('checks_permission_required')
     return { installationId: String(installation.id), repositoryId: String(repo.id), owner: repo.owner.login, repository: repo.name,
       githubIntegrationId: config.integrationId ?? null, githubAppId: config.appId }
   }
-  async installation(installationId: string, repositoryId: string, scope: Scope, binding: GitHubRepositoryBinding) {
+  async installation(installationId: string, repositoryId: string, scope: Scope, binding: GitHubRepositoryBinding, actions = false, checks = false) {
     if (!/^\d+$/.test(installationId) || !/^\d+$/.test(repositoryId)) throw new ReviewError('invalid_installation')
     const config = await this.config(scope)
     if (!config) throw new ReviewError('github_app_not_configured')
     assertGitHubRepositoryApplication(config, binding)
     const response = z.object({ token: z.string().min(1) }).parse(await new GitHub(this.jwt(config))
-      .request(`/app/installations/${installationId}/access_tokens`, { repository_ids: [Number(repositoryId)], permissions: { contents: 'read', pull_requests: 'write' } }))
+      .request(`/app/installations/${installationId}/access_tokens`, { repository_ids: [Number(repositoryId)], permissions: { contents: 'read', pull_requests: 'write', ...(actions ? { actions: 'read' } : {}), ...(checks ? { checks: 'read' } : {}) } }))
     return new GitHub(response.token, fetch, `${config.slug}[bot]`)
   }
 }

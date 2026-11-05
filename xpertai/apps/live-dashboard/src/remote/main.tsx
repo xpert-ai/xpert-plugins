@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Badge } from '@xpert-ai/plugin-shadcn-ui'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Badge, Database, MousePointer2 } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
 import { dashboardSummarySchema as summarySchema, dashboardSavedSchema as savedSchema, dashboardViewDataSchema as listSchema } from '../lib/dashboard-view.schema'
 import { startBridge, requestHost, selectDashboard, navigateDashboard, onPrepareClose, isViewVisible } from './bridge'
@@ -11,8 +11,13 @@ import { dashboardNavigationSchema, dashboardNavigationKey } from '../lib/dashbo
 import type { DashboardMode } from '../lib/project'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
+import { StandardDashboard } from './standard-dashboard'
+import { SourcesPanel, type SourceSelection } from './sources-panel'
+import { dashboardComponents } from '../lib/dashboard-sources'
+import { reduceSourceExecutions, sourceDatasetSchema, type SourceExecution, type SourceEvent } from '../lib/source-executions'
 import { ToolbarMenu } from './toolbar-menu'
 import { DashboardPicker } from './dashboard-picker'
+import { ImportDialog } from './import-dialog'
 import { ShareDialog } from './share-dialog'
 import { ViewerControls } from './viewer-controls'
 import { DashboardStarter } from './dashboard-starter'
@@ -23,7 +28,7 @@ installArtifactDocumentFramePolicy(document)
 declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean } }
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
-const queryResultSchema = z.object({ payload: z.unknown(), failures: z.array(z.object({ bindingId: z.string(), datasetId: z.string(), reason: z.literal('unavailable') })).default([]), datasets: z.array(z.object({ completeness: z.object({ truncated: z.boolean() }), freshness: z.object({ sourceFetchedAt: z.string() }) })) })
+const queryResultSchema = z.object({ payload: z.unknown(), failures: z.array(z.object({ bindingId: z.string(), datasetId: z.string(), reason: z.literal('unavailable') })).default([]), datasets: z.array(sourceDatasetSchema) })
 type Summary = z.infer<typeof summarySchema>
 type Saved = z.infer<typeof savedSchema>
 type ControlValue = string | number | boolean | null
@@ -58,6 +63,24 @@ function App() {
   const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
   const [partial, setPartial] = React.useState(false)
   const [unavailableDatasets, setUnavailableDatasets] = React.useState<string[]>([])
+  const [importing, setImporting] = React.useState(false)
+  const [download, setDownload] = React.useState<{url: string; fileName: string} | null>(null)
+  const [sourceSelection, setSourceSelection] = React.useState<SourceSelection | null>(null)
+  const [inspect, setInspect] = React.useState(false)
+  const [executions, setExecutions] = React.useState<Record<string, SourceExecution>>({})
+  React.useEffect(() => {
+    if (!inspect) return
+    const exit = (event: KeyboardEvent) => { if (event.key === 'Escape') setInspect(false) }
+    window.addEventListener('keydown', exit)
+    return () => window.removeEventListener('keydown', exit)
+  }, [inspect])
+  const sourcesButton = React.useRef<HTMLButtonElement>(null)
+  const onExecution = React.useCallback((event: SourceEvent) => setExecutions(current => reduceSourceExecutions(current, event)), [])
+  function inspectComponent(id: string | null) {
+    const component = saved && dashboardComponents(saved.manifest).find(item => item.id === id)
+    setSourceSelection({ componentId: id, ...(component?.sources.length === 1 ? { bindingId: component.sources[0].bindingId } : {}) })
+  }
+  function closeSources() { setSourceSelection(null); sourcesButton.current?.focus() }
   const [sharing, setSharing] = React.useState(false)
   const requestSequence = React.useRef(0), operationSequence = React.useRef(0)
   const listSequence = React.useRef(0)
@@ -77,6 +100,7 @@ function App() {
     setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setSelectedDashboard(null); setEditor(null); setVersions([])
     setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
     setControls({}); setStatus(''); setPartial(false)
+    setSourceSelection(null); setInspect(false); setExecutions({}); setDownload(null); setImporting(false)
   }
   function selectEditorTarget(target: Parameters<typeof selectDashboard>[0]) {
     return selectDashboard(target)
@@ -93,11 +117,20 @@ function App() {
     if (!target.versionId && !target.draftRevision) throw new Error('Missing saved definition')
     setHtml(''); setUnavailableDatasets([]); setStatus(''); setPartial(false)
     if (!target.manifest.bindings.length) return
+    for (const binding of target.manifest.bindings) onExecution({ type: 'start', bindingId: binding.id, requestId: String(sequence), controls: Object.fromEntries(Object.entries(values).filter(([id]) => binding.parameters.some(p => p.controlId === id))), at: new Date().toISOString() })
+    try {
     const result = queryResultSchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'query', input: { artifactId: target.artifactId, versionId: target.versionId ?? undefined, ...(target.isDraft ? { draftRevision: target.draftRevision } : {}), controls: values } })).data)
     if (sequence !== requestSequence.current) return
+    for (const dataset of result.datasets) onExecution({ type: 'success', bindingId: dataset.provenance.bindingId, requestId: String(sequence), result: dataset, at: new Date().toISOString() })
+    for (const failure of result.failures) onExecution({ type: 'failure', bindingId: failure.bindingId, requestId: String(sequence), at: new Date().toISOString() })
     setUnavailableDatasets(result.failures.map(failure => failure.datasetId));
     setHtml(result.datasets.length ? rendererHtml(result.payload) : ''); setPartial(result.datasets.some((dataset) => dataset.completeness.truncated))
     setStatus(result.datasets.map((dataset) => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
+    } catch (error) {
+      if (sequence === requestSequence.current) for (const binding of target.manifest.bindings)
+        onExecution({ type: 'failure', bindingId: binding.id, requestId: String(sequence), at: new Date().toISOString() })
+      throw error
+    }
   }
   async function open(artifactId: string, versionId?: string, reflectNavigation = true, requestedMode = modeRef.current, draftRevision?: number) {
     const sequence = ++requestSequence.current
@@ -141,6 +174,7 @@ function App() {
     setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === previous.artifactId) ?? null)
     const target = result.saved
     if (!target) { clearDocument(); throw new Error('Dashboard is unavailable') }
+    if (target.draftRevision !== previous.draftRevision || target.versionId !== previous.versionId) { setExecutions({}); setSourceSelection(null); setInspect(false); setDownload(null) }
     setSaved(target); setVersions(result.versions ?? [])
     if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
       ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
@@ -197,6 +231,15 @@ function App() {
       void run(refreshSaved)
     }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
 
+  async function exportDashboard() {
+    if (!saved) return
+    const fileKey = saved.isDraft ? `archive/${saved.artifactId}/draft/${saved.draftRevision}` : `archive/${saved.artifactId}/version/${saved.versionId}`
+    const file = z.object({ url: z.string().url(), fileName: z.string() }).parse(await requestHost('requestFileAccess', { fileKey, purpose: 'download' }))
+    setDownload(file)
+    const link = document.createElement('a')
+    link.href = file.url; link.download = file.fileName; link.rel = 'noopener'
+    document.body.append(link); link.click(); link.remove()
+  }
   async function save() {
     const manifest = dashboardSchema.parse(JSON.parse(editor ?? ''))
     const expectedVersionId = saved?.manifest.id === manifest.id ? saved.versionId ?? null : null
@@ -272,6 +315,10 @@ function App() {
         }) }}/ >}
       {saved && <Badge variant="secondary" className="toolbar-version" role="status">{saved.isDraft ? i18n.t('draftRevision', { revision: saved.draftRevision ?? '—' }) : i18n.t('publishedVersion', { version: saved.versionNumber ?? '—' })}</Badge>}
       <div className="toolbar-actions">
+        {canEdit && saved && editor === null && <>
+          <Button variant={inspect ? 'secondary' : 'ghost'} size="icon" aria-label={t.inspect} title={t.inspect} aria-pressed={inspect} onClick={() => setInspect(value => !value)}><MousePointer2/></Button>
+          <Button ref={sourcesButton} variant={sourceSelection ? 'secondary' : 'ghost'} aria-label={t.sources} aria-expanded={!!sourceSelection} onClick={() => sourceSelection ? closeSources() : setSourceSelection({})}><Database/><span className="hidden lg:inline">{t.sources}</span><span className="hidden sm:inline">{saved.manifest.bindings.length}</span></Button>
+        </>}
         {canManage && saved?.isDraft && <Button disabled={busy || editor !== null || !saved.manifest.bindings.length} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
         <Button variant="ghost" size="icon" disabled={busy || editor !== null} aria-label={t.refresh} title={t.refresh} onClick={() => void run(refreshSaved)}>
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
@@ -285,7 +332,7 @@ function App() {
             if (!result.saved) throw new Error(t.error)
             await selectEditorTarget({ artifactId: result.saved.artifactId, draftRevision: result.saved.draftRevision }); setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
           })}
-          onImport={() => setEditor('')} onShare={() => setSharing(true)}
+          onImport={() => setImporting(true)} onExport={() => void run(exportDashboard)} onShare={() => setSharing(true)}
           onDelete={() => { if (selectedDashboard) requestDelete(selectedDashboard) }}
           refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}/>
       </div>
@@ -296,6 +343,8 @@ function App() {
   </section>
   return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
     {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
+    {canEdit && importing && <ImportDialog t={t} onClose={() => setImporting(false)} onImported={async id => { setImporting(false); await run(() => open(id, undefined, true, 'draft')) }}/ >}
+    {download && <p className="border-b px-4 py-2 text-sm"><a className="underline underline-offset-4" href={download.url} download={download.fileName} rel="noopener">{t.exportReady}</a></p>}
     {canManage && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
     <AlertDialog open={!!confirmDelete} onOpenChange={open => { if (!open && !busy && !deleting) setConfirmDelete(null) }}>
       <AlertDialogContent><AlertDialogTitle>{t.deleteDashboard}</AlertDialogTitle>
@@ -324,6 +373,8 @@ function App() {
       {!readOnly && filters}
       {unavailableDatasets.length > 0 && <div role="alert" className="px-4 py-2 text-sm"><p>{t.bindingUnavailable}</p><ul>{unavailableDatasets.map(id => <li key={id}>{[...(saved?.manifest.charts ?? []), ...(saved?.manifest.tables ?? [])].filter(view => view.datasetId === id).map(view => view.title).join(' · ') || id}</li>)}</ul></div>}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
+      {inspect && <p role="status" className="border-b px-4 py-2 text-sm text-muted-foreground">{t.inspectHint}</p>}
+      <div className="dashboard-workspace">
       <section className="canvas-panel" aria-busy={busy}>
         {!busy && !html && !saved?.manifest.presentation && !error && !unavailableDatasets.length && (!saved && canEdit && currentProject
           ? <DashboardStarter t={t} onStart={text => run(async () => {
@@ -332,9 +383,11 @@ function App() {
           })}/>
           : <p className="p-6 text-muted-foreground">{t.empty}</p>)}
         {saved?.manifest.presentation && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} draftRevision={saved.isDraft ? saved.draftRevision : undefined}
-          manifest={saved.manifest} dependencies={saved.dependencies ?? []} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
-        {html && <iframe title={saved?.manifest.title ?? t.title} sandbox="allow-scripts" srcDoc={html} className="h-full w-full border-0"/>}
+          manifest={saved.manifest} dependencies={saved.dependencies ?? []} inspect={canEdit && inspect} onInspect={inspectComponent} onInspectExit={() => setInspect(false)} onExecution={onExecution} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
+        {html && saved && <StandardDashboard html={html} manifest={saved.manifest} inspect={canEdit && inspect} onInspect={inspectComponent} onExit={() => setInspect(false)}/>}
       </section>
+      {canEdit && saved && sourceSelection && <SourcesPanel manifest={saved.manifest} selection={sourceSelection} executions={executions} onSelect={setSourceSelection} onClose={closeSources} t={t}/>}
+      </div>
     </>}
   </main>
 }

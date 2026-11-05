@@ -20,11 +20,11 @@ export async function assertPipelineReviewAccess(manager: EntityManager, capabil
 }
 export async function assertPipelineReviewVersion(manager: EntityManager, s: Scope, r: Review) {
   const context = { actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId }, projectId: r.pipelineProjectId! }
-  const binding = await manager.findOneBy(ReviewPipelineBinding, { ...pipelineOwner(context), userId: r.userId, id: r.pipelineRootReviewId || r.id })
+  const binding = await manager.findOneBy(ReviewPipelineBinding, { tenantId: s.tenantId, organizationId: s.organizationId, projectId: r.pipelineProjectId!, id: r.pipelineRootReviewId || r.id })
   if (!binding) throw new ReviewError('pipeline_binding_unavailable')
   if (r.pipelineOperationId) {
     const root = await manager.findOne(Review, { where: { id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId,
-      userId: r.userId, assistantId: binding.assistantId }, ...(manager.queryRunner?.isTransactionActive ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
+      userId: binding.userId, assistantId: binding.assistantId }, ...(manager.queryRunner?.isTransactionActive ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
     if (!root || sourceVersion(root).digest !== sourceVersion(r).digest) throw new ReviewError('stale_revision')
   }
 }

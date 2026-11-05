@@ -1,4 +1,7 @@
 import 'reflect-metadata'
+import { ReviewEventSubscription, ReviewEvents } from '../src/event-subscription.js'
+import { WorkflowDiagnosis } from '../src/workflow-entity.js'
+import { WorkflowDiagnostics } from '../src/workflow-diagnostics.js'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { randomUUID } from 'node:crypto'
@@ -32,7 +35,7 @@ test(
       type: 'postgres',
       url,
       schema,
-      entities: [Review, ReviewRepository, ReviewRun, ReviewDelivery],
+      entities: [ReviewEventSubscription, WorkflowDiagnosis, Review, ReviewRepository, ReviewRun, ReviewDelivery],
       uuidExtension: 'pgcrypto',
       extra: { options: `-c search_path=${schema},public` }
     })
@@ -66,11 +69,13 @@ test(
         return this.assertEdit(c)
       }
     })
+    const events = new ReviewEvents(db.getRepository(ReviewEventSubscription), capability)
     const repositories = new Repositories(
       db.getRepository(ReviewRepository),
       {} as GitHubApp,
       {} as ReviewPipelineCatalog,
-      capability
+      capability,
+      events
     )
     const reviews = new Reviews(db.getRepository(Review), {} as PluginContext, repositories, capability)
     const automation = new Automation(
@@ -78,8 +83,11 @@ test(
       db.getRepository(ReviewDelivery),
       repositories,
       reviews,
-      {} as PluginContext,
-      {} as ReviewPipelineAutomation
+      capability,
+      {} as ReviewPipelineAutomation,
+      events,
+      new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, {} as PluginContext),
+      { enqueue: async () => ({ jobId: 'fixture-job' }) } as never
     )
     const workbench = new ReviewWorkbench(reviews, automation),
       page = (input: Record<string, unknown> = {}, scope = s) =>
@@ -154,6 +162,27 @@ test(
     assert.equal((await page({}, { ...s, tenantId: randomUUID() })).total, 0)
     assert.equal((await page({}, { ...s, organizationId: randomUUID() })).total, 0)
     assert.equal((await page({}, { ...s, assistantId: randomUUID() })).total, 0)
+    // A lifecycle-only delivery may arrive after the actual run for the same head.
+    const runs = db.getRepository(ReviewRun)
+    const skip = (trigger: string, reason: string, headSha: string, createdAt: string) =>
+      runs.save({ ...run, id: randomUUID(), operationKey: randomUUID(), trigger, reason, headSha,
+        status: 'skipped', startedAt: null, createdAt: new Date(createdAt) })
+    const draft = await skip('converted_to_draft', 'draft_pull_request', run.headSha, '2026-01-04')
+    assert.equal((await page()).items[0].id, run.id)
+    await runs.update(run.id, { status: 'published' })
+    const closed = await skip('closed', 'pull_request_closed', run.headSha, '2026-01-05')
+    assert.equal((await page({ status: 'published' })).items[0].id, run.id)
+    assert.equal((await page({ status: 'skipped' })).total, 0)
+    const history = await page({ history: result.items[0].key })
+    assert.equal(history.total, 4)
+    assert.deepEqual(history.items.slice(0, 2).map(item => item.id), [closed.id, draft.id])
+    assert.deepEqual(history.items.map(item => item.eventOnly), [true, true, false, false])
+    assert.equal((await page({ recordId: closed.id })).items[0].reason, 'pull_request_closed')
+    // If a review actually started and the PR closed mid-review, keep its skipped outcome.
+    await runs.update(run.id, { status: 'skipped', startedAt: run.createdAt, reason: 'pull_request_closed' })
+    assert.equal((await page()).items[0].id, run.id)
+    const nextHead = await skip('converted_to_draft', 'draft_pull_request', 'd'.repeat(40), '2026-01-06')
+    assert.equal((await page()).items[0].id, nextHead.id, 'an older commit cannot represent the latest head')
     // Sharing a repository now must not reveal old private runs to a different user.
     const sharedSettings = {
       ...defaultPolicy,

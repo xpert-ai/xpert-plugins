@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, In, Repository } from 'typeorm'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import type { RunnableConfig } from '@langchain/core/runnables'
 import { z } from 'zod/v3'
 import {
   ProjectAccessRuntimeCapability, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
@@ -13,7 +14,7 @@ import { localGitImportSchema, localGitSourcesSchema, type LocalGitImport } from
 import { digest, reviewAgentContextSchema } from './pipeline/contract.js'
 import { GitHub } from './github.js'
 import { Repositories } from './repositories.js'
-import type { ReviewRun, ReviewRepository } from './automation-entities.js'
+import { ReviewRun, type ReviewRepository } from './automation-entities.js'
 import { ignoredPath } from './automation-domain.js'
 import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, reviewLabel, type Scope } from './domain.js'
 import { assertPipelineReviewAccess, assertPipelineReviewVersion } from './pipeline/access.js'
@@ -57,8 +58,8 @@ export class Reviews {
   }
   async recordGithub(s: Scope, r: Review) {
     if (r.pipelineRootReviewId) {
-      const binding = await this.records.manager.findOneByOrFail(ReviewPipelineBinding, { id: r.pipelineRootReviewId })
-      const root = await this.records.findOneByOrFail({ id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId, userId: r.userId })
+      const binding = await this.records.manager.findOneByOrFail(ReviewPipelineBinding, { id: r.pipelineRootReviewId, tenantId: s.tenantId, organizationId: s.organizationId, projectId: r.pipelineProjectId! })
+      const root = await this.records.findOneByOrFail({ id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId, userId: binding.userId })
       return root.automationPolicyId ? this.repositories.github({ ...s, userId: root.userId, assistantId: root.assistantId }, root.automationPolicyId) : this.github({ ...s, userId: root.userId, assistantId: root.assistantId, workspaceId: binding.workspaceId }, root.access)
     }
     return r.automationPolicyId ? this.repositories.github({ ...s, userId: r.userId }, r.automationPolicyId) : this.github(s, r.access)
@@ -74,7 +75,7 @@ export class Reviews {
     if (snapshot.files.length !== all) snapshot.warnings.push('ignored_files_excluded')
     if (!snapshot.files.length) throw new ReviewError('all_files_excluded')
     return this.records.save(this.records.create({ ...owner(p), ref, snapshot, access: 'connected', status: 'ready',
-      automationPolicyId: p.id, automationRunId: run.id, findings: [], viewed: [], summary: '', instructions: run.settings.instructions }))
+      organizationShared: p.ownership === 'assistant' && run.settings.visibility === 'organization', automationPolicyId: p.id, automationRunId: run.id, findings: [], viewed: [], summary: '', instructions: run.settings.instructions }))
   }
   async guidance(s: Scope, id: string, revision: number, instructions: string) {
     const r = await this.get(s, id)
@@ -87,9 +88,8 @@ export class Reviews {
     return r.instructions === instructions ? r : this.update(s, r, { instructions })
   }
   async list(s: Scope, page = 1) {
-    const projectIds = this.capabilities ? (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId } })).map(p => p.projectId) : []
-    const [items, total] = await this.records.findAndCount({ where: [owner(s), ...(projectIds.length ? [{ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, projectShared: true, pipelineProjectId: In(projectIds) }] : [])], order: { pinned: 'DESC', updatedAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
-      select: ['id', 'ref', 'status', 'pinned', 'revision', 'updatedAt', 'summary'] })
+    const [items, total] = await (await this.visibleQuery(s)).orderBy('review.pinned', 'DESC').addOrderBy('review."updatedAt"', 'DESC')
+      .take(20).skip((page - 1) * 20).select(['review.id', 'review.ref', 'review.status', 'review.pinned', 'review.revision', 'review.updatedAt', 'review.summary']).getManyAndCount()
     return { items, total, page, pageSize: 20 }
   }
   /** The workbench uses the same ownership / project visibility boundary as list(). */
@@ -97,18 +97,21 @@ export class Reviews {
     const projectIds = (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: {
       tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId
     } })).map(p => p.projectId)
+    const access = await this.repositories.access(s)
     return this.records.createQueryBuilder('review')
-      .where('review."tenantId" = :tenantId AND review."organizationId" = :organizationId AND review."assistantId" = :assistantId', s)
+      .where('review."tenantId" = :tenantId AND review."organizationId" = :organizationId ', s)
       .andWhere(new Brackets(q => {
-        q.where('review."userId" = :userId', s)
+        q.where('review."userId" = :userId AND review."assistantId" = :assistantId', s)
+        if (access.canRead) q.orWhere('review."organizationShared" = true AND review."assistantId" = :assistantId', s)
         if (projectIds.length) q.orWhere('review."projectShared" = true AND review."pipelineProjectId" IN (:...projectIds)', { projectIds })
       }))
   }
   async get(s: Scope, id: string) {
-    const record = await this.records.findOneBy({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, id })
-    if (record && record.userId !== s.userId && (!record.projectShared || !record.pipelineProjectId)) throw new ReviewError('review_not_found')
+    const record = await this.records.findOneBy({ tenantId: s.tenantId, organizationId: s.organizationId, id })
+    const organizationAccess = record?.organizationShared && record.assistantId === s.assistantId && (await this.repositories.access(s)).canRead
+    if (record && !organizationAccess && record.userId !== s.userId && (!record.projectShared || !record.pipelineProjectId)) throw new ReviewError('review_not_found')
     if (!record) throw new ReviewError('review_not_found')
-    await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
+    if (!organizationAccess) await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
     return record
   }
   private async update(s: Scope, r: Review, patch: Partial<Review>) {
@@ -127,6 +130,27 @@ export class Reviews {
     const ref = parsePullUrl(url)
     const snapshot = await (await this.github(s, access)).snapshot(ref)
     return this.records.save(this.records.create({ ...owner(s), ref, access, snapshot, status: 'ready', findings: [], viewed: [], summary: '', instructions: '' }))
+  }
+  async request(s: Scope, url: string, instructions: string, config?: RunnableConfig) {
+    const context = z.object({ context: z.object({ codeReview: z.object({}).passthrough().optional(),
+      codeReviewWorkflow: z.object({}).passthrough().optional() }).optional() }).parse(config?.configurable ?? {})
+    if (context.context?.codeReview || context.context?.codeReviewWorkflow) throw new ReviewError('nested_review_forbidden')
+    if (!s.runtime?.executionId) throw new ReviewError('execution_required')
+    const ref = parsePullUrl(url)
+    const requestKey = createHash('sha256').update(JSON.stringify([owner(s), s.runtime.executionId, ref])).digest('hex')
+    let r = await this.records.findOneBy({ ...owner(s), requestKey })
+    if (!r) {
+      const snapshot = await (await this.github(s, 'connected')).snapshot(ref)
+      await this.records.createQueryBuilder().insert().values({ ...owner(s), requestKey, ref, snapshot, access: 'connected', status: 'ready',
+        findings: [], viewed: [], summary: '', instructions }).orIgnore().execute()
+      r = await this.records.findOneByOrFail({ ...owner(s), requestKey })
+    }
+    if (r.status === 'ready') {
+      try { r = await this.start(s, r.id, r.revision, instructions) }
+      catch (error) { if (!(error instanceof ReviewError) || error.code !== 'revision_conflict') throw error; r = await this.get(s, r.id) }
+    }
+    return { reviewId: r.id, status: r.status, headSha: r.snapshot.headSha, conversationId: r.conversationId,
+      message: 'Review task started. Inspect its result in the Code review workbench.' }
   }
   async importLocal(s: Scope, raw: LocalGitImport) {
     const value = localGitImportSchema.parse(raw)
@@ -169,18 +193,26 @@ export class Reviews {
     if (active.has(r.status)) throw new ReviewError('review_busy')
     const api = this.tasks(s)
     if (r.ref.provider === 'github' && await (await this.recordGithub(s, r)).head(r.ref) !== r.snapshot.headSha) throw new ReviewError('stale_revision')
-    r = await this.update(s, r, { status: 'running', executionId: randomUUID(), conversationId: randomUUID(), taskId: null, threadId: null, instructions, summary: '', findings: [], errorCode: null })
+    r = await this.update(s, r, { status: 'running', executionId: randomUUID(), conversationId: randomUUID(), taskId: null, threadId: null, instructions, summary: '', findings: [], errorCode: 'dispatch_pending_confirmation' })
+    return this.dispatch(s, r)
+  }
+  private async dispatch(s: Scope, r: Review) {
+    if (r.automationPolicyId && r.automationRunId) {
+      const run = await this.records.manager.findOneByOrFail(ReviewRun, { id: r.automationRunId, tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId })
+      await this.repositories.assertAssistantExecution(s, r.automationPolicyId, run.policyRevision, run.trigger === 'trial')
+    }
     try {
-      const receipt = await api.startTask({ xpertId: s.assistantId, executionId: r.executionId!, conversationId: r.conversationId!, clientMessageId: r.executionId!,
-        prompt: `请审查 ${reviewLabel(r.ref)}（${r.snapshot.headSha.slice(0, 12)}），检查变更引入的实际缺陷并保存审查结果。${instructions ? '\n关注点：' + instructions : ''}`,
+      const receipt = await this.tasks(s).startTask({ xpertId: s.assistantId, executionId: r.executionId!, conversationId: r.conversationId!, clientMessageId: r.executionId!,
+        prompt: `请审查 ${reviewLabel(r.ref)}（${r.snapshot.headSha.slice(0, 12)}），使用 code_review_context 读取任务依据，检查变更引入的实际缺陷并使用 code_review_complete 保存结果。${r.instructions ? '\n关注点：' + r.instructions : ''}`,
         context: { codeReview: { reviewId: r.id, headSha: r.snapshot.headSha } } })
-      await this.update(s, await this.get(s, id), { taskId: receipt.taskId ?? null, threadId: receipt.threadId ?? null,
-        executionId: receipt.executionId ?? r.executionId, conversationId: receipt.conversationId ?? r.conversationId })
+      await this.update(s, await this.get(s, r.id), { taskId: receipt.taskId ?? null, threadId: receipt.threadId ?? null,
+        executionId: receipt.executionId ?? r.executionId, conversationId: receipt.conversationId ?? r.conversationId, errorCode: null })
     } catch {
       // A transport failure can happen after the host accepts the task. Preserve its ids for reconciliation.
-      await this.update(s, await this.get(s, id), { errorCode: 'dispatch_pending_confirmation' })
+      const current = await this.get(s, r.id)
+      if (current.status === 'running') await this.update(s, current, { errorCode: 'dispatch_pending_confirmation' })
     }
-    return this.get(s, id)
+    return this.get(s, r.id)
   }
   async reconcile(s: Scope, id: string) {
     let r = await this.get(s, id)
@@ -189,6 +221,7 @@ export class Reviews {
     const status = await this.tasks(s).getTaskStatus?.({ xpertId: s.assistantId, executionId: r.executionId, conversationId: r.conversationId ?? undefined, taskId: r.taskId ?? undefined, threadId: r.threadId ?? undefined })
     // Read again: the completion tool may have changed the state during the host lookup.
     r = await this.get(s, id)
+    if (r.status === 'running' && r.errorCode === 'dispatch_pending_confirmation' && (!status || status.status === 'unknown')) return this.dispatch(s, r)
     if (r.status === 'running' && status && ['failed', 'interrupted', 'succeeded'].includes(status.status)) {
       try { r = await this.update(s, r, { status: 'failed', errorCode: status.status === 'succeeded' ? 'review_result_missing' : 'assistant_task_failed' }) }
       catch (e) { if (!(e instanceof ReviewError) || e.code !== 'revision_conflict') throw e; r = await this.get(s, id) }

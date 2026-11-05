@@ -52,6 +52,8 @@ test('standalone renderer reuses the deployed bundle and excludes drafts and aut
   assert.equal(data.meta.saved.isDraft, false)
   assert.deepEqual(data.meta.versions, [])
   assert.deepEqual(data.meta.sources, [])
+  assert.deepEqual(data.meta.saved.manifest.bindings.map(binding => binding.payload), [{}])
+  assert.ok(example.bindings[0].payload.sql, 'viewer projection must not modify the saved query')
   assert.ok(entry.html.includes('window.__DASHBOARD_READ_ONLY__=true'))
 })
 

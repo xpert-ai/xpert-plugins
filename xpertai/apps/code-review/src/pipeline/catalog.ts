@@ -48,7 +48,7 @@ export class ReviewPipelineCatalog {
   }
   async validate(s: Scope, target: PipelineTarget, source: 'github' | 'local_git' = 'github') {
     const context = projectContext(s, target.projectId)
-    await this.capabilities.require(ProjectAccessRuntimeCapability).assertManage(context)
+    await this.capabilities.require(ProjectAccessRuntimeCapability).assertEdit(context)
       .catch(() => { throw new ReviewError('pipeline_project_unavailable') })
     const saved = await this.capabilities.require(ProjectPipelineCatalogRuntimeCapability).binding(context, target.bindingId)
       .catch(() => { throw new ReviewError('pipeline_binding_unavailable') })

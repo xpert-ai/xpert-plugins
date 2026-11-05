@@ -30,6 +30,7 @@ const result = await build({
   minify: true,
   jsx: "automatic",
   alias: {
+    "@xpert-ai/plugin-shadcn-ui/i18n": resolve(root, "../../../packages/shadcn-ui/src/i18n.tsx"),
     "@xpert-ai/plugin-shadcn-ui": resolve(
       root,
       "../../../packages/shadcn-ui/src/index.ts"
