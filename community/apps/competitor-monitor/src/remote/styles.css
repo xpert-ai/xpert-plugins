@@ -1,0 +1,130 @@
+/* 仅定义布局；控件外观与主题变量由共享 shadcn 包负责。 */
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-color: var(--border, var(--xui-color-border, #e4e4e7));
+}
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+.shell {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+.page-heading,
+.section-heading,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-heading,
+.spread {
+  justify-content: space-between;
+}
+.section {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+.top-panels,
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  min-width: 0;
+}
+.record-list {
+  max-height: 360px;
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+}
+.record-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.record-copy {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.authored {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+footer {
+  padding-bottom: 16px;
+}
+.comparison p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .top-panels,
+  .comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell {
+    padding: 16px;
+  }
+  .record-list {
+    max-height: 300px;
+  }
+}
+/* 滚动容器内的内容不可被 flex 压缩，否则卡片正文会重叠。 */
+.shell > * {
+  flex-shrink: 0;
+}
+h1 {
+  font-size: var(--xui-font-size-xl, 1.25rem);
+  font-weight: var(--xui-font-weight-semibold, 600);
+}
+h2 {
+  font-size: var(--xui-font-size-lg, 1.125rem);
+  font-weight: var(--xui-font-weight-semibold, 600);
+}
+
+/* 业务状态使用语义主题色，始终同时显示文字。 */
+.monitor-status[data-status="pending"],.monitor-status[data-status="partial"]{color:var(--warning);background:color-mix(in srgb,var(--warning) 12%,transparent)}
+.monitor-status[data-status="active"],.monitor-status[data-status="success"],.monitor-status[data-status="approved"]{color:var(--success);background:color-mix(in srgb,var(--success) 12%,transparent)}
+.monitor-status[data-status="running"]{color:var(--info);background:color-mix(in srgb,var(--info) 12%,transparent)}
