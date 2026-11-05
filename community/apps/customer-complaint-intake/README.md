@@ -76,6 +76,16 @@ CUSTOMER_COMPLAINT_DEBUG=false
 
 模型凭证放在 Xpert 平台的模型配置里。
 
+## 运行截图
+
+已发布助手，模型是 deepseek-flash，并挂了三个投诉受理工具：
+
+![已发布的客服投诉受理助手](docs/screenshots/assistant-studio.png)
+
+对话入口：
+
+![投诉受理助手对话入口](docs/screenshots/assistant-entry.png)
+
 ## 演示脚本
 
 1. 打开投诉受理台，确认空列表有提示。
@@ -92,9 +102,9 @@ CUSTOMER_COMPLAINT_DEBUG=false
 | 规则测试 | `pnpm --filter @xpert-ai/plugin-customer-complaint-intake test` | 6 项通过 | 6 项通过 |
 | 构建 | 同一包的 `build` | 服务端入口、界面脚本、助手模板进入 `dist` | 已生成 `dist/index.js`、`dist/lib/remote-components/customer-complaint/app.js`、`dist/xpert-customer-complaint-assistant.yaml` |
 | 实体命名 | `node community/scripts/check-entity-names.mjs` | 表名以 `plugin_` 开头 | 通过 |
-| 生命周期 | `plugin-dev-harness` | 能加载 | 尚未运行。真实平台加载已通过 |
-| 平台流程 | 安装、重启、模板、创建助手、真实调用、失败重试、确认 | 同一条记录最终已确认 | 已完成。助手 `93859f17-ee60-48e8-ab8c-6f0be0cce215`，受理单 `CC-20261105-OHQM`，最终 1 条 `confirmed` |
-| 界面截图 | 受理台关键界面 | README 可直接显示 | 尚未从浏览器截取 |
+| 生命周期 | `node plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-customer-complaint-intake` | 能加载、启动和销毁 | 2026-11-05 通过。Harness 使用模拟数据库，不能代替真实流程 |
+| 平台流程 | 安装、重启、模板、创建助手、真实调用、失败重试、确认 | 同一条记录最终已确认 | 已完成。助手已发布，受理单 `CC-20261105-OHQM`，最终 1 条 `confirmed` |
+| 界面截图 | 已发布助手和对话入口 | README 可直接显示 | 已放在 `docs/screenshots/`。受理台远程界面的空列表和过短输入还没有单独截到 |
 | 多账号隔离 | 两个组织交叉读取 | 不能读到对方数据 | 未演练。代码按当前租户和组织过滤 |
 
 ## 复用
@@ -107,8 +117,7 @@ CUSTOMER_COMPLAINT_DEBUG=false
 
 ## 已知限制
 
-- 受理台界面截图还没有放进 README。
+- 受理台远程界面的空列表和过短输入还没有单独截图。短文本校验和失败重试已经分别由规则测试、真实模型调用和受理台动作验证。
 - 失败重试可以由界面上的「模拟模型失败」触发，也可以由助手在明确要求时设置 `simulateModelFailure`。
 - 只在一个租户和一个组织里验证过，没有做多账号对照。
-- `plugin-dev-harness` 还没跑。它不能代替上面的真实流程。
 - 不发布 npm 包。插件安装级别是 `tenant`，因为当前平台要求带数据表的插件使用 `system` 或 `tenant`。
