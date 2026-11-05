@@ -1,0 +1,7 @@
+﻿experiment_id,distance_m,angle_deg,environment,accuracy,rssi_std,phase_dispersion
+exp_001,1.2,0,Env-1,0.95,0.148385,0.001797
+exp_002,1.2,0,Env-1,0.94,0.153238,0.002223
+exp_003,1.8,0,Env-1,0.88,0.163746,0.00235
+exp_004,1.8,0,Env-1,0.86,0.14588,0.002249
+exp_005,1.5,15,Env-1,0.82,0.135209,0.001681
+exp_006,1.5,15,Env-1,0.8,0.153116,0.002226
