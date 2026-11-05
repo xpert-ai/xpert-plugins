@@ -1,0 +1,37 @@
+:root {
+  --bg: #ffffff; --fg: #1f2933; --muted: #64748b; --line: #e2e8f0;
+  --primary: #0f766e; --primary-fg: #ffffff; --draft: #b45309; --confirmed: #15803d;
+  --danger: #b91c1c; --chip: #f1f5f9; --radius: 10px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; font: 14px/1.5 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--fg); background: var(--bg); }
+h2 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
+.loading { color: var(--muted); padding: 24px; text-align: center; }
+#testcase-root { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.3fr); gap: 16px; align-items: start; }
+@media (max-width: 720px) { #testcase-root { grid-template-columns: 1fr; } }
+.panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.requirement-panel { display: flex; flex-direction: column; gap: 10px; }
+input, textarea, select { font: inherit; color: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; width: 100%; }
+textarea { resize: vertical; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: inherit; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--fg); }
+button:hover { border-color: var(--primary); }
+button.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.status { min-height: 20px; font-size: 13px; color: var(--muted); }
+.status[data-state="saved"] { color: var(--confirmed); }
+.status[data-state="saving"] { color: var(--muted); }
+.status[data-state="error"] { color: var(--danger); }
+.case-panel { display: flex; flex-direction: column; gap: 10px; }
+.case-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.case { display: flex; gap: 10px; border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 8px; padding: 10px 12px; }
+.case.draft { border-left-color: var(--draft); }
+.case.confirmed { border-left-color: var(--confirmed); }
+.case input[type=checkbox] { width: auto; margin-top: 4px; }
+.case-body { display: flex; flex-direction: column; gap: 4px; }
+.case-title { font-weight: 600; }
+.case-meta { color: var(--muted); font-size: 13px; }
+.case-steps { margin: 2px 0 2px 18px; padding: 0; color: var(--fg); font-size: 13px; }
+.empty { color: var(--muted); font-style: italic; }
+button.small { padding: 4px 10px; font-size: 12px; margin-left: 8px; }
