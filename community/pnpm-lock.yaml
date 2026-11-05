@@ -454,6 +454,64 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  apps/listing-assistant:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.6
+        version: 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^11.0.0
+        version: 11.0.0(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31)
+      '@types/node':
+        specifier: ^20.19.9
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.18
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.5
+        version: 18.3.7(@types/react@18.3.31)
+      '@xpert-ai/contracts':
+        specifier: ^3.29.0
+        version: 3.31.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.29.0
+        version: 3.31.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+      '@xpert-ai/plugin-shadcn-ui':
+        specifier: workspace:*
+        version: link:../../../packages/shadcn-ui
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.31(ts-node@10.9.1)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   apps/material-identity-governance:
     dependencies:
       '@tailwindcss/cli':
@@ -2600,6 +2658,7 @@ packages:
     resolution: {integrity: sha512-dqVSFynCox4C/J8kT16V7SIFAns0IjgLwkvYT7p8LQVmJ5OS5b6tI9IGflxTeuBS//zXeFIUbwt5dwxyZ17cnA==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2608,6 +2667,7 @@ packages:
     resolution: {integrity: sha512-1eMLzy92I4J6rmi4mAT8yC3HxOtniyGELlzGbNMLLeqe052ahFQ0h6LFq+lh5DsDIdYViIDst08abvSbcEdLXQ==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2616,6 +2676,7 @@ packages:
     resolution: {integrity: sha512-3z0NHDxD6n5I9gc05U1eW1AyRm+Gznzq3naMrthPNqE6oYykcogW0l/jfpJdjYnuNl8R7yI9pNbE1XiUeyq0Aw==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2624,6 +2685,7 @@ packages:
     resolution: {integrity: sha512-bsb4rI+NldGOsXuej2r8OdSS8+zXDVaCWxyWrcv6kneTOlgAHtZABRzBBCwdsPiD90J4myNJuHpg6kA20ImW/w==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2632,6 +2694,7 @@ packages:
     resolution: {integrity: sha512-/ABshyj8gCpyIrNXnHn4LorDJ0HHm1VhXPBlxZ8zAtfVPAaSafXPGn+sUSIRiwaSBy0mmFjSjiXI5mkcwdChKQ==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2640,6 +2703,7 @@ packages:
     resolution: {integrity: sha512-ITPEtgffGJ0S6G9dRyw/366tJQqFRcHWPHhC+Stpg3Z8AEMrDrTr2lhdz4f/Y/HMbRh//7Z5mBzEpVdi62Oc3w==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -2648,6 +2712,7 @@ packages:
     resolution: {integrity: sha512-zE9EdiUzUmg5mDT5a1rk5fYJ6GWPloTwWBYDS14naqHsL+EaMpDj1AWnpLgh3u0YCORv2Tt50wrcrpYqkP97Kw==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: false
     optional: true
@@ -2656,6 +2721,7 @@ packages:
     resolution: {integrity: sha512-m0lrLiUt+lBYnCFr8qV/65yMR4E/c7/wf78I5eKTdkEakFAlZ9QlzEM3QIhhAwVeUhLAHLcCq7a7Vszq/oFNZQ==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: false
     optional: true
@@ -2665,6 +2731,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-arm64': 1.3.2
@@ -2676,6 +2743,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-arm': 1.3.2
@@ -2687,6 +2755,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-ppc64': 1.3.2
@@ -2698,6 +2767,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-riscv64': 1.3.2
@@ -2709,6 +2779,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-s390x': 1.3.2
@@ -2720,6 +2791,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-x64': 1.3.2
@@ -2731,6 +2803,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linuxmusl-arm64': 1.3.2
@@ -2742,6 +2815,7 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linuxmusl-x64': 1.3.2
@@ -3287,6 +3361,7 @@ packages:
     engines: {node: ^22.20 || ^24.12 || >=25}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -3454,7 +3529,7 @@ packages:
       '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       reflect-metadata: 0.2.2
       rxjs: 7.8.2
-      typeorm: 0.3.31(pg@8.23.0)
+      typeorm: 0.3.31(ts-node@10.9.1)
     dev: true
 
   /@nestjs/typeorm@11.0.0(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.24):
@@ -3570,6 +3645,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -3579,6 +3655,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: false
     optional: true
@@ -3588,6 +3665,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -3597,6 +3675,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: false
     optional: true
@@ -3606,6 +3685,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: false
     optional: true
@@ -3615,6 +3695,7 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: false
     optional: true
@@ -5069,6 +5150,7 @@ packages:
     resolution: {integrity: sha512-qDd6NoA1znaLjp4jR5U/KWCdLAKDJNB8W9ChbbDaKbo0xA+Atln5HK6LFCZ4oJQpemtRZA288DCirFRjrspptw==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5077,6 +5159,7 @@ packages:
     resolution: {integrity: sha512-WtB5Tz5KTNINb8ZA+8sQ7bmjuS1JrRT7YverYIhUGdWWDlpzVWmIwuZE+jidkEXUn1l0zrEkaIMa8dHF3NGcsA==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5085,6 +5168,7 @@ packages:
     resolution: {integrity: sha512-VcQ3L1tjnkKzWjryAVaFhHEWcqOfICX9uxVVoDzm2t0DpgKRHd2zOpVrJc0xsWeBZcBFyYROCIBdyR/fS174pg==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5093,6 +5177,7 @@ packages:
     resolution: {integrity: sha512-6+ZQX6P5s0cMDN2Ypb8Lbm2+/sZYmZjdaYny992ujUU9UKi/4CWoJWsl1pNvjWJHNHGK51m+jKGLlh1ylb2ifQ==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5101,6 +5186,7 @@ packages:
     resolution: {integrity: sha512-D72ZnvkFkBXOfzMMQLcwfPLyGkKb7HZ9/mf97B7v6/P5Lbv4oFOtSY/uHbS8lH6uKUOxoKiuokdb50XZSzzbJw==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5109,6 +5195,7 @@ packages:
     resolution: {integrity: sha512-piU6BxeqA3O9KSu3kRCIQQtNqFFaTu21SEV4FwaRZowpnj3bLaWPZHw+xFqCs0XlJ+aOH3PTRWGoglH+mKA/OA==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5117,6 +5204,7 @@ packages:
     resolution: {integrity: sha512-/5PGpHwqt2EEEOUs1XwzubE/ucr0dWDQ+to3zqi4Ds7EWpwtQ79wXc4JBoxqj/OwpawTsKWzJxHfSuBOq3DrWA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5125,6 +5213,7 @@ packages:
     resolution: {integrity: sha512-cX3beZDLWt7G2oJF+nhChiT+qtaihs+S2xi7ziGmVB+2pwPng6D0Ed0HmElQOgv2UsUmSJJLGwpBao/3TDx3VA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5133,6 +5222,7 @@ packages:
     resolution: {integrity: sha512-1uz2mGWHyptR7DgHHrlbdRAjXK7v7elGZ9lMja910/RP+ZYbX6xAmCiU9UZSX4hqmgtHMv6lr5l3kq1HIOpcag==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5141,6 +5231,7 @@ packages:
     resolution: {integrity: sha512-nLS8topojxyz7SRpKR2IODRpQ0XPZ+xaOXvT3+hqK/Uy8Lo5HFgkkIBiIrCu5tL5YqzTvgovGw55PwpahTAGig==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5149,6 +5240,7 @@ packages:
     resolution: {integrity: sha512-gs7DRKotr3l3q+jGPQBjH0ng1FjlEDm5ueQrkw5JtQvtLyEIcLASqAEaor56BhkKRzk+IcQzrcanBdb/bBQn8g==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5157,6 +5249,7 @@ packages:
     resolution: {integrity: sha512-791ET7W17NnScOZM7h4dX5hYspxE28htPFsb1awY/NRR8+PRNkS53e475rDdxXXDrP+kwnCcNWg9CX5ztn/Aqw==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5165,6 +5258,7 @@ packages:
     resolution: {integrity: sha512-iwZQRcmj7g88g3tzefIrQY7qvmuA/cfYwhrDtTBhsmukO4U2huVO5W+86XacUMRvdSFVAc6kZUZy21JaRwiB9w==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5289,6 +5383,7 @@ packages:
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5298,6 +5393,7 @@ packages:
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5307,6 +5403,7 @@ packages:
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -5316,6 +5413,7 @@ packages:
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -5469,6 +5567,7 @@ packages:
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optional: true
 
@@ -5477,6 +5576,7 @@ packages:
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optional: true
 
@@ -5485,6 +5585,7 @@ packages:
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optional: true
 
@@ -5493,6 +5594,7 @@ packages:
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optional: true
 
@@ -6032,6 +6134,16 @@ packages:
       '@langchain/core': 0.3.72
     dev: true
 
+  /@xpert-ai/chatkit-types@0.20.1(@a2ui/lit@0.8.3)(@langchain/core@0.3.72):
+    resolution: {integrity: sha512-JdK7kNoH8U5cHYAOBDOboYcUUpU9blQt33hlx6tLUcXBLsL+6BNqQzWhD337YhvdU+cCuYPiYUhAx38HLDURuA==}
+    peerDependencies:
+      '@a2ui/lit': ^0.8.1
+      '@langchain/core': ^1.0.2
+    dependencies:
+      '@a2ui/lit': 0.8.3(signal-polyfill@0.2.2)
+      '@langchain/core': 0.3.72
+    dev: true
+
   /@xpert-ai/chatkit-types@0.4.7(@a2ui/lit@0.8.3)(@langchain/core@0.3.72):
     resolution: {integrity: sha512-qVH0LCKW+WKBgDkgDKddto201YOUQy0xnYEtgG2oQ3Fdq7mIxJV8HAXKqH2TOB6nLNptcuMF+pGa2g4zFmrRdA==}
     peerDependencies:
@@ -6116,6 +6228,21 @@ packages:
       '@octokit/types': 13.10.0
       '@types/json-schema': 7.0.15
       '@xpert-ai/chatkit-types': 0.17.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)
+      zod: 3.25.67
+      zod-to-json-schema: 3.25.2(zod@3.25.67)
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - '@langchain/core'
+    dev: true
+
+  /@xpert-ai/contracts@3.31.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67):
+    resolution: {integrity: sha512-zvrvzewV47SXvhtFn6NjDjwo3jxZCALr+QAqOdI+R8821ako+vmuKny9JLq1wFQFksc99fbwIjzyRonlUQB/nA==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@octokit/types': 13.10.0
+      '@types/json-schema': 7.0.15
+      '@xpert-ai/chatkit-types': 0.20.1(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)
       zod: 3.25.67
       zod-to-json-schema: 3.25.2(zod@3.25.67)
     transitivePeerDependencies:
@@ -6314,6 +6441,48 @@ packages:
       '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/contracts': 3.26.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      ajv: 8.20.0
+      express: 4.22.3
+      i18next: 25.6.0(typescript@5.9.2)
+      i18next-fs-backend: 2.6.8
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.18.1
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
+      yaml: 2.9.0
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - supports-color
+      - ws
+    dev: true
+
+  /@xpert-ai/plugin-sdk@3.31.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+    resolution: {integrity: sha512-fHWf4jU9KBML6GNeBN1mkujmMbqbcqkGDGyBIqiNlvcUHY+EGhU5ttNI17wSeHLJUPyYQNQzsMlM0IT4neJMGg==}
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@langchain/core': 0.3.72
+      '@langchain/openai': 0.6.9(@langchain/core@0.3.72)
+      '@nestjs/common': 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': 3.31.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       ajv: 8.20.0
       express: 4.22.3
       i18next: 25.6.0(typescript@5.9.2)
@@ -8071,7 +8240,7 @@ packages:
 
   /glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Glob versions prior to v9 are no longer supported
     dependencies:
       fs.realpath: 1.0.0
       inflight: 1.0.6
@@ -9263,6 +9432,7 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optional: true
 
@@ -9271,6 +9441,7 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optional: true
 
@@ -9279,6 +9450,7 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     optional: true
 
@@ -9287,6 +9459,7 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     optional: true
 
