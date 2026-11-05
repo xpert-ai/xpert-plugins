@@ -4,6 +4,7 @@ import { analyticsSourceRefSchema, analyticsBindingObjectSchema, analyticsBindin
 import { dashboardSchema } from './dashboard.schema'
 import { jsonEncodedSchema, workspaceRelativeFilePathSchema } from '@xpert-ai/plugin-sdk'
 import { libraryRequestsSchema } from './document-libraries'
+import { parseJsonInput } from './json-input'
 
 // LLM tool schemas cannot reliably express recursive JSON unions. Only this model boundary uses JSON text.
 const objectJson = z.string().min(2).max(64000).describe('A JSON object encoded as text. Use the exact provider-owned contract from discovery. No Markdown fences.')
@@ -27,7 +28,7 @@ export const createToolSchema = dashboardSchema.innerType().omit({ schema: true,
   tables: jsonEncodedSchema(dashboardSchema.innerType().shape.tables),
   sourceMetadata: jsonEncodedSchema(dashboardSchema.innerType().shape.sourceMetadata.unwrap()).optional(),
   components: jsonEncodedSchema(dashboardSchema.innerType().shape.components.unwrap()).optional(),
-  previewIds: jsonEncodedSchema(z.array(z.string().min(1)).min(1).max(8).describe('Exact previewId receipts from successful dashboard_preview calls. Do not repeat bindings.'))
+  previewIds: jsonEncodedSchema(z.array(z.string().min(1)).min(1).max(8).describe('Exact current-run previewId receipts from successful dashboard_preview or dashboard_preview_binding calls. For updates, changed bindings upsert by stable binding.id; omitted bindings remain. Keep every intended changed/new binding receipt when retrying a failed save. Do not repeat bindings.'))
 }).strict()
 export const htmlPathSchema = workspaceRelativeFilePathSchema.refine(path => {
   const name = path.split('/').at(-1) ?? ''
@@ -36,12 +37,14 @@ export const htmlPathSchema = workspaceRelativeFilePathSchema.refine(path => {
   .describe('Workspace-relative HTML file created or edited with SandboxFile, for example dashboards/sales.html. Copy the complete htmlPath from dashboard_open when editing.')
 export const createHtmlToolSchema = createToolSchema.omit({ charts: true, tables: true }).extend({ path: htmlPathSchema,
   libraries: libraryRequestsSchema.optional().describe('Bundled IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use echarts or three for charts. Optional: add exactly one visual theme (trend-workspace, profit-atlas, customer-brief) with echarts. Preserve the saved theme unless a change is requested.') }).strict()
-export function parseObjectJson(text: string) {
-  try { return analyticsOptionsSchema.parse(JSON.parse(text)) } catch { throw new Error('DASHBOARD_INVALID_JSON: supply a JSON object encoded as text, matching the returned provider contract') }
+export function parseObjectJson(text: string, field: 'requestJson' | 'binding.payloadJson' = 'requestJson') {
+  const parsed = analyticsOptionsSchema.safeParse(parseJsonInput(text, field))
+  if (!parsed.success) throw new Error(`DASHBOARD_INVALID_JSON: ${field} is valid JSON but must be an object matching the returned provider contract; arrays, null and scalar values are not accepted.`)
+  return parsed.data
 }
 export function fromAgentBinding(input: z.infer<typeof agentBindingSchema>, contract: AnalyticsDiscoveryResult['queryContract']) {
   const { payloadJson, ...binding } = input
   return analyticsBindingSchema.parse({ ...binding, id: input.output.datasetId,
     operation: contract.operation, contractVersion: contract.contractVersion,
-    parameters: input.parameters.map(parameter => ({ ...parameter, controlId: parameter.name })), payload: parseObjectJson(payloadJson) })
+    parameters: input.parameters.map(parameter => ({ ...parameter, controlId: parameter.name })), payload: parseObjectJson(payloadJson, 'binding.payloadJson') })
 }

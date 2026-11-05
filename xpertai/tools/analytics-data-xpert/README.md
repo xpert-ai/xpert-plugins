@@ -18,6 +18,22 @@ Run `corepack pnpm exec nx run @xpert-ai/plugin-analytics-data-xpert:test` with 
 
 Discovery preserves each adapter's `definition` (identity, version, native metadata and instructions) and each Action's input schema. Semantic Model, OData and future registered read-only adapters share this transport without sharing query syntax.
 
+Before constructing a dashboard binding, call `dashboard_discover` with the selected source/provider and `requestJson` encoding:
+
+```json
+{"kind":"query-schema","payload":{"resourceId":"<discovered-resource>","actionTypeCode":"<discovered-read-action>","target":{"entityRef":"<canonical-target>"},"params":{},"parameterPaths":{}},"parameters":{}}
+```
+
+Omit `datasetId` to let the provider generate a valid local output key from the native payload, including its projection. An optional `datasetId` accepts a nonempty string of up to 512 characters: valid output keys (a letter followed by up to 79 letters, digits, `_`, `.` or `-`) are preserved; native references or other aliases are replaced with a generated key. Native resource IDs and targets are unchanged. Copy the returned `output.datasetId` as well as its fields.
+
+Use the Action's actual bounded query arguments in `params`. This plugin-owned discovery request executes the same authorized `/agent-workbench/analytics/query` path as preview, with the current actor, host row limit and cancellation signal. It does not require a new DataXpert discovery endpoint. Copy `items[0].metadata.output` into the preview binding and use the same native payload and parameter values. The response includes no business rows and is not a preview receipt; a successful `dashboard_preview` is still required before saving.
+
+Output fields retain exact native keys and declared types, roles and nullability, including empty results. Decimal/int64 cells remain exact strings. Stable field IDs are derived from native keys; duplicate semantic selectors use exact keys instead. Grain is left empty until query semantics establish uniqueness. Missing declarations fail with `DATAX_RESULT_SCHEMA_UNAVAILABLE`; duplicate native keys fail with `DATAX_RESULT_SCHEMA_AMBIGUOUS`. Legacy authored bindings can still execute without these optional declarations. Rediscover after changing the projection; existing incorrect saved bindings must be corrected and previewed before saving.
+
+Release compatibility: this path uses existing exports from the published SDK/contracts 3.26.1 and does not require a new host capability. The companion SDK change only adds optional column metadata to its TypeScript contract. Merge and publish this plugin's Changeset, then update the installed plugin; merging source alone does not update an existing deployment. Schema authoring requires DataXpert to supply declared column metadata (including the decimal fix in data-xpert PR #108). SAP query errors, authentication, and model-generated malformed tool calls remain separate acceptance checks.
+
+After building this plugin and Live Dashboard, run `node plugin-dev-harness/verify-datax-dashboard-schema.mjs` from the repository root. It invokes the real discovery and preview tools, provider and HTTP parser with published SDKs. Its local HTTP source and host-service fixtures do not establish customer SSO, SAP or browser acceptance.
+
 See [architecture and Binding usage](docs/index.mdx) and [compatibility and verification](docs/verification.mdx).
 # Public query diagnostics
 
