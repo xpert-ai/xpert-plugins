@@ -30,7 +30,7 @@ const plugin: XpertPlugin<z.infer<typeof CustomerComplaintPluginConfigSchema>> =
   meta: {
     name: packageJson.name || COMPLAINT_PLUGIN_NAME,
     version: packageJson.version,
-    level: 'organization',
+    level: 'tenant',
     artifactNamespace: PLUGIN_ARTIFACT_NAMESPACE,
     category: 'middleware',
     targetApps: ['data-xpert'],

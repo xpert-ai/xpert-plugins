@@ -56,16 +56,17 @@ corepack pnpm --filter @xpert-ai/plugin-customer-complaint-intake test
 corepack pnpm --filter @xpert-ai/plugin-customer-complaint-intake build
 ```
 
-插件声明为 `organization`。在平台仓库根目录安装到测试组织：
+插件声明为 `tenant`。在平台仓库根目录安装到测试租户：
 
 ```bash
 corepack pnpm plugin:deploy:local \
   --plugin-dir <plugin-repo>/community/apps/customer-complaint-intake \
-  --scope <organization-id> \
-  --api-url <api-origin>
+  --scope tenant \
+  --tenant-id <tenant-id> \
+  --api-url http://localhost:3000
 ```
 
-安装后如果平台要求重启，重启后再创建助手。使用模板「客服投诉受理助手」，绑定 `CustomerComplaintMiddleware` 和投诉受理台。模板里的模型名需要改成测试环境已经配置的模型。
+安装成功后需要重启 API，再确认插件已加载。然后使用模板「客服投诉受理助手」创建并发布助手。模板会带上 `CustomerComplaintMiddleware`。模型在创建助手时选择测试环境里已经配置的模型。
 
 环境变量只控制调试开关，不要写入真实密钥：
 
@@ -91,8 +92,9 @@ CUSTOMER_COMPLAINT_DEBUG=false
 | 规则测试 | `pnpm --filter @xpert-ai/plugin-customer-complaint-intake test` | 6 项通过 | 6 项通过 |
 | 构建 | 同一包的 `build` | 服务端入口、界面脚本、助手模板进入 `dist` | 已生成 `dist/index.js`、`dist/lib/remote-components/customer-complaint/app.js`、`dist/xpert-customer-complaint-assistant.yaml` |
 | 实体命名 | `node community/scripts/check-entity-names.mjs` | 表名以 `plugin_` 开头 | 通过 |
-| 生命周期 | `plugin-dev-harness` | 能加载 | 尚未运行 |
-| 平台六步 | 安装、重启、模板、创建助手、绑定、真实调用并确认 | 受理台可演示 | 尚未在运行中的 Xpert 里完成 |
+| 生命周期 | `plugin-dev-harness` | 能加载 | 尚未运行。真实平台加载已通过 |
+| 平台流程 | 安装、重启、模板、创建助手、真实调用、失败重试、确认 | 同一条记录最终已确认 | 已完成。助手 `93859f17-ee60-48e8-ab8c-6f0be0cce215`，受理单 `CC-20261105-OHQM`，最终 1 条 `confirmed` |
+| 界面截图 | 受理台关键界面 | README 可直接显示 | 尚未从浏览器截取 |
 | 多账号隔离 | 两个组织交叉读取 | 不能读到对方数据 | 未演练。代码按当前租户和组织过滤 |
 
 ## 复用
@@ -105,7 +107,8 @@ CUSTOMER_COMPLAINT_DEBUG=false
 
 ## 已知限制
 
-- 还没有在启动后的 Xpert 开源版里完成真实模型调用和截图。
+- 受理台界面截图还没有放进 README。
 - 失败重试可以由界面上的「模拟模型失败」触发，也可以由助手在明确要求时设置 `simulateModelFailure`。
-- 只准备一个测试账号，没有做多组织对照演示。
-- 不发布 npm 包。
+- 只在一个租户和一个组织里验证过，没有做多账号对照。
+- `plugin-dev-harness` 还没跑。它不能代替上面的真实流程。
+- 不发布 npm 包。插件安装级别是 `tenant`，因为当前平台要求带数据表的插件使用 `system` 或 `tenant`。

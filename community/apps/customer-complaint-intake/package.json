@@ -13,7 +13,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "organization"
+      "level": "tenant",
+      "artifactNamespace": "customer_complaint"
     }
   },
   "main": "./index.cjs",
