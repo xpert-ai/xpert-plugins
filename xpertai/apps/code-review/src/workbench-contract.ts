@@ -17,6 +17,7 @@ export const workbenchEntrySchema = z.object({
   ref: reviewRefSchema,
   title: z.string(),
   source: z.enum(['automatic', 'manual', 'local_git']),
+  eventOnly: z.boolean().default(false),
   trigger: z.string(),
   status: z.string(),
   headSha: z.string(),

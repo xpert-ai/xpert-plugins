@@ -1,4 +1,5 @@
 {
+  "workbench.eventRecord": "事件记录",
   "setup.title": "GitHub 连接与事件自动化",
   "setup.intro": "PR 审查与 Workflow 诊断共用所选 GitHub 系统集成。密钥只在系统集成中维护，不经过插件视图。",
   "setup.events.title": "支持的事件",

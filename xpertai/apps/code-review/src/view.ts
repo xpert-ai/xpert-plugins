@@ -7,7 +7,7 @@ import { localGitImportSchema } from './local-git.js'
 import { Reviews, submitSchema } from './backend.js'
 import { Automation } from './automation.js'
 import { repositoryInput, savePolicySchema, runStatusSchema } from './automation-domain.js'
-import { FEATURE, PROVIDER, PLUGIN, VIEW, idSchema, ReviewError } from './domain.js'
+import { FEATURE, PROVIDER, PLUGIN, VIEW, idSchema, ReviewError, type Scope } from './domain.js'
 import { viewScope as scope } from './runtime-scope.js'
 import { AIPermissionsEnum, ASSISTANT_CONTEXT_SET_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
 import type { Review } from './entity.js'
@@ -29,6 +29,11 @@ const logger = new Logger('CodeReviewView')
 export class ReviewView implements IXpertViewExtensionProvider {
   constructor(private readonly reviews: Reviews, private readonly automation: Automation, private readonly pipelines: ReviewPipelineService, private readonly workbench: ReviewWorkbench,
     private readonly workflows: WorkflowDiagnostics) {}
+  private async detail(s: Scope, record: Review) {
+    const dto = reviewDto(record)
+    const report = await this.pipelines.finalReport(s, record)
+    return report ? { ...dto, status: 'reviewed' as const, summary: report.summary, findings: report.findings } : dto
+  }
   supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' }
   getViewManifests(_c: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!['agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
@@ -56,7 +61,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
     if (q.parameters?.workbench) return this.workbench.page(s, workbenchQuerySchema.parse({ ...q.parameters, page }))
     if (q.parameters?.githubConnection) return { items: [], meta: { connection: await this.automation.repositories.app.connection(s) } }
     if (q.parameters?.automation) return { items: [], meta: await this.automation.overview(s, page, q.parameters.status ? runStatusSchema.parse(q.parameters.status) : undefined) }
-    if (q.selectionId) return { items: [], meta: { detail: reviewDto(await this.reviews.reconcile(s, idSchema.parse(q.selectionId))) } }
+    if (q.selectionId) return { items: [], meta: { detail: await this.detail(s, await this.reviews.reconcile(s, idSchema.parse(q.selectionId))) } }
     if (q.parameters?.inbox) return (await this.reviews.github(s, 'connected')).inbox(z.enum(['requested', 'authored']).parse(q.parameters.inbox), page)
     return this.reviews.list(s, page)
   }
@@ -125,7 +130,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
         case 'submit': result = await this.reviews.submit(s, submitSchema.parse(request.input)); break
         default: throw new ReviewError('unknown_action')
       }
-      return { success: true, data: reviewDto(result), refresh: true }
+      return { success: true, data: await this.detail(s, result), refresh: true }
     } catch (error) {
       if (!(error instanceof ReviewError) && !(error instanceof z.ZodError)) logger.error(error instanceof Error ? error.name : 'Unknown error')
       return { success: false, refresh: false, data: { code: error instanceof ReviewError ? error.code : error instanceof z.ZodError ? 'invalid_input' : 'operation_failed' } }

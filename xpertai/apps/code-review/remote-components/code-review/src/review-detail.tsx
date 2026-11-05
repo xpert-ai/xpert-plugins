@@ -49,7 +49,7 @@ import { workbenchPageSchema, type WorkbenchEntry } from '../../../src/workbench
 import { i18n, errorMessage } from './i18n'
 import { ReviewChanges } from './review-changes'
 import { PipelineStart } from './pipeline-start'
-import { eventI18n } from './event-i18n'
+import { eventI18n, eventMessage } from './event-i18n'
 import { openPipeline } from './repository-pipeline'
 import { sourceLabel, statusLabel, statusTone } from './workbench-model'
 const reviewSchema = z.object({
@@ -97,7 +97,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
   const epoch = useRef(0),
     request = useRef(0)
   const { t, locale, formatDate } = i18n(host?.locale)
-  const message = (code: string) => errorMessage(code, locale)
+  const message = (code: string) => eventMessage(code) ?? errorMessage(code, locale)
   useEffect(
     () => () => {
       epoch.current++
@@ -141,7 +141,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
   }
   useEffect(() => {
     void loadDetail()
-  }, [entry.reviewId, refresh, host?.scopeRevision])
+  }, [entry.reviewId, entry.roundId, entry.status, refresh, host?.scopeRevision])
   useEffect(() => {
     if (tab !== 'history') return
     let active = true
@@ -206,6 +206,10 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
     review && (!!review.pipelineProjectId || ['running', 'submitting', 'submission_unknown'].includes(review.status))
   const file = review?.snapshot.files.find((f) => f.filename === path)
   const projectId = entry.projectId ?? review?.pipelineProjectId
+  const submissionUrl = entry.publicationUrl ?? review?.submissionUrl
+  const endedWithoutReport = !review?.summary && entry.reason && ['cancelled', 'skipped', 'failed', 'superseded'].includes(entry.status)
+    ? message(entry.reason)
+    : null
   const pipeline = () =>
     projectId ? perform(() => openPipeline(projectId, entry.instanceId, entry.roundId)) : Promise.resolve()
   const pendingApproval = entry.status === 'awaiting_confirmation'
@@ -378,6 +382,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {sourceLabel(item, locale)} · {formatDate(item.createdAt)}
+                  {item.eventOnly && item.reason && <> · {eventI18n.t('workbench.eventRecord')} · {message(item.reason)}</>}
                 </p>
                 {entry.id === item.id && <p className="mt-2 text-xs text-primary">{t('selectedRun')}</p>}
               </button>
@@ -455,7 +460,7 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
                 <section>
                   <h3 className="mb-2 text-sm font-medium">{t('reviewSummary')}</h3>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                    {review.summary || t('startAReviewToGenerateADraftWith')}
+                    {review.summary || endedWithoutReport || t(review.pipelineProjectId ? 'reviewManagedByPipeline' : 'startAReviewToGenerateADraftWith')}
                   </p>
                 </section>
                 <section>
@@ -464,8 +469,8 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
                     {review.snapshot.body || t('noDescription')}
                   </p>
                 </section>
-                {review.submissionUrl && (
-                  <a className="text-sm underline" href={review.submissionUrl} target="_blank" rel="noreferrer">
+                {submissionUrl && (
+                  <a className="text-sm underline" href={submissionUrl} target="_blank" rel="noreferrer">
                     {t('viewSubmittedReview')}
                   </a>
                 )}
@@ -488,9 +493,9 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
               <div className="space-y-3 p-5">
                 {review.findings.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    {review.status === 'reviewed'
+                    {endedWithoutReport ?? (review.status === 'reviewed'
                       ? t('noSupportedBugsWereFoundInTheReviewed')
-                      : t('findingsWillAppearAfterTheReview')}
+                      : t('findingsWillAppearAfterTheReview'))}
                   </p>
                 )}
                 {review.findings.map((f, i) => (

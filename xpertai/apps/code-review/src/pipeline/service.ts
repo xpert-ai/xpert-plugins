@@ -5,7 +5,8 @@ import { z } from 'zod/v3'
 import { ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, ProjectPipelinesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry, type ProjectPipelineContext, type ProjectPipelineOperationContext, type ProjectPipelineAssistantContext } from '@xpert-ai/plugin-sdk'
 import type { ProjectPipelineEvidenceRef, ProjectPipelineJsonValue, ProjectPipelineSubjectVersion } from '@xpert-ai/contracts'
-import { ReviewPipelineCatalog, reviewTemplateRefs } from './catalog.js'
+import { projectContext, ReviewPipelineCatalog, reviewTemplateRefs } from './catalog.js'
+import { ReviewRun } from '../automation-entities.js'
 import { Review } from '../entity.js'
 import { Reviews } from '../backend.js'
 import { ReviewError, scopeSchema, reviewLabel, PROVIDER, VIEW, type Scope } from '../domain.js'
@@ -132,13 +133,56 @@ export class ReviewPipelineService {
     if (saved.digest !== hash || saved.schemaRef !== schemaRef) throw new ReviewError('pipeline_evidence_immutable')
     return { resolverRef: refs.evidence, objectKey: id, version: hash, digest: hash, schemaRef, producerOperationId: context.work.operationId }
   }
-  async read(context: ProjectPipelineContext, ref: ProjectPipelineEvidenceRef): Promise<ProjectPipelineJsonValue> {
+  async read(context: ProjectPipelineContext, ref: ProjectPipelineEvidenceRef, bindingId?: string): Promise<ProjectPipelineJsonValue> {
     await this.capabilities.require(ProjectAccessRuntimeCapability).assertEdit(context)
-    const row = await this.evidence.findOneBy({ tenantId: context.actor.tenantId, organizationId: context.actor.organizationId ?? '', projectId: context.projectId, id: z.string().uuid().parse(ref.objectKey) })
+    const row = await this.evidence.findOneBy({ tenantId: context.actor.tenantId, organizationId: context.actor.organizationId ?? '', projectId: context.projectId, id: z.string().uuid().parse(ref.objectKey),
+      ...(bindingId ? { reviewId: bindingId } : {}) })
     if (!row || ref.resolverRef !== refs.evidence || ref.digest !== row.digest || ref.version !== row.digest ||
       ref.schemaRef !== row.schemaRef || ref.producerOperationId !== row.operationId) throw new ReviewError('pipeline_evidence_unavailable')
     await this.root(context, row.reviewId)
     return row.content
+  }
+  /** Read the accepted final report for the selected root, including rounds published before this projection existed. */
+  async finalReport(s: Scope, record: Review) {
+    if (record.ref.provider !== 'github' || !record.pipelineProjectId || record.pipelineOperationId) return null
+    const projectId = record.pipelineProjectId
+    const bindingId = record.pipelineRootReviewId ?? record.id
+    let instanceId: string | null
+    let roundId: string | undefined
+    if (record.automationRunId) {
+      const run = await this.records.manager.findOneBy(ReviewRun, {
+        id: record.automationRunId, reviewId: record.id, tenantId: s.tenantId, organizationId: s.organizationId,
+        assistantId: record.assistantId, headSha: record.snapshot.headSha
+      })
+      if (!run?.pipelineRoundId || run.settings.pipeline?.projectId !== projectId) return null
+      instanceId = run.pipelineInstanceId
+      roundId = run.pipelineRoundId
+    } else {
+      const binding = await this.bindings.findOneBy({ id: bindingId, tenantId: s.tenantId, organizationId: s.organizationId, projectId })
+      if (!binding || (binding.currentReviewId ?? binding.id) !== record.id) return null
+      instanceId = binding.instanceId
+    }
+    if (!instanceId) return null
+    const context = projectContext(s, projectId)
+    const graph = await this.capabilities.require(ProjectPipelinesRuntimeCapability).graph(context, instanceId, { roundId })
+    if (graph.projectId !== projectId || graph.instance.id !== instanceId || (roundId && graph.roundId !== roundId))
+      throw new ReviewError('pipeline_evidence_unavailable')
+    if (graph.definition.executionAuthority !== 'platform') return null
+    if (!roundId) {
+      // A manual binding can point at a new root before its new round has started.
+      const snapshotRef = graph.nodes.flatMap(node => node.projection.evidence).find(ref => ref.schemaRef === refs.snapshot)
+      if (!snapshotRef || pipelineSnapshotSchema.parse(await this.read(context, snapshotRef, bindingId)).reviewId !== record.id) return null
+    }
+    const finalNode = graph.definition.nodes.find(node => node.kind === 'work' && (node.operationRef === refs.verify || node.operationRef === refs.review))
+    const node = graph.nodes.find(node => node.projection.nodeKey === finalNode?.key && node.projection.state.lifecycle === 'completed')
+    const ref = node?.projection.evidence.find(ref => ref.schemaRef === refs.findings)
+    if (!ref) return null
+    const report = pipelineFindingsSchema.parse(await this.read(context, ref, bindingId))
+    const pass = finalNode?.kind === 'work' && finalNode.operationRef === refs.verify ? 'verify' : 'review'
+    if (report.headSha !== record.snapshot.headSha || report.inputDigest !== graph.round.inputDigest ||
+        report.reviewId !== ref.producerOperationId || report.pass !== pass)
+      throw new ReviewError('pipeline_evidence_unavailable')
+    return report
   }
   async input(context: ProjectPipelineOperationContext, port: string) {
     const input = context.inputs[port]
