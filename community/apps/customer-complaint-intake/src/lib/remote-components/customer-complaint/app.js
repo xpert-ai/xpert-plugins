@@ -177,7 +177,7 @@
                 h('button', { disabled: busy, onClick: () => run('update_case', Object.assign({ caseId: selectedId, rawText }, selected)) }, '保存修改'),
                 h('button', { disabled: busy, onClick: () => run('confirm_intake', Object.assign({ caseId: selectedId, rawText }, selected)) }, '确认受理'),
                 h('button', { disabled: busy, onClick: () => run('return_for_supplement', { caseId: selectedId, reason: '请补充订单号或联系方式后再受理' }) }, '退回补充')))
-    )
+    ))
   }
 
   function field(label, key, selected, setForm, options) {

@@ -29,7 +29,7 @@ export class CustomerComplaintService {
     record.rawText = text
     record.status = 'draft'
     record.validationErrors = []
-    record.failureReason = undefined
+    record.failureReason = null
     const saved = await this.caseRepository.save(record)
     await this.appendLog(saved, scope, 'draft_saved', '已保存客户原话，等待助手生成草稿')
     return this.toSummary(saved, '已保存客户原话')
@@ -66,7 +66,7 @@ export class CustomerComplaintService {
       record.orderNo = normalizeText(input.orderNo)
       record.contact = normalizeText(input.contact)
       record.validationErrors = evaluation.validationErrors
-      record.failureReason = evaluation.failureReason
+      record.failureReason = evaluation.failureReason ?? null
       record.confirmedCount = record.confirmedCount ?? 0
       const savedRecord = await cases.save(record)
       await logs.save(
@@ -140,7 +140,7 @@ export class CustomerComplaintService {
     record.confirmedCount = 1
     record.confirmedAt = new Date()
     record.confirmedById = scope.userId
-    record.failureReason = undefined
+    record.failureReason = null
     const saved = await this.caseRepository.save(record)
     await this.appendLog(saved, scope, 'confirmed', '客服确认受理')
     return this.toDetail(saved)
