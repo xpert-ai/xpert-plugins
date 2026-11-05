@@ -1,0 +1,111 @@
+# 客服投诉受理
+
+一线客服把一段客户原话收成一张可复核的受理记录。助手只生成草稿，确认受理和退回补充由客服在受理台完成。
+
+## 用户和原来的做法
+
+用户是一线客服专员。投诉原来散落在聊天和邮件里，分类、紧急度、客户诉求和回复口径靠人临时判断，交接时容易丢，升级也没有统一标准。
+
+这个插件把流程收成一条记录：
+
+1. 客服粘贴客户原话。
+2. 助手提取问题类型、紧急度、诉求、缺失信息、建议回复，以及是否建议升级。
+3. 客服可以改字段。
+4. 信息足够时确认受理；关键信息缺失时退回补充。
+5. 刷新后原话、草稿和结论仍在。
+6. 模型失败时同一条记录变为失败，重试不会再产生一张已确认记录。
+
+助手不能承诺退款，也不能关闭投诉。
+
+## 页面原型
+
+受理台分成左右两栏。
+
+- 左侧是受理单列表。没有记录时提示先粘贴客户原话，并提供三条样例。
+- 右侧上方是客户原话和两个动作：交给助手生成草稿、模拟模型失败。
+- 右侧下方是可编辑草稿：问题类型、紧急度、订单号、联系方式、客户诉求、建议回复、是否升级。
+- 底部动作是保存修改、确认受理、退回补充。
+- 原文过短、缺少字段或模型失败时，在右侧用红色文字说明原因。
+
+## 功能取舍
+
+做了：一段文字输入、一次真实模型调用所需的工具和助手模板、草稿编辑、确认或退回、保存与恢复、失败重试、租户和组织范围过滤。
+
+没有做：多渠道接入、真实工单系统、退款、客户门户、知识库、多级审批、文件上传、多账号隔离演练。
+
+## 智能体工具
+
+- `complaint_save_intake_draft`：按 `caseId` 更新同一条草稿。
+- `complaint_get_case`：读取一条受理单。
+- `complaint_search_cases`：按状态或关键词查询当前组织内的受理单。
+
+确认和退回只在 Workbench 动作里：`confirm_intake`、`return_for_supplement`。
+
+## 运行
+
+基线：
+
+- 平台 `xpert-ai/xpert` `main`：`3f387ffbb059c37e0aaf8bbd22b7222fda476fbc`
+- 插件 `xpert-ai/xpert-plugins` `main`：`8996a1a4c996354d8d92cae4ea4be034c87c57d3`
+
+在 `community/` 目录：
+
+```bash
+corepack pnpm install
+corepack pnpm --filter @xpert-ai/plugin-customer-complaint-intake test
+corepack pnpm --filter @xpert-ai/plugin-customer-complaint-intake build
+```
+
+插件声明为 `organization`。在平台仓库根目录安装到测试组织：
+
+```bash
+corepack pnpm plugin:deploy:local \
+  --plugin-dir <plugin-repo>/community/apps/customer-complaint-intake \
+  --scope <organization-id> \
+  --api-url <api-origin>
+```
+
+安装后如果平台要求重启，重启后再创建助手。使用模板「客服投诉受理助手」，绑定 `CustomerComplaintMiddleware` 和投诉受理台。模板里的模型名需要改成测试环境已经配置的模型。
+
+环境变量只控制调试开关，不要写入真实密钥：
+
+```bash
+CUSTOMER_COMPLAINT_DEBUG=false
+```
+
+模型凭证放在 Xpert 平台的模型配置里。
+
+## 演示脚本
+
+1. 打开投诉受理台，确认空列表有提示。
+2. 填入物流延误样例，交给助手生成草稿，在对话里看到真实模型调用，回到受理台确认。
+3. 刷新页面，原记录和确认结论还在。
+4. 填入「你们太差了」，界面提示原话过短。
+5. 对一条未确认记录点击「模拟模型失败」，状态变为处理失败；再次生成草稿后仍是同一条，已确认次数不变。
+6. 填入提到多次投诉和监管部门的样例，草稿标出建议升级，由客服决定是否确认。
+
+## 验证记录
+
+| 检查 | 操作 | 预期 | 实际 |
+| --- | --- | --- | --- |
+| 规则测试 | `pnpm --filter @xpert-ai/plugin-customer-complaint-intake test` | 6 项通过 | 6 项通过 |
+| 构建 | 同一包的 `build` | 服务端入口、界面脚本、助手模板进入 `dist` | 已生成 `dist/index.js`、`dist/lib/remote-components/customer-complaint/app.js`、`dist/xpert-customer-complaint-assistant.yaml` |
+| 实体命名 | `node community/scripts/check-entity-names.mjs` | 表名以 `plugin_` 开头 | 通过 |
+| 生命周期 | `plugin-dev-harness` | 能加载 | 尚未运行 |
+| 平台六步 | 安装、重启、模板、创建助手、绑定、真实调用并确认 | 受理台可演示 | 尚未在运行中的 Xpert 里完成 |
+| 多账号隔离 | 两个组织交叉读取 | 不能读到对方数据 | 未演练。代码按当前租户和组织过滤 |
+
+## 复用
+
+仓库许可证是 AGPL-3.0，本插件沿用该许可证。工程结构参考同仓库 `community/apps/smart-maintenance`：插件入口、Nest 模块、中间件工具、Workbench 远程界面、Assistant YAML。业务规则、受理单模型和界面文案是这次新写的，没有复制维保领域数据。
+
+## AI 协作
+
+开发使用 Cursor 里的 Grok 4.7。先把面试说明收成一个小闭环，再对照维保示例确定工具和界面边界。助手只起草、人来确认，是在看到示例把处理动作留在界面后保留的取舍。拉取仓库时直连 GitHub 中断，随后按本机 `proxy_on` 走本地代理完成克隆。
+
+## 已知限制
+
+- 还没有在启动后的 Xpert 开源版里完成真实模型调用和截图。
+- 失败重试可以由界面上的「模拟模型失败」触发，也可以由助手在明确要求时设置 `simulateModelFailure`。
+- 只准备一个测试账号，没有做多组织对照演示。
+- 不发布 npm 包。
