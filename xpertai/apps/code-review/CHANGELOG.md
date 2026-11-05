@@ -1,5 +1,28 @@
 # @xpert-ai/plugin-code-review
 
+## 0.5.0
+
+### Minor Changes
+
+- 5fbd73d: Add a composable Code review Assistant capability with private pull request reviews and server-side GitHub event automation. Repository rules can use the current Assistant or retain the existing Project pipeline mode.
+
+  Diagnose failed or timed-out workflow runs with bounded job logs, evidence-backed findings and private results in the Code Review workbench. Add scoped event subscriptions, duplicate-delivery protection, task recovery and pause/revocation checks. Give Code Review tools a shared icon, including historical tool calls.
+
+  Requires the companion platform/SDK release providing trusted trigger scope, supplementary run instructions and Assistant trigger status. Release that platform/SDK first and update this plugin's SDK dependency and lockfile before publishing. When schema synchronization is externally managed, apply `migrations/20261102-assistant-events.sql` after the existing migrations. Existing repository rules retain Project pipeline mode; existing Assistants are not automatically subscribed to GitHub events.
+
+### Patch Changes
+
+- 0db16d3: Diagnose GitHub job timeouts reported as cancelled only when run-bound timeout evidence confirms the cause. Preserve ordinary cancellation skips, require Checks read access for timeout evidence, and retry unavailable evidence without consuming Assistant quota.
+- 5fa073f: Update the GitHub setup guide with supported PR and Workflow triggers, execution modes, authorization and webhook requirements, configuration status limits, and separate event acceptance steps in English and Chinese.
+- ac0d5aa: Show the actual review for the latest PR commit when a later lifecycle event is skipped. Display the selected pipeline round's final summary, findings and GitHub review link in the workbench.
+
+  Keep authorized snapshots visible when a pipeline report cannot be read, and acknowledge saved pins and viewed files independently of the report refresh.
+
+  Require Xpert SDK and contracts 3.31.0 or a compatible later 3.x version for Assistant execution and middleware support.
+
+- cddc09d: Align the sidebar toggle with the navigation icons and restore scrolling in Workflow diagnosis lists and expanded results. Keep the new-review, local-import and repository confirmation dialogs scrollable in short workbench viewports.
+- 0db16d3: Allow PR Project pipelines and Assistant workflow failure/timeout diagnosis on the same repository. Preserve workflow settings when switching PR modes and retain Assistant-scoped diagnosis visibility and authorization.
+
 ## 0.4.0
 
 ### Minor Changes
