@@ -1,0 +1,10 @@
+interface:
+  display_name: "BPC 成本与费用模型"
+  short_description: "BPC 成本费用子技能：复用固定模型口径，绑定各环境数据源"
+  default_prompt: "使用 $bpc-cost-expense，对指定成本/费用语义模型校验合同并生成预算与实际查询。"
+runtime:
+  required_tools:
+    - kind: agent-middleware-tool
+      provider: skillsMiddleware
+      name: read_skill_file
+      required: true

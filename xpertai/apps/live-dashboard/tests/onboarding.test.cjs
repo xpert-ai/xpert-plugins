@@ -17,7 +17,16 @@ test('App links one project-required author template with runnable file and skil
   assert.deepEqual(app.knowledgebases, [])
   assert.equal(app.entry.type, 'assistant-chat')
   assert.deepEqual(author.dependencies.plugins, ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'])
-  assert.deepEqual(author.dependencies.skills, [{componentKey:'live-dashboard',targetAgentKey:'Agent_Dashboard'}])
+  assert.deepEqual(author.dependencies.skills, ['live-dashboard', 'bpc', 'bpc-cost-expense'].map(componentKey => ({
+    componentKey, targetAgentKey: 'Agent_Dashboard'
+  })))
+  const bundle = require('../.xpertai-plugin/plugin.json')
+  for (const { componentKey } of author.dependencies.skills) {
+    const skill = path.resolve(__dirname, '..', bundle.skills, componentKey)
+    assert.ok(fs.statSync(path.join(skill, 'SKILL.md')).isFile(), componentKey)
+    assert.ok(fs.statSync(path.join(skill, 'agents/xpertai.yaml')).isFile(), componentKey)
+  }
+  assert.deepEqual(dashboardTemplates.find(template => template.key === 'live-dashboard-monitor').dependencies.skills, [])
   const graph = JSON.parse(author.dslContent)
   assert.deepEqual(graph.team.options.workspaceScope, {mode:'project-required',projectType:DASHBOARD_PROJECT_TYPE})
   assert.equal(graph.team.features.sandbox.enabled, true)

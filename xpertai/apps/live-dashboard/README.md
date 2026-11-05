@@ -233,6 +233,12 @@ Draft autosave and human publication: [workflow and architecture](docs/drafts.md
 
 Agent 工作流程见随插件发布的 [live-dashboard 技能](skills/live-dashboard/SKILL.md) 和 [文件编辑说明](docs/file-authoring.mdx)。HTML 编辑需要平台 SandboxFile 与 skillsMiddleware。
 
+### BPC 模型技能
+
+插件同时发布 [bpc 父技能](skills/bpc/SKILL.md) 和 [bpc-cost-expense 子技能](skills/bpc-cost-expense/SKILL.md)，由默认看板助理模板显式声明依赖。BPC 父技能根据用户指定并确认的模型加载子技能；成本/费用子技能维护固定业务合同，运行时绑定提供各组织的模型实例、技术字段和成员映射。公共技能不包含客户名称、环境标识或真实金额。
+
+当前成本模型模板支持生产成本六类的单月预算/实际比较。其他费用、收入、投资、全年或 YTD 需要各自验证的合同，不能仅凭字段相似套用。已有数字专家需要启用相应技能和授权数据源；插件更新不自动改写专家配置或看板。新增模型时在同一插件中增加平级子技能、路由和模板依赖。见 [流程图与扩展步骤](skills/bpc/references/workflow.md)。
+
 ## Team sharing
 
 The Share action publishes a link to an already published dashboard: follow the latest formal version or pin one version. It never publishes a draft. Team members sign in and query as themselves; sharing the definition does not grant data-source, ontology or Workspace access. The creator can revoke the link. Workspace-script dashboards with private script/file dependencies are currently blocked with a diagnostic.

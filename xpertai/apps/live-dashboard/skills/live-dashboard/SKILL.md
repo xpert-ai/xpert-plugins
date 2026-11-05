@@ -29,6 +29,12 @@ When `dashboard_open` or `dashboard_history` returns `selection_required`, displ
 - For a rename plus visual change, update the HTML heading and pass the new `title` together with `htmlPath` in one `dashboard_update`. Use the returned revision for further saves. Do not make a second metadata-only save just to catch up with the heading.
 - Stop only with a successful draft receipt matching the intended file bytes and title. Never turn a tool error into a claim of success.
 
+## BPC model workflows
+
+For a user-selected BPC model, load the bundled `bpc` skill from the installed skill catalog with `read_skill_file`. It selects a compatible model child, currently `bpc-cost-expense`, and validates the current model binding before queries. Model rules belong to that child; this skill continues to own source discovery, Binding previews, HTML editing and draft saves. Do not classify a model from customer names or similar field names. For style-only changes, preserve the existing verified bindings. Missing child skills or model access are explicit setup gaps, not permission to substitute another dataset.
+
+The default author template declares all three skills. Existing or custom Assistants need the corresponding skill dependencies enabled; plugin packaging alone does not update their configuration.
+
 ## Prerequisites
 
 The Assistant needs LiveDashboard, SandboxFile and skillsMiddleware; Sandbox must be enabled. For Python/JavaScript data preparation it also needs WorkspaceScriptDataset and its `workspace-script-dataset` skill. If a required tool is absent, report that exact missing capability; do not invent an equivalent tool name.

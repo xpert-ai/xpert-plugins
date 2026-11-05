@@ -48,10 +48,12 @@ export const dashboardTemplates: XpertTemplateContribution[] = [false, true].map
   targetApps: ['xpert', 'data-xpert'], targetAppMeta: { xpert: { types: ['business-assistant'],
     capabilities: [monitor ? 'live_dashboard.monitor' : 'live_dashboard'], requiredPlugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'] } },
   dependencies: { plugins: monitor ? ['@xpert-ai/plugin-live-dashboard'] : ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'],
-    skills: monitor ? [] : [{ componentKey: 'live-dashboard', targetAgentKey: 'Agent_Dashboard' }] },
+    skills: monitor ? [] : ['live-dashboard', 'bpc', 'bpc-cost-expense'].map(componentKey => ({
+      componentKey, targetAgentKey: 'Agent_Dashboard'
+    })) },
   category: 'Analytics',
   promptWorkflows: monitor ? undefined : dashboardWorkspacePrompts,
   startPrompts: monitor ? [] : startPrompts,
-  releaseNotes: monitor ? undefined : 'Adds project-scoped onboarding, three small examples and the Data Xpert Superstore enterprise suite with three optional reusable visual styles (Trend Workspace, Profit Atlas and Customer Brief) and accessible select controls; existing dashboards are never overwritten by template updates.',
+  releaseNotes: monitor ? undefined : 'Bundles the BPC parent and cost/expense model skills with the author template. Compatible model instances reuse the same semantic rules through environment-specific mappings; existing dashboards and Assistant configurations are not rewritten.',
   dslContent: dsl(monitor), default: false, order: monitor ? 36 : 35
 }))
