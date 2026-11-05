@@ -1,0 +1,42 @@
+{
+  "name": "travel-itinerary",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/travel-itinerary/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/travel-itinerary",
+        "main": "apps/travel-itinerary/src/index.ts",
+        "tsConfig": "apps/travel-itinerary/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "apps/travel-itinerary/src/lib/remote",
+            "glob": "**/*",
+            "output": "remote"
+          },
+          {
+            "input": "apps/travel-itinerary/src",
+            "glob": "*.yaml",
+            "output": "."
+          }
+        ],
+        "project": "apps/travel-itinerary/package.json",
+        "compiler": "swc",
+        "format": ["cjs", "esm"],
+        "external": [
+          "@langchain/core",
+          "@nestjs/common",
+          "@nestjs/core",
+          "@nestjs/typeorm",
+          "@xpert-ai/contracts",
+          "@xpert-ai/plugin-sdk",
+          "typeorm",
+          "zod"
+        ]
+      }
+    }
+  }
+}
