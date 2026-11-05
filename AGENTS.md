@@ -1,40 +1,55 @@
-# General Guidelines for working with plugins workspace
+# Xpert 插件工作区智能体协作通用指南 (AGENTS.md)
 
-## Remote View UI
+本文档为在 `xpert-plugins` 仓库中进行插件开发、视图构建、集成验证和本地安装的通用智能体与开发者指引。
 
-- React remote views must compose interactive controls from `@xpert-ai/plugin-shadcn-ui` (Dialog, DialogFooter, Select, Checkbox, Tabs, Command, Button, Input, Textarea, and Table). Do not implement equivalents using native controls, browser confirm/prompt dialogs, or ad hoc ARIA widgets. Vue views should use the shared shadcn-vue package.
-- Preserve the shared shadcn component styles and variants. Host theme variables are the only customization mechanism for typography, density, colors, radius, borders, and shadows. Plugin CSS may arrange page layout, constrain content/viewport dimensions, and format authored document content; do not override component surfaces, title sizes, control heights, or interaction states.
-- Keep semantic HTML for layout and document content. Editor-engine-owned DOM and noninteractive download/NodeView mount elements are not replacement UI widgets. Any plugin-owned controls inside a NodeView must still use the shared UI primitives.
-- Select items need nonempty values; represent optional/root choices with an explicit UI sentinel and translate it at the control boundary. Preserve disabled/loading states, accessible labels, keyboard navigation, and dialog focus handling.
-- Remote View UI copy belongs in per-plugin `remote/locales/<locale>.json` catalogs, referenced by semantic keys. Use the shared `@xpert-ai/plugin-shadcn-ui/i18n` adapter, validated host `init.locale`, and `RemoteI18nProvider`; do not embed bilingual literals or language branches in JSX. Translate whole messages with named interpolation/plural forms, including accessibility labels and templates. Store keys in menu definitions and localized message state, and format dates/numbers with the view locale. A language-only init must not reset queries, drafts, or collaborative sessions. User-authored content and external source text remain unchanged.
+---
 
-- After developing or modifying any plugin, validate it by following `plugin-dev-harness/README.md` and run the plugin lifecycle test through `plugin-dev-harness` before considering the work complete.
+## 一、远程视图界面开发规范 (Remote View UI)
 
-- Keep native plugin runtime metadata aligned with the plugin's own `package.json`; prefer deriving `meta.version`, `meta.level`, and `meta.artifactNamespace` from `version`, `xpert.plugin.level`, and `xpert.plugin.artifactNamespace` to prevent release drift. Source-provenance analysis is an opt-in audit, not a pre-commit gate: valid runtime validators or factory calls may be outside the static checker's supported syntax. Do not rewrite valid plugin code solely to satisfy that checker. Run `node scripts/check-plugin-metadata.mjs --package <plugin-directory>` for one working-tree plugin, `--all` for declared native plugins, or `--staged` for the Git index. The checker supports JSON imports, `createRequire`, and `JSON.parse(readFileSync(...))`, including imported constants, without executing plugin code. Verify unresolved metadata through the built plugin's lifecycle test. `.githooks/pre-commit` enforces entity table names and staged dependency/lockfile consistency.
+1. **交互组件规范**：
+   - React 远程视图必须使用 `@xpert-ai/plugin-shadcn-ui` 提供的交互式基础组件（包括：对话框 Dialog、对话框底栏 DialogFooter、下拉选择 Select、复选框 Checkbox、选项卡 Tabs、命令输入 Command、按钮 Button、输入框 Input、文本域 Textarea 及表格 Table）。严禁使用浏览器原生弹窗（如 `alert`、`confirm`、`prompt`）或自建非标准组件进行替代。Vue 视图应使用共享的 `shadcn-vue` 依赖包。
+2. **样式与主题变量**：
+   - 严格继承共享的 shadcn 组件样式及变体。宿主平台注入的主题语义变量（如颜色、边距、圆角、边框与阴影）是唯一的自定义途径。插件样式仅可用于控制页面排版、限制视口尺寸或格式化文档内容，不得强行覆写组件表面底色、标题字号或交互焦点状态。
+3. **国际化与多语言**：
+   - 远程视图界面的文案必须维护在各插件独立的 `remote/locales/<locale>.json` 语言包中，通过语义化键名引用。结合 `@xpert-ai/plugin-shadcn-ui/i18n` 适配器与 `RemoteI18nProvider` 渲染，避免在 JSX 中硬编码双语字符串。单纯的语言切换不得重置用户的查询条件、草稿或协同会话。
+4. **生命周期校验要求**：
+   - 在开发或修改任何插件后，在视任务完成前，必须按照 `plugin-dev-harness/README.md` 的指引，通过生命周期测试工具 `plugin-dev-harness` 验证插件的加载、初始化与销毁流程。
+5. **插件元信息对齐**：
+   - 保持插件运行时的元数据与插件自身的 `package.json` 一致。优先从 `version`、`xpert.plugin.level` 和 `xpert.plugin.artifactNamespace` 中推导对应元数据，避免版本与发布漂移。提交代码前应通过 `node scripts/check-plugin-metadata.mjs` 检查元数据完整性。`.githooks/pre-commit` 会对实体表名命名规范及暂存依赖进行强制检查。
+6. **类型边界与判别字段**：
+   - 严禁通过显示文案、展示标题或偶发字段猜测业务类型。依赖机器识别的业务逻辑必须使用共享接口中明确定义的类型字段（如可判别联合类型）。若缺少必要的类型区分，应先在公共定义中补充，严禁在业务逻辑中硬编码启发式猜测。
 
-- Never guess types, categories, or payload meaning from names, display text, localized copy, sample data, or incidental field combinations. Logic that depends on machine-readable distinctions must use explicit typed fields defined in shared contracts, such as discriminated unions or a stable `type`.
-- If the required discriminator or type is missing, do not invent one locally and do not hard-code heuristic detection. Add the type to the shared contract first, or pause and confirm the new type before implementing downstream filtering, routing, rendering, or business logic.
+---
 
-## Calling Platform Capabilities from Plugins
+## 二、从插件中调用平台能力规范 (Platform Capabilities)
 
-- Decide whether to expose a Runtime Capability by its consumers: APIs consumed by external plugins use Capabilities; platform-only services and factories use NestJS constructor injection and explicit module `imports`/`exports`. Internal reuse or decoupling alone does not justify registering a Capability or exporting host-only helpers from the plugin SDK.
-- Default to not adding SDK `Capability` APIs. Introduce one only for a concrete external plugin requirement that existing public APIs or typed execution/View context cannot satisfy; identify the consumer and the missing operation. Reuse existing interfaces and context fields first. Do not add Capability APIs, factory interfaces or registry entries merely for architectural symmetry, abstraction or hypothetical future consumers.
-- Do not call platform functionality by importing SDK CQRS Command/Query classes and dispatching them through a plugin CommandBus/QueryBus. Plugins and the host may load separate SDK or `@nestjs/cqrs` copies, so constructor identity, handler metadata and bus instances are not a reliable integration boundary.
-- Use the typed Runtime Capability APIs supplied by the host registry, addressed by stable string capability IDs. Call the resolved API methods directly; do not import private platform services or depend on `instanceof`/class identity across package copies.
-- For identity-scoped features, a platform-internal NestJS service or factory binds trusted execution/View scope and plugins consume the bound Runtime API. Scope binding alone does not justify a separate Factory Capability; keep host-only factories internal. Do not construct a broader scope from tool input or substitute the installation owner for the acting user. Installation context does not grant resource access.
-- Platform-internal CQRS may remain behind the capability implementation; it is not the SDK/plugin calling protocol. Verify cross-copy registry lookup and invocation isolation when modifying a platform integration.
+1. **能力暴露决策原则**：
+   - 仅当接口需要被外部插件跨包消费时，才应暴露为运行时能力（Capability）；平台内部专属的服务与工厂应当通过 NestJS 构造函数注入以及显式的模块 `imports`/`exports` 进行组织，避免过度抽象。
+2. **避免跨模块调用内部 CQRS 总线**：
+   - 严禁在插件中直接引用平台私有 SDK 的 CQRS 命令/查询类（Command/Query）并通过 CommandBus/QueryBus 分发。插件与宿主可能加载不同版本的 `@nestjs/cqrs`，类标识和事件总线实例不能作为跨边界调用的可靠通道。
+3. **使用类型安全的运行时能力 API**：
+   - 通过宿主注册表提供的强类型运行时能力 API 进行调用，使用稳定的字符串能力标识（Capability ID）寻址，直接调用解析出的方法，不依赖跨包的类实例判断（`instanceof`）。
+4. **权限与范围绑定**：
+   - 涉及身份与租户隔离的特性，应由宿主内部受信任的范围进行绑定。插件不得通过工具入参自行构造超出权限的范围，也不得将插件安装者的权限擅自替换为当前操作用户的权限。
 
-## Local Xpert Plugin Installation
+---
 
-- For community plugin work, keep platform connection settings in `community/.env`, using `community/env.example` as the template. Before installing or reinstalling a plugin into a local Xpert backend, source that file instead of discovering organization IDs, tenant IDs, or tokens from the database.
-- Required install settings are usually `XPERT_API_URL`, `XPERT_TOKEN`, and either `XPERT_ORG_ID` for organization-scoped installs or `XPERT_INSTALL_SCOPE=global` for system/global installs. Never commit real tokens or local secrets.
-- For system/global plugins, `XPERT_TOKEN` must be a platform login JWT for a `SUPER_ADMIN` user. API keys, opaque tokens, and non-JWT bearer values authenticate some requests but do not satisfy `RequestContext.hasRole(SUPER_ADMIN)`, so system plugin installs will fail.
-- Tokens copied from the browser may be either the raw JWT or the full `Bearer <jwt>` authorization value. Normalize this before building curl headers so `Bearer` is not prefixed twice.
-- Prefer the Xpert host scripts when they match the install scope:
-  - `pnpm plugin:reinstall:local --workspace-path <plugin-dir> --org-id "$XPERT_ORG_ID" --token "$XPERT_TOKEN" --api-url "$XPERT_API_URL"`
-  - `pnpm plugin:install:local --workspace-path <plugin-dir> --org-id "$XPERT_ORG_ID" --token "$XPERT_TOKEN" --api-url "$XPERT_API_URL"`
-- Current local Xpert host helper scripts are organization-scoped and may reject `--org-id global` because parts of the backend treat `organization-id` as a UUID. For plugins whose `meta.level` is `system`, install into global scope by calling `POST /api/plugin` with a super-admin bearer token, `x-scope-level: tenant`, and no `organization-id` header, unless the host script has been fixed.
-- If a system plugin install fails after the old instance was removed, `/api/plugin/by-names` can temporarily return no descriptor for that plugin. Fix the token/scope/config issue and rerun the install API; do not patch plugin rows directly unless the user explicitly asks for database repair.
-- Do not mint temporary JWTs from local database records or `JWT_SECRET` when `XPERT_TOKEN` is provided. If `XPERT_TOKEN` or the needed organization scope is missing, ask the user to populate `community/.env` first; only use a generated localhost token as an explicit local-dev fallback.
-- When installing a plugin that needs to call back into data-xpert, pass plugin config explicitly, for example `{"dataXpert":{"apiBaseUrl":"http://localhost:3000/","defaultResourceId":"sales-ontology"}}`.
-- Keep plugin config payloads plugin-specific. Do not reuse `XPERT_PLUGIN_CONFIG_JSON` from another plugin when installing Sites; Sites config belongs under `hosting`, for example `{"hosting":{"publicBaseUrl":"http://localhost:3000/api/xpert-sites","defaultAccessMode":"workspace_all"}}`.
+## 三、本地 Xpert 插件安装与调试 (Local Installation)
+
+1. **环境配置准备**：
+   - 对于社区插件开发，平台连接配置集中维护在 `community/.env` 中（以 `community/env.example` 为模板）。在将插件安装或重装到本地 Xpert 后端之前，应优先读取该环境配置，严禁硬编码真实的租户密钥或 Token。
+2. **安装所需的核心参数**：
+   - 必须配置 `XPERT_API_URL`、`XPERT_TOKEN`，以及针对组织级插件的 `XPERT_ORG_ID` 或针对系统级插件的 `XPERT_INSTALL_SCOPE=global`。严禁提交真实的访问密钥或私人 Token 到版本库。
+3. **安装专用命令参考**：
+   - 组织级安装：
+     ```bash
+     pnpm plugin:install:local --workspace-path <plugin-dir> --org-id "$XPERT_ORG_ID" --token "$XPERT_TOKEN" --api-url "$XPERT_API_URL"
+     ```
+   - 组织级重新安装：
+     ```bash
+     pnpm plugin:reinstall:local --workspace-path <plugin-dir> --org-id "$XPERT_ORG_ID" --token "$XPERT_TOKEN" --api-url "$XPERT_API_URL"
+     ```
+4. **系统级（全局）插件部署注意事项**：
+   - 对于 `meta.level` 为 `system` 的插件，需使用平台超级管理员（`SUPER_ADMIN`）角色登录获取的 JWT Token 部署到全局范围，普通的 API Key 或只读 Token 无法通过系统级安装的鉴权拦截。
+5. **配置参数独立性**：
+   - 各插件的安装配置负载必须保持独立，不得跨插件复用配置对象，避免配置冲突或属性污染。
