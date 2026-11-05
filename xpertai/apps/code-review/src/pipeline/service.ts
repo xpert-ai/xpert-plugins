@@ -22,7 +22,7 @@ export class ReviewPipelineService {
     @InjectRepository(Review) private readonly records: Repository<Review>, private readonly reviews: Reviews,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) readonly capabilities: RuntimeCapabilityRegistry) {}
 
-  async attach(scope: Scope, input: z.infer<typeof attachPipelineSchema>, automatic?: { runId: string; repositoryId: string; trial: boolean }) {
+  async attach(scope: Scope, input: z.infer<typeof attachPipelineSchema>, automatic?: { runId: string; repositoryId: string; trial: boolean }, assertOwned: () => Promise<void> = async () => undefined) {
     const value = attachPipelineSchema.parse(input)
     const context: ProjectPipelineContext = { projectId: value.projectId, actor: {
       tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId } }
@@ -40,6 +40,7 @@ export class ReviewPipelineService {
     // The PR identity stays stable across commits; each run retains its own immutable Review snapshot.
     const sourceKey = root.ref.provider === 'github'
       ? `${root.ref.owner.toLowerCase()}/${root.ref.repository.toLowerCase()}#${root.ref.number}${automatic?.trial ? ':trial' : ''}` : null
+    await assertOwned()
     const binding = await this.bindings.manager.transaction(async manager => {
       if (sourceKey && savedBindingId) await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
         [JSON.stringify([scope.tenantId, scope.organizationId, context.projectId, sourceKey, savedBindingId])])
@@ -67,20 +68,25 @@ export class ReviewPipelineService {
       await manager.save(existing)
       return existing
     })
+    await assertOwned()
     const commands = this.capabilities.require(ProjectPipelineCommandsRuntimeCapability)
     const bindingId = savedBindingId ?? ('assistants' in value ? (await commands.configure(context, { requestId: value.requestId,
       configuration: configuration(value.assistants, value.parameters) })).bindingId : undefined)
     if (!bindingId) throw new ReviewError('pipeline_configuration_mismatch')
     const graph = binding.instanceId ? await this.capabilities.require(ProjectPipelinesRuntimeCapability).graph(context, binding.instanceId) : null
+    await assertOwned()
     if (binding.currentReviewId !== root.id && graph) return { projectId: context.projectId, instanceId: graph.instance.id, runId: graph.runId, roundId: graph.roundId, revision: graph.instance.revision }
     const dispatch = root.pipelineDispatch ?? (graph && ['active', 'waiting'].includes(graph.runState)
       ? { kind: 'next' as const, instanceId: graph.instance.id } : { kind: 'start' as const })
     if (!root.pipelineDispatch) await this.records.update({ id: root.id }, { pipelineDispatch: dispatch })
     // Persist the command kind before dispatch. Retrying an acknowledged start must never become nextRound.
+    const expectedRevision = dispatch.kind === 'next'
+      ? graph?.instance.revision ?? (await this.capabilities.require(ProjectPipelinesRuntimeCapability).graph(context, dispatch.instanceId)).instance.revision : undefined
+    await assertOwned()
     const started = dispatch.kind === 'next'
-      ? await commands.nextRound(context, { instanceId: dispatch.instanceId, requestId: root.id, expectedRevision:
-        graph?.instance.revision ?? (await this.capabilities.require(ProjectPipelinesRuntimeCapability).graph(context, dispatch.instanceId)).instance.revision })
+      ? await commands.nextRound(context, { instanceId: dispatch.instanceId, requestId: root.id, expectedRevision: expectedRevision! })
       : await commands.start(context, { bindingId, objectKey: binding.id, triggerKey: root.id, title: reviewLabel(root.ref) })
+    await assertOwned()
     await this.bindings.update({ ...pipelineOwner(context), id: binding.id }, { instanceId: started.instanceId })
     return { projectId: context.projectId, ...started }
   }

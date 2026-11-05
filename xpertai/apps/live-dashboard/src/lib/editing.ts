@@ -1,3 +1,4 @@
+import type { DashboardSaveRequests } from './save-requests'
 import { createHash, randomUUID } from 'node:crypto'
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod/v3'
@@ -27,7 +28,7 @@ export const EDITING_GUIDANCE = `Opening or reading a dashboard does not modify 
 export function createEditingTools(service: DashboardService, scope: XpertResolvedViewHostContext, context: IAgentMiddlewareContext,
   resolvePreviews: (ids: string[]) => AnalyticsBinding[], validateFinal: (manifest: DashboardManifest, requirePreviews: boolean, changedBindingIds?: string[]) => void,
   onOpen: (path: string, artifactId: string) => void = () => undefined,
-  currentTarget: (config: unknown) => DashboardSelection | null | undefined = selectionFromConfig) {
+  currentTarget: (config: unknown) => DashboardSelection | null | undefined = selectionFromConfig, saveRequests?: DashboardSaveRequests) {
   const target = (input: z.infer<typeof targetSchema>, config: unknown) => {
     const selected = currentTarget(config)
     if (input.artifactId) return { artifactId: input.artifactId, versionId: input.versionId }
@@ -112,6 +113,10 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
         ...(sourceMetadata.length || saved.manifest.sourceMetadata ? { sourceMetadata } : {}), ...(components.length || saved.manifest.components ? { components } : {}),
         ...(presentation ? { presentation } : {}) })
       validateFinal(manifest, previewIds !== undefined, changedBindings?.map(item => item.id))
+      if (saveRequests && manifest.bindings.length > 8) {
+        const key = createHash('sha256').update(JSON.stringify([editId, expectedRevision, expectedCurrentVersionId, manifest, sourceFile])).digest('hex')
+        return JSON.stringify(await saveRequests.submit(scope, manifest, expectedCurrentVersionId, expectedRevision, key, sourceFile))
+      }
       const { schema, id, ...update } = manifest
       const result = await service.update(scope, editId, expectedRevision, update, expectedCurrentVersionId)
       const resourceCard = await emitDashboardCard(scope, { ...result, state: 'draft', revision: result.draftRevision }, config)

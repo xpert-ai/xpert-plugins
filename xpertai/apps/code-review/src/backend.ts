@@ -64,11 +64,12 @@ export class Reviews {
     }
     return r.automationPolicyId ? this.repositories.github({ ...s, userId: r.userId }, r.automationPolicyId) : this.github(s, r.access)
   }
-  async prepareAutomatic(p: ReviewRepository, run: ReviewRun) {
+  async prepareAutomatic(p: ReviewRepository, run: ReviewRun, assertOwned: () => Promise<void> = async () => undefined) {
     const existing = await this.records.findOneBy({ ...owner(p), automationRunId: run.id })
     if (existing) return existing
     const ref = parsePullUrl(`https://github.com/${p.owner}/${p.repository}/pull/${run.number}`)
     const snapshot = await (await this.repositories.github(p, p.id)).snapshot(ref)
+    await assertOwned()
     if (snapshot.headSha !== run.headSha) throw new ReviewError('stale_revision')
     const all = snapshot.files.length
     snapshot.files = snapshot.files.filter(f => !ignoredPath(f.filename, run.settings.ignoredPaths))

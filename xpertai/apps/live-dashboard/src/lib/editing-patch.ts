@@ -1,9 +1,10 @@
+import { MAX_DASHBOARD_BINDINGS } from './capacity'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { z } from 'zod/v3'
 import type { DashboardManifest } from './dashboard.schema'
 
 export const removalsSchema = z.object({
-  bindingIds: z.array(z.string()).max(8).default([]), controlIds: z.array(z.string()).max(24).default([]),
+  bindingIds: z.array(z.string()).max(MAX_DASHBOARD_BINDINGS).default([]), controlIds: z.array(z.string()).max(24).default([]),
   viewIds: z.array(z.string()).max(40).default([]), htmlElementIds: z.array(z.string()).max(500).default([]),
   componentIds: z.array(z.string()).max(160).default([])
 }).strict().optional().describe('Only explicitly requested removals. Arrays of changed components otherwise upsert by stable ID and preserve omitted components.')

@@ -1,14 +1,15 @@
+import { MAX_DASHBOARD_BINDINGS } from './capacity'
 import { z } from 'zod/v3'
 import type { DashboardManifest } from './dashboard.schema'
 
 export const componentId = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const sourceMetadataSchema = z.array(z.object({
   bindingId: componentId, title: z.string().min(1).max(160), description: z.string().max(2000).optional()
-}).strict()).max(8)
+}).strict()).max(MAX_DASHBOARD_BINDINGS)
 export const dashboardComponentsSchema = z.array(z.object({
   id: componentId, elementId: componentId, title: z.string().min(1).max(160),
   kind: z.enum(['metric', 'chart', 'table', 'filter', 'text']),
-  sources: z.array(z.object({ bindingId: componentId, fieldIds: z.array(componentId).max(80).optional() }).strict()).max(8)
+  sources: z.array(z.object({ bindingId: componentId, fieldIds: z.array(componentId).max(80).optional() }).strict()).max(MAX_DASHBOARD_BINDINGS)
 }).strict()).max(160)
 export type DashboardComponent = z.infer<typeof dashboardComponentsSchema>[number]
 

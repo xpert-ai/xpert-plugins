@@ -1,3 +1,4 @@
+import { boundedMap } from './bounded-map'
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import type { AnalyticalDataset, AnalyticsValue } from '@xpert-ai/contracts'
 import { AnalyticsRuntimeCapability, type DataSourceActor, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
@@ -24,10 +25,15 @@ export async function queryDashboardBinding(runtime: RuntimeCapabilityRegistry, 
   return runtime.require(AnalyticsRuntimeCapability).query(actor, { binding, controls: selected })
 }
 
-export async function queryDashboard(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
+export async function queryDashboard(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, input: Record<string, AnalyticsValue>, progress?: (completed: number) => Promise<void>) {
   validateControls(manifest, input)
-  const datasets: AnalyticalDataset[] = []
-  for (const binding of manifest.bindings) datasets.push(await queryDashboardBinding(runtime, actor, manifest, binding.id, input))
+  let completed = 0
+  const datasets = await boundedMap(manifest.bindings, async binding => {
+    await progress?.(completed)
+    const result = await queryDashboardBinding(runtime, actor, manifest, binding.id, input)
+    await progress?.(++completed)
+    return result
+  })
   if (Buffer.byteLength(JSON.stringify(datasets)) > 3_000_000) throw new BadRequestException('DASHBOARD_RESULT_TOO_LARGE')
   return datasets
 }
@@ -39,10 +45,10 @@ export async function queryDashboardPartial(runtime: RuntimeCapabilityRegistry, 
   validateControls(manifest, input)
   const datasets: AnalyticalDataset[] = []
   const failures: Array<{ bindingId: string; datasetId: string; reason: 'unavailable' }> = []
-  for (const binding of manifest.bindings) {
+  await boundedMap(manifest.bindings, async binding => {
     try { datasets.push(await queryDashboardBinding(runtime, actor, manifest, binding.id, input)) }
     catch { failures.push({ bindingId: binding.id, datasetId: binding.output.datasetId, reason: 'unavailable' }) }
-  }
+  })
   if (Buffer.byteLength(JSON.stringify(datasets)) > 3_000_000) throw new BadRequestException('DASHBOARD_RESULT_TOO_LARGE')
   return { datasets, failures }
 }

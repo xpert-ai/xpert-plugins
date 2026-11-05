@@ -16,6 +16,7 @@ import { ReviewRepository, ReviewRun, ReviewDelivery } from '../src/automation-e
 import { Reviews } from '../src/backend.js'
 import { Repositories } from '../src/repositories.js'
 import { Automation } from '../src/automation.js'
+import type { ReviewWebhookInbox } from '../src/webhook-inbox.js'
 import { ReviewWorkbench } from '../src/workbench.js'
 import { workbenchQuerySchema } from '../src/workbench-contract.js'
 import { defaultPolicy } from '../src/automation-contract.js'
@@ -80,7 +81,7 @@ test(
     const reviews = new Reviews(db.getRepository(Review), {} as PluginContext, repositories, capability)
     const automation = new Automation(
       db.getRepository(ReviewRun),
-      db.getRepository(ReviewDelivery),
+      {} as ReviewWebhookInbox,
       repositories,
       reviews,
       capability,

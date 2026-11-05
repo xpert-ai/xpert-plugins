@@ -1,4 +1,6 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common'
+import { assertBindingCapacity, DASHBOARD_CONFIG, DEFAULT_DASHBOARD_BINDINGS, type DashboardConfig } from './capacity'
+import { boundedMap } from './bounded-map'
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import type { AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
@@ -19,10 +21,18 @@ import type { DashboardAccess, DashboardMode } from './project'
 export const PLUGIN_NAME = '@xpert-ai/plugin-live-dashboard'
 const RESOURCE_TYPE = 'live-dashboard'
 const MIME_TYPE = 'application/json'
+export type SaveProgress = (stage: string, completed: number, total: number) => Promise<void>
+export type SaveOptions = { requestId: string; progress: SaveProgress }
 
 @Injectable()
 export class DashboardService {
-  constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly htmlValidation: HtmlDashboardValidation) {}
+  constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly htmlValidation: HtmlDashboardValidation,
+    @Optional() @Inject(DASHBOARD_CONFIG) private readonly config?: DashboardConfig) {}
+  get maxBindings() { return this.config?.maxBindings ?? DEFAULT_DASHBOARD_BINDINGS }
+  assertCapacity(count: number, previousCount = 0) {
+    try { assertBindingCapacity(count, previousCount, this.maxBindings) }
+    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'DASHBOARD_BINDING_CAPACITY') }
+  }
   async sources(context: XpertResolvedViewHostContext) { await this.authorizeProject(context); return this.runtime.require(AnalyticsRuntimeCapability).list(actor(context)) }
   async discover(context: XpertResolvedViewHostContext, input: AnalyticsDiscoveryRequest) { await this.authorizeProject(context); return this.runtime.require(AnalyticsRuntimeCapability).discover(actor(context), input) }
   async preview(context: XpertResolvedViewHostContext, input: AnalyticsQueryRequest) {
@@ -85,7 +95,27 @@ export class DashboardService {
     await this.runtime.require(ArtifactDraftsRuntimeCapability).setRecycled({ artifactId, expectedRevision, recycled: true })
     return { artifactId }
   }
-  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0, importedDependencies?: ArtifactDocumentDependencyAsset[]) {
+  async previousBindingCount(context: XpertResolvedViewHostContext, manifest: DashboardManifest) {
+    await this.authorizeProject(context, 'write')
+    const existing = await this.runtime.require(ArtifactsRuntimeCapability).findArtifactBySource({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceId: `${hostPrefix(context)}${manifest.id}` })
+    if (!existing) return 0
+    assertOwned(context, existing)
+    const draft = (await this.runtime.require(ArtifactDraftsRuntimeCapability).list([existing.id]))[0]
+    return existing.currentVersionId || draft ? (await this.open(context, existing.id)).manifest.bindings.length : 0
+  }
+  /** Read-only reconciliation of a completed CAS after a worker/status-store interruption. */
+  async savedRequestReceipt(context: XpertResolvedViewHostContext, manifestId: string, requestId: string, expectedRevision: number) {
+    await this.authorizeProject(context, 'write')
+    const artifact = await this.runtime.require(ArtifactsRuntimeCapability).findArtifactBySource({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceId: `${hostPrefix(context)}${manifestId}` })
+    if (!artifact) return null
+    assertOwned(context, artifact)
+    if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
+    const draft = await this.runtime.require(ArtifactDraftsRuntimeCapability).get(artifact.id)
+    if (draft?.metadata?.saveRequestId !== requestId || draft.revision !== expectedRevision + 1) return null
+    return { artifactId: artifact.id, draftId: draft.id, draftRevision: draft.revision, baseVersionId: draft.baseVersionId, status: 'draft' as const, title: draft.title ?? artifact.title ?? '' }
+  }
+  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0, importedDependencies?: ArtifactDocumentDependencyAsset[], task?: SaveOptions) {
+    await task?.progress('authorization', 0, manifest.bindings.length)
     await this.authorizeProject(context, 'write')
     const scopedActor = actor(context)
     const parsed = dashboardSchema.parse(manifest)
@@ -96,25 +126,39 @@ export class DashboardService {
     if (existing) { assertOwned(context, existing); if (existing.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED') }
     // A failed first upload can leave an Artifact with no saved content; revision 0 initializes it.
     const previous = existing && (existing.currentVersionId || expectedRevision > 0) ? await this.openDocument(context, existing.id) : null
+    this.assertCapacity(parsed.bindings.length, previous?.manifest.bindings.length ?? 0)
     if (importedDependencies && existing) throw new BadRequestException('DASHBOARD_IMPORT_NEW_ID_REQUIRED')
     const dependencies = importedDependencies ? verifyArtifactDocumentDependencies(importedDependencies, parsed.presentation?.dependencies ?? [])
       : await resolveLibraryAssets(parsed.presentation?.dependencies ?? [], previous?.dependencies)
     const buffer = encodeDashboardPackage(parsed, dependencies)
     if (buffer.byteLength > MAX_DASHBOARD_PACKAGE_BYTES) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
     const digest = createHash('sha256').update(buffer).digest('hex')
+    if (existing && task) {
+      const draft = await this.runtime.require(ArtifactDraftsRuntimeCapability).get(existing.id)
+      if (draft?.metadata?.saveRequestId === task.requestId && draft.sha256 === digest && draft.revision === expectedRevision + 1)
+        return { artifactId: existing.id, draftId: draft.id, draftRevision: draft.revision, baseVersionId: draft.baseVersionId, status: 'draft' as const, title: parsed.title }
+    }
     if ((existing?.currentVersionId ?? null) !== expectedVersionId) throw new ConflictException('DASHBOARD_VERSION_CONFLICT')
     // Recheck current data access even for an idempotent retry; the platform enforces the final CAS under a row lock.
-    const preview = await this.execute(context, parsed, Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])))
+    const preview = await queryDashboard(this.runtime, actor(context), parsed, Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])),
+      task ? completed => task.progress('queries', completed, parsed.bindings.length) : undefined)
     if (!parsed.presentation) toDataAnalyticsPayload(parsed, preview)
-    for (const binding of parsed.bindings) await this.probeControls(context, binding,
-      Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])))
+    let completedFilters = 0
+    await boundedMap(parsed.bindings, async binding => {
+      await this.probeControls(context, binding,
+        Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])),
+        task ? () => task.progress('filters', completedFilters, parsed.bindings.length) : undefined)
+      await task?.progress('filters', ++completedFilters, parsed.bindings.length)
+    })
+    await task?.progress('html', 0, 1)
     const htmlValidation = await this.htmlValidation.validate(context, parsed, preview, dependencies)
+    await task?.progress('save', 0, 1)
     const artifact = existing ?? await artifacts.createArtifact({ source, type: { pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE }, kind: 'file', title: parsed.title,
       scope: { ...scopedActor, ...(projectId(context) ? { projectId: projectId(context), userId: null } : { xpertId: context.hostId }) } })
     const reference = await this.runtime.require(ArtifactContentRuntimeCapability).write({ artifactId: artifact.id, buffer })
     const result = await this.runtime.require(ArtifactDraftsRuntimeCapability).save({ artifactId: artifact.id, expectedRevision,
       expectedCurrentVersionId: expectedVersionId, mimeType: MIME_TYPE, title: parsed.title, fileName: 'dashboard.json', sha256: digest,
-      ...(htmlValidation ? { metadata: { htmlValidation } } : {}), workspaceFileRef: reference })
+      ...((htmlValidation || task) ? { metadata: { ...(htmlValidation ? { htmlValidation } : {}), ...(task ? { saveRequestId: task.requestId } : {}) } } : {}), workspaceFileRef: reference })
     return { artifactId: artifact.id, draftId: result.id, draftRevision: result.revision, baseVersionId: result.baseVersionId, status: 'draft' as const, title: parsed.title }
   }
   async open(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string, draftRevision?: number, mode: DashboardMode = 'draft') {
@@ -205,7 +249,7 @@ export class DashboardService {
   private execute(context: XpertResolvedViewHostContext, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
     return queryDashboard(this.runtime, actor(context), manifest, input)
   }
-  private async probeControls(context: XpertResolvedViewHostContext, binding: AnalyticsQueryRequest['binding'], input: Record<string, AnalyticsValue>) {
+  private async probeControls(context: XpertResolvedViewHostContext, binding: AnalyticsQueryRequest['binding'], input: Record<string, AnalyticsValue>, checkpoint?: () => Promise<void>) {
     const controls = Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId,
       Object.hasOwn(input, parameter.controlId) ? input[parameter.controlId] : parameter.defaultValue ?? null]))
     // A null default can bypass a native predicate entirely. Verify a real selection too,
@@ -216,6 +260,7 @@ export class DashboardService {
       const samples = [...(alternative !== undefined ? [alternative] : []),
         ...(current !== null && parameter.allowedValues?.includes(null) ? [null] : [])]
       for (const value of samples) {
+        await checkpoint?.()
         // Analytics already redacts provider failures. Preserve its actionable validation
         // errors: a duplicate grain is not a malformed filter and needs a different repair.
         await this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), { binding, controls: { ...controls, [parameter.controlId]: value } })

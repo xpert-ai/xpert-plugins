@@ -12,12 +12,11 @@ export function createPreviewRetryGuard() {
     consecutiveFailures++
     lastError = message.slice(0, 2000)
   }
-  return {
+  const guard = {
     get exhausted() { return consecutiveFailures >= 6 },
     get summary() { return `DASHBOARD_PREVIEW_RETRY_LIMIT: preview validation repeatedly failed. This run has stopped making tool calls. Report the last error and the required repair; do not claim an unconfirmed save. Last error: ${lastError}` },
-    async run(request: ToolCallRequest<AgentBuiltInState>, handler: ToolCallHandler) {
-      if (!PREVIEW_TOOLS.has(request.toolCall.name)) return handler(request)
-      const key = createHash('sha256').update(JSON.stringify({ name: request.toolCall.name, args: request.toolCall.args }, (_key, value: unknown) =>
+    async attempt<T>(name: string, args: unknown, handler: () => Promise<T>) {
+      const key = createHash('sha256').update(JSON.stringify({ name, args }, (_key, value: unknown) =>
         value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value)).digest('hex')
       if (consecutiveFailures >= 6) throw new Error(this.summary)
       if ((failures.get(key)?.count ?? 0) >= 2) {
@@ -28,8 +27,8 @@ export function createPreviewRetryGuard() {
       if (pending.has(key)) throw new Error('DASHBOARD_PREVIEW_IN_PROGRESS: wait for the identical preview already in progress; do not submit duplicates.')
       pending.add(key)
       try {
-        const result = await handler(request)
-        if ('status' in result && result.status === 'error' && 'content' in result) {
+        const result = await handler()
+        if (result && typeof result === 'object' && 'status' in result && result.status === 'error' && 'content' in result) {
           recordFailure(key, typeof result.content === 'string' ? result.content : 'Preview tool returned an error')
         } else {
           failures.delete(key)
@@ -42,6 +41,14 @@ export function createPreviewRetryGuard() {
       } finally {
         pending.delete(key)
       }
+    }
+  }
+  return { ...guard,
+    get exhausted() { return guard.exhausted },
+    get summary() { return guard.summary },
+    run(request: ToolCallRequest<AgentBuiltInState>, handler: ToolCallHandler) {
+      return PREVIEW_TOOLS.has(request.toolCall.name)
+        ? guard.attempt(request.toolCall.name, request.toolCall.args, async () => handler(request)) : handler(request)
     }
   }
 }

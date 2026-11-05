@@ -818,3 +818,26 @@ test('onboarding may extend the call budget while keeping a finite limit', async
   for(let i=0;i<48;i++) await s.middleware.wrapModelCall({tools:['available']},async r=>assert.deepEqual(r.tools,['available']))
   await s.middleware.wrapModelCall({tools:['available']},async r=>assert.deepEqual(r.tools,[]))
 })
+
+
+test('batch previews retain 64 distinct receipts and enforce per-item retries', async () => {
+  const s = setup(), previews = [], binding = structuredClone(example.bindings[0])
+  let active = 0, peak = 0
+  s.service.preview = async (_scope, input) => {
+    peak = Math.max(peak, ++active)
+    await new Promise(resolve => setTimeout(resolve, 2)); active--
+    if (input.binding.id === 'broken') throw Error('INVALID_CONTRACT')
+    return { datasetId: input.binding.output.datasetId, rows: [{ region: 'east', amount: '12' }], completeness: { returnedRows: 1, truncated: false } }
+  }
+  for (let offset = 0; offset < 64; offset += 8) {
+    const items = Array.from({ length: 8 }, (_, n) => ({ bindingJson: JSON.stringify({ ...binding, id: `binding${offset + n}`,
+      output: { ...binding.output, datasetId: `dataset${offset + n}` } }) }))
+    const result = JSON.parse(await s.invoke('dashboard_preview_batch', { items }))
+    assert(result.results.every(item => item.status === 'succeeded'))
+    previews.push(...result.results.map(item => item.preview.previewId))
+  }
+  assert.equal(new Set(previews).size, 64); assert.equal(peak, 4)
+  const items = [{ bindingJson: JSON.stringify({ ...binding, id: 'broken' }) }]
+  await s.invoke('dashboard_preview_batch', { items }); await s.invoke('dashboard_preview_batch', { items })
+  assert.match(JSON.parse(await s.invoke('dashboard_preview_batch', { items })).results[0].message, /REPEAT_BLOCKED/)
+})

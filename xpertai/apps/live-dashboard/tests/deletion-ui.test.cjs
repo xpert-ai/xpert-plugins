@@ -105,6 +105,7 @@ async function setup(t) {
         if (id === './i18n') return load('i18n.ts')
         if (id === './toolbar-menu') return load('toolbar-menu.tsx')
         if (id === './dashboard-picker') return load('dashboard-picker.tsx')
+        if (id === './save-progress') return load('save-progress.ts')
         if (id === './picker-data') return load('picker-data.ts')
         if (id === './dashboard-starter') return load('dashboard-starter.tsx')
         if (id.startsWith('./locales/')) return require(`../src/remote/${id}`)

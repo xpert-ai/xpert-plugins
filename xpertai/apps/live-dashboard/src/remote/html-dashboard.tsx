@@ -9,7 +9,7 @@ import { dashboardComponents } from '../lib/dashboard-sources'
 import { sourceDatasetSchema, type SourceEvent } from '../lib/source-executions'
 
 const resultSchema = z.object({ success: z.literal(true), data: sourceDatasetSchema })
-export interface HtmlDashboardHandle { refresh(): void }
+export interface HtmlDashboardHandle { refresh(bindingId?: string): void }
 interface Props {
   artifactId: string
   versionId?: string
@@ -30,7 +30,7 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
   const inspector = React.useRef<ReturnType<typeof createDashboardInspector> | null>(null)
   const callbacks = React.useRef(props)
   callbacks.current = props
-  React.useImperativeHandle(ref, () => ({ refresh() { host.current?.refresh() } }), [])
+  React.useImperativeHandle(ref, () => ({ refresh(bindingId) { host.current?.refresh(bindingId) } }), [])
   React.useEffect(() => { inspector.current?.setEnabled(props.inspect === true) }, [props.inspect])
   React.useEffect(() => {
     const frame = iframe.current
@@ -43,16 +43,26 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
     inspector.current = inspecting
     inspecting.setEnabled(props.inspect === true)
     let disposed = false
+    const requestIds = new Map<string, string>()
+    let sequence = 0
     const mounted = mountDashboardDocument<z.infer<typeof resultSchema>['data']>(frame, {
       html: props.manifest.presentation.html,
       dependencies,
       context: { bindingIds: manifest.bindings.map(binding => binding.id),
         defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])),
         locale: document.documentElement.lang || 'en-US', theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light' },
+      onQueryState: state => {
+        if (disposed || !['queued', 'running', 'failed'].includes(state.state)) return
+        if (state.state === 'queued') requestIds.set(state.bindingId, `source-${++sequence}`)
+        const requestId = requestIds.get(state.bindingId)!
+        if (state.state === 'failed') callbacks.current.onExecution?.({ type: 'failure', bindingId: state.bindingId, requestId, at: new Date().toISOString() })
+        else callbacks.current.onExecution?.({ type: state.state === 'queued' ? 'queue' : 'start', bindingId: state.bindingId,
+          requestId, controls: state.controls, at: new Date().toISOString() })
+      },
       query: async input => {
-        const identity = { bindingId: input.bindingId, requestId: input.requestId }
+        const identity = { bindingId: input.bindingId, requestId: requestIds.get(input.bindingId)! }
         const controls = Object.fromEntries(Object.entries(input.controls).filter(([id]) => manifest.bindings.find(b => b.id === input.bindingId)?.parameters.some(p => p.controlId === id)))
-        callbacks.current.onExecution?.({ ...identity, type: 'start', controls, at: new Date().toISOString() })
+
         try {
           const result = resultSchema.parse(await requestHost('executeAction', { actionKey: 'query-binding',
             input: { artifactId: props.artifactId, versionId: props.versionId, draftRevision: props.draftRevision, bindingId: input.bindingId, controls: input.controls } })).data
@@ -64,7 +74,7 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
         }
       },
       onBusy: busy => callbacks.current.onBusy(busy),
-      onError: code => callbacks.current.onError(code),
+      onError: code => { if (!['DOCUMENT_QUERY_SUPERSEDED', 'DOCUMENT_DISPOSED'].includes(code)) callbacks.current.onError(code) },
       onResult: result => callbacks.current.onResult({ partial: result.completeness.truncated, fetchedAt: result.freshness.sourceFetchedAt })
     })
     // The SDK validates the original author document at its full size budget. Add only

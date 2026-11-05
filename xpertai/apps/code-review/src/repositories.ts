@@ -79,32 +79,31 @@ export class Repositories {
     if (!workspaceId) throw new ReviewError('workspace_required')
     if (!s.assistant?.principalUserId) throw new ReviewError('assistant_binding_required')
     const identity = await this.app.inspect(s, owner, repository)
-    return this.records.manager.transaction(async manager => {
+    const record = await this.records.manager.transaction(async manager => {
       await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`code-review-repository:${identity.installationId}:${identity.repositoryId}`])
       const prior = await manager.findOneBy(ReviewRepository, { installationId: identity.installationId, repositoryId: identity.repositoryId })
-      if (prior) {
-        if (prior.tenantId !== s.tenantId || prior.organizationId !== s.organizationId ||
-          (prior.assistantId !== s.assistantId && !this.canManageOrganization(s))) {
-          throw new RepositoryConflictError(await repositoryConflict(manager, s, prior,
-            { owner: identity.owner, name: identity.repository }, async () => {
-              // Keep the actor's real organization; disclosure must not impersonate the policy owner.
-              if (prior.organizationId !== s.organizationId) return false
-              try {
-                await this.capabilities.require(AssistantMiddlewareAccessRuntimeCapability).assertAccess({
-                  actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId },
-                  assistantId: prior.assistantId, provider: MIDDLEWARE, requiredFeature: FEATURE, scope: { type: 'assistant' }
-                })
-                return true
-              } catch { return false }
-            }))
-        }
-        return prior
-      }
+      if (prior) return prior
       const p = await manager.save(ReviewRepository, manager.create(ReviewRepository, { ...repositoryScope(s), workspaceId, ...identity,
         ownership: 'assistant', executionUserId: s.assistant?.principalUserId, configuredById: s.userId, updatedById: s.userId, responsibleUserId: s.userId, settings: { ...defaultPolicy, visibility: 'organization' } }))
       await this.audit(manager, s, p, 'created')
       return p
     })
+    // Disclosure may borrow host connections. Release the creation lock before resolving labels/access.
+    if (record.tenantId !== s.tenantId || record.organizationId !== s.organizationId ||
+      (record.assistantId !== s.assistantId && !this.canManageOrganization(s))) {
+      throw new RepositoryConflictError(await repositoryConflict(this.records.manager, s, record,
+        { owner: identity.owner, name: identity.repository }, async () => {
+          if (record.organizationId !== s.organizationId) return false
+          try {
+            await this.capabilities.require(AssistantMiddlewareAccessRuntimeCapability).assertAccess({
+              actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId },
+              assistantId: record.assistantId, provider: MIDDLEWARE, requiredFeature: FEATURE, scope: { type: 'assistant' }
+            })
+            return true
+          } catch { return false }
+        }))
+    }
+    return record
   }
   async preview(s: Scope, id: string) {
     await this.manage(s)
@@ -121,24 +120,28 @@ export class Repositories {
     await this.get(s, id)
     const workspaceId = s.workspaceId
     if (!workspaceId) throw new ReviewError('workspace_required')
+    const checked = await this.records.findOneByOrFail({ id, tenantId: s.tenantId, organizationId: s.organizationId })
+    if (checked.revision !== revision) throw new ReviewError('revision_conflict')
+    const identity = await this.app.inspect(s, checked.owner, checked.repository, checked.settings.onWorkflowFailure || checked.settings.onWorkflowTimeout, checked.settings.onWorkflowTimeout)
+    if (identity.installationId !== checked.installationId || identity.repositoryId !== checked.repositoryId) throw new ReviewError('installation_changed')
+    if (checked.settings.executionMode === 'pipeline' && !checked.settings.pipeline) throw new ReviewError('pipeline_binding_required')
+    if (checked.settings.pipeline) await this.catalog.validate(s, checked.settings.pipeline)
+    const userId = s.assistant?.principalUserId
+    if (!userId) throw new ReviewError('assistant_binding_required')
+    const changes = { ...identity, ownership: 'assistant' as const, assistantId: s.assistantId, workspaceId,
+      executionUserId: userId, configuredById: checked.configuredById ?? checked.userId,
+      updatedById: s.userId, responsibleUserId: s.userId, revision: revision + 1, executionRevision: checked.executionRevision + 1,
+      settings: { ...checked.settings, enabled: false, visibility: checked.settings.executionMode === 'assistant' ? 'organization' as const : checked.settings.visibility }, errorCode: null }
+    await this.execution({ ...checked, ...changes })
     const p = await this.records.manager.transaction(async manager => {
-      const existing = await manager.findOne(ReviewRepository, { where: { id, tenantId: s.tenantId, organizationId: s.organizationId }, lock: { mode: 'pessimistic_write' } })
-      if (!existing || existing.revision !== revision) throw new ReviewError('revision_conflict')
+      const existing = await manager.findOne(ReviewRepository, { where: { id, tenantId: s.tenantId, organizationId: s.organizationId }, lock: { mode: 'pessimistic_write', onLocked: 'nowait' } })
+      if (!existing || existing.revision !== revision || existing.executionRevision !== checked.executionRevision) throw new ReviewError('revision_conflict')
       if (await manager.countBy(ReviewRun, { repositoryPolicyId: id, status: In(['running', 'publishing', 'awaiting_confirmation', 'awaiting_revision', 'blocked', 'publication_unknown']) })) throw new ReviewError('publication_reconciliation_required')
-      const identity = await this.app.inspect(s, existing.owner, existing.repository, existing.settings.onWorkflowFailure || existing.settings.onWorkflowTimeout, existing.settings.onWorkflowTimeout)
-      if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
-      if (existing.settings.executionMode === 'pipeline' && !existing.settings.pipeline) throw new ReviewError('pipeline_binding_required')
-      if (existing.settings.pipeline) await this.catalog.validate(s, existing.settings.pipeline)
-      const userId = s.assistant?.principalUserId
-      if (!userId) throw new ReviewError('assistant_binding_required')
-      const p = { ...existing, ...identity, ownership: 'assistant' as const, assistantId: s.assistantId, workspaceId,
-        executionUserId: userId, configuredById: existing.configuredById ?? existing.userId,
-        updatedById: s.userId, responsibleUserId: s.userId, revision: revision + 1, executionRevision: existing.executionRevision + 1,
-        settings: { ...existing.settings, enabled: false, visibility: existing.settings.executionMode === 'assistant' ? 'organization' as const : existing.settings.visibility }, errorCode: null }
-      await this.execution(p)
-      await manager.save(ReviewRepository, p)
-      await this.audit(manager, s, p, 'rebound')
-      return p
+      // Preserve operational metadata updated during external checks (for example lastEventAt).
+      const rebound = { ...existing, ...changes }
+      await manager.save(ReviewRepository, rebound)
+      await this.audit(manager, s, rebound, 'rebound')
+      return rebound
     })
     return p
   }

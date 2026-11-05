@@ -77,6 +77,10 @@ Apply `20261018-project-pipeline.sql`, `20261021-github-system-integration.sql`,
 
 Apply `20261102-assistant-events.sql` after these migrations. Old unbound rules still require a Project binding unless explicitly changed to Current Assistant mode. Existing private results remain readable; automated Assistant drafts cannot publish from the inbox. Manual standalone drafts retain their explicit submission action. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
 
+Before loading the durable webhook version, apply `20261105-webhook-inbox.sql` when schema synchronization is external. The additive, replayable migration preserves existing processed delivery receipts. Keep automation paused during a rolling upgrade until every API instance has the new transaction boundaries and both scan/step processors; old repository-wide workers must not overlap the new per-PR workers. Accepted events remain in the database across queue outages and worker restarts; processing retries policy-lock contention with backoff. Do not rely on GitHub to automatically redeliver a failed webhook. Pending normalized payloads are cleared after processing; the receipt retains digest, run identity and any binding-change reason.
+
+Each review uses separate quota, snapshot, dispatch and observation jobs. Workflow diagnostics use separate evidence/quota, dispatch and observation jobs. The next stage starts from committed state; waiting for a model or human approval releases the worker. Recovery scans requeue unfinished stages after lost wakeups.
+
 Use the Project pipeline to inspect blocked nodes and retry confirmed technical failures. The repository inbox retains trigger, commit, policy revision, platform instance/round and reason. A new current-head attempt is subject to the same binding, access checks and quota.
 
 ## Local verification

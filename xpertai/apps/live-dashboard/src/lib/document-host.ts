@@ -3,7 +3,7 @@ import { DASHBOARD_NETWORK_POLICY } from './document-network'
 
 /** The HTML never supplies or overrides its network permissions. */
 export function mountDashboardDocument<T>(frame: HTMLIFrameElement, options: ArtifactDocumentHostOptions<T>) {
-  return mountArtifactDocument(frame, { ...options, networkPolicy: DASHBOARD_NETWORK_POLICY })
+  return mountArtifactDocument(frame, { ...options, dispatchesPerMinute: 60, networkPolicy: DASHBOARD_NETWORK_POLICY })
 }
 
 export function isDashboardResourceAllowed(resourceType: string, url: string): boolean {

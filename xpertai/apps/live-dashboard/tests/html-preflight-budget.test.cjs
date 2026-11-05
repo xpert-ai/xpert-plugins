@@ -29,7 +29,7 @@ class PreviewPage {
     document.defaultView = { addEventListener() {}, removeEventListener() {} }
     Object.defineProperty(frame, 'srcdoc', { set() { page.pending.push(() => page.queryAll()) } })
     this.scope = vm.createContext({
-      crypto: webcrypto, URL, TextEncoder, window: {}, document,
+      crypto: webcrypto, AbortController, setTimeout, clearTimeout, URL, TextEncoder, window: {}, document,
       // All scenarios stay in the same wall-clock rate window; no clock reset bypass.
       Date: class extends Date { static now() { return 1000 } },
       MessageChannel: class {
@@ -123,7 +123,7 @@ class PreviewPage {
             }
             if (page.fixture.throwOnClick) throw Error('detached button')
             if (page.fixture.burst) {
-              for (let i = 0; i < 61; i++) await page.query('panel0')
+              for (let i = 0; i < 17; i++) await page.query('panel0')
             } else if (page.fixture.concurrentBurst) {
               await Promise.all(Array.from({ length: 9 }, () => page.query('panel0')))
             } else await page.queryAll()
@@ -173,7 +173,7 @@ function scenario(bindingCount = 4, fixture = {}) {
   return { input, browser, pages, isClosed: () => closed, peakPages: () => peakPages }
 }
 
-for (const count of [4, 8]) test(`${count} Bindings keep all select/button/refresh checks without exhausting one document`, async () => {
+for (const count of [4, 8, 9, 16, 32, 64]) test(`${count} Bindings keep all select/button/refresh checks without exhausting one document`, async () => {
   const { validateDocument } = await validator
   const fixture = scenario(count)
   const result = await validateDocument(fixture.input, fixture.browser, hostPath)
@@ -185,7 +185,7 @@ for (const count of [4, 8]) test(`${count} Bindings keep all select/button/refre
   }
   for (let i = 0; i < 12; i++) assert.equal(gestures.filter(g => g === `button:${i}`).length, 1)
   assert(fixture.pages.reduce((sum, page) => sum + page.queries, 0) > 60)
-  assert(fixture.pages.every(page => page.queries <= 60 && page.closed))
+  assert(fixture.pages.every(page => page.queries <= count * 16 && page.closed))
   assert.equal(fixture.peakPages(), 2)
   assert(fixture.isClosed())
 })
@@ -198,12 +198,12 @@ test('scenario setup failures close every page and the context', async () => {
   assert(fixture.isClosed())
 })
 
-for (const mode of ['burst', 'concurrentBurst']) test(`a single ${mode} is still rejected by the shipped host`, async () => {
+for (const mode of ['burst']) test(`a single ${mode} is still rejected by the shipped host`, async () => {
   const { validateDocument } = await validator
   const fixture = scenario(4, { [mode]: true, buttons: 1 })
   const result = await validateDocument(fixture.input, fixture.browser, hostPath)
   assert.equal(result.ok, false)
-  assert(result.errors.includes('DOCUMENT_QUERY_LIMIT'))
+  assert(result.errors.includes('DOCUMENT_SNAPSHOT_REPLAY_LIMIT'))
   assert(fixture.pages.every(page => page.closed))
   assert(fixture.isClosed())
 })

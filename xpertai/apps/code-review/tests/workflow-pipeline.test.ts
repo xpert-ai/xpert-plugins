@@ -12,7 +12,7 @@ import { WorkflowDiagnosis } from '../src/workflow-entity.js'
 import type { ReviewPipelineCatalog } from '../src/pipeline/catalog.js'
 import type { GitHubApp } from '../src/github-app.js'
 import type { ReviewEvents } from '../src/event-subscription.js'
-import type { Scope } from '../src/domain.js'
+import { ReviewError, type Scope } from '../src/domain.js'
 import { defaultPolicy } from '../src/automation-contract.js'
 
 function fixture() {
@@ -27,7 +27,7 @@ function fixture() {
   const registry = new DefaultRuntimeCapabilityRegistry()
   registry.register(AssistantMiddlewareAccessRuntimeCapability, { assertAccess: async ({ actor }) => { assert.equal(actor.userId, principalUserId) } })
   const events = { access: async (s: Scope) => { workflowAccess++; assert.equal(s.userId, principalUserId); if (denied) throw new Error('workflow_access_denied') },
-    assertListening: async () => { if (denied) throw new Error('github_trigger_paused') }, activity: async () => {} } as unknown as ReviewEvents
+    assertListening: async () => { if (denied) throw new ReviewError('github_trigger_paused') }, activity: async () => {} } as unknown as ReviewEvents
   const records = { findOneBy: async () => policy, manager: { transaction: async (work: (m: EntityManager) => unknown) => work({
     update: async (_entity: unknown, _where: unknown, patch: Partial<ReviewRepository>) => { Object.assign(policy, patch); return { affected: 1 } },
     getRepository: () => ({ save: async () => {} })
