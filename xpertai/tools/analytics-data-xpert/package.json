@@ -32,16 +32,16 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.26.1",
-    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.32.0",
+    "@xpert-ai/contracts": "^3.32.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",
     "@nestjs/cqrs": "^11.0.3"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.31.0",
-    "@xpert-ai/contracts": "3.31.0",
+    "@xpert-ai/plugin-sdk": "3.32.0",
+    "@xpert-ai/contracts": "3.32.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",

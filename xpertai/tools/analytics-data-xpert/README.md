@@ -42,7 +42,4 @@ Only validated public causes and opaque audit references cross into `AnalyticsPr
 Malformed, sensitive, oversized or unfinished bodies use the existing status-only fallback.
 Parameter mapping failures use provider-authored repair guidance without echoing values.
 
-With the pinned SDK 3.31.0, upstream failures return their HTTP status and local parameter
-errors include the provider's repair guidance. With an SDK that exports the validating
-`AnalyticsProviderError` constructor, discovery and execution forward accepted envelopes
-to hosts that support structured diagnostics. Invalid envelopes return only the HTTP status.
+Structured diagnostics require `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` 3.32.0 or a compatible later 3.x release.

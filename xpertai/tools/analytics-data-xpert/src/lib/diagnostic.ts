@@ -1,26 +1,19 @@
-import { BadRequestException } from '@nestjs/common'
-import * as sdk from '@xpert-ai/plugin-sdk'
+import { parseAnalyticsDiagnostic } from '@xpert-ai/contracts'
+import { AnalyticsProviderError } from '@xpert-ai/plugin-sdk'
 
 const parameterMessages = {
   DATAX_PARAMETER_MAPPING_INVALID: 'Parameter names must match parameterPaths exactly, with a distinct target path for each parameter.',
   DATAX_PARAMETER_PATH_INVALID: 'parameterPaths are relative to params. Omit the leading params segment and target an existing scalar, for example ["slicers","1","value"].',
   DATAX_PARAMETER_PATH_NOT_SCALAR: 'A parameter path must target a scalar value, not an entire object or array. Select the existing filter value field.'
 }
-// SDK 3.31 lacks this constructor. Later SDKs validate the entire envelope before exposing it.
-function providerDiagnostic(input: unknown): Error | undefined {
-  const ProviderError = 'AnalyticsProviderError' in sdk ? sdk.AnalyticsProviderError : undefined
-  if (typeof ProviderError !== 'function') return undefined
-  return new (ProviderError as new (value: unknown) => Error)(input)
-}
 
 export function dataXpertParameterError(code: keyof typeof parameterMessages) {
-  const message = parameterMessages[code]
-  return providerDiagnostic({ schema: 'xpert.analytics.diagnostic', version: 1,
-    code, stage: 'validation', retryable: false, message }) ?? new BadRequestException(`${code}: ${message}`)
+  return new AnalyticsProviderError({ schema: 'xpert.analytics.diagnostic', version: 1,
+    code, stage: 'validation', retryable: false, message: parameterMessages[code] })
 }
 
 /** Error responses get a smaller byte/time budget than results. Never retain or echo an unknown body. */
-export async function readAnalyticsHttpError(response: Response, signal: AbortSignal, deadlineAt?: number): Promise<Error | undefined> {
+export async function readAnalyticsHttpError(response: Response, signal: AbortSignal, deadlineAt?: number): Promise<AnalyticsProviderError | undefined> {
   if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '') || !response.body) {
     await response.body?.cancel().catch(() => undefined)
     return undefined
@@ -44,7 +37,8 @@ export async function readAnalyticsHttpError(response: Response, signal: AbortSi
       if (size > 16_384) return undefined
       chunks.push(chunk.value)
     }
-    return providerDiagnostic(JSON.parse(Buffer.concat(chunks).toString('utf8')))
+    const diagnostic = parseAnalyticsDiagnostic(JSON.parse(Buffer.concat(chunks).toString('utf8')))
+    return diagnostic && new AnalyticsProviderError(diagnostic)
   }
   try {
     signal.throwIfAborted()
