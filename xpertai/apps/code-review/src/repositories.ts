@@ -11,6 +11,7 @@ import { ReviewPolicyAudit, ReviewRepository, ReviewRun } from './automation-ent
 import { defaultPolicy, policySettingsSchema, type PolicySettings } from './automation-domain.js'
 import { PLUGIN, MIDDLEWARE, FEATURE, ReviewError, type Scope } from './domain.js'
 import { ReviewEvents } from './event-subscription.js'
+import { repositoryConflict, RepositoryConflictError } from './repository-conflict.js'
 
 export const repositoryScope = (s: Scope) => ({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, userId: s.userId })
 @Injectable()
@@ -69,7 +70,7 @@ export class Repositories {
 
   private async audit(manager: EntityManager, s: Scope, p: ReviewRepository, action: ReviewPolicyAudit['action']) {
     await manager.getRepository(ReviewPolicyAudit).save({ tenantId: p.tenantId, organizationId: p.organizationId, repositoryPolicyId: p.id,
-      revision: p.revision, actorId: s.userId, action, snapshot: { actorLabel: this.actorLabel(s), assistantLabel: p.assistantId === s.assistantId ? s.hostSnapshot?.title || s.hostSnapshot?.name || '' : '', workspaceLabel: p.workspaceId === s.workspaceId ? s.hostSnapshot?.workspace?.name ?? '' : '', ownership: p.ownership, assistantId: p.assistantId, workspaceId: p.workspaceId,
+      revision: p.revision, actorId: s.userId, action, snapshot: { actorLabel: this.actorLabel(s), organizationLabel: s.hostSnapshot?.organization?.name ?? '', assistantLabel: p.assistantId === s.assistantId ? s.hostSnapshot?.title || s.hostSnapshot?.name || '' : '', workspaceLabel: p.workspaceId === s.workspaceId ? s.hostSnapshot?.workspace?.name ?? '' : '', ownership: p.ownership, assistantId: p.assistantId, workspaceId: p.workspaceId,
         configuredById: p.configuredById, responsibleUserId: p.responsibleUserId, executionRevision: p.executionRevision, settings: p.settings } })
   }
   async add(s: Scope, owner: string, repository: string) {
@@ -83,7 +84,20 @@ export class Repositories {
       const prior = await manager.findOneBy(ReviewRepository, { installationId: identity.installationId, repositoryId: identity.repositoryId })
       if (prior) {
         if (prior.tenantId !== s.tenantId || prior.organizationId !== s.organizationId ||
-          (prior.assistantId !== s.assistantId && !this.canManageOrganization(s))) throw new ReviewError('repository_owned_elsewhere')
+          (prior.assistantId !== s.assistantId && !this.canManageOrganization(s))) {
+          throw new RepositoryConflictError(await repositoryConflict(manager, s, prior,
+            { owner: identity.owner, name: identity.repository }, async () => {
+              // Keep the actor's real organization; disclosure must not impersonate the policy owner.
+              if (prior.organizationId !== s.organizationId) return false
+              try {
+                await this.capabilities.require(AssistantMiddlewareAccessRuntimeCapability).assertAccess({
+                  actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId },
+                  assistantId: prior.assistantId, provider: MIDDLEWARE, requiredFeature: FEATURE, scope: { type: 'assistant' }
+                })
+                return true
+              } catch { return false }
+            }))
+        }
         return prior
       }
       const p = await manager.save(ReviewRepository, manager.create(ReviewRepository, { ...repositoryScope(s), workspaceId, ...identity,

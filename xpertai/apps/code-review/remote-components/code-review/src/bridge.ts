@@ -189,14 +189,17 @@ const actionResult = z
     code: z.string().optional(),
   })
   .passthrough();
+export class ActionError extends Error {
+  constructor(code: string, readonly detail: unknown) { super(code); this.name = 'ActionError'; }
+}
 export async function action(key: string, input: Record<string, unknown>) {
   const result = actionResult.parse(
     await request("executeAction", { actionKey: key, input })
   );
   if (!result.success) {
     const detail = z.object({ code: z.string() }).safeParse(result.data);
-    throw new Error(
-      detail.success ? detail.data.code : result.code ?? "operation_failed"
+    throw new ActionError(
+      detail.success ? detail.data.code : result.code ?? "operation_failed", result.data
     );
   }
   return result.data;
