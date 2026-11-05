@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-lark
 
+## 0.3.7
+
+### Patch Changes
+
+- 6d40cd2: Attach captured Feishu conversation history as a text quote reference instead of prepending it to the human message body. Preserve the current user's original text, historical attachments and model context across normal messages, in-flight follow-ups and stale-target recovery.
+
 ## 0.3.6
 
 ### Patch Changes

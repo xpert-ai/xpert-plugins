@@ -1,5 +1,21 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.5.0
+
+### Minor Changes
+
+- fbd2708: Add a Sources side panel with saved query configuration, parameter mappings, output fields and recent execution results. Inspect HTML components or standard charts and tables to open their declared sources without triggering business interactions. Extend Agent authoring with validated source metadata and stable component references.
+
+  Export saved dashboard pages, definitions and bundled dependencies as integrity-checked archives. Import archives into independent drafts with explicit resource mapping, current-user query validation and preserved internal component IDs. Native resource mapping uses provider discovery extensions; Data Xpert users need the companion Analytics Data Xpert provider update.
+
+  Keep complete query payloads restricted to definition editors, bound result previews to memory, and validate archive size, contents, dependency bytes and import-session scope. Include localized controls, authoring guidance and acceptance documentation.
+
+### Patch Changes
+
+- 5e06dea: Report malformed JSON input locations with the field, UTF-16 offset, line, column and offending character without echoing the payload. Distinguish syntax errors from valid JSON with an invalid object shape.
+
+  Include expected and observed Binding IDs in HTML preflight failures and clarify how to preserve existing Binding identities and current-run preview receipts when updating filters. Failed preflight checks leave saved drafts and published versions unchanged.
+
 ## 0.4.1
 
 ### Patch Changes
