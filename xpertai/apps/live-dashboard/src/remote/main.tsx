@@ -1,3 +1,6 @@
+import { waitForDashboardSave } from './save-progress'
+import { createDashboardQuerySession } from '../lib/query-session'
+import { toDataAnalyticsPayload } from '../lib/renderer'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
@@ -14,7 +17,7 @@ import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
 import { StandardDashboard } from './standard-dashboard'
 import { SourcesPanel, type SourceSelection } from './sources-panel'
 import { dashboardComponents } from '../lib/dashboard-sources'
-import { reduceSourceExecutions, sourceDatasetSchema, type SourceExecution, type SourceEvent } from '../lib/source-executions'
+import { reduceSourceExecutions, renderDatasetSchema, type SourceExecution, type SourceEvent } from '../lib/source-executions'
 import { ToolbarMenu } from './toolbar-menu'
 import { DashboardPicker } from './dashboard-picker'
 import { ImportDialog } from './import-dialog'
@@ -28,7 +31,7 @@ installArtifactDocumentFramePolicy(document)
 declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean } }
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
-const queryResultSchema = z.object({ payload: z.unknown(), failures: z.array(z.object({ bindingId: z.string(), datasetId: z.string(), reason: z.literal('unavailable') })).default([]), datasets: z.array(sourceDatasetSchema) })
+
 type Summary = z.infer<typeof summarySchema>
 type Saved = z.infer<typeof savedSchema>
 type ControlValue = string | number | boolean | null
@@ -53,6 +56,7 @@ function App() {
   const [controls, setControls] = React.useState<Record<string, ControlValue>>({})
   const [html, setHtml] = React.useState('')
   const [busy, setBusy] = React.useState(true)
+  const [saveProgress, setSaveProgress] = React.useState('')
   const [error, setError] = React.useState('')
   const [status, setStatus] = React.useState('')
   const [refreshSeconds, setRefreshSeconds] = React.useState('off')
@@ -76,6 +80,11 @@ function App() {
   }, [inspect])
   const sourcesButton = React.useRef<HTMLButtonElement>(null)
   const onExecution = React.useCallback((event: SourceEvent) => setExecutions(current => reduceSourceExecutions(current, event)), [])
+  React.useEffect(() => {
+    if (!saved?.manifest.presentation) return
+    setUnavailableDatasets(saved.manifest.bindings.filter(binding => executions[binding.id]?.state === 'failed').map(binding => binding.output.datasetId))
+    setPartial(Object.values(executions).some(execution => execution.state === 'succeeded' && execution.result?.completeness.truncated))
+  }, [executions, saved?.manifest])
   function inspectComponent(id: string | null) {
     const component = saved && dashboardComponents(saved.manifest).find(item => item.id === id)
     setSourceSelection({ componentId: id, ...(component?.sources.length === 1 ? { bindingId: component.sources[0].bindingId } : {}) })
@@ -87,6 +96,11 @@ function App() {
   const activeArtifactId = React.useRef<string>()
   const navigationTarget = React.useRef<z.infer<typeof listSchema>['meta']['navigationTarget']>()
   const navigationKey = React.useRef<string>()
+  const appliedControls = React.useRef<Record<string, ControlValue>>({})
+  const standardSession = React.useRef<ReturnType<typeof createDashboardQuerySession>>()
+  const standardKey = React.useRef('')
+  const saveObserver = React.useRef<AbortController>()
+  React.useEffect(() => () => { standardSession.current?.dispose(); saveObserver.current?.abort() }, [])
   const htmlDashboard = React.useRef<HtmlDashboardHandle>(null)
 
   const editRef = React.useRef({ dirty: false, resourceId: '' })
@@ -96,6 +110,8 @@ function App() {
   React.useEffect(() => { reportDirty(isDirty || busy && editor !== null) }, [isDirty, busy, editor === null, saved?.artifactId, saved?.title])
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
+    saveObserver.current?.abort(); setSaveProgress('')
+    standardSession.current?.dispose(); standardSession.current = undefined; standardKey.current = ''
     activeArtifactId.current = undefined
     setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setSelectedDashboard(null); setEditor(null); setVersions([])
     setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
@@ -112,25 +128,33 @@ function App() {
     if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(previous => page === 1 ? result.dashboards : [...previous, ...result.dashboards.filter(item => !previous.some(old => old.artifactId === item.artifactId))]); setSources(result.sources); navigationTarget.current = result.navigationTarget; setCurrentProject(result.currentProject ?? null); if (result.access) setAccess(result.access); if (result.pagination) setPagination(result.pagination); if (result.mode) { modeRef.current = result.mode; setMode(result.mode) } }
     return result
   }
-  async function query(target: Saved, values: Record<string, ControlValue>) {
-    const sequence = ++requestSequence.current
+  async function query(target: Saved, values: Record<string, ControlValue>, force = false, only?: string[]) {
     if (!target.versionId && !target.draftRevision) throw new Error('Missing saved definition')
-    setHtml(''); setUnavailableDatasets([]); setStatus(''); setPartial(false)
-    if (!target.manifest.bindings.length) return
-    for (const binding of target.manifest.bindings) onExecution({ type: 'start', bindingId: binding.id, requestId: String(sequence), controls: Object.fromEntries(Object.entries(values).filter(([id]) => binding.parameters.some(p => p.controlId === id))), at: new Date().toISOString() })
-    try {
-    const result = queryResultSchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'query', input: { artifactId: target.artifactId, versionId: target.versionId ?? undefined, ...(target.isDraft ? { draftRevision: target.draftRevision } : {}), controls: values } })).data)
-    if (sequence !== requestSequence.current) return
-    for (const dataset of result.datasets) onExecution({ type: 'success', bindingId: dataset.provenance.bindingId, requestId: String(sequence), result: dataset, at: new Date().toISOString() })
-    for (const failure of result.failures) onExecution({ type: 'failure', bindingId: failure.bindingId, requestId: String(sequence), at: new Date().toISOString() })
-    setUnavailableDatasets(result.failures.map(failure => failure.datasetId));
-    setHtml(result.datasets.length ? rendererHtml(result.payload) : ''); setPartial(result.datasets.some((dataset) => dataset.completeness.truncated))
-    setStatus(result.datasets.map((dataset) => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
-    } catch (error) {
-      if (sequence === requestSequence.current) for (const binding of target.manifest.bindings)
-        onExecution({ type: 'failure', bindingId: binding.id, requestId: String(sequence), at: new Date().toISOString() })
-      throw error
+    const key = JSON.stringify([target.artifactId, target.versionId, target.draftRevision])
+    let initial = false
+    if (!standardSession.current || standardKey.current !== key) {
+      standardSession.current?.dispose()
+      standardKey.current = key
+      initial = true
+      standardSession.current = createDashboardQuerySession(target.manifest, async input =>
+        renderDatasetSchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'query-binding',
+          input: { artifactId: target.artifactId, versionId: target.versionId ?? undefined,
+            ...(target.isDraft ? { draftRevision: target.draftRevision } : {}), ...input } })).data),
+        (datasets, failures) => {
+          setUnavailableDatasets(failures)
+          setHtml(datasets.length ? rendererHtml(toDataAnalyticsPayload(target.manifest, datasets)) : '')
+          setPartial(datasets.some(dataset => dataset.completeness.truncated))
+          setStatus(datasets.map(dataset => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
+        }, onExecution, setBusy)
     }
+    if (!only) appliedControls.current = { ...values }
+    await standardSession.current.query(values, initial ? 'initial' : force ? 'refresh' : 'interactive', only)
+  }
+  async function retrySource(bindingId: string) {
+    const current = autoRefresh.current
+    if (!current.saved) return
+    if (current.saved.manifest.presentation) htmlDashboard.current?.refresh(bindingId)
+    else await query(current.saved, appliedControls.current, true, [bindingId])
   }
   async function open(artifactId: string, versionId?: string, reflectNavigation = true, requestedMode = modeRef.current, draftRevision?: number) {
     const sequence = ++requestSequence.current
@@ -179,7 +203,7 @@ function App() {
     if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
       ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
     if (sequence !== requestSequence.current) return
-    if (!target.manifest.presentation) await query(target, current.controls)
+    if (!target.manifest.presentation) await query(target, appliedControls.current, true)
     else if (target.draftRevision === previous.draftRevision && target.versionId === previous.versionId) htmlDashboard.current?.refresh()
     // A new HTML revision remounts with its exact bindings and dependency snapshot.
   }
@@ -195,7 +219,8 @@ function App() {
       } catch { if (!stopped) setError(t.error) }
       finally { pending = false }
     }
-    const timer = window.setInterval(() => void refresh(), Number(refreshSeconds) * 1000)
+    const interval = Math.max(Number(refreshSeconds) * 1000, (saved?.manifest.bindings.length ?? 0) * 2000)
+    const timer = window.setInterval(() => void refresh(), interval)
     document.addEventListener('visibilitychange', refresh)
     return () => { stopped = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh) }
   }, [refreshSeconds, saved?.artifactId, t.error])
@@ -241,9 +266,14 @@ function App() {
     document.body.append(link); link.click(); link.remove()
   }
   async function save() {
+    saveObserver.current?.abort()
+    const observer = new AbortController(); saveObserver.current = observer
     const manifest = dashboardSchema.parse(JSON.parse(editor ?? ''))
     const expectedVersionId = saved?.manifest.id === manifest.id ? saved.versionId ?? null : null
-    const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'save', input: { manifest, expectedVersionId, expectedRevision: saved?.manifest.id === manifest.id ? saved.draftRevision ?? 0 : 0 } })).data)
+    const value = actionSchema.parse(await requestHost('executeAction', { actionKey: 'save', input: { manifest, expectedVersionId, expectedRevision: saved?.manifest.id === manifest.id ? saved.draftRevision ?? 0 : 0 } })).data
+    const result = await waitForDashboardSave(value, progress => setSaveProgress(i18n.t('saveProgress', { requestId: progress.requestId, completed: progress.completed, total: progress.total, stage: i18n.t(`saveStage${progress.stage}` as keyof typeof t) })), observer.signal)
+    if (observer.signal.aborted) return
+    setSaveProgress('')
     await open(result.artifactId, undefined, true, 'draft')
   }
   async function publish() {
@@ -338,8 +368,8 @@ function App() {
       </div>
     </header>
   const filters = saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
-    {saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
-    <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
+    {saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={false} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
+    <Button type="button" variant="outline" onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
   </section>
   return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
     {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
@@ -363,6 +393,7 @@ function App() {
       </AlertDialogContent>
     </AlertDialog>
     {notice && <p role="status" className="border-b px-4 py-3 text-muted-foreground">{notice}</p>}
+    {saveProgress && <p role="status" className="border-b px-4 py-2 text-sm">{saveProgress}</p>}
     {error && <div role="alert" className="border-b px-4 py-3 text-destructive">{error}</div>}
     {editor !== null ? <section className="editor-panel p-4">
       <label className="text-sm font-medium" htmlFor="definition">{t.definition}</label>
@@ -386,7 +417,7 @@ function App() {
           manifest={saved.manifest} dependencies={saved.dependencies ?? []} inspect={canEdit && inspect} onInspect={inspectComponent} onInspectExit={() => setInspect(false)} onExecution={onExecution} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
         {html && saved && <StandardDashboard html={html} manifest={saved.manifest} inspect={canEdit && inspect} onInspect={inspectComponent} onExit={() => setInspect(false)}/>}
       </section>
-      {canEdit && saved && sourceSelection && <SourcesPanel manifest={saved.manifest} selection={sourceSelection} executions={executions} onSelect={setSourceSelection} onClose={closeSources} t={t}/>}
+      {canEdit && saved && sourceSelection && <SourcesPanel busy={busy} manifest={saved.manifest} selection={sourceSelection} executions={executions} onSelect={setSourceSelection} onClose={closeSources} onRetry={id => void retrySource(id).catch(error => setError(String(error)))} t={t}/>}
       </div>
     </>}
   </main>

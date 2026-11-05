@@ -12,7 +12,7 @@ import { htmlPreflightFailure } from './html-validation-feedback'
 
 const PLUGIN = '@xpert-ai/plugin-live-dashboard', ACTION = 'live_dashboard.validate-html', POOL = 'sandbox-browser'
 const reportSchema = z.object({ ok: z.boolean(), errors: z.array(z.string().max(300)).max(16),
-  requestedBindings: z.array(z.string().max(80)).max(60), renderedTextLength: z.number().int().nonnegative() }).strict()
+  requestedBindings: z.array(z.string().max(80)).max(64), renderedTextLength: z.number().int().nonnegative() }).strict()
 const recordSchema = z.object({ tenantId: z.string(), organizationId: z.string(), userId: z.string(), manifestId: z.string(), deadline: z.number(),
   filePath: z.string(), workspacePath: z.string(), size: z.number(), sha256: z.string() }).strict()
 const digest = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')

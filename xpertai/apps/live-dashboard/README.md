@@ -8,6 +8,8 @@ Sources, component Inspect and portable dashboard archives are tracked in the
 [feature guide](docs/sources-inspect-portability.mdx) and
 [current acceptance record](docs/sources-inspect-portability-acceptance.mdx).
 
+Large dashboards now support 32 Bindings by default (64 protocol ceiling), bounded query scheduling, batch preview/filter validation and durable save progress. See the [feature guide](docs/large-dashboards.mdx) and [acceptance record](docs/large-dashboards-acceptance.mdx). These features require published SDK/contracts 3.33.0 or later; no SDK patch is required.
+
 ## Ownership and flow
 
 ```text
@@ -194,7 +196,7 @@ See [HTML mode and acceptance](docs/html-mode.md). Agent tools write a complete 
 
 The platform browser entry `@xpert-ai/plugin-sdk/artifact-document` owns the sandbox, CSP, MessageChannel, request validation and latest-response policy. The plugin owns lifecycle and supplies a narrow callback to `query-binding`. Its server loads the exact saved Artifact version, finds the declared Binding, validates controls and rechecks source access. The endpoint rejects full Binding, Provider, SQL/payload and alternate source fields.
 
-HTML preflight checks each native select's alternative/restored values and each button path in a fresh document mount, with at most two pages active. A button path also clicks controls it inserts, reveals or enables, retaining their prerequisite state and the same query quota; traversal is bounded to the first 12 buttons and 12 clicks per path. Every scenario checks initial bindings and host refresh using the same preview datasets. Successful static resources can be reused within this validation (bounded to 32 MB, up to 8 MB per resource); every replay still passes the resource policy, and failed, redirected or non-cacheable responses are not replayed. A 55-second validation deadline fails closed and cancels remaining pages before the host's 60-second Action limit. This prevents repeated resource downloads and the synthetic interaction sweep from exhausting the Action budget or one document's rate window without raising the SDK's query/concurrency limits. A request storm within a scenario still blocks saving; preflight is not a full combinatorial or sustained-load test.
+HTML preflight checks each native select's alternative/restored values and each button path in a fresh document mount, with at most two pages active. A button path also clicks controls it inserts, reveals or enables, retaining their prerequisite state and the same query quota; traversal is bounded to the first 12 buttons and 12 clicks per path. Every scenario checks initial bindings and host refresh using the same preview datasets. Successful static resources can be reused within this validation (bounded to 32 MB, up to 8 MB per resource); every replay still passes the resource policy, and failed, redirected or non-cacheable responses are not replayed. A 55-second validation deadline fails closed and cancels remaining pages before the host's 60-second Action limit. This prevents repeated resource downloads and the synthetic interaction sweep from exhausting the Action budget or one document's rate window with a separate immutable-snapshot budget of at most 16 replays per Binding; live queries remain limited to 60 dispatches per minute and concurrency 4. A request storm within a scenario still blocks saving; preflight is not a full combinatorial or sustained-load test.
 
 Pages call `window.xpertLiveArtifact.ready()`, `subscribe(bindingId, render)`, `query(bindingId, controls)` and `refresh(bindingId)`. Register subscriptions before the first query so the toolbar can refresh without resetting the document. Use inline DOM/SVG/Canvas or online scripts/styles/fonts from the HTTPS origins returned by `dashboard_libraries.online`. Tailwind CDN, jsDelivr, cdnjs, unpkg and Google Fonts are supported according to their resource-type allowlist. Preflight and the displayed page use the same policy; failed loads prevent saving. Pin online versions where possible. Unlike packaged libraries, online bytes are not part of the immutable Artifact snapshot. Direct data requests, external images, eval, workers and frames remain unavailable. Script processing remains in the separate Workspace Script provider.
 
@@ -208,7 +210,7 @@ The renderer runs in a script-only sandbox with no-network CSP. A small in-memor
 
 ## Build and validation
 
-Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.27.0 and the Data Analytics renderer 0.1.35; no local platform or community links are required. SDK 3.27.0 includes the host-owned online resource policy, so no SDK patch is required. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
+Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.33.0 and the Data Analytics renderer 0.1.35; no local platform or community links are required. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
 
 ```sh
 corepack pnpm install --frozen-lockfile

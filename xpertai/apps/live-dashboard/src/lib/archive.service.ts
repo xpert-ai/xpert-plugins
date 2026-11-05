@@ -1,4 +1,6 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common'
+import { DashboardSaveRequests } from './save-requests'
+import { MAX_DASHBOARD_BINDINGS } from './capacity'
+import { BadRequestException, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
@@ -10,17 +12,17 @@ import { encodeDashboardArchive, decodeDashboardArchive, dashboardRequirements }
 import { encodeDashboardPackage } from './document-package'
 
 export const importInputSchema = z.object({ importId: z.string().uuid(),
-  bindings: z.array(z.object({ bindingId: z.string(), source: analyticsSourceRefSchema, payload: analyticsBindingObjectSchema.shape.payload }).strict()).max(8)
+  bindings: z.array(z.object({ bindingId: z.string(), source: analyticsSourceRefSchema, payload: analyticsBindingObjectSchema.shape.payload }).strict()).max(MAX_DASHBOARD_BINDINGS)
 }).strict()
 const importBrowseSchema = z.object({ importId: z.string().uuid(), bindingId: z.string(), source: analyticsSourceRefSchema, request: analyticsOptionsSchema.default({}) }).strict()
 type ImportInput = z.infer<typeof importInputSchema>
 type Receipt = Awaited<ReturnType<DashboardService['save']>>
-type Session = ReturnType<typeof decodeDashboardArchive> & { scope: string; created: number; newId: string; busy: boolean; committed?: { hash: string; receipt: Receipt } }
+type Session = ReturnType<typeof decodeDashboardArchive> & { scope: string; created: number; newId: string; busy: boolean; submitted?: { hash: string; requestId: string }; committed?: { hash: string; receipt: Receipt } }
 
 @Injectable()
 export class DashboardArchiveService {
   private readonly imports = new Map<string, Session>()
-  constructor(private readonly dashboards: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+  constructor(private readonly dashboards: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, @Optional() private readonly saves?: DashboardSaveRequests) {}
   private async authorize(context: XpertResolvedViewHostContext) {
     if (!(await this.dashboards.access(context)).canEdit) throw new ForbiddenException('DASHBOARD_DEFINITION_ACCESS_DENIED')
   }
@@ -57,6 +59,10 @@ export class DashboardArchiveService {
         return replacement ? { ...binding, source: replacement.source, payload: replacement.payload } : binding
       }) })
     const hash = createHash('sha256').update(encodeDashboardPackage(manifest, session.dependencies)).digest('hex')
+    if (session.submitted && this.saves) {
+      if (session.submitted.hash !== hash) throw new BadRequestException('DASHBOARD_IMPORT_ALREADY_SUBMITTED')
+      return this.saves.get(context, session.submitted.requestId)
+    }
     if (session.committed) {
       if (session.committed.hash !== hash) throw new BadRequestException('DASHBOARD_IMPORT_ALREADY_COMPLETED')
       // Revalidate ownership and current access before returning an idempotent receipt.
@@ -65,6 +71,11 @@ export class DashboardArchiveService {
     }
     session.busy = true
     try {
+      if (this.saves && manifest.bindings.length > 8) {
+        const request = await this.saves.submit(context, manifest, null, 0, `import/${input.importId}/${hash}`, undefined, session.dependencies)
+        session.submitted = { hash, requestId: request.requestId }
+        return request
+      }
       const receipt = await this.dashboards.save(context, manifest, null, 0, session.dependencies)
       session.committed = { hash, receipt }
       return receipt

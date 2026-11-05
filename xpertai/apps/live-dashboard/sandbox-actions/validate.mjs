@@ -1,5 +1,5 @@
-// Invariants: the SDK's per-document rate/concurrency limits also apply in preflight.
-// Independent synthetic interactions need fresh mounts, not a larger production quota.
+// Immutable snapshot replay has a per-Binding interaction budget, independent of live I/O.
+// Independent synthetic interactions use fresh mounts; production retains 60 dispatches/minute.
 // Each scenario still validates initial load, its interaction sequence and host refresh.
 import { createResourceCache } from './resource-cache.mjs'
 

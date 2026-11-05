@@ -1,3 +1,4 @@
+import { MAX_DASHBOARD_BINDINGS } from './capacity'
 import { z } from 'zod/v3'
 import { analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai/plugin-sdk/artifact-document'
@@ -6,7 +7,7 @@ import { sourceMetadataSchema, dashboardComponentsSchema } from './dashboard-sou
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
   schema: z.literal('xpert.live-dashboard'), id: z.string().uuid(), title: z.string().min(1).max(160),
-  bindings: z.array(analyticsBindingSchema).max(8),
+  bindings: z.array(analyticsBindingSchema).max(MAX_DASHBOARD_BINDINGS),
   sourceMetadata: sourceMetadataSchema.optional(),
   components: dashboardComponentsSchema.optional(),
   presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),

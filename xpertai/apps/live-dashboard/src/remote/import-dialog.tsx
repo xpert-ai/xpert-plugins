@@ -1,3 +1,5 @@
+import { waitForDashboardSave } from './save-progress'
+import { i18n } from './i18n'
 import * as React from 'react'
 import { z } from 'zod/v3'
 import { analyticsSourceRefSchema, analyticsSourceKey, analyticsBindingObjectSchema } from '@xpert-ai/plugin-sdk/analytics'
@@ -20,8 +22,9 @@ export function ImportDialog({ t, onClose, onImported }: { t: ReturnType<typeof 
   const [selected, setSelected] = React.useState(''), [browsing, setBrowsing] = React.useState(false)
   const [busy, setBusy] = React.useState(false), [error, setError] = React.useState('')
   const session = React.useRef<string>(), mounted = React.useRef(true)
+  const saveObserver = React.useRef<AbortController>()
   const discard = (importId: string) => requestHost('executeAction', { actionKey: 'import-discard', input: { importId } }).catch(() => undefined)
-  React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; if (session.current) void discard(session.current) } }, [])
+  React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; saveObserver.current?.abort(); if (session.current) void discard(session.current) } }, [])
   async function upload(file?: File) {
     if (!file) return
     setError(''); setBusy(true); setBrowsing(false)
@@ -38,16 +41,20 @@ export function ImportDialog({ t, onClose, onImported }: { t: ReturnType<typeof 
     } catch (reason) { if (mounted.current) setError(`${t.importFailed} ${reason instanceof Error && /^[A-Z_]+$/.test(reason.message) ? reason.message : ''}`) }
     finally { if (mounted.current) setBusy(false) }
   }
+  const [saveProgress, setSaveProgress] = React.useState('')
   async function commit() {
     if (!prepared) return
+    saveObserver.current?.abort()
+    const observer = new AbortController(); saveObserver.current = observer
     setBusy(true); setError('')
     try {
       const bindings = prepared.manifest.bindings.map(binding => ({ bindingId: binding.id, source: replacements[binding.id].source,
         payload: analyticsBindingObjectSchema.shape.payload.parse(JSON.parse(replacements[binding.id].text)) }))
-      const result = z.object({ success: z.literal(true), data: z.object({ artifactId: z.string().uuid() }) }).parse(await requestHost('executeAction', {
+      const result = z.object({ success: z.literal(true), data: z.unknown() }).parse(await requestHost('executeAction', {
         actionKey: 'import-commit', input: { importId: prepared.importId, bindings }
       })).data
-      await onImported(result.artifactId)
+      const receipt = await waitForDashboardSave(result, progress => { if (mounted.current) setSaveProgress(i18n.t('saveProgress', { requestId: progress.requestId, completed: progress.completed, total: progress.total, stage: i18n.t(`saveStage${progress.stage}` as keyof typeof t) })) }, observer.signal)
+      if (mounted.current) await onImported(receipt.artifactId)
     } catch (reason) { if (mounted.current) setError(`${t.importValidationFailed} ${reason instanceof Error && /^[A-Z_]+$/.test(reason.message) ? reason.message : ''}`) }
     finally { if (mounted.current) setBusy(false) }
   }
@@ -61,6 +68,7 @@ export function ImportDialog({ t, onClose, onImported }: { t: ReturnType<typeof 
       <DialogHeader className="shrink-0 border-b px-4 py-4 pr-12"><DialogTitle>{t.importDashboard}</DialogTitle><DialogDescription>{t.importHint}</DialogDescription></DialogHeader>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         <label className="grid gap-2 text-sm">{t.importFile}<Input type="file" accept=".zip,.json" disabled={busy} onChange={event => void upload(event.target.files?.[0])}/></label>
+        {saveProgress && <p role="status" className="text-sm">{saveProgress}</p>}
         {prepared && <>
           <div><p className="font-medium">{prepared.manifest.title}</p><p className="text-sm text-muted-foreground">{t.importNewDraft}</p></div>
           {prepared.requirements.dynamicResourcesMayExist && <p className="text-sm text-muted-foreground">{t.importOnlineDependencies}</p>}

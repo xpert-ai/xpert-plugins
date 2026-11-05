@@ -16,6 +16,8 @@
             "group": "接入与验证",
             "pages": [
               "index",
+              "large-dashboards",
+              "large-dashboards-acceptance",
               "quick-start",
               "superstore",
               "visual-styles",

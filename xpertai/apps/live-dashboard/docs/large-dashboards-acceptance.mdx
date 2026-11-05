@@ -1,0 +1,74 @@
+---
+title: 大型看板验收记录
+description: 2026-11-05 容量边界、调度、后台保存、真实 BW 数据与 Workbench 浏览器验证。
+---
+
+## 环境与结果
+
+本次升级已实现，并在本地 Xpert Pro / Data Xpert 中验证。原采购、库存、销售演示定义未修改；容量验收使用既有隔离项目中的新草稿，不发布或新增数据权限。
+
+- 插件源基线：`xpert-plugins` develop `4fd9fea0`，插件包版本仍为 `0.4.1`，新增 minor changeset。
+- 平台源基线：`xpert-pro` develop `ed7d53b03`，配套 Artifact Document SDK 修改及 minor changeset。
+- Data Xpert：develop `670163c`；ChatKit：develop `4e4907e`。
+- 相关仓库已检查工作区、快进拉取并冻结安装依赖；API 3000、API 3001、Web 5174、ChatKit 5173 已重启并完成健康检查。
+- 插件使用正常登录及 `plugin:deploy:local` 部署，重启平台后执行真实 View action，证明不是仅构建或 staged 状态。
+
+## 自动化验证
+
+| 层次 | 实际结果 |
+| --- | --- |
+| Live Dashboard 最终构建与测试 | 259 项通过，0 失败 |
+| SDK 完整回归 | 70 suites / 453 项通过 |
+| SDK 最后一次宿主修正后定向回归 | 6 suites / 37 项通过 |
+| 产物一致性 | `verify:dist` 通过，包含远程组件、Action 和前端库 |
+| 插件注册 | 元数据检查、dist-first 生命周期加载及关闭通过 |
+| Data Xpert 依赖与 Analysis App | contracts 编译通过；单文档构建 2,080,476 字节，低于保留的 2 MiB 上限 |
+
+覆盖 8/9/16/32/64 的 schema、Sources 关联和档案往返；65 拒绝；降低策略后的历史维护；相同请求复用、4 并发、分钟限额、慢请求、超时、快速筛选、旧结果隔离、部分失败、卸载及结果内存限制。HTML 快照预检使用受控浏览器桩覆盖 4/8/9/16/32/64 的控件与刷新回放；这不是 64 个真实数据库来源的浏览器性能实测。
+
+后台任务覆盖幂等、跨作用域拒绝、权限撤销、观察者取消、入队中断恢复、CAS 成功后的状态恢复，以及批量预览凭证与原重试规则。
+
+前一轮 Nx 构建/测试通过。最终 UI 观察者清理及重复刷新状态修正后，工作区 Nx 项目图被其他插件中三个无名称模板 package 阻挡，改为执行同一插件的 `pnpm -F @xpert-ai/plugin-live-dashboard test`（含完整 build）。没有通过忽略测试或修改其他模板绕过验证。
+
+## 真实后台与数据验收
+
+在已有 `Sources 导入验收｜2026-11-05` 项目创建 `容量验收 · 9 Sources · 公网库存（查询复用场景）`。这九个 Binding 复用已授权的公网 BW 库存查询，专门检验来源容量与调度，不代表九个独立业务指标。
+
+- requestId：`5f37c13b-8ade-4230-9f8d-877ac1352d4c`。
+- 新 Artifact：`a45d0fbf-8818-4897-bb08-285bae9fcea2`，草稿修订 `1`，9 个来源。
+- 观察到 queued → queries 0/9 → 2/9 → 6/9 → saved；提交、验证、读取和后续查询共约 13.7 秒。
+- 重复提交返回同一个 requestId，没有第二次草稿修订。
+- 保存后单来源真实查询返回 100 行，`truncated=false`、`totalAccuracy=exact`。
+- 默认策略下提交 33 个 Binding 返回 HTTP 400 / `DASHBOARD_BINDING_CAPACITY`，未启动新保存任务。
+
+## Workbench 浏览器验收
+
+在本地 Bosi 工作台打开九来源草稿，确认九张表均有真实数据。Sources 的完成时间显示 4、4、1 的加载批次。
+
+- 搜索“来源 9”后只保留对应来源；自定义 Select 选择“已更新”状态正常。
+- 来源详情显示对应 Binding、Dataset、Provider、请求配置、排队时间和执行时间。
+- 单独刷新来源 9：经历查询中 → 已更新，运行约 2.2 秒，其余来源不随之重查。
+- 使用原始库存查询返回的真实工厂成员 `[2CIPLANT].[0018]` 应用筛选，九个相关来源全部更新；来源 1 的结果从 100 行变为 2 行，完整性仍为 exact / 未截断，当前参数和审计引用可在结果详情中核对。
+- 私有验收截图及机器可读记录保存在本地 `.xpert-local-environment/dashboard-scale-20261105/`，不将业务数据或登录信息加入插件仓库。
+
+## 验证边界
+
+64 是协议上限；本次真实数据宿主验收到 9 个 Binding。32/64 的边界和调度行为由自动化测试覆盖，未对 64 个独立外部数据库或多用户同时访问作性能承诺。分钟额度、源系统速度、返回体大小都会影响首屏时间。自动刷新隐藏页行为、故障和队列恢复的异常路径以自动化测试证据为主。
+
+本次没有运行一个新的完整 LLM 对话来覆盖所有批量工具；Agent 工具路径由集成测试验证，真实保存通过同一领域服务和 Managed Queue 完成。以上首次验收时，配套 SDK 尚待发布，插件使用临时 pnpm patch；当时的本地成功不等同于已完成 npm 发布。后续正式 SDK 依赖迁移见下文。
+
+联调额外修复 Data Xpert 的两个启动阻塞：contracts 依赖升级至提供现有源码所需类型的 3.32.0；Analysis App 使用显式 Terser 压缩。没有扩大文件传输上限、关闭鉴权或复用过期产物。
+
+## 正式 SDK 依赖迁移（2026-11-05）
+
+插件仓库快进更新至 develop `6fc3fe99`，保留原暂存改动。确认 npm 已发布 `@xpert-ai/plugin-sdk@3.33.0` 与 `@xpert-ai/contracts@3.33.0` 后，将 `xpertai` 工作区和 Live Dashboard 的开发依赖升级至 3.33.0，本插件 peer 依赖同步要求 `^3.33.0`。移除 SDK 3.31.0 临时 patch、工作区配置及锁文件中的 patch 引用；独立的 Changesets CLI patch 保留。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 正式包解析 | 工作区与插件均解析到 SDK/contracts 3.33.0；正式包提供调度器、宿主与 `queryMany` 运行时 |
+| 依赖安装 | 更新锁文件后 `pnpm install --frozen-lockfile` 通过 |
+| Nx 构建与回归 | 跳过缓存运行 Live Dashboard `test`，完整构建及 259 项测试通过，0 失败 |
+| 产物一致性 | Nx `verify:dist` 通过，viewer、Action 与前端库已重建并校验 |
+| 插件注册 | 元数据检查通过，dist-first 生命周期加载及关闭通过（Harness 基础设施 mock） |
+
+本次是正式包依赖迁移与构建回归，未重新部署插件或重跑真实数据、浏览器及 LLM 验收。以上真实宿主记录仍对应首次部署，不能作为 3.33.0 已部署的证明。

@@ -5,7 +5,7 @@ import type { AnalyticsBinding, AnalyticsValue, XpertResolvedViewHostContext } f
 import type { DashboardService } from './dashboard.service'
 
 const scalar = z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()])
-const schema = z.object({ previewId: z.string().min(1),
+export const filterTestSchema = z.object({ previewId: z.string().min(1),
   controls: jsonEncodedSchema(z.record(scalar)),
   expectations: jsonEncodedSchema(z.array(z.object({ fieldId: z.string().min(1), oneOf: z.array(scalar).min(1).max(100) }).strict()).min(1).max(24))
 }).strict()
@@ -34,7 +34,7 @@ export function createFilterEvidence(service: DashboardService, scope: XpertReso
       for (const parameter of required(binding, previewId))
         throw new Error(`DASHBOARD_FILTER_TEST_REQUIRED: test ${parameter.controlId} with a real non-null value using dashboard_test_filter before saving`)
     },
-    tool: tool(async (input: z.infer<typeof schema>) => {
+    tool: tool(async (input: z.infer<typeof filterTestSchema>) => {
       const binding = previews.get(input.previewId)
       if (!binding) throw new Error('DASHBOARD_PREVIEW_REQUIRED')
       if (Object.keys(input.controls).some(id => !binding.parameters.some(parameter => parameter.controlId === id)))
@@ -54,6 +54,6 @@ export function createFilterEvidence(service: DashboardService, scope: XpertReso
       checked.set(input.previewId, controls)
       return JSON.stringify({ previewId: input.previewId, passed: true, checkedControls: [...controls], remainingControls: required(binding, input.previewId).map(parameter => parameter.controlId), rows: dataset.rows.slice(0, 20), completeness: dataset.completeness })
     }, { name: 'dashboard_test_filter', description: 'Verify a previewed Binding with concrete filter values and expected field values. For a nullable dimension selector, test a real non-null value and expect every row of the matching field to equal it before saving. Does not change defaults. A failed check must be repaired before create/update.',
-      schema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify filter results', zh_Hans: '验证筛选结果' } } })
+      schema: filterTestSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify filter results', zh_Hans: '验证筛选结果' } } })
   }
 }

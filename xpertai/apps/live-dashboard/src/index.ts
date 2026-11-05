@@ -1,3 +1,4 @@
+import { DASHBOARD_CONFIG, dashboardConfigSchema } from './lib/capacity'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -17,7 +18,8 @@ const plugin: XpertPlugin = {
       { type: 'assistant-template', name: DASHBOARD_TEMPLATE_KEY, displayName: dashboardAssistantTemplate.title, description: dashboardAssistantTemplate.description }
     ] } } }
   },
+  config: { schema: dashboardConfigSchema },
   templates: dashboardTemplates,
-  register: () => ({ module: LiveDashboardPlugin })
+  register: context => ({ module: LiveDashboardPlugin, providers: [{ provide: DASHBOARD_CONFIG, useValue: dashboardConfigSchema.parse(context.config ?? {}) }] })
 }
 export default plugin

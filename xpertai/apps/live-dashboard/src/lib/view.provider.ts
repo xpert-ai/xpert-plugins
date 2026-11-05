@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
+import { DashboardSaveRequests, saveRequestSchema, waitSaveRequestSchema } from './save-requests'
 import { DashboardProjectsService, projectSearchSchema } from './projects.service'
 import { dashboardSearchSchema } from './projects.schema'
-import { BadRequestException, ForbiddenException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Optional } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery, XpertViewFileAccessRequest } from '@xpert-ai/contracts'
 import { ARTIFACT_PRESENTATION_OPEN_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
@@ -23,7 +25,7 @@ const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 
 @ViewExtensionProvider(VIEW_PROVIDER)
 export class DashboardViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: DashboardService, private readonly sharing: DashboardSharingService, private readonly projects: DashboardProjectsService, private readonly archives: DashboardArchiveService) {}
+  constructor(private readonly service: DashboardService, private readonly sharing: DashboardSharingService, private readonly projects: DashboardProjectsService, private readonly archives: DashboardArchiveService, @Optional() private readonly saves?: DashboardSaveRequests) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench', 'agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
@@ -42,7 +44,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
         filter: { toolNames: DASHBOARD_MUTATION_TOOLS }, action: { type: 'forward', debounceMs: 0 } }] },
       actions: [
         { key: 'import-preview', label: text('Import dashboard file', '导入看板文件'), actionType: 'invoke', transport: 'file' },
-        ...['import-commit', 'import-discard', 'import-browse'].map(key => ({ key, label: text('Import dashboard', '导入看板'), actionType: 'invoke' as const })),
+        ...['import-commit', 'import-discard', 'import-browse', 'save-wait', 'save-status'].map(key => ({ key, label: text('Import dashboard', '导入看板'), actionType: 'invoke' as const })),
         ...[
           { key: 'dashboards', label: text('Select dashboard', '选择看板') },
           { key: 'projects', label: text('Select project', '选择项目') },
@@ -80,6 +82,11 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   }
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)
+    if (action === 'save-wait' && this.saves) {
+      const input = waitSaveRequestSchema.parse(request.input)
+      return { success: true, data: await this.saves.wait(context, input.requestId, input.cursor), refresh: false }
+    }
+    if (action === 'save-status' && this.saves) return { success: true, data: await this.saves.get(context, saveRequestSchema.parse(request.input).requestId), refresh: false }
     if (action === 'import-commit') return { success: true, data: await this.archives.commit(context, importInputSchema.parse(request.input)), refresh: false }
     if (action === 'import-browse') return { success: true, data: await this.archives.browse(context, importBrowseSchema.parse(request.input)), refresh: false }
     if (action === 'import-discard') return { success: true, data: await this.archives.discard(context, z.object({ importId: z.string().uuid() }).strict().parse(request.input).importId), refresh: false }
@@ -113,7 +120,10 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     }
     if (action === 'save') {
       const input = saveSchema.parse(request.input)
-      return { success: true, data: await this.service.save(context, input.manifest, input.expectedVersionId, input.expectedRevision), refresh: false }
+      const data = this.saves && input.manifest.bindings.length > 8
+        ? await this.saves.submit(context, input.manifest, input.expectedVersionId, input.expectedRevision, createHash('sha256').update(JSON.stringify(input)).digest('hex'))
+        : await this.service.save(context, input.manifest, input.expectedVersionId, input.expectedRevision)
+      return { success: true, data, refresh: false }
     }
     if (action === 'query') {
       const input = querySchema.parse(request.input)

@@ -1,15 +1,16 @@
 import * as React from 'react'
 import { Button, Badge, Collapsible, CollapsibleTrigger, CollapsibleContent, Sheet, SheetContent, SheetTitle, SheetDescription,
+  Input, Select, SelectTrigger, SelectContent, SelectItem, SelectValue, RefreshCw,
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Textarea, ArrowLeft, X, ChevronDown, Copy, Database } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardComponents, dashboardSources } from '../lib/dashboard-sources'
 import type { DashboardManifest } from '../lib/dashboard.schema'
 import type { SourceExecution } from '../lib/source-executions'
-import type { messages } from './i18n'
+import { i18n, type messages } from './i18n'
 
 export type SourceSelection = { componentId?: string | null; bindingId?: string }
 type Props = {
-  manifest: DashboardManifest; selection: SourceSelection; executions: Record<string, SourceExecution>
-  onSelect(selection: SourceSelection): void; onClose(): void; t: ReturnType<typeof messages>
+  busy?: boolean; manifest: DashboardManifest; selection: SourceSelection; executions: Record<string, SourceExecution>
+  onSelect(selection: SourceSelection): void; onClose(): void; onRetry(bindingId: string): void; t: ReturnType<typeof messages>
 }
 export function SourcesPanel(props: Props) {
   const [narrow, setNarrow] = React.useState(() => window.innerWidth < 900)
@@ -25,7 +26,8 @@ export function SourcesPanel(props: Props) {
   </Sheet>
   return <aside className="sources-panel border-l" aria-label={props.t.sources}><SourceContents {...props}/></aside>
 }
-function SourceContents({ manifest, selection, executions, onSelect, onClose, t, drawer }: Props & { drawer?: boolean }) {
+function SourceContents({ busy, manifest, selection, executions, onSelect, onClose, onRetry, t, drawer }: Props & { drawer?: boolean }) {
+  const [search, setSearch] = React.useState(''), [provider, setProvider] = React.useState('*'), [filterStatus, setFilterStatus] = React.useState('*')
   const sources = dashboardSources(manifest)
   const source = sources.find(item => item.binding.id === selection.bindingId)
   const component = dashboardComponents(manifest).find(item => item.id === selection.componentId)
@@ -34,7 +36,7 @@ function SourceContents({ manifest, selection, executions, onSelect, onClose, t,
   const heading = React.useRef<HTMLHeadingElement>(null)
   React.useEffect(() => { heading.current?.focus() }, [selection.bindingId, selection.componentId])
   const date = (value: string) => new Date(value).toLocaleString(document.documentElement.lang)
-  const status = (value?: SourceExecution) => value?.state === 'running' ? t.sourceRunning : value?.state === 'failed' ? t.sourceFailed : value?.state === 'succeeded' ? t.sourceSucceeded : t.sourceNotRun
+  const status = (value?: SourceExecution) => value?.state === 'queued' ? t.sourceQueued : value?.state === 'running' ? t.sourceRunning : value?.state === 'failed' ? t.sourceFailed : value?.state === 'succeeded' ? t.sourceSucceeded : t.sourceNotRun
   return <>
     <header className={`flex shrink-0 items-center gap-2 border-b px-4 py-3 ${drawer ? 'pr-12' : ''}`}>
       {(source || selection.componentId !== undefined) && <Button variant="ghost" size="icon" aria-label={t.sourceBack} onClick={() => onSelect(source ? { componentId: selection.componentId } : {})}><ArrowLeft/></Button>}
@@ -45,7 +47,18 @@ function SourceContents({ manifest, selection, executions, onSelect, onClose, t,
       {!source ? <div className="grid gap-1 p-2">
         {selection.componentId !== undefined && <p className="px-2 py-3 text-sm text-muted-foreground">{scoped.length ? t.sourceComponentHint : t.sourceUnmapped}</p>}
         {!sources.length && <p className="p-4 text-sm text-muted-foreground">{t.sourceEmpty}</p>}
-        {scoped.map(item => <div key={item.binding.id} className="space-y-1 p-2">
+        <Input aria-label={t.sourceSearch} placeholder={t.sourceSearch} value={search} onChange={event => setSearch(event.target.value)}/>
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={provider} onValueChange={setProvider}><SelectTrigger aria-label={t.sourceProviderFilter}><SelectValue/></SelectTrigger><SelectContent>
+            <SelectItem value="*">{t.sourceAllProviders}</SelectItem>{[...new Set(sources.map(item => item.binding.providerId))].map(id => <SelectItem key={id} value={id}>{id}</SelectItem>)}
+          </SelectContent></Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger aria-label={t.sourceStatusFilter}><SelectValue/></SelectTrigger><SelectContent>
+            <SelectItem value="*">{t.sourceAllStatuses}</SelectItem>{(['queued', 'running', 'succeeded', 'failed', 'idle'] as const).map(value =>
+              <SelectItem key={value} value={value}>{value === 'idle' ? t.sourceNotRun : status({ state: value } as SourceExecution)}</SelectItem>)}
+          </SelectContent></Select>
+        </div>
+        {scoped.filter(item => (provider === '*' || item.binding.providerId === provider) && (filterStatus === '*' || (executions[item.binding.id]?.state ?? 'idle') === filterStatus) &&
+          `${item.title} ${item.description ?? ''} ${item.binding.id}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map(item => <div key={item.binding.id} className="space-y-1 p-2">
           <Button variant="ghost" className="w-full justify-start" onClick={() => onSelect({ ...selection, bindingId: item.binding.id })}>
             <Database/><span className="min-w-0 truncate">{item.title}</span>
           </Button>
@@ -56,6 +69,9 @@ function SourceContents({ manifest, selection, executions, onSelect, onClose, t,
         <div className="space-y-3 px-4 py-4">
           {source.description && <p className="text-sm text-muted-foreground">{source.description}</p>}
           <Badge variant={state?.state === 'failed' ? 'destructive' : 'secondary'}>{status(state)}</Badge>
+          <Button variant="outline" disabled={busy || state?.state === 'queued' || state?.state === 'running'} onClick={() => onRetry(source.binding.id)}><RefreshCw/>{t.sourceRetry}</Button>
+          {state?.startedAt && <dl className="grid gap-2 text-xs"><Pair label={t.sourceQueueDuration} value={i18n.t('sourceMilliseconds', { value: Date.parse(state.startedAt) - Date.parse(state.requestedAt) })}/>
+            {state.finishedAt && <Pair label={t.sourceRunDuration} value={i18n.t('sourceMilliseconds', { value: Date.parse(state.finishedAt) - Date.parse(state.startedAt) })}/>}</dl>}
           <dl className="grid gap-2 text-xs"><Pair label="bindingId" value={source.binding.id}/><Pair label="datasetId" value={source.binding.output.datasetId}/></dl>
 
         </div>
@@ -88,7 +104,7 @@ function SourceContents({ manifest, selection, executions, onSelect, onClose, t,
             <p className="text-xs text-muted-foreground">{t.sourcePreviewLimit}</p>
             <div className="max-h-72 overflow-auto"><Table><TableHeader><TableRow>{state.result.fields.map(field => <TableHead key={field.id}>{field.label ?? field.id}</TableHead>)}</TableRow></TableHeader>
               <TableBody>{state.result.rows.map((row, index) => <TableRow key={index}>{state.result!.fields.map(field => <TableCell key={field.id} className="whitespace-nowrap">{JSON.stringify(row[field.id]) ?? '—'}</TableCell>)}</TableRow>)}</TableBody></Table></div>
-          </> : <p className="text-sm text-muted-foreground">{t.sourceNotRun}</p>}
+          </> : <p className="text-sm text-muted-foreground">{state?.previewEvicted ? t.sourcePreviewEvicted : t.sourceNotRun}</p>}
         </Section>
       </>}
     </div>
