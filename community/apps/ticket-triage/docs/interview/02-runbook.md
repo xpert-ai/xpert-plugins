@@ -126,6 +126,33 @@ GET /api/xpert-template        # tenant scope；带 organization-id 头会报 Te
 | 部署报 `Failed to install runtime dependencies` | 平台在 Windows 下用 `execFile('npm')`（应为 `npm.cmd`） | 见 [03-validation.md](03-validation.md) 附录的宿主补丁 |
 | 模型报 `This provider has no credential schema.` | 宿主从 `file:///C:/...` 推断插件目录，前导 `/` 没剥 | 同上附录补丁第 4 条 |
 
+## 8. 环境检查结果（本轮实测，2026-11-05）
+
+按题面附录四要求给出环境检查结果。**不含任何密码与 Token**，主机名与端口只写形态。
+
+| 项 | 实测值 |
+| --- | --- |
+| 平台目录与 SHA | `C:\xpert\xpert`，`git rev-parse HEAD` = `3ddc380ca20373f9113a77411090de3c3da75e37`（`main`，`--depth 1`） |
+| 插件目录与 SHA | `C:\xpert\xpert-plugins` @ `dfad5423205811b3251628ee9bf59a79a4bcbd87`，工作分支 `feat/ticket-triage-app` |
+| 插件安装位置 | `plugins/<orgId>/@community/apps-ticket-triage@runtime__<uuid>/`，由 `plugin:deploy:local` 写入，平台自管 |
+| API 地址与状态 | `http://127.0.0.1:3000/api`；日志末尾 `Nest application successfully started` + `Listening at http://localhost:3000/api` + `runtime.readiness.changed status:ready`（约 35–50 s 就绪） |
+| UI 地址 | `http://127.0.0.1:4300`（生产构建 + 静态服务，`/api*` 反代到 3000）；工作台 `/chat/x/community-apps-ticket-triage-studio-<orgId>/c?view=ticket_triage.board__ticket_triage.board-view` |
+| 数据库 | PostgreSQL 15 + pgvector，容器 `xpert-db`，`pg_isready` = `accepting connections`；库名与账号只存在于宿主环境变量 |
+| 缓存 | `redis/redis-stack-server`，容器 `xpert-redis`，`PING` = `PONG` |
+| 模型 | 平台内 `copilot_provider` = `zhipuai`，主模型 `glm-5.3-flash`；插件不读取也不保存 key |
+| 插件加载 | `POST /api/plugin/by-names` 返回 `level: tenant`、`artifactNamespace: ticket_triage`、capability `ticket_triage.board` |
+| 视图与模板 | `GET /api/view-hosts/agent/<id>/slots/agent.workbench.main/views` → `ticket_triage.board__ticket_triage.board-view`；`GET /api/xpert-template` 第一条即本插件模板（`source: plugin`） |
+| 应用外壳（可选） | `GET /api/app-platform/me` → `mode=managed-apps, ready=true`，entry `community-apps-ticket-triage-studio-<orgId>`；前置条件见 [03-validation.md](03-validation.md) 已知边界第 1 条 |
+
+**仍需手动完成的初始化事项**（换机器复现时按此勾）：
+
+1. 宿主仓库 `corepack pnpm install --ignore-scripts`，再 `corepack pnpm nx build api --configuration=development`（Windows 需先打附录补丁，Linux 原样）。
+2. 起 `pgvector/pgvector:pg15` 与 `redis/redis-stack-server`，设置 `DB_*` / `REDIS_*` / `PLUGIN_WORKSPACE_ROOTS` 环境变量（仓库只有占位符）。
+3. `corepack pnpm seed:module Default`（**会重置 schema，之后必须重启 API**）；再给账号补 `role_permission`（`enabled=true` 且带 `tenantId`）与 `user_organization` 行，否则登录后看不到组织工作区。
+4. 平台内配模型：模型提供方 → 新建 `zhipuai` 连接（填 `api_key`）→ 勾选模型 → 设为 primary 默认模型。
+5. 装插件：`plugin:deploy:local --scope tenant` → 重启 API → 从模板建助手（`POST /api/xpert-template/<encoded-id>/install`）。
+6. 可选的 app-platform 外壳：写 `APP_PLATFORM_FILE` + `APP_PLATFORM_ENVIRONMENT_FILE`，并 seed `membership_plan`、`FEATURE_MEMBERSHIP_PLAN` 与 provisioning actor 的角色权限（三堵墙见 03）。
+
 ## 附录 · 浏览器层复现（截图就是这么来的）
 
 ```bash

@@ -12,7 +12,7 @@
 | 工具 | 用途 |
 | --- | --- |
 | AI 编码代理（DeepSeek Harness，deepseek-flash + 仓库内 Agent Skills） | 读仓库、写代码、跑构建/测试、排查环境问题、写文档 |
-| Xpert Agent Skills（`xpert-agentic-app-developer`、`xpert-plugin-development`、`xpert-platform-local-environment`） | 确认插件贡献点、注册方式、本地平台启动方式 |
+| Xpert Agent Skills（`xpert-agentic-app-developer`、`xpert-plugin-development`、`xpert-platform-local-environment`） | **直接读这三个技能的源码**（`xpert-ai/xpert-skills`，当时 GitHub 连通性差、`npx skills add` 装不上），据此确认插件贡献点、注册方式与本地平台启动方式。**附录三的三条安装命令本轮没有执行**，技能文件也没有落到本地 skills 目录——面试如问"是不是按附录三装的"，答案是"没有，读的是仓库原文" |
 | 平台内模型（GLM 系列，OpenAI 兼容） | 运行期由助手调用两个工具完成真实分诊 |
 
 代码来源：`community/apps/dockyard` 作为结构参照；接口形态由 `plugin-dev-harness`、`@xpert-ai/plugin-sdk`、`@xpert-ai/contracts` 3.18.4 的类型定义决定。AI 产出的是业务代码与文档草稿；接口契约、状态机语义、验收口径来自仓库约定与题面。

@@ -16,13 +16,15 @@
 | 层次 | 命令 / 入口 | 结果 | 这一层证明不了什么 |
 | --- | --- | --- | --- |
 | 一、业务逻辑 | `corepack pnpm run typecheck`、`corepack pnpm run test`（`tsx --test tests/domain.test.ts`） | 类型检查通过；**11/11**（8.6 s） | 内存 Fake 仓库模拟唯一约束与乐观锁，不覆盖真实 SQL 方言 |
-| 二、插件加载 | `node plugin-dev-harness/dist/index.js --workspace ./community --plugin @community/apps-ticket-triage` | `Plugin loaded successfully.` | harness 默认 mock DB 与运行能力，不证明真实数据库与权限 |
+| 二、插件加载 | `node plugin-dev-harness/dist/index.js --workspace ./community --plugin @community/apps-ticket-triage` | `Plugin loaded successfully.`，同一次运行的尾部是 `[InstanceLoader] TicketTriagePlugin dependencies initialized` → `Plugin loaded successfully.` → `Application context closed`：**初始化与销毁都没有报错**（2026-11-05 11:18:15 复跑，可按 [02-runbook.md](02-runbook.md) 第 7 节命令重放） | harness 默认 mock DB 与运行能力，不证明真实数据库与权限 |
 | 二、加载（真实平台） | `plugin:deploy:local --scope tenant` → 重启 API → `POST /api/plugin/by-names` | `refreshed and staged successfully`；descriptor `meta` 完整（0.1.0 / tenant / `ticket_triage` / 三种 types / capability `ticket_triage.board`） | 不证明视图在浏览器里渲染正确 |
 | 三、界面集成 | `GET /api/view-hosts/agent/<id>/slots/agent.workbench.main/views`、`.../data`、`.../actions/<key>`；并用浏览器真点 | 槽位返回 `ticket_triage.board__ticket_triage.board-view`；`data` 200；`seed/confirm/reject/reset` 全部 201；浏览器里点「确认分诊」「重试分诊」均走通（截图 06/07/11/12） | 平台自带外壳另用 `?view=` 验证（截图 13/14，前置条件见第 5 节第 1 条） |
 | 四、平台业务流程 | `POST /api/xpert-template/<id>/install` → `POST /api/chat` → 视图动作 | 模板安装成功；真实模型调用触发两个工具；人工确认后关闭；重启后数据仍在 | 见第 5 节"已知边界" |
 | 附：权限与多租户 | 另建第二租户，用主租户 `xpertId` 打视图/对话/模板 | 工作区 `total=0`；视图 **404 `Not found xpert '…' in current tenant`**；对话 SSE `The requested record was not found`；模板列表无本插件 | 未覆盖"同租户两组织" |
 
 **关于 lint**：本包 `package.json` 只有 `typecheck` / `build` / `test` / `verify:dist` / `check`，**没有 lint 脚本**（`community/apps` 下 dockyard 等同样没有）。按题面 [117]"存在 lint、typecheck 或界面测试脚本时一并执行"的口径，执行的是 typecheck + 领域测试 + 构建与产物校验；仓库级检查也跑了：`check:entity-names` → `All community entity names start with "plugin_".`，`check:plugin-metadata` → `Plugin metadata check passed (working-tree, 0 plugins).`
+
+**关于可重复性（题面 [116]）**：前两层是可重复的——域测试用内存 Fake 仓库 + 固定 fixture，插件加载层是 harness 的 mock 数据库；界面层的五个状态靠 `capture-board.mjs --stage persisted|empty|failed|retry` 重放，数据前置写在 [tests/browser/README.md](../../tests/browser/README.md)。**第四层不可逐字重复**：真实模型每次措辞不同，所以记录的是"轨迹 + 最终状态"（哪个工具被调用、工单最终 `status` 与 `revision`），换模型或换平台版本要重跑这一层。
 
 ## 2. 表 2 五个验收场景 → 证据
 
