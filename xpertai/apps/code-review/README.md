@@ -92,6 +92,8 @@ Replace the example UUID with the integration selected in the UI. All organizati
 
 The integration may be saved without a webhook secret, but signed and unsigned webhook deliveries are both rejected until a secret is configured. Blank secret fields on an existing integration preserve the saved value; enter a new value to rotate it. Credentials are resolved again for each operation, so key/secret rotations do not require copying them into the plugin. Never commit credentials to source control.
 
+On hosts supporting `PluginContext.readConfig()`, Code Review reads its selected integration reference from the database whenever App configuration is needed. This keeps API replicas consistent without background configuration polling. Database or configuration errors stop the operation; they do not fall back to an old reference. Older hosts retain the local configuration snapshot behavior, so deploy the matching platform update to enable this behavior on every replica.
+
 ### 4. Connect repositories and enable rules
 
 1. In Code Review, open **Connect repositories** and click **Connect GitHub**. Complete the platform's OAuth dialog, which is pinned to the selected system integration. Automatic repository setup requires GitHub App OAuth from that integration. PATs remain available for manual connector use. The current connection is shared within the workspace.

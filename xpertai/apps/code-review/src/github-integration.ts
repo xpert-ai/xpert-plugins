@@ -18,8 +18,15 @@ export function assertGitHubRepositoryApplication(config: GitHubApplication, bin
     throw new ReviewError('github_repository_revalidation_required')
 }
 
-export async function resolveGitHubApplication(context: PluginContext): Promise<GitHubApplication | undefined> {
-  const config = configSchema.parse(context.config ?? {})
+// Compatibility boundary for SDK packages predating the host's optional readConfig method.
+export type GitHubConfiguration = z.output<typeof configSchema>
+export async function readGitHubConfiguration(context: PluginContext): Promise<GitHubConfiguration> {
+  const liveContext: PluginContext & { readConfig?: () => Promise<object> } = context
+  return configSchema.parse(liveContext.readConfig ? await liveContext.readConfig() : context.config ?? {})
+}
+
+export async function resolveGitHubApplication(context: PluginContext, configuration?: GitHubConfiguration): Promise<GitHubApplication | undefined> {
+  const config = configuration ?? await readGitHubConfiguration(context)
   if (!config.githubIntegrationId) return config.githubApp
   const reader = context.resolve<IntegrationPermissionService>(INTEGRATION_PERMISSION_SERVICE_TOKEN)
   if (!reader.readConfiguration) throw new ReviewError('github_integration_unavailable')

@@ -2,13 +2,13 @@ import { Inject, Injectable } from '@nestjs/common'
 import { createSign } from 'node:crypto'
 import { z } from 'zod/v3'
 import { ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN, type AgentMiddlewareRuntimeServiceApi, type PluginContext } from '@xpert-ai/plugin-sdk'
-import { configSchema, CONTEXT } from './automation-domain.js'
+import { CONTEXT } from './automation-domain.js'
 import { GitHub } from './github.js'
 import { ReviewError, type Scope } from './domain.js'
 import { reviewRuntimeScope } from './runtime-scope.js'
 import type { GitHubConnection } from './github-connection.js'
-import { assertGitHubConnectorApplication, assertGitHubRepositoryApplication, resolveGitHubApplication,
-  type GitHubApplication, type GitHubRepositoryBinding } from './github-integration.js'
+import { assertGitHubConnectorApplication, assertGitHubRepositoryApplication, resolveGitHubApplication, readGitHubConfiguration,
+  type GitHubApplication, type GitHubRepositoryBinding, type GitHubConfiguration } from './github-integration.js'
 
 const repositorySchema = z.object({ id: z.number().int().positive(), name: z.string(), owner: z.object({ login: z.string() }),
   permissions: z.object({ admin: z.boolean().optional(), push: z.boolean().optional() }).optional() })
@@ -16,20 +16,22 @@ const repositorySchema = z.object({ id: z.number().int().positive(), name: z.str
 @Injectable()
 export class GitHubApp {
   constructor(@Inject(CONTEXT) private readonly context: PluginContext) {}
-  async config(scope?: Scope) {
-    const config = await resolveGitHubApplication(this.context)
+  async config(scope?: Scope, configuration?: GitHubConfiguration) {
+    const config = await resolveGitHubApplication(this.context, configuration)
     // Preserve review execution isolation after the host authorizes the configuration reference.
     if (scope && config?.tenantId && scope.tenantId !== config.tenantId) throw new ReviewError('github_integration_unavailable')
     return config
   }
   async status(scope?: Scope) {
+    let configuration: GitHubConfiguration | undefined
     try {
-      const config = await this.config(scope)
+      configuration = await readGitHubConfiguration(this.context)
+      const config = await this.config(scope, configuration)
       return { configured: !!config, integrationId: config?.integrationId ?? null, integrationName: config?.integrationName ?? null,
         installUrl: config ? `https://github.com/apps/${config.slug}/installations/new` : null,
         webhookUrl: config?.publicBaseUrl ? new URL('/api/code_review/github/webhook', config.publicBaseUrl).href : null, errorCode: null }
     } catch (error) {
-      return { configured: false, integrationId: configSchema.parse(this.context.config ?? {}).githubIntegrationId ?? null,
+      return { configured: false, integrationId: configuration?.githubIntegrationId ?? null,
         integrationName: null, installUrl: null, webhookUrl: null,
         errorCode: error instanceof ReviewError ? error.code : 'github_integration_unavailable' }
     }
