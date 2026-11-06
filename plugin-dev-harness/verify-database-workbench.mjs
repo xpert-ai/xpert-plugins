@@ -26,9 +26,12 @@ const projects = [
   "@xpert-ai/plugin-redshift",
 ];
 const sdkPackage = require("@xpert-ai/plugin-sdk/package.json");
-if (sdkPackage.version !== "3.31.0")
+const expectedSdkVersion = require("./package.json").dependencies[
+  "@xpert-ai/plugin-sdk"
+];
+if (sdkPackage.version !== expectedSdkVersion)
   throw new Error(
-    "Database migration verification requires the published SDK 3.31.0"
+    `Database migration verification requires the published SDK ${expectedSdkVersion} declared in xpertai/package.json; installed ${sdkPackage.version}`
   );
 const scratch = mkdtempSync(path.join(tmpdir(), "database-workbench-"));
 try {
