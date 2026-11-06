@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@source "../src/remote/**/*.{ts,tsx}";
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-destructive: var(--destructive);
+}
