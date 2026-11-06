@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>简历智能匹配工作台 · 本地预览</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; background: #e9ebf4; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      body { display: flex; flex-direction: column; }
+      .preview-bar { height: 42px; flex: 0 0 42px; display: flex; align-items: center; gap: 14px; padding: 0 14px; background: #161528; color: #d9d6ef; font-size: 12px; }
+      .preview-bar strong { color: #fff; letter-spacing: .04em; }
+      .preview-bar a { color: #b7b2d8; text-decoration: none; padding: 4px 7px; border-radius: 5px; }
+      .preview-bar a:hover { background: #2a2842; color: #fff; }
+      .preview-bar .spacer { flex: 1; }
+      .preview-shell { flex: 1; min-height: 0; padding: 0; }
+      iframe { display: block; width: 100%; height: 100%; border: 0; background: #f5f6fb; }
+      .hint { color: #8f8ba8; font-size: 11px; }
+      @media (max-width: 900px) { .hint { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="preview-bar">
+      <strong>聘智 · 本地预览</strong>
+      <span class="hint">同源构建产物，真实工作台交互，数据仅用于演示</span>
+      <span class="spacer"></span>
+      <a href="/?scenario=review" data-scenario="review">待确认结果</a>
+      <a href="/?scenario=waiting" data-scenario="waiting">分析中</a>
+      <a href="/?scenario=failure" data-scenario="failure">失败重试</a>
+      <a href="/?scenario=empty" data-scenario="empty">空状态</a>
+      <a href="/?scenario=confirmed" data-scenario="confirmed">已确认</a>
+      <a href="/?scenario=review&clean=1" target="_blank">纯净视图</a>
+    </div>
+    <div class="preview-shell">
+      <iframe id="preview" src="/frame" title="简历智能匹配工作台"></iframe>
+    </div>
+    <script type="module" src="/preview-parent.js"></script>
+  </body>
+</html>
