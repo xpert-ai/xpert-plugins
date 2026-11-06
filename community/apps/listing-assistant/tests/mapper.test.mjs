@@ -4,6 +4,7 @@ import {
   buildFieldFlags,
   mergeFieldFlags,
   normalizeDraftInput,
+  normalizeEvidence,
   splitBatchSource
 } from '../dist/lib/listing-assistant.mapper.js'
 
@@ -83,4 +84,23 @@ test('splitBatchSource splits entries on a standalone separator line', () => {
 test('splitBatchSource keeps a single entry without separators intact', () => {
   assert.deepEqual(splitBatchSource('  只有一条文案  '), ['只有一条文案'])
   assert.deepEqual(splitBatchSource('   '), [])
+})
+
+test('normalizeEvidence keeps known non-empty excerpts only', () => {
+  assert.deepEqual(
+    normalizeEvidence({
+      title: '  游戏点卡 100元面值  ',
+      price: '售价 92 元',
+      category: '   ',
+      unknown: 'ignored',
+      specs: 42
+    }),
+    { title: '游戏点卡 100元面值', price: '售价 92 元' }
+  )
+})
+
+test('normalizeEvidence rejects non-object payloads and empty maps', () => {
+  assert.equal(normalizeEvidence(null), null)
+  assert.equal(normalizeEvidence(['title']), null)
+  assert.equal(normalizeEvidence({ title: '', category: '   ' }), null)
 })

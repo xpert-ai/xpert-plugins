@@ -10768,6 +10768,18 @@ var XpertListingWorkbench = (() => {
     flagUncertain: "Uncertain",
     flagAi: "AI-filled",
     flagsHint: "Fields marked Missing or Uncertain need operator confirmation.",
+    evidenceLabel: "Evidence",
+    evidenceHint: "Click to locate this excerpt in the source copy",
+    evidencePaneHint: "Highlighted text is the extraction evidence",
+    saveConfirmTitle: "Some fields still need review",
+    saveConfirmBody: "These fields are still marked Missing or Uncertain. The markers stay after saving so they can be reviewed later.",
+    saveConfirmContinue: "Save anyway",
+    saveConfirmBack: "Keep reviewing",
+    batchParse: "Parse pending",
+    batchParsing: "Parsing",
+    batchParseNone: "There are no draft or failed tasks to parse.",
+    batchParseHint: "Tasks are parsed one at a time (up to 20). A failure does not stop the rest of the batch.",
+    batchParseDone: "Batch parse finished: {ok} succeeded, {failed} failed.",
     missingTitle: "Required fields are missing",
     missingHint: "The draft is incomplete. Fill the highlighted fields before saving.",
     errorTitle: "AI extraction failed",
@@ -10863,6 +10875,18 @@ var XpertListingWorkbench = (() => {
     flagUncertain: "\u5F85\u786E\u8BA4",
     flagAi: "AI \u8865\u5168",
     flagsHint: "\u6807\u8BB0\u4E3A\u300C\u7F3A\u5931\u300D\u6216\u300C\u5F85\u786E\u8BA4\u300D\u7684\u5B57\u6BB5\u9700\u8981\u8FD0\u8425\u4EBA\u5DE5\u786E\u8BA4\u3002",
+    evidenceLabel: "\u4F9D\u636E",
+    evidenceHint: "\u70B9\u51FB\u53EF\u5728\u539F\u6587\u4E2D\u5B9A\u4F4D\u8FD9\u6BB5\u5F15\u7528",
+    evidencePaneHint: "\u9AD8\u4EAE\u6587\u5B57\u4E3A AI \u62BD\u53D6\u4F9D\u636E",
+    saveConfirmTitle: "\u8FD8\u6709\u5B57\u6BB5\u5F85\u786E\u8BA4",
+    saveConfirmBody: "\u4EE5\u4E0B\u5B57\u6BB5\u4ECD\u6807\u8BB0\u4E3A\u300C\u7F3A\u5931\u300D\u6216\u300C\u5F85\u786E\u8BA4\u300D\u3002\u4FDD\u5B58\u540E\u6807\u8BB0\u4F1A\u4FDD\u7559\uFF0C\u65B9\u4FBF\u540E\u7EED\u7EE7\u7EED\u6838\u5BF9\u3002",
+    saveConfirmContinue: "\u4ECD\u7136\u4FDD\u5B58",
+    saveConfirmBack: "\u8FD4\u56DE\u6838\u5BF9",
+    batchParse: "\u6279\u91CF\u89E3\u6790",
+    batchParsing: "\u89E3\u6790\u4E2D",
+    batchParseNone: "\u6CA1\u6709\u5F85\u89E3\u6790\u7684\u4EFB\u52A1\uFF08\u4EC5\u5904\u7406\u5F85\u89E3\u6790\u548C\u5931\u8D25\u72B6\u6001\uFF09\u3002",
+    batchParseHint: "\u5C06\u9010\u6761\u89E3\u6790\u5F53\u524D\u5217\u8868\u4E2D\u7684\u5F85\u89E3\u6790/\u5931\u8D25\u4EFB\u52A1\uFF08\u6700\u591A 20 \u6761\uFF09\uFF0C\u5355\u6761\u5931\u8D25\u4E0D\u4F1A\u4E2D\u65AD\u5176\u4F59\u4EFB\u52A1\u3002",
+    batchParseDone: "\u6279\u91CF\u89E3\u6790\u5B8C\u6210\uFF1A\u6210\u529F {ok} \u6761\uFF0C\u5931\u8D25 {failed} \u6761\u3002",
     missingTitle: "\u8FD8\u6709\u5FC5\u586B\u5B57\u6BB5\u672A\u8865\u5168",
     missingHint: "\u8349\u7A3F\u4E0D\u5B8C\u6574\uFF0C\u8BF7\u8865\u5168\u9AD8\u4EAE\u5B57\u6BB5\u540E\u518D\u4FDD\u5B58\u3002",
     errorTitle: "AI \u89E3\u6790\u5931\u8D25",
@@ -11013,6 +11037,58 @@ var XpertListingWorkbench = (() => {
 .la-status--failed { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 .la-dialog-body { display: flex; flex-direction: column; gap: 8px; }
 .la-dialog-textarea { min-height: 220px; }
+.la-evidence-hint { margin-left: 6px; font-weight: 400; color: var(--muted-foreground, #64748b); }
+.la-evidence {
+  background: #fef3c7;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+  transition: background 0.15s ease;
+}
+.la-evidence--active { background: #fbbf24; box-shadow: 0 0 0 2px #f59e0b; }
+.la-evidence-note {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground, #64748b);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.la-evidence-note:hover { border-color: #f59e0b; background: #fffbeb; }
+.la-evidence-note--active { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+.la-evidence-tag {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: #b45309;
+}
+.la-evidence-quote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.la-warning-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.la-warning-list li { display: flex; align-items: center; gap: 8px; }
+.la-batch-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border, #e2e8f0);
+  overflow: hidden;
+}
+.la-batch-bar span { display: block; height: 100%; background: var(--primary, #2563eb); transition: width 0.2s ease; }
 @media (max-width: 900px) {
   .la-split { grid-template-columns: 1fr; }
   .la-pane--source { border-right: 0; border-bottom: 1px solid var(--border, #e2e8f0); }
@@ -11027,9 +11103,50 @@ var XpertListingWorkbench = (() => {
     document.head.appendChild(element);
   }
 
+  // src/lib/remote-components/listing_assistant__remote/src/evidence.ts
+  var EVIDENCE_ORDER = ["title", "description", "price", "category", "specs"];
+  function sourceSegments(sourceText, evidence) {
+    if (!sourceText) return [];
+    if (!evidence) return [{ text: sourceText }];
+    const spans = [];
+    for (const field of EVIDENCE_ORDER) {
+      const quote = evidence[field];
+      if (!quote) continue;
+      const start = sourceText.indexOf(quote);
+      if (start < 0) continue;
+      spans.push({ start, end: start + quote.length, field });
+    }
+    spans.sort((a2, b) => a2.start - b.start || b.end - a2.end);
+    const selected = [];
+    for (const span of spans) {
+      if (selected.some((other) => span.start < other.end && other.start < span.end)) continue;
+      selected.push(span);
+    }
+    const segments = [];
+    let cursor = 0;
+    for (const span of selected) {
+      if (span.start > cursor) segments.push({ text: sourceText.slice(cursor, span.start) });
+      segments.push({ text: sourceText.slice(span.start, span.end), field: span.field });
+      cursor = span.end;
+    }
+    if (cursor < sourceText.length) segments.push({ text: sourceText.slice(cursor) });
+    return segments;
+  }
+
   // src/lib/remote-components/listing_assistant__remote/src/components/DraftForm.tsx
-  function DraftForm({ t: t2, detail, form, onChange }) {
+  function DraftForm({ t: t2, detail, form, activeEvidence, onChange, onEvidenceFocus }) {
     const flags = detail.draft?.fieldFlags ?? {};
+    const evidence = detail.draft?.evidence ?? {};
+    const renderEvidence = (field) => /* @__PURE__ */ React.createElement(
+      EvidenceNote,
+      {
+        t: t2,
+        field,
+        quote: evidence[field],
+        active: activeEvidence === field,
+        onFocus: onEvidenceFocus
+      }
+    );
     const fieldClass = (name) => `la-field${flags[name] ? ` la-field--${flags[name]}` : ""}`;
     const renderFlag = (name) => {
       const flag = flags[name];
@@ -11046,7 +11163,7 @@ var XpertListingWorkbench = (() => {
         placeholder: t2.titlePlaceholder,
         onChange: (event) => onChange({ title: event.target.value })
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: fieldClass("description") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-description" }, t2.fieldDescription, renderFlag("description")), /* @__PURE__ */ React.createElement("div", { className: "la-control" }, /* @__PURE__ */ React.createElement(
+    )), renderEvidence("title")), /* @__PURE__ */ React.createElement("div", { className: fieldClass("description") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-description" }, t2.fieldDescription, renderFlag("description")), /* @__PURE__ */ React.createElement("div", { className: "la-control" }, /* @__PURE__ */ React.createElement(
       ye2,
       {
         id: "la-description",
@@ -11055,7 +11172,7 @@ var XpertListingWorkbench = (() => {
         rows: 5,
         onChange: (event) => onChange({ description: event.target.value })
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "la-grid-2" }, /* @__PURE__ */ React.createElement("div", { className: fieldClass("price") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-price" }, t2.fieldPrice, renderFlag("price")), /* @__PURE__ */ React.createElement("div", { className: "la-control" }, /* @__PURE__ */ React.createElement(
+    )), renderEvidence("description")), /* @__PURE__ */ React.createElement("div", { className: "la-grid-2" }, /* @__PURE__ */ React.createElement("div", { className: fieldClass("price") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-price" }, t2.fieldPrice, renderFlag("price")), /* @__PURE__ */ React.createElement("div", { className: "la-control" }, /* @__PURE__ */ React.createElement(
       J2,
       {
         id: "la-price",
@@ -11063,7 +11180,7 @@ var XpertListingWorkbench = (() => {
         placeholder: t2.pricePlaceholder,
         onChange: (event) => onChange({ price: event.target.value })
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "la-field" }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-currency" }, t2.fieldCurrency), /* @__PURE__ */ React.createElement(
+    )), renderEvidence("price")), /* @__PURE__ */ React.createElement("div", { className: "la-field" }, /* @__PURE__ */ React.createElement(_a, { className: "la-label", htmlFor: "la-currency" }, t2.fieldCurrency), /* @__PURE__ */ React.createElement(
       J2,
       {
         id: "la-currency",
@@ -11079,7 +11196,7 @@ var XpertListingWorkbench = (() => {
         placeholder: t2.categoryPlaceholder,
         onChange: (event) => onChange({ category: event.target.value })
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: fieldClass("attributes") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label" }, t2.fieldAttributes), form.attributes.map((pair, index) => /* @__PURE__ */ React.createElement("div", { className: "la-attr-row", key: `attr-${index}` }, /* @__PURE__ */ React.createElement(
+    )), renderEvidence("category")), /* @__PURE__ */ React.createElement("div", { className: fieldClass("attributes") }, /* @__PURE__ */ React.createElement(_a, { className: "la-label" }, t2.fieldAttributes), form.attributes.map((pair, index) => /* @__PURE__ */ React.createElement("div", { className: "la-attr-row", key: `attr-${index}` }, /* @__PURE__ */ React.createElement(
       J2,
       {
         value: pair.key,
@@ -11165,7 +11282,21 @@ var XpertListingWorkbench = (() => {
         onClick: () => onChange({ specs: [...form.specs, { name: "", price: "", stock: "" }] })
       },
       t2.addSpec
-    )), /* @__PURE__ */ React.createElement("p", { className: "la-note" }, t2.saveHint), /* @__PURE__ */ React.createElement("p", { className: "la-note" }, t2.aiNote), detail.runs.length ? /* @__PURE__ */ React.createElement("div", { className: "la-runs" }, /* @__PURE__ */ React.createElement("strong", null, t2.runHistory), detail.runs.slice(0, 5).map((run) => /* @__PURE__ */ React.createElement("span", { key: run.attempt }, `${t2.attemptPrefix} ${run.attempt} \xB7 ${run.status}${run.errorMessage ? ` \xB7 ${run.errorMessage}` : ""}`))) : null);
+    ), renderEvidence("specs")), /* @__PURE__ */ React.createElement("p", { className: "la-note" }, t2.saveHint), /* @__PURE__ */ React.createElement("p", { className: "la-note" }, t2.aiNote), detail.runs.length ? /* @__PURE__ */ React.createElement("div", { className: "la-runs" }, /* @__PURE__ */ React.createElement("strong", null, t2.runHistory), detail.runs.slice(0, 5).map((run) => /* @__PURE__ */ React.createElement("span", { key: run.attempt }, `${t2.attemptPrefix} ${run.attempt} \xB7 ${run.status}${run.errorMessage ? ` \xB7 ${run.errorMessage}` : ""}`))) : null);
+  }
+  function EvidenceNote({ t: t2, field, quote, active, onFocus }) {
+    if (!quote) return null;
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: `la-evidence-note${active ? " la-evidence-note--active" : ""}`,
+        onClick: () => onFocus(field),
+        title: t2.evidenceHint
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "la-evidence-tag" }, t2.evidenceLabel),
+      /* @__PURE__ */ React.createElement("span", { className: "la-evidence-quote" }, quote)
+    );
   }
 
   // src/lib/remote-components/listing_assistant__remote/src/components/NewTaskDialog.tsx
@@ -11182,6 +11313,13 @@ var XpertListingWorkbench = (() => {
   }
 
   // src/lib/remote-components/listing_assistant__remote/src/workbench-utils.ts
+  var FIELD_LABEL = {
+    title: "fieldTitle",
+    description: "fieldDescription",
+    price: "fieldPrice",
+    category: "fieldCategory",
+    specs: "fieldSpecs"
+  };
   var STATUS_LABEL = {
     draft: "statusDraft",
     parsing: "statusParsing",
@@ -11211,6 +11349,23 @@ var XpertListingWorkbench = (() => {
         stock: spec.stock === null || spec.stock === void 0 ? "" : String(spec.stock)
       }))
     };
+  }
+  function openReviewFlags(detail, form) {
+    const flags = detail.draft?.fieldFlags ?? {};
+    const filled = {
+      title: Boolean(form.title.trim()),
+      description: Boolean(form.description.trim()),
+      price: Boolean(form.price.trim()),
+      category: Boolean(form.category.trim()),
+      specs: form.specs.some((spec) => Boolean(spec.name.trim()))
+    };
+    return Object.keys(FIELD_LABEL).filter((field) => {
+      const flag = flags[field];
+      return (flag === "missing" || flag === "uncertain") && !filled[field];
+    }).map((field) => ({ field, flag: flags[field] }));
+  }
+  function pendingParseTasks(tasks) {
+    return tasks.filter((task) => task.status === "draft" || task.status === "failed").slice(0, 20);
   }
   function normalizeLocale(locale) {
     return locale && locale.toLowerCase().startsWith("zh") ? "zh-Hans" : "en";
@@ -11249,7 +11404,19 @@ var XpertListingWorkbench = (() => {
   }
 
   // src/lib/remote-components/listing_assistant__remote/src/components/TaskList.tsx
-  function TaskList({ t: t2, tasks, selectedId, search, onSearchChange, onSearchSubmit, onSelect }) {
+  function TaskList({
+    t: t2,
+    tasks,
+    selectedId,
+    search,
+    batch,
+    pendingCount,
+    isBusy,
+    onSearchChange,
+    onSearchSubmit,
+    onBatchParse,
+    onSelect
+  }) {
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "la-sidebar-head" }, /* @__PURE__ */ React.createElement("div", { className: "la-sidebar-title" }, /* @__PURE__ */ React.createElement("span", null, t2.taskList), /* @__PURE__ */ React.createElement("span", null, tasks.length)), /* @__PURE__ */ React.createElement(
       J2,
       {
@@ -11260,7 +11427,27 @@ var XpertListingWorkbench = (() => {
           if (event.key === "Enter") onSearchSubmit();
         }
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "la-task-list" }, tasks.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "la-empty", style: { padding: "24px 8px" } }, /* @__PURE__ */ React.createElement("h3", null, t2.noTasks), /* @__PURE__ */ React.createElement("p", null, t2.noTasksHint)) : tasks.map((task) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement(
+      C3,
+      {
+        size: "sm",
+        variant: "outline",
+        onClick: onBatchParse,
+        disabled: isBusy || !batch && pendingCount === 0,
+        title: t2.batchParseHint
+      },
+      batch ? `${t2.batchParsing} ${batch.done}/${batch.total}` : `${t2.batchParse} (${pendingCount})`
+    ), batch ? /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "la-batch-bar",
+        role: "progressbar",
+        "aria-valuemin": 0,
+        "aria-valuemax": batch.total,
+        "aria-valuenow": batch.done
+      },
+      /* @__PURE__ */ React.createElement("span", { style: { width: `${batch.total ? Math.round(batch.done / batch.total * 100) : 0}%` } })
+    ) : null), /* @__PURE__ */ React.createElement("div", { className: "la-task-list" }, tasks.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "la-empty", style: { padding: "24px 8px" } }, /* @__PURE__ */ React.createElement("h3", null, t2.noTasks), /* @__PURE__ */ React.createElement("p", null, t2.noTasksHint)) : tasks.map((task) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: task.id,
@@ -11287,6 +11474,10 @@ var XpertListingWorkbench = (() => {
     const [createOpen, setCreateOpen] = useState2(false);
     const [createText, setCreateText] = useState2("");
     const [createError, setCreateError] = useState2("");
+    const [confirmOpen, setConfirmOpen] = useState2(false);
+    const [warnings, setWarnings] = useState2([]);
+    const [batch, setBatch] = useState2(null);
+    const [activeEvidence, setActiveEvidence] = useState2(null);
     const selectedRef = useRef2(null);
     const searchRef = useRef2("");
     const localeRef = useRef2(locale);
@@ -11320,6 +11511,10 @@ var XpertListingWorkbench = (() => {
     useEffect2(() => {
       setTimeout(reportResize, 0);
     });
+    useEffect2(() => {
+      if (!activeEvidence) return;
+      document.getElementById(`la-evidence-${activeEvidence}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, [activeEvidence]);
     async function loadData(taskId, silent = false) {
       if (!silent) setBusy("load");
       try {
@@ -11350,7 +11545,54 @@ var XpertListingWorkbench = (() => {
       selectedRef.current = taskId;
       setSelectedId(taskId);
       setNotice(null);
+      setActiveEvidence(null);
       void loadData(taskId);
+    }
+    function requestSave() {
+      const detail2 = data.selectedTask;
+      if (!detail2) return;
+      const open = openReviewFlags(detail2, form);
+      if (!open.length) {
+        void saveDraft();
+        return;
+      }
+      setWarnings(open);
+      setConfirmOpen(true);
+    }
+    async function runBatchParse() {
+      if (busy) return;
+      const pending2 = pendingParseTasks(data.tasks);
+      if (!pending2.length) {
+        notify(tRef.current.batchParseNone);
+        return;
+      }
+      const reload = selectedRef.current;
+      setBusy("batch");
+      setNotice({ kind: "info", text: tRef.current.batchParseHint });
+      let ok = 0;
+      let failed = 0;
+      try {
+        for (let index = 0; index < pending2.length; index += 1) {
+          setBatch({ done: index, total: pending2.length, ok, failed });
+          try {
+            const response = await executeAction("parse_task", pending2[index].id, { taskId: pending2[index].id });
+            const result = unwrap(response);
+            if (result && result.success === false) failed += 1;
+            else ok += 1;
+          } catch {
+            failed += 1;
+          }
+          await loadData(reload ?? void 0, true);
+        }
+        setBatch({ done: pending2.length, total: pending2.length, ok, failed });
+      } finally {
+        setBusy(null);
+        setBatch(null);
+        const summary = tRef.current.batchParseDone.replace("{ok}", String(ok)).replace("{failed}", String(failed));
+        setNotice({ kind: failed ? "error" : "info", text: summary });
+        notify(summary);
+        await loadData(reload ?? void 0, true);
+      }
     }
     async function runParse(retry) {
       const taskId = selectedRef.current;
@@ -11484,8 +11726,12 @@ var XpertListingWorkbench = (() => {
         tasks: data.tasks,
         selectedId,
         search,
+        batch,
+        pendingCount: pendingParseTasks(data.tasks).length,
+        isBusy,
         onSearchChange: setSearch,
         onSearchSubmit: () => void loadData(void 0),
+        onBatchParse: () => void runBatchParse(),
         onSelect: selectTask
       }
     )), /* @__PURE__ */ React.createElement("main", { className: "la-main" }, notice ? /* @__PURE__ */ React.createElement("div", { className: `la-notice la-notice--${notice.kind}` }, notice.text) : null, !detail ? /* @__PURE__ */ React.createElement("div", { className: "la-empty" }, /* @__PURE__ */ React.createElement("h3", null, t2.noTasks), /* @__PURE__ */ React.createElement("p", null, t2.noTasksHint), /* @__PURE__ */ React.createElement(C3, { size: "sm", onClick: () => setCreateOpen(true), disabled: isBusy }, t2.newTask)) : /* @__PURE__ */ React.createElement(
@@ -11496,9 +11742,11 @@ var XpertListingWorkbench = (() => {
         form,
         busy,
         isBusy,
+        activeEvidence,
         onFormChange: (patch) => setForm({ ...form, ...patch }),
+        onEvidenceFocus: setActiveEvidence,
         onParse: runParse,
-        onSave: saveDraft
+        onSave: requestSave
       }
     ))), /* @__PURE__ */ React.createElement(
       NewTaskDialog,
@@ -11512,9 +11760,29 @@ var XpertListingWorkbench = (() => {
         onChange: setCreateText,
         onCreate: () => void createTask()
       }
-    ));
+    ), /* @__PURE__ */ React.createElement(me, { open: confirmOpen, onOpenChange: setConfirmOpen }, /* @__PURE__ */ React.createElement(he, null, /* @__PURE__ */ React.createElement(xe2, null, /* @__PURE__ */ React.createElement(we2, null, t2.saveConfirmTitle), /* @__PURE__ */ React.createElement(ze2, null, t2.saveConfirmBody)), /* @__PURE__ */ React.createElement("ul", { className: "la-warning-list" }, warnings.map((warning) => /* @__PURE__ */ React.createElement("li", { key: warning.field }, /* @__PURE__ */ React.createElement("span", null, t2[FIELD_LABEL[warning.field]]), /* @__PURE__ */ React.createElement(wt2, { variant: "outline", className: `la-flag la-flag--${warning.flag}` }, warning.flag === "missing" ? t2.flagMissing : t2.flagUncertain)))), /* @__PURE__ */ React.createElement(Pt2, null, /* @__PURE__ */ React.createElement(C3, { variant: "outline", onClick: () => setConfirmOpen(false) }, t2.saveConfirmBack), /* @__PURE__ */ React.createElement(
+      C3,
+      {
+        onClick: () => {
+          setConfirmOpen(false);
+          void saveDraft();
+        }
+      },
+      t2.saveConfirmContinue
+    )))));
   }
-  function TaskDetailView({ t: t2, detail, form, busy, isBusy, onFormChange, onParse, onSave }) {
+  function TaskDetailView({
+    t: t2,
+    detail,
+    form,
+    busy,
+    isBusy,
+    activeEvidence,
+    onFormChange,
+    onEvidenceFocus,
+    onParse,
+    onSave
+  }) {
     return /* @__PURE__ */ React.createElement("div", { className: "la-detail" }, /* @__PURE__ */ React.createElement("div", { className: "la-detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "la-detail-head-left" }, /* @__PURE__ */ React.createElement(wt2, { variant: "outline", className: `la-status--${detail.status}` }, t2[STATUS_LABEL[detail.status]]), /* @__PURE__ */ React.createElement("span", { className: "la-detail-title" }, detail.draft?.title || t2.untitledTask), detail.attemptCount ? /* @__PURE__ */ React.createElement("span", { className: "la-note" }, `${t2.attemptPrefix} ${detail.attemptCount}`) : null), /* @__PURE__ */ React.createElement("div", { className: "la-detail-actions" }, /* @__PURE__ */ React.createElement(
       C3,
       {
@@ -11524,7 +11792,27 @@ var XpertListingWorkbench = (() => {
         disabled: isBusy
       },
       busy === "parse" ? t2.parsing : detail.status === "failed" ? t2.retryParse : t2.runParse
-    ), /* @__PURE__ */ React.createElement(C3, { size: "sm", variant: "outline", onClick: onSave, disabled: isBusy || !detail.draft }, busy === "save" ? t2.saving : t2.saveDraft))), busy === "parse" ? /* @__PURE__ */ React.createElement("div", { className: "la-notice la-notice--info" }, t2.parseRunningHint) : null, detail.status === "failed" ? /* @__PURE__ */ React.createElement("div", { className: "la-error" }, /* @__PURE__ */ React.createElement("strong", null, t2.errorTitle), /* @__PURE__ */ React.createElement("p", null, errorText(t2, detail.lastErrorCode, detail.lastErrorMessage || t2.failureTitle)), /* @__PURE__ */ React.createElement("span", null, t2.retryHint)) : null, /* @__PURE__ */ React.createElement("div", { className: "la-split" }, /* @__PURE__ */ React.createElement("section", { className: "la-pane la-pane--source" }, /* @__PURE__ */ React.createElement("div", { className: "la-pane-head" }, t2.sourceLabel), /* @__PURE__ */ React.createElement("div", { className: "la-source-text" }, detail.sourceText || t2.emptySource)), /* @__PURE__ */ React.createElement("section", { className: "la-pane" }, /* @__PURE__ */ React.createElement("div", { className: "la-pane-head" }, t2.draftLabel), !detail.draft ? /* @__PURE__ */ React.createElement("div", { className: "la-empty" }, /* @__PURE__ */ React.createElement("h3", null, t2.emptyDraftTitle), /* @__PURE__ */ React.createElement("p", null, t2.emptyDraftHint), /* @__PURE__ */ React.createElement(C3, { size: "sm", onClick: () => onParse(false), disabled: isBusy }, t2.runParse)) : /* @__PURE__ */ React.createElement(DraftForm, { t: t2, detail, form, onChange: onFormChange }))));
+    ), /* @__PURE__ */ React.createElement(C3, { size: "sm", variant: "outline", onClick: onSave, disabled: isBusy || !detail.draft }, busy === "save" ? t2.saving : t2.saveDraft))), busy === "parse" ? /* @__PURE__ */ React.createElement("div", { className: "la-notice la-notice--info" }, t2.parseRunningHint) : null, detail.status === "failed" ? /* @__PURE__ */ React.createElement("div", { className: "la-error" }, /* @__PURE__ */ React.createElement("strong", null, t2.errorTitle), /* @__PURE__ */ React.createElement("p", null, errorText(t2, detail.lastErrorCode, detail.lastErrorMessage || t2.failureTitle)), /* @__PURE__ */ React.createElement("span", null, t2.retryHint)) : null, /* @__PURE__ */ React.createElement("div", { className: "la-split" }, /* @__PURE__ */ React.createElement("section", { className: "la-pane la-pane--source" }, /* @__PURE__ */ React.createElement("div", { className: "la-pane-head" }, t2.sourceLabel, detail.draft?.evidence ? /* @__PURE__ */ React.createElement("span", { className: "la-evidence-hint" }, t2.evidencePaneHint) : null), /* @__PURE__ */ React.createElement("div", { className: "la-source-text" }, detail.sourceText ? sourceSegments(detail.sourceText, detail.draft?.evidence).map(
+      (segment, index) => segment.field ? /* @__PURE__ */ React.createElement(
+        "mark",
+        {
+          key: `${segment.field}-${index}`,
+          id: `la-evidence-${segment.field}`,
+          className: `la-evidence${activeEvidence === segment.field ? " la-evidence--active" : ""}`
+        },
+        segment.text
+      ) : /* @__PURE__ */ React.createElement("span", { key: `text-${index}` }, segment.text)
+    ) : t2.emptySource)), /* @__PURE__ */ React.createElement("section", { className: "la-pane" }, /* @__PURE__ */ React.createElement("div", { className: "la-pane-head" }, t2.draftLabel), !detail.draft ? /* @__PURE__ */ React.createElement("div", { className: "la-empty" }, /* @__PURE__ */ React.createElement("h3", null, t2.emptyDraftTitle), /* @__PURE__ */ React.createElement("p", null, t2.emptyDraftHint), /* @__PURE__ */ React.createElement(C3, { size: "sm", onClick: () => onParse(false), disabled: isBusy }, t2.runParse)) : /* @__PURE__ */ React.createElement(
+      DraftForm,
+      {
+        t: t2,
+        detail,
+        form,
+        activeEvidence,
+        onChange: onFormChange,
+        onEvidenceFocus
+      }
+    ))));
   }
   var rootElement = document.getElementById("root");
   var root = ReactDOM.createRoot ? ReactDOM.createRoot(rootElement) : null;

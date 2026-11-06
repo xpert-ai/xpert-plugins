@@ -1,4 +1,4 @@
-import type { ListingDraftInput, ListingFieldFlags } from './types.js'
+import type { ListingDraftInput, ListingEvidence, ListingFieldFlags } from './types.js'
 
 type ExtractionLike = {
   title?: string | null
@@ -21,6 +21,7 @@ export type NormalizedDraftInput = {
 }
 
 const FLAGGED_FIELDS = ['title', 'description', 'price', 'category', 'specs'] as const
+const EVIDENCE_FIELDS = FLAGGED_FIELDS
 
 /**
  * Builds the per-field review markers shown by the workbench.
@@ -71,6 +72,24 @@ export function mergeFieldFlags(existing: ListingFieldFlags | null, input: Norma
     }
   }
   return flags
+}
+
+/**
+ * Keeps only the short source excerpts the model returned for known fields.
+ * Unknown keys, blanks and over-long values are dropped so the workbench can
+ * treat the result as trusted display data.
+ */
+export function normalizeEvidence(value: unknown): ListingEvidence | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const source = value as Record<string, unknown>
+  const evidence: ListingEvidence = {}
+  for (const field of EVIDENCE_FIELDS) {
+    const raw = source[field]
+    if (typeof raw !== 'string') continue
+    const quote = raw.trim()
+    if (quote) evidence[field] = quote.slice(0, 300)
+  }
+  return Object.keys(evidence).length ? evidence : null
 }
 
 function hasValue(value: unknown): boolean {

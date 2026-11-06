@@ -1,5 +1,14 @@
 import '@xpert-ai/plugin-shadcn-ui/style.css'
-import { Badge, Button } from '@xpert-ai/plugin-shadcn-ui'
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@xpert-ai/plugin-shadcn-ui'
 import { RemoteI18nProvider } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import { React, ReactDOM } from './vendor'
 import {
@@ -13,6 +22,7 @@ import {
 } from './bridge'
 import { i18n, messages, type Catalog } from './i18n'
 import { injectStyles } from './styles'
+import { sourceSegments } from './evidence'
 import type { TaskDetail, WorkbenchData } from './types'
 import { DraftForm } from './components/DraftForm'
 import { NewTaskDialog } from './components/NewTaskDialog'
@@ -21,12 +31,17 @@ import {
   emptyForm,
   errorMessage,
   errorText,
+  FIELD_LABEL,
   formFromDetail,
   normalizeData,
   normalizeLocale,
+  openReviewFlags,
+  pendingParseTasks,
   STATUS_LABEL,
+  type BatchProgress,
   type Busy,
-  type FormState
+  type FormState,
+  type ReviewWarning
 } from './workbench-utils'
 
 const { useEffect, useRef, useState } = React
@@ -43,6 +58,10 @@ function App() {
   const [createOpen, setCreateOpen] = useState(false)
   const [createText, setCreateText] = useState('')
   const [createError, setCreateError] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [warnings, setWarnings] = useState<ReviewWarning[]>([])
+  const [batch, setBatch] = useState<BatchProgress | null>(null)
+  const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
 
   const selectedRef = useRef<string | null>(null)
   const searchRef = useRef('')
@@ -83,6 +102,11 @@ function App() {
     setTimeout(reportResize, 0)
   })
 
+  useEffect(() => {
+    if (!activeEvidence) return
+    document.getElementById(`la-evidence-${activeEvidence}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [activeEvidence])
+
   async function loadData(taskId?: string, silent = false) {
     if (!silent) setBusy('load')
     try {
@@ -114,7 +138,63 @@ function App() {
     selectedRef.current = taskId
     setSelectedId(taskId)
     setNotice(null)
+    setActiveEvidence(null)
     void loadData(taskId)
+  }
+
+  function requestSave() {
+    const detail = data.selectedTask
+    if (!detail) return
+    const open = openReviewFlags(detail, form)
+    if (!open.length) {
+      void saveDraft()
+      return
+    }
+    setWarnings(open)
+    setConfirmOpen(true)
+  }
+
+  /**
+   * Batch extraction runs one task per request, reusing the same idempotent
+   * parse action. A failure is counted and the loop continues, so one bad
+   * listing never blocks the rest of the batch.
+   */
+  async function runBatchParse() {
+    if (busy) return
+    const pending = pendingParseTasks(data.tasks)
+    if (!pending.length) {
+      notify(tRef.current.batchParseNone)
+      return
+    }
+    const reload = selectedRef.current
+    setBusy('batch')
+    setNotice({ kind: 'info', text: tRef.current.batchParseHint })
+    let ok = 0
+    let failed = 0
+    try {
+      for (let index = 0; index < pending.length; index += 1) {
+        setBatch({ done: index, total: pending.length, ok, failed })
+        try {
+          const response = await executeAction('parse_task', pending[index].id, { taskId: pending[index].id })
+          const result = unwrap(response) as Record<string, unknown> | null
+          if (result && result.success === false) failed += 1
+          else ok += 1
+        } catch {
+          failed += 1
+        }
+        await loadData(reload ?? undefined, true)
+      }
+      setBatch({ done: pending.length, total: pending.length, ok, failed })
+    } finally {
+      setBusy(null)
+      setBatch(null)
+      const summary = tRef.current.batchParseDone
+        .replace('{ok}', String(ok))
+        .replace('{failed}', String(failed))
+      setNotice({ kind: failed ? 'error' : 'info', text: summary })
+      notify(summary)
+      await loadData(reload ?? undefined, true)
+    }
   }
 
   async function runParse(retry: boolean) {
@@ -263,8 +343,12 @@ function App() {
             tasks={data.tasks}
             selectedId={selectedId}
             search={search}
+            batch={batch}
+            pendingCount={pendingParseTasks(data.tasks).length}
+            isBusy={isBusy}
             onSearchChange={setSearch}
             onSearchSubmit={() => void loadData(undefined)}
+            onBatchParse={() => void runBatchParse()}
             onSelect={selectTask}
           />
         </aside>
@@ -287,9 +371,11 @@ function App() {
               form={form}
               busy={busy}
               isBusy={isBusy}
+              activeEvidence={activeEvidence}
               onFormChange={(patch) => setForm({ ...form, ...patch })}
+              onEvidenceFocus={setActiveEvidence}
               onParse={runParse}
-              onSave={saveDraft}
+              onSave={requestSave}
             />
           )}
         </main>
@@ -305,6 +391,38 @@ function App() {
         onChange={setCreateText}
         onCreate={() => void createTask()}
       />
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.saveConfirmTitle}</DialogTitle>
+            <DialogDescription>{t.saveConfirmBody}</DialogDescription>
+          </DialogHeader>
+          <ul className="la-warning-list">
+            {warnings.map((warning) => (
+              <li key={warning.field}>
+                <span>{t[FIELD_LABEL[warning.field]]}</span>
+                <Badge variant="outline" className={`la-flag la-flag--${warning.flag}`}>
+                  {warning.flag === 'missing' ? t.flagMissing : t.flagUncertain}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              {t.saveConfirmBack}
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmOpen(false)
+                void saveDraft()
+              }}
+            >
+              {t.saveConfirmContinue}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -315,12 +433,25 @@ type TaskDetailViewProps = {
   form: FormState
   busy: Busy
   isBusy: boolean
+  activeEvidence: string | null
   onFormChange: (patch: Partial<FormState>) => void
+  onEvidenceFocus: (field: string) => void
   onParse: (retry: boolean) => void
   onSave: () => void
 }
 
-function TaskDetailView({ t, detail, form, busy, isBusy, onFormChange, onParse, onSave }: TaskDetailViewProps) {
+function TaskDetailView({
+  t,
+  detail,
+  form,
+  busy,
+  isBusy,
+  activeEvidence,
+  onFormChange,
+  onEvidenceFocus,
+  onParse,
+  onSave
+}: TaskDetailViewProps) {
   return (
     <div className="la-detail">
       <div className="la-detail-head">
@@ -358,8 +489,27 @@ function TaskDetailView({ t, detail, form, busy, isBusy, onFormChange, onParse, 
 
       <div className="la-split">
         <section className="la-pane la-pane--source">
-          <div className="la-pane-head">{t.sourceLabel}</div>
-          <div className="la-source-text">{detail.sourceText || t.emptySource}</div>
+          <div className="la-pane-head">
+            {t.sourceLabel}
+            {detail.draft?.evidence ? <span className="la-evidence-hint">{t.evidencePaneHint}</span> : null}
+          </div>
+          <div className="la-source-text">
+            {detail.sourceText
+              ? sourceSegments(detail.sourceText, detail.draft?.evidence).map((segment, index) =>
+                  segment.field ? (
+                    <mark
+                      key={`${segment.field}-${index}`}
+                      id={`la-evidence-${segment.field}`}
+                      className={`la-evidence${activeEvidence === segment.field ? ' la-evidence--active' : ''}`}
+                    >
+                      {segment.text}
+                    </mark>
+                  ) : (
+                    <span key={`text-${index}`}>{segment.text}</span>
+                  )
+                )
+              : t.emptySource}
+          </div>
         </section>
 
         <section className="la-pane">
@@ -373,7 +523,14 @@ function TaskDetailView({ t, detail, form, busy, isBusy, onFormChange, onParse, 
               </Button>
             </div>
           ) : (
-            <DraftForm t={t} detail={detail} form={form} onChange={onFormChange} />
+            <DraftForm
+              t={t}
+              detail={detail}
+              form={form}
+              activeEvidence={activeEvidence}
+              onChange={onFormChange}
+              onEvidenceFocus={onEvidenceFocus}
+            />
           )}
         </section>
       </div>

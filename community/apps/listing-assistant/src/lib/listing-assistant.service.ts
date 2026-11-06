@@ -13,6 +13,7 @@ import {
   mergeFieldFlags,
   normalizeAttributes,
   normalizeDraftInput,
+  normalizeEvidence,
   splitBatchSource
 } from './listing-assistant.mapper.js'
 import {
@@ -130,6 +131,7 @@ export class ListingAssistantService {
             category: draft.category ?? null,
             attributes: draft.attributes ?? null,
             fieldFlags: draft.fieldFlags ?? null,
+            evidence: draft.evidence ?? null,
             specs: specs.map((spec) => ({
               name: spec.name,
               price: spec.price ?? null,
@@ -367,6 +369,7 @@ export class ListingAssistantService {
       draft.category = cleanText(extraction.category, 120)
       draft.attributes = normalizeAttributes(extraction.attributes)
       draft.fieldFlags = Object.keys(flags).length ? flags : null
+      draft.evidence = normalizeEvidence(extraction.evidence)
       await manager.save(ListingDraft, draft)
 
       await manager.delete(ListingSpec, { taskId })

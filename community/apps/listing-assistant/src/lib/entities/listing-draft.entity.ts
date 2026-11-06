@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { LISTING_DRAFT_TABLE } from '../constants.js'
-import type { ListingFieldFlags } from '../types.js'
+import type { ListingEvidence, ListingFieldFlags } from '../types.js'
 
 @Entity(LISTING_DRAFT_TABLE)
 @Index(['taskId'], { unique: true })
@@ -38,6 +38,9 @@ export class ListingDraft {
 
   @Column({ type: 'jsonb', nullable: true })
   fieldFlags?: ListingFieldFlags | null
+
+  @Column({ type: 'jsonb', nullable: true })
+  evidence?: ListingEvidence | null
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt?: Date

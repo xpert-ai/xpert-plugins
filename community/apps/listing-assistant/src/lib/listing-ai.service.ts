@@ -25,12 +25,16 @@ const SYSTEM_PROMPT = [
   '7. Description must be at most 500 characters, factual, and based only on the copy.',
   '8. Specs are named sellable variants (for example a tier, duration, or condition) with optional price and stock.',
   '9. attributes are free-form key/value details such as condition, region, delivery method, or validity period.',
-  '10. Respond with JSON only, no markdown fences, no commentary.',
+  '10. For each extracted field, copy the shortest verbatim excerpt from the supplied copy that supports the value into "evidence".',
+  '    Use the field name as the key. Omit a field when the copy contains no supporting excerpt.',
+  '    Never paraphrase the excerpt and never quote text that is not in the supplied copy.',
+  '11. Respond with JSON only, no markdown fences, no commentary.',
   '',
   'JSON shape:',
   '{"title":string|null,"description":string|null,"price":string|null,"currency":string|null,',
   '"category":string|null,"attributes":{string: string|number|null}|null,',
   '"specs":[{"name":string,"price":string|null,"stock":number|null}],',
+  '"evidence":{title?:string,description?:string,price?:string,category?:string,specs?:string}|null,',
   '"missingFields":string[],"uncertainFields":string[]}',
   'Allowed field names in the two field arrays: title, description, price, category, specs.'
 ].join('\n')

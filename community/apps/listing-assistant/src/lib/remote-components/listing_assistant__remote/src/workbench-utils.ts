@@ -1,7 +1,27 @@
 import type { Catalog } from './i18n'
 import type { Status, TaskDetail, WorkbenchData } from './types'
 
-export type Busy = null | 'load' | 'parse' | 'save' | 'create'
+export type Busy = null | 'load' | 'parse' | 'save' | 'create' | 'batch'
+
+export type BatchProgress = {
+  done: number
+  total: number
+  ok: number
+  failed: number
+}
+
+export type ReviewWarning = {
+  field: 'title' | 'description' | 'price' | 'category' | 'specs'
+  flag: 'missing' | 'uncertain'
+}
+
+export const FIELD_LABEL: Record<ReviewWarning['field'], keyof Catalog> = {
+  title: 'fieldTitle',
+  description: 'fieldDescription',
+  price: 'fieldPrice',
+  category: 'fieldCategory',
+  specs: 'fieldSpecs'
+}
 
 export type FormState = {
   title: string
@@ -44,6 +64,32 @@ export function formFromDetail(detail: TaskDetail | null): FormState {
       stock: spec.stock === null || spec.stock === undefined ? '' : String(spec.stock)
     }))
   }
+}
+
+/**
+ * Lists AI markers that saving would keep: a marker survives only when the
+ * operator has not supplied a value for that field. Mirrors the server-side
+ * merge so the confirmation dialog warns about exactly what will persist.
+ */
+export function openReviewFlags(detail: TaskDetail, form: FormState): ReviewWarning[] {
+  const flags = detail.draft?.fieldFlags ?? {}
+  const filled = {
+    title: Boolean(form.title.trim()),
+    description: Boolean(form.description.trim()),
+    price: Boolean(form.price.trim()),
+    category: Boolean(form.category.trim()),
+    specs: form.specs.some((spec) => Boolean(spec.name.trim()))
+  }
+  return (Object.keys(FIELD_LABEL) as ReviewWarning['field'][])
+    .filter((field) => {
+      const flag = flags[field]
+      return (flag === 'missing' || flag === 'uncertain') && !filled[field]
+    })
+    .map((field) => ({ field, flag: flags[field] as ReviewWarning['flag'] }))
+}
+
+export function pendingParseTasks(tasks: WorkbenchData['tasks']): WorkbenchData['tasks'] {
+  return tasks.filter((task) => task.status === 'draft' || task.status === 'failed').slice(0, 20)
 }
 
 export function normalizeLocale(locale?: string) {

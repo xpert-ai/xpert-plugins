@@ -1,21 +1,37 @@
-import { Badge, Input } from '@xpert-ai/plugin-shadcn-ui'
+import { Badge, Button, Input } from '@xpert-ai/plugin-shadcn-ui'
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { React } from '../vendor'
 import type { Catalog } from '../i18n'
 import type { TaskSummary } from '../types'
-import { STATUS_LABEL } from '../workbench-utils'
+import { STATUS_LABEL, type BatchProgress } from '../workbench-utils'
 
 type TaskListProps = {
   t: Catalog
   tasks: TaskSummary[]
   selectedId: string | null
   search: string
+  batch: BatchProgress | null
+  pendingCount: number
+  isBusy: boolean
   onSearchChange: (value: string) => void
   onSearchSubmit: () => void
+  onBatchParse: () => void
   onSelect: (id: string) => void
 }
 
-export function TaskList({ t, tasks, selectedId, search, onSearchChange, onSearchSubmit, onSelect }: TaskListProps) {
+export function TaskList({
+  t,
+  tasks,
+  selectedId,
+  search,
+  batch,
+  pendingCount,
+  isBusy,
+  onSearchChange,
+  onSearchSubmit,
+  onBatchParse,
+  onSelect
+}: TaskListProps) {
   return (
     <>
       <div className="la-sidebar-head">
@@ -31,6 +47,26 @@ export function TaskList({ t, tasks, selectedId, search, onSearchChange, onSearc
             if (event.key === 'Enter') onSearchSubmit()
           }}
         />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onBatchParse}
+          disabled={isBusy || (!batch && pendingCount === 0)}
+          title={t.batchParseHint}
+        >
+          {batch ? `${t.batchParsing} ${batch.done}/${batch.total}` : `${t.batchParse} (${pendingCount})`}
+        </Button>
+        {batch ? (
+          <div
+            className="la-batch-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={batch.total}
+            aria-valuenow={batch.done}
+          >
+            <span style={{ width: `${batch.total ? Math.round((batch.done / batch.total) * 100) : 0}%` }} />
+          </div>
+        ) : null}
       </div>
       <div className="la-task-list">
         {tasks.length === 0 ? (

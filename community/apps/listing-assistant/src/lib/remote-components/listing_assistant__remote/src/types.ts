@@ -30,6 +30,7 @@ export type TaskDetail = {
     category: string | null
     attributes: Record<string, string | number | null> | null
     fieldFlags: Record<string, 'ai' | 'missing' | 'uncertain'> | null
+    evidence: Record<string, string> | null
     specs: Array<{ name: string; price: string | null; stock: number | null }>
   } | null
   runs: Array<{

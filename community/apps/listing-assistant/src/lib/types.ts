@@ -13,6 +13,12 @@ export type ListingFieldFlag = 'ai' | 'missing' | 'uncertain'
 
 export type ListingFieldFlags = Record<string, ListingFieldFlag>
 
+/**
+ * Verbatim source-copy excerpts that support each extracted field. The
+ * workbench highlights them so an operator can check the AI's basis.
+ */
+export type ListingEvidence = Record<string, string>
+
 export type ListingSpecInput = {
   name: string
   price?: string | null
@@ -43,6 +49,7 @@ export const listingExtractionSchema = z.object({
   category: z.string().max(120).nullish(),
   attributes: z.record(z.union([z.string().max(500), z.number(), z.null()])).nullish(),
   specs: z.array(listingSpecSchema).max(50).nullish(),
+  evidence: z.record(z.string().max(300)).nullish(),
   missingFields: z.array(z.enum(['title', 'description', 'price', 'category', 'specs'])).max(10).nullish(),
   uncertainFields: z.array(z.enum(['title', 'description', 'price', 'category', 'specs'])).max(10).nullish()
 })
@@ -80,6 +87,7 @@ export type ListingTaskDetail = {
     category: string | null
     attributes: Record<string, string | number | null> | null
     fieldFlags: ListingFieldFlags | null
+    evidence: ListingEvidence | null
     specs: ListingSpecInput[]
   } | null
   runs: Array<{

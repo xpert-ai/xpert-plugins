@@ -20,11 +20,24 @@ type DraftFormProps = {
   t: Catalog
   detail: TaskDetail
   form: FormState
+  activeEvidence: string | null
   onChange: (patch: Partial<FormState>) => void
+  onEvidenceFocus: (field: string) => void
 }
 
-export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
+export function DraftForm({ t, detail, form, activeEvidence, onChange, onEvidenceFocus }: DraftFormProps) {
   const flags = detail.draft?.fieldFlags ?? {}
+  const evidence = detail.draft?.evidence ?? {}
+
+  const renderEvidence = (field: string) => (
+    <EvidenceNote
+      t={t}
+      field={field}
+      quote={evidence[field]}
+      active={activeEvidence === field}
+      onFocus={onEvidenceFocus}
+    />
+  )
 
   const fieldClass = (name: string) => `la-field${flags[name] ? ` la-field--${flags[name]}` : ''}`
 
@@ -53,6 +66,7 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
             onChange={(event: ChangeEvent<HTMLInputElement>) => onChange({ title: event.target.value })}
           />
         </div>
+        {renderEvidence('title')}
       </div>
 
       <div className={fieldClass('description')}>
@@ -69,6 +83,7 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
             onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange({ description: event.target.value })}
           />
         </div>
+        {renderEvidence('description')}
       </div>
 
       <div className="la-grid-2">
@@ -85,6 +100,7 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
               onChange={(event: ChangeEvent<HTMLInputElement>) => onChange({ price: event.target.value })}
             />
           </div>
+          {renderEvidence('price')}
         </div>
         <div className="la-field">
           <Label className="la-label" htmlFor="la-currency">
@@ -112,6 +128,7 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
             onChange={(event: ChangeEvent<HTMLInputElement>) => onChange({ category: event.target.value })}
           />
         </div>
+        {renderEvidence('category')}
       </div>
 
       <div className={fieldClass('attributes')}>
@@ -225,6 +242,7 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
         >
           {t.addSpec}
         </Button>
+        {renderEvidence('specs')}
       </div>
 
       <p className="la-note">{t.saveHint}</p>
@@ -241,5 +259,29 @@ export function DraftForm({ t, detail, form, onChange }: DraftFormProps) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+type EvidenceNoteProps = {
+  t: Catalog
+  field: string
+  quote?: string
+  active: boolean
+  onFocus: (field: string) => void
+}
+
+/** Shows the verbatim source excerpt behind an AI-extracted field. */
+function EvidenceNote({ t, field, quote, active, onFocus }: EvidenceNoteProps) {
+  if (!quote) return null
+  return (
+    <button
+      type="button"
+      className={`la-evidence-note${active ? ' la-evidence-note--active' : ''}`}
+      onClick={() => onFocus(field)}
+      title={t.evidenceHint}
+    >
+      <span className="la-evidence-tag">{t.evidenceLabel}</span>
+      <span className="la-evidence-quote">{quote}</span>
+    </button>
   )
 }
