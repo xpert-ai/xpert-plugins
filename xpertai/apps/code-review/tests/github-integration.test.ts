@@ -51,6 +51,42 @@ test('reference-only configuration uses the built-in read capability, resolves a
   assert.equal((await f.app.config())?.webhookSecret, f.state.integration.options.webhookSecret)
 })
 
+test('on-demand configuration overrides a stale replica snapshot and observes clearing on the next operation', async () => {
+  const f = fixture()
+  let stored: { githubIntegrationId?: string } = { githubIntegrationId: integrationId }
+  let reads = 0
+  Object.assign(f.context, { readConfig: async () => { reads++; return stored } })
+  f.context.config = {}
+  assert.equal((await f.app.status(scope)).configured, true)
+  assert.equal(reads, 1, 'one plugin-configuration read per status check')
+  stored = {}
+  assert.equal((await f.app.status(scope)).configured, false)
+  assert.equal(reads, 2)
+  assert.equal(f.reads.length, 1, 'clearing stops looking up the old integration')
+})
+
+test('live configuration failures never reuse the stale snapshot or read again while formatting status', async () => {
+  const f = fixture()
+  let reads = 0
+  Object.assign(f.context, { readConfig: async () => { reads++; throw new Error('database unavailable') } })
+  const status = await f.app.status(scope)
+  assert.equal(status.configured, false)
+  assert.equal(status.integrationId, null)
+  assert.equal(status.errorCode, 'github_integration_unavailable')
+  assert.equal(reads, 1)
+  assert.equal(f.reads.length, 0)
+  await assert.rejects(f.app.config(scope), /database unavailable/)
+})
+
+test('status reports the selected live reference when that integration is unavailable', async () => {
+  const f = fixture(), selected = randomUUID()
+  Object.assign(f.context, { readConfig: async () => ({ githubIntegrationId: selected }) })
+  const status = await f.app.status(scope)
+  assert.equal(status.configured, false)
+  assert.equal(status.integrationId, selected)
+  assert.equal(status.errorCode, 'github_integration_unavailable')
+})
+
 test('system callbacks use only the host configuration capability and preserve review tenant isolation', async () => {
   const f = fixture()
   f.context.tenantId = null
