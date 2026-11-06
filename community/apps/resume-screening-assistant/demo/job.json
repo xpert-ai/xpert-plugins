@@ -1,0 +1,9 @@
+{
+  "id": "job-demo",
+  "title": "在此填写岗位名称",
+  "jd": "在此粘贴完整 JD 原文。\n\n职责：\n1. ...\n2. ...\n\n要求：\n1. 必须 ...\n2. 要求 ...\n",
+  "mustHaveSkills": ["技能1", "技能2", "技能3"],
+  "niceToHaveSkills": ["加分技能1", "加分技能2"],
+  "minYearsExperience": 3,
+  "screeningNotes": "可选：这一轮筛选的额外说明，会一起进 Prompt"
+}
