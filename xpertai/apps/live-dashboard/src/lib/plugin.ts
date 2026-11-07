@@ -1,3 +1,4 @@
+import { DashboardLibraryViewProvider } from './library-view.provider'
 import { DashboardDatasetService } from './dataset.service'
 import { DashboardDatasetArtifactType } from './dataset-artifact.provider'
 import { DashboardSaveRequests } from './save-requests'
@@ -15,5 +16,5 @@ import { DashboardPresentationProvider } from './presentation.provider'
 import { DashboardSharingService } from './sharing.service'
 import { DashboardArtifactType } from './artifact-type.provider'
 import { DashboardProviderOptionsController } from './provider-options.controller'
-@XpertServerPlugin({ controllers: [DashboardProviderOptionsController], providers: [DashboardDatasetService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
+@XpertServerPlugin({ controllers: [DashboardProviderOptionsController], providers: [DashboardLibraryViewProvider, DashboardDatasetService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
 export class LiveDashboardPlugin {}

@@ -1,3 +1,4 @@
+import { LibraryApp } from './library-app'
 import { waitForDashboardSave } from './save-progress'
 import { createDashboardQuerySession } from '../lib/query-session'
 import { toDataAnalyticsPayload } from '../lib/renderer'
@@ -28,7 +29,7 @@ import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifac
 
 installArtifactDocumentFramePolicy(document)
 
-declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean } }
+declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_PAGE__?: 'data' } }
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 
@@ -440,4 +441,4 @@ function rendererHtml(payload: unknown) {
   window.fetch=async function(input,init){const path=new URL(typeof input==='string'?input:input.url,'https://renderer.invalid').pathname;const payload=window.xpertai.toolOutput;const data={'/api/manifest':payload.manifest,'/api/snapshot':payload.snapshot,'/api/package':{manifestPath:'live dashboard',snapshotPath:'live query'}};const ok=(!init||!init.method||init.method==='GET')&&Object.prototype.hasOwnProperty.call(data,path);return new Response(JSON.stringify(ok?data[path]:{error:'Unavailable in live read-only view'}),{status:ok?200:404,headers:{'Content-Type':'application/json'}})};<\/script>`
   return window.__ANALYTICS_RENDERER_HTML__.replace(/<head(\s[^>]*)?>/i, (head) => `${head}${setup}`)
 }
-createRoot(document.getElementById('root')!).render(<RemoteI18nProvider i18n={i18n}><App/></RemoteI18nProvider>)
+createRoot(document.getElementById('root')!).render(<RemoteI18nProvider i18n={i18n}><>{window.__DASHBOARD_PAGE__ ? <LibraryApp page={window.__DASHBOARD_PAGE__}/> : <App/>}</></RemoteI18nProvider>)

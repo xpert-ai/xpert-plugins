@@ -5,6 +5,10 @@ import { datasetDefinitionSchema } from './dataset.schema'
 import { DATASET_RESOURCE_TYPE } from './dataset.service'
 import { PLUGIN_NAME } from './dashboard.service'
 
+/**
+ * @beta The dataset Artifact type and its storage/lifecycle contract may change
+ * incompatibly during beta. See dataset.schema.ts for persisted-format limitations.
+ */
 @ArtifactTypeProvider(DATASET_RESOURCE_TYPE)
 export class DashboardDatasetArtifactType implements IArtifactTypeProvider {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}

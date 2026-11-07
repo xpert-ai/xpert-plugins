@@ -28,6 +28,7 @@
               "html-mode",
               "frontend-libraries",
               "frontend-libraries-acceptance",
+              "data-view",
               "dataset-storage",
               "drafts",
               "drafts-acceptance",

@@ -12,7 +12,10 @@ export const DATASET_RESOURCE_TYPE = 'live-dashboard-dataset'
 const MAX_BYTES = 200_000
 const prefix = (context: XpertResolvedViewHostContext) => projectId(context) ? `project/${projectId(context)}/` : `agent/${context.hostId}/`
 
-/** Persist reusable queries, never result rows. Every read and mutation rechecks the host's current actor. */
+/**
+ * Persist reusable queries, never result rows. Every read and mutation rechecks the host's current actor.
+ * @beta Dataset service APIs and persisted definitions may change incompatibly during beta.
+ */
 @Injectable()
 export class DashboardDatasetService {
   constructor(private readonly dashboards: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}

@@ -2,6 +2,11 @@ import { z } from 'zod/v3'
 import { analyticsBindingSchema, analyticsSourceRefSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { controlsSchema } from './dashboard.schema'
 
+/**
+ * @beta Reusable dataset definitions and their request/response contracts are experimental.
+ * Persisted fields and API payloads may change incompatibly during beta; backward
+ * compatibility is not guaranteed. Upgrades may require migrating or recreating definitions.
+ */
 export const datasetDefinitionSchema = z.object({
   schema: z.literal('xpert.live-dashboard.dataset'), id: z.string().uuid(),
   name: z.string().trim().min(1).max(160), description: z.string().max(1000).default(''),
