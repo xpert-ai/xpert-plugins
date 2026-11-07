@@ -28,6 +28,22 @@ function transport() {
   return { api, messages, receive, complete }
 }
 
+test('mounted library re-handshakes after project/conversation changes instead of staying empty', t => {
+  const { api, receive, messages } = transport()
+  let ready = 0, resets = 0
+  t.after(api.startBridge(() => { ready++ }, () => {}, () => { resets++ }))
+  receive({ type: 'init', scopeRevision: 1 })
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  assert.equal(resets, 2)
+  assert.equal(messages.at(-1).type, 'ready')
+  assert.equal(messages.at(-1).scopeRevision, 2)
+  receive({ type: 'init', scopeRevision: 2 })
+  assert.equal(ready, 2)
+  const count = messages.length
+  receive({ type: 'hostEvent', scopeRevision: 1, event: { type: 'view.context.changed', data: { revision: 1 } } })
+  assert.equal(messages.length, count, 'stale scope must not restart the view')
+})
+
 test('refresh visibility follows scoped Workbench visibility, ignoring other frames and stale messages', t => {
   const { api, receive } = transport()
   t.after(api.startBridge(() => {}, () => {}))

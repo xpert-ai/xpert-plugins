@@ -45,7 +45,12 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
     }
     if (message.type === 'hostEvent' && instanceId && message.instanceId === instanceId && message.event?.type === 'view.context.changed') {
       const revision = message.event.data?.revision
-      if (revision !== undefined && revision > (scopeRevision ?? -1)) { clearPending(); scopeRevision = revision; lastCreatedVersion = undefined; onScopeReset() }
+      if (revision !== undefined && revision > (scopeRevision ?? -1)) {
+        clearPending(); scopeRevision = revision; lastCreatedVersion = undefined; onScopeReset()
+        // The host invalidates a mounted view with a context event, not another
+        // init. Re-handshake to load the current project/query after resetting.
+        post('ready')
+      }
       return
     }
     if (!instanceId || message.instanceId !== instanceId || message.scopeRevision !== scopeRevision && message.type !== 'error') return
