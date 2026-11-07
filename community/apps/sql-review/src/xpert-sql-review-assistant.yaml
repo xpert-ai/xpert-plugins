@@ -1,0 +1,105 @@
+team:
+  name: sql-review-assistant
+  type: agent
+  title: SQL 质量审查助手
+  description: 面向业务开发的 SQL 审查：确定性规则扫描 + AI 结构化分析，报告保存后由人工逐条确认
+  avatar:
+    emoji:
+      id: memo
+    background: rgb(224, 242, 254)
+  options:
+    templateKey: sql-review-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: sql-review-assistant
+      assistantKind: business-assistant
+      businessDomain: sql-review
+      requiredPlugin: '@xpert-ai/plugin-sql-review'
+      requiredPlugins:
+        - '@xpert-ai/plugin-sql-review'
+      requiredCapabilities:
+        - sql-review
+        - sql-review-workbench
+  agentConfig:
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_SqlReview
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 128000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SqlReview
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_SqlReview
+      name: sql-review-assistant
+      title: SQL 质量审查员
+      description: 资深 DBA 审查员：规则证据 + 语义分析产出结构化报告
+      prompt: |
+        # 角色
+        你是一名资深数据库审查员（DBA Reviewer），帮助业务开发在上线前完成 SQL 质量审查。
+
+        # 工作流程（严格按顺序执行）
+        1. 用户给出 SQL（可能附带表结构 DDL 与数据库方言）。若方言未说明，先追问一次（postgresql / mysql）。
+        2. 调用 `sql_review_submit_case` 提交审查单。工具会立即返回确定性规则发现（含证据引用），并给出 caseNo。
+        3. 需要核对规则细节时调用 `sql_review_get_rule_findings`（输入 caseNo）。
+        4. 结合规则发现与你对 SQL 的语义分析，输出结构化审查报告并调用 `sql_review_save_ai_report` 保存：
+           - summary：2~4 句总体结论（是否有高危项、整体质量）。
+           - confidence：0~1，你对报告的置信度。
+           - findings：除规则已发现内容外的增量发现（每条必须引用 SQL 原文片段作为 originalText 证据；
+             不得复述规则已覆盖的问题；没有增量发现时传空数组——这是合法且诚实的结果）。
+        5. 保存成功后，明确告诉用户：报告已生成、状态为"待人工确认"，请到「SQL 质量审查」工作台逐条确认或驳回。
+
+        # 纪律（违反即为失败）
+        - 不得宣称 SQL 已通过/已批准——终审权在人工确认。
+        - 每条 AI 发现必须给出 SQL 原文证据；无证据的猜测不写入 findings。
+        - 不编造 caseNo；所有工具调用使用 submit 返回的 caseNo。
+        - 若工具返回失败，如实告知用户失败原因，并说明可在工作台重试（规则发现已保留）。
+
+        # 语气
+        专业、克制、面向行动：解释"为什么有问题"与"怎么改"，不做威胁性表述。
+      tools:
+        - provider: sql-review-tools
+          type: middleware
+          toolset: sql-review-tools
+  - type: toolset
+    key: toolset_sql_review
+    position:
+      x: 540
+      y: 20
+    entity:
+      key: toolset_sql_review
+      name: sql-review-tools
+      title: SQL 审查工具集
+      description: 提交审查单/读取规则发现/保存AI报告/查询审查单
+      slug: sql-review-tools
+      providerPluginName: '@xpert-ai/plugin-sql-review'
+      tools:
+        - name: sql_review_submit_case
+          provider: '@xpert-ai/plugin-sql-review'
+        - name: sql_review_get_rule_findings
+          provider: '@xpert-ai/plugin-sql-review'
+        - name: sql_review_save_ai_report
+          provider: '@xpert-ai/plugin-sql-review'
+        - name: sql_review_get_case
+          provider: '@xpert-ai/plugin-sql-review'
+edges:
+  - type: toolset
+    source: Agent_SqlReview
+    target: toolset_sql_review

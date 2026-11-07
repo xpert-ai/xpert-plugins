@@ -1,0 +1,66 @@
+{
+  "name": "sql-review",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugins/sql-review/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "generatorOptions": {
+        "packageRoot": "dist/{projectRoot}",
+        "currentVersionResolver": "git-tag"
+      }
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/plugins/sql-review",
+        "main": "packages/plugins/sql-review/src/index.ts",
+        "tsConfig": "packages/plugins/sql-review/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "packages/plugins/sql-review/src/lib/remote-components",
+            "glob": "**/*",
+            "output": "remote-components"
+          }
+        ],
+        "project": "packages/plugins/sql-review/package.json",
+        "compiler": "swc",
+        "format": ["cjs", "esm"],
+        "external": [
+          "@langchain/core",
+          "@nestjs/common",
+          "@nestjs/core",
+          "@nestjs/typeorm",
+          "@nestjs/microservices",
+          "@xpert-ai/contracts",
+          "@xpert-ai/plugin-sdk",
+          "typeorm",
+          "react",
+          "react-dom",
+          "xlsx",
+          "kafkajs",
+          "amqplib",
+          "mqtt",
+          "nats",
+          "zod"
+        ]
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/plugins/sql-review/jest.config.ts"
+      }
+    }
+  }
+}
