@@ -25,6 +25,19 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
   validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
 
+  /**
+   * Only a manager of the exact source Project may delegate a current declared file dataset.
+   * Validate the binding and authorized file metadata without reading rows; query access remains actor-scoped.
+   */
+  async authorizeGroupSharing(binding: AnalyticsBinding, context: AnalyticsProviderContext) {
+    const query = payloadSchema.parse(binding.payload), { datasets } = optionsSchema.parse(context.options)
+    const definition = datasets.find(dataset => dataset.id === query.datasetId)
+    if (!definition || query.revision !== definition.revision || query.contractHash !== contractHash(definition) || definition.file.catalog !== 'projects')
+      throw new ForbiddenException('FILE_DATASET_SHARING_UNAVAILABLE')
+    await this.runtime.require(ProjectAccessRuntimeCapability).assertManage({ actor: context.actor, projectId: definition.file.projectId })
+    await this.file(definition, context)
+  }
+
   private check(context: AnalyticsProviderContext) {
     context.signal.throwIfAborted()
     if (Date.now() >= context.deadlineAt) throw new Error('FILE_DATASET_DEADLINE_EXCEEDED')

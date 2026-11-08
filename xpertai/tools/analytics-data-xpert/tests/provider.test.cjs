@@ -3,6 +3,36 @@ const assert = require('node:assert/strict')
 const { bindParameters, dataXpertPayloadSchema, DataXpertAnalyticsClient } = require('../dist/lib/client.js')
 const { normalizeAnalyticsResult } = require('@xpert-ai/plugin-sdk/analytics')
 const http = require('node:http')
+test('group-sharing authority is checked by the data service with the current human token, without executing data', async () => {
+  const actor = { tenantId: 'tenant', organizationId: 'org', userId: 'human' }
+  let allowed = true, calls = 0
+  const server = http.createServer(async (request, response) => {
+    calls++
+    assert.equal(request.url, '/api/agent-workbench/analytics/authorize-group-sharing')
+    assert.equal(request.headers.authorization, 'Bearer current-human')
+    const chunks = []; for await (const chunk of request) chunks.push(chunk)
+    const body = JSON.parse(Buffer.concat(chunks).toString())
+    assert.equal(body.binding.resourceId, 'resource')
+    assert.equal(body.actor, undefined)
+    response.setHeader('content-type', 'application/json')
+    response.statusCode = allowed ? 201 : 403
+    response.end(JSON.stringify(allowed ? { authorized: true } : { message: 'denied' }))
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const client = new DataXpertAnalyticsClient({ require: () => ({ createScopedApi(input) {
+      assert.deepEqual(input, actor); return { getToken: async () => ({ token: 'current-human' }) }
+    } }) })
+    const context = { actor, maxRows: 1, signal: new AbortController().signal, deadlineAt: Date.now() + 30000,
+      options: { baseUrl: `http://127.0.0.1:${server.address().port}/api`, audience: 'data-xpert', assistantCode: 'assistant',
+        assistantXpertId: '11111111-1111-4111-8111-111111111111', workspaceId: '22222222-2222-4222-8222-222222222222' } }
+    const binding = { id: 'stock', payload: { resourceId: 'resource', actionTypeCode: 'sql.query_cube_slice', target: { entityId: 'entity' }, params: {}, parameterPaths: {} } }
+    await client.authorizeGroupSharing(binding, context)
+    allowed = false
+    await assert.rejects(client.authorizeGroupSharing(binding, context))
+    assert.equal(calls, 2)
+  } finally { await new Promise(resolve => server.close(resolve)) }
+})
 test('structured parameters replace an entire declared value without interpreting query text', () => {
   const original = { filters: { region: 'all' }, mdx: 'SELECT [Measures].[Sales] ON COLUMNS FROM [Cube]' }
   const result = bindParameters(original, { region: ['filters', 'region'] }, { region: "west' OR 1=1" })
