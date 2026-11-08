@@ -71,6 +71,16 @@ export class LibraryCatalogService {
     return { item: versionItem(row), document, capabilities: { canExport: own || !document.assets.length, canPublish, canWithdraw,
       reasons: !own && document.assets.length ? ['LIBRARY_PUBLIC_FILE_COPY_UNAVAILABLE'] : [] } }
   }
+  /** @beta Reads a bounded preview asset of an authorized fixed resource version. */
+  async thumbnail(context: XpertResolvedViewHostContext, releaseId: string, assetId: string) {
+    const { document, actor, own } = await this.resolve(context, releaseId)
+    if (!own) throw new BadRequestException('LIBRARY_PUBLIC_FILE_COPY_UNAVAILABLE')
+    const asset = document.assets.find(item => item.id === assetId && ['cover', 'preview'].includes(item.purpose))
+    if (!asset || asset.size > 2_000_000 || !asset.mimeType.startsWith('image/')) throw new BadRequestException('LIBRARY_PREVIEW_UNAVAILABLE')
+    const bytes = await this.files.read(actor, asset)
+    await this.resolve(context, releaseId)
+    return { src: `data:${asset.mimeType};base64,${bytes.toString('base64')}` }
+  }
   async closure(context: XpertResolvedViewHostContext, ids: string[], ownOnly = false) {
     const resources: ResourceDocumentV2[] = [], rows: LibraryVersionRecord[] = [], seen = new Set<string>(), active = new Set<string>()
     const visit = async (id: string) => {

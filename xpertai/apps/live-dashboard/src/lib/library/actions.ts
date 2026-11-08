@@ -3,10 +3,10 @@ import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { z } from 'zod/v3'
 import { LibraryCatalogService } from './catalog.service'
 import { LibraryTransfersService } from './transfers.service'
-import { catalogV2Query, resourceV2Schema } from './resource-contract'
+import { assetSchema, catalogV2Query, resourceV2Schema } from './resource-contract'
 
 /** @beta Transport names are V2-only; V1 UI/catalog entries keep their explicit legacy route. */
-export const resourceActions = ['resource-list', 'resource-open', 'resource-draft-save', 'resource-draft-open', 'resource-release',
+export const resourceActions = ['resource-list', 'resource-open', 'resource-thumbnail', 'resource-draft-save', 'resource-draft-open', 'resource-release',
   'resource-publish', 'resource-withdraw', 'resource-import-status', 'resource-import-commit', 'resource-import-cancel',
   'resource-jobs', 'resource-imports-cleanup', 'resource-files-cleanup', 'resource-upload-asset', 'resource-import', 'resource-prepare-task', 'resource-prepare-template', 'resource-execution-status']
 export const resourceFileActions = ['resource-upload-asset', 'resource-import']
@@ -20,6 +20,10 @@ export async function executeResourceAction(catalog: LibraryCatalogService, tran
   switch (action) {
     case 'resource-list': return catalog.list(context, catalogV2Query.parse(input))
     case 'resource-open': return catalog.read(context, target.parse(input).releaseId)
+    case 'resource-thumbnail': {
+      const request = target.extend({ assetId: assetSchema.shape.id }).strict().parse(input)
+      return catalog.thumbnail(context, request.releaseId, request.assetId)
+    }
     case 'resource-draft-save': {
       const request = z.object({ document: resourceV2Schema, expectedRevision: revision }).strict().parse(input)
       return catalog.saveDraft(context, request.document, request.expectedRevision)

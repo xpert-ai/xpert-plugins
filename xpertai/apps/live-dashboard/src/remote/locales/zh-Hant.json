@@ -289,5 +289,22 @@
   "catalogWillReuse": "複用",
   "catalogZipFile": "選擇完整資源 ZIP",
   "v2Cancelled": "已取消",
-  "v2ImportHint": "選擇資源 ZIP 包，檢查內容後匯入我的資源。匯入不會自動公開。"
+  "v2ImportHint": "選擇資源 ZIP 包，檢查內容後匯入我的資源。匯入不會自動公開。",
+  "catalogConfirmPublish": "確認公開這些資源",
+  "catalogExport": "匯出完整 ZIP",
+  "catalogNotMapped": "未映射",
+  "catalogPublish": "公開分享",
+  "catalogPublishWarning": "以下資源及其全部依賴內容將可被其他使用者瀏覽、下載和複製。請確認數據可公開，且擁有相應授權。已下載的副本不會隨取消公開而刪除。",
+  "catalogUnpublish": "取消公開",
+  "exploreReady": "任務已準備到對話中，確認後即可傳送。",
+  "exploreUse": "使用此任務",
+  "shellClose": "關閉預覽",
+  "shellPlaceholderHint": "當前僅提供目錄與參考預覽。數據綁定、主題應用和交互內容將在後續逐項接入。",
+  "shellPlanned": "待實現",
+  "v2DatasetColumns": "{count} 個欄位",
+  "v2Dependencies": "相依資源",
+  "v2InstallHint": "匯入資源包後即可使用其中的任務和範本。",
+  "v2MappingHint": "選擇資料集並匹配欄位。此操作只準備對話草稿，傳送後才會建立看板。",
+  "v2NotInstalled": "待匯入",
+  "v2TemplatePrompt": "請按附帶的範本配方建立「{title}」看板草稿，等待儲存成功後回傳看板入口。"
 }

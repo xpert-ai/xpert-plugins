@@ -289,5 +289,22 @@
   "catalogWillReuse": "复用",
   "catalogZipFile": "选择完整资源 ZIP",
   "v2Cancelled": "已取消",
-  "v2ImportHint": "选择资源 ZIP 包，检查内容后导入我的资源。导入不会自动公开。"
+  "v2ImportHint": "选择资源 ZIP 包，检查内容后导入我的资源。导入不会自动公开。",
+  "catalogConfirmPublish": "确认公开这些资源",
+  "catalogExport": "导出完整 ZIP",
+  "catalogNotMapped": "未映射",
+  "catalogPublish": "公开分享",
+  "catalogPublishWarning": "以下资源及其全部依赖内容将可被其他用户浏览、下载和复制。请确认数据可公开，且拥有相应授权。已下载的副本不会随取消公开而删除。",
+  "catalogUnpublish": "取消公开",
+  "exploreReady": "任务已准备到对话中，确认后即可发送。",
+  "exploreUse": "使用此任务",
+  "shellClose": "关闭预览",
+  "shellPlaceholderHint": "当前仅提供目录与参考预览。数据绑定、主题应用和交互内容将在后续逐项接入。",
+  "shellPlanned": "待实现",
+  "v2DatasetColumns": "{count} 个字段",
+  "v2Dependencies": "依赖资源",
+  "v2InstallHint": "导入资源包后即可使用其中的任务和模板。",
+  "v2MappingHint": "选择数据集并匹配字段。此操作只准备对话草稿，发送后才会创建看板。",
+  "v2NotInstalled": "待导入",
+  "v2TemplatePrompt": "请按附带的模板配方创建“{title}”看板草稿，等待保存成功后返回看板入口。"
 }

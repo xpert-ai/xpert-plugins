@@ -289,5 +289,22 @@
   "catalogWillReuse": "Reuse",
   "catalogZipFile": "Choose a complete resource ZIP",
   "v2Cancelled": "Cancelled",
-  "v2ImportHint": "Choose a resource ZIP, inspect its contents, then import into your private library. Importing does not publish it."
+  "v2ImportHint": "Choose a resource ZIP, inspect its contents, then import into your private library. Importing does not publish it.",
+  "catalogConfirmPublish": "Publish these resources",
+  "catalogExport": "Export complete ZIP",
+  "catalogNotMapped": "Not mapped",
+  "catalogPublish": "Share publicly",
+  "catalogPublishWarning": "These resources and all their dependencies will be available for others to browse, download and copy. Confirm that the data may be public and you hold the required rights. Unpublishing cannot remove downloaded copies.",
+  "catalogUnpublish": "Unpublish",
+  "exploreReady": "The task is ready in your conversation. Review it, then send.",
+  "exploreUse": "Use this task",
+  "shellClose": "Close preview",
+  "shellPlaceholderHint": "This entry contains catalog information and a reference preview. Data bindings, theme application and interactions will be added individually.",
+  "shellPlanned": "Planned",
+  "v2DatasetColumns": "{count} columns",
+  "v2Dependencies": "Included dependencies",
+  "v2InstallHint": "Import a resource package to use its tasks and templates.",
+  "v2MappingHint": "Select a dataset and map its fields. This prepares a chat draft; send it to create the dashboard.",
+  "v2NotInstalled": "Not imported",
+  "v2TemplatePrompt": "Use the attached template recipe to create “{title}” as a dashboard draft. Wait for the successful save receipt."
 }
