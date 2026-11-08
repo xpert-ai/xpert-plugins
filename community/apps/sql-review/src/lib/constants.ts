@@ -6,7 +6,7 @@ export const SQL_REVIEW_ICON = 'https://api.iconify.design/mdi/file-table-outlin
 export const SQL_REVIEW_PROVIDER_KEY = 'SQL_REVIEW'
 export const SQL_REVIEW_TEMPLATE_PROVIDER_KEY = 'SQL_REVIEW_TEMPLATES'
 
-export const SQL_REVIEW_MIDDLEWARE_NAME = 'sql-review-tools'
+export const SQL_REVIEW_MIDDLEWARE_NAME = 'SqlReviewMiddleware'
 export const SQL_REVIEW_SUBMIT_CASE_TOOL_NAME = 'sql_review_submit_case'
 export const SQL_REVIEW_GET_RULE_FINDINGS_TOOL_NAME = 'sql_review_get_rule_findings'
 export const SQL_REVIEW_SAVE_AI_REPORT_TOOL_NAME = 'sql_review_save_ai_report'

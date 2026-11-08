@@ -17,7 +17,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "organization"
+      "level": "system",
+      "artifactNamespace": "sql_review"
     }
   },
   "main": "./index.cjs",

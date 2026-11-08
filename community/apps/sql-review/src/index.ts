@@ -31,7 +31,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    level: 'organization',
+    artifactNamespace: 'sql_review',
+    level: 'system',
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {

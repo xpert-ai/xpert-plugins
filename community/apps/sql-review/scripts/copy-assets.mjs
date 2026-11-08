@@ -8,8 +8,8 @@ const packageRoot = join(__dirname, '..')
 
 await mkdir(join(packageRoot, 'dist', 'lib'), { recursive: true })
 await cp(
-  join(packageRoot, 'src', 'xpert-smart-maintenance-assistant.yaml'),
-  join(packageRoot, 'dist', 'xpert-smart-maintenance-assistant.yaml')
+  join(packageRoot, 'src', 'xpert-sql-review-assistant.yaml'),
+  join(packageRoot, 'dist', 'xpert-sql-review-assistant.yaml')
 )
 await cp(
   join(packageRoot, 'src', 'lib', 'remote-components'),

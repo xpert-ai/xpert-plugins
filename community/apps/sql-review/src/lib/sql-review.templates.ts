@@ -39,6 +39,6 @@ export const sqlReviewTemplates: XpertTemplateContribution[] = [
     provider: SQL_REVIEW_PROVIDER_KEY,
     providerKey: SQL_REVIEW_TEMPLATE_PROVIDER_KEY,
     version: '0.1.0',
-    customDSL: readSqlReviewDsl()
+    dslContent: readSqlReviewDsl()
   }
 ]
