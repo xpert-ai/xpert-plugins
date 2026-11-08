@@ -1,5 +1,6 @@
 const { fixture } = require('./dataset-fixture.cjs')
 const { DashboardLibraryViewProvider } = require('../dist/lib/library-view.provider')
+const { DashboardTemplateService } = require('../dist/lib/template.service')
 
 function dataViewFixture() {
   const f = fixture(), binding = f.definition.binding
@@ -14,7 +15,8 @@ function dataViewFixture() {
       queryContract: { operation: binding.operation, contractVersion: binding.contractVersion,
         payloadSchema: { type: 'object' }, instructions: 'Synthetic fixture: inspect the existing sales query.' } }
   }
-  return { ...f, discoveries, provider: new DashboardLibraryViewProvider(f.service, f.library) }
+  const templates = new DashboardTemplateService(f.service, f.library)
+  return { ...f, discoveries, templates, provider: new DashboardLibraryViewProvider(f.service, f.library, templates) }
 }
 
 module.exports = { dataViewFixture }

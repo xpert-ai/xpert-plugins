@@ -2,6 +2,7 @@ import { z } from 'zod/v3'
 import { analyticsSourceRefSchema, analyticsDiscoveryResultSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { datasetSummarySchema } from './dataset.schema'
 export * from './dataset.schema'
+export * from './template.schema'
 
 /**
  * @beta Workbench data-view contracts are experimental. View keys, navigation

@@ -4,7 +4,8 @@ import { analyticsDiscoveryRequestSchema, analyticsQueryRequestSchema } from '@x
 import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery } from '@xpert-ai/contracts'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { DashboardDatasetService } from './dataset.service'
-import { libraryPages, libraryQuerySchema, datasetSaveSchema, datasetTargetSchema, datasetDeleteSchema, type LibraryPage } from './library.schema'
+import { DashboardTemplateService } from './template.service'
+import { libraryPages, libraryQuerySchema, datasetSaveSchema, datasetTargetSchema, datasetDeleteSchema, templateCreateSchema, type LibraryPage } from './library.schema'
 import { dashboardRemoteEntry } from './remote-entry'
 import { dashboardIcon } from './dashboard-icon'
 import { FEATURE } from './view.provider'
@@ -12,7 +13,7 @@ import { z } from 'zod/v3'
 
 export const LIBRARY_PROVIDER = 'live-dashboard-library'
 const titles = { data: { en_US: 'Add data', zh_Hans: '添加数据', zh_Hant: '新增資料' } }
-const actions = ['discover', 'preview-query', 'dataset-open', 'dataset-save', 'dataset-preview', 'dataset-delete', 'dashboard-bindings']
+const actions = ['discover', 'preview-query', 'dataset-open', 'dataset-save', 'dataset-preview', 'dataset-delete', 'template-create', 'dashboard-bindings']
 function assertPage(key: string): asserts key is LibraryPage { if (!libraryPages.some(page => page === key)) throw new BadRequestException('DASHBOARD_VIEW_UNSUPPORTED') }
 
 /**
@@ -21,7 +22,7 @@ function assertPage(key: string): asserts key is LibraryPage { if (!libraryPages
  */
 @ViewExtensionProvider(LIBRARY_PROVIDER)
 export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly dashboards: DashboardService, private readonly library: DashboardDatasetService) {}
+  constructor(private readonly dashboards: DashboardService, private readonly library: DashboardDatasetService, private readonly templates: DashboardTemplateService) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench','agent.workbench.fixed','agent.workbench.main'].includes(slot)) return []
@@ -51,6 +52,7 @@ export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider
       case 'dataset-save': data = await this.library.save(context, datasetSaveSchema.parse(request.input)); break
       case 'dataset-preview': data = await this.library.preview(context, datasetTargetSchema.parse(request.input).artifactId); break
       case 'dataset-delete': { const input = datasetDeleteSchema.parse(request.input); data = await this.library.remove(context, input.artifactId, input.expectedRevision); break }
+      case 'template-create': data = await this.templates.create(context, templateCreateSchema.parse(request.input)); break
       case 'dashboard-bindings': {
         const input = z.union([datasetTargetSchema, z.object({}).strict()]).parse(request.input)
         data = 'artifactId' in input ? (await this.dashboards.open(context, input.artifactId)).manifest : await this.dashboards.listPage(context, 1, 100)

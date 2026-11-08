@@ -31,6 +31,7 @@
               "frontend-libraries-acceptance",
               "data-view",
               "dataset-storage",
+              "dataset-generation",
               "drafts",
               "drafts-acceptance",
               "team-sharing",
