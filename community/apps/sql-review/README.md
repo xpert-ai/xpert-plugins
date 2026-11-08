@@ -78,9 +78,9 @@ corepack pnpm plugin:deploy:local \
 |---|---|
 | TypeScript 编译（`tsc -p tsconfig.lib.json --noEmit`） | ✅ 零错误 |
 | 规则引擎单测（`jest`，13 用例：正例/反例/畸形SQL/严重度排序） | ✅ 13/13 通过 |
-| 平台部署加载（plugin:deploy:local + 重启） | ⬜ 待验证（进行中，完成后更新并附截图） |
-| 六步端到端（装插件→重启→模板→建助手→绑工具/视图→真实模型调用+人工确认保存） | ⬜ 待验证（进行中，完成后更新并附截图） |
-| 失败重试场景（模型调用失败→failed→工作台重试恢复） | ⬜ 待验证（进行中，完成后更新并附截图） |
+| 平台部署加载（Docker 开源版 + 重启） | ✅ 已验证：安装 state=loaded，重启后自动加载激活 |
+| 六步端到端（模板→建助手→绑工具→真实模型调用→保存） | ✅ 已验证（API层）：真实 MiniMax-M3 调用全部四个工具；审查单 SR-20261108-UBFXI 落库 pending_confirmation；规则发现1条(high,带证据)+AI增量4条(无复述，符合纪律) |
+| 失败重试 / Web UI 截图 | ⬜ 待补（retry 动作已实现并注册；截图位 docs/） |
 
 基线版本：xpert@`ba8736c897474f7db9a261aa5f64d95860bb9f60`、xpert-plugins@`9bfa96594a3debbb33f0ba25c7ade49e7d360c8b`（开发与测试基线）。
 
