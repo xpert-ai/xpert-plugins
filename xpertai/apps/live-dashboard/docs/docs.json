@@ -34,6 +34,7 @@
               "dataset-generation",
               "library-storage",
               "library-execution",
+              "library-import-ui",
               "drafts",
               "drafts-acceptance",
               "team-sharing",
