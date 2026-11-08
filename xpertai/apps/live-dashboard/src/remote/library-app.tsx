@@ -5,6 +5,7 @@ import { requestHost, startBridge } from './bridge'
 import { messages } from './i18n'
 import { DataLibrary } from './library-data'
 import { openLibrary } from './library-gateway'
+import { ExploreView } from './explore-view'
 import { ResourceLibrary } from './resource-library'
 
 export function LibraryApp({ page }: { page: LibraryPage }) {
@@ -37,7 +38,7 @@ export function LibraryApp({ page }: { page: LibraryPage }) {
     {error && <div role="alert" className="flex items-center justify-between gap-3 border-b px-4 py-3 text-destructive"><p className="min-w-0 break-words">{error}</p><Button variant="outline" onClick={() => void run(() => load())}><RefreshCw/>{t.refresh}</Button></div>}
     {!data ? <p role="status" className="p-6 text-muted-foreground">{t.libWorking}</p> : <div key={`${scope}:${JSON.stringify(parameters)}`} className="min-h-0 flex-1 overflow-auto">
       {page==='data'&&<div className="flex gap-2 border-b px-4 py-3"><Button variant={publicData?'ghost':'secondary'} onClick={()=>void run(()=>openLibrary('data', { audience: 'mine' }))}>{t.libMyData}</Button><Button variant={publicData?'secondary':'ghost'} onClick={()=>void run(()=>openLibrary('data', { audience: 'public' }))}>{t.catalogPublicData}</Button></div>}
-      {page === 'explore' || page === 'templates' || page === 'data' && publicData ? <ResourceLibrary t={t} data={data} initialAudience={parameters.audience} initialKind={page === 'templates' ? 'analysis-template' : page === 'explore' ? 'example-task' : 'public-dataset'} initial={parameters} onQuery={next => void run(() => openLibrary(page, { ...next, ...(page === 'data' ? { audience: 'public' as const } : {}) }))}/> : !data.canEdit ? <p role="status" className="p-6">{t.draftAccessDenied}</p> : <DataLibrary t={t} data={data} initialTab={parameters.tab} refresh={() => load()} run={work => void run(work)} busy={busy}/>}
+      {page === 'explore' ? <ExploreView t={t} data={data} busy={busy} error={error} run={work => void run(work)} initialAudience={parameters.audience} initial={parameters} onQuery={next => void run(() => openLibrary('explore', next))}/> : page === 'templates' || page === 'data' && publicData ? <ResourceLibrary t={t} data={data} initialAudience={parameters.audience} initialKind={page === 'templates' ? 'analysis-template' : 'public-dataset'} initial={parameters} onQuery={next => void run(() => openLibrary(page, { ...next, ...(page === 'data' ? { audience: 'public' as const } : {}) }))}/> : !data.canEdit ? <p role="status" className="p-6">{t.draftAccessDenied}</p> : <DataLibrary t={t} data={data} initialTab={parameters.tab} refresh={() => load()} run={work => void run(work)} busy={busy}/>}
     </div>}
     {data?.hasMore && <div className="border-t p-3"><Button variant="outline" disabled={busy} onClick={() => void run(() => load(data.page + 1))}>{t.libLoadMore}</Button></div>}
   </main>

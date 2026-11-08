@@ -258,3 +258,5 @@ Manual acceptance after installing the updated plugin: cancel a deletion and con
 See [快速开始与样例](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant. Three versioned recipes bundle source, labeled synthetic data, previews and checks in [skills/live-dashboard/examples](skills/live-dashboard/examples/README.md). Existing dashboards remain independent of recipe upgrades.
 
 Superstore 企业 BI 样例的数据准备、三个页面和指标口径见 [Superstore](docs/superstore.mdx)。
+
+十个分析示例、酒店模板、合成数据、原创封面与 86 项目录占位已纳入内容作者工作流。通过独立 ZIP 显式导入；格式处于 Beta，详见[示例内容与模板目录](docs/content-packages.mdx)。

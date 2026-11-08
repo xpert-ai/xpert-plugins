@@ -76,11 +76,13 @@ test('resource directory pages', async t => {
       if (id === '@xpert-ai/plugin-shadcn-ui') return ui
       if (id === './bridge') return bridge
       if (id === '@xpert-ai/plugin-shadcn-ui/i18n') return i18nUi
+      if (/\.(svg|webp|png)$/.test(id)) return 'data:image/svg+xml,<svg/>'
+      if (['./library-catalog','./library-catalog-images','./explore-covers'].includes(id)) return load(id.slice(2) + '.ts')
       if (id === './i18n') return load('i18n.ts')
       if (id === './library-data') return { DataLibrary: () => React.createElement('div', { 'data-private-data': true }, 'Private Dataset panel') }
       if (id.startsWith('./locales/')) return require(`../src/remote/${id}`)
       if (id === './library-gateway') return load('library-gateway.ts')
-      if (['./resource-library', './library-directory', './resource-image', './resource-detail', './resource-import'].includes(id)) return load(id.slice(2) + '.tsx')
+      if (['./explore-view', './resource-library', './library-directory', './resource-image', './resource-detail', './resource-import'].includes(id)) return load(id.slice(2) + '.tsx')
       return require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id)
     } }, { filename: path })
     return exports
@@ -106,7 +108,7 @@ test('resource directory pages', async t => {
   await t.test('search, pagination and template-kind selection preserve navigation parameters', async () => {
     await reset()
     assert.equal(requests().at(-1).input.kind, 'analysis-template')
-    assert.equal(requests().at(-1).input.audience, 'mine')
+    assert.equal(requests().at(-1).input.audience, 'catalog')
     await search('Quarterly')
     assert.equal(requests().at(-1).input.search, 'Quarterly')
     await click(button(messages.catalogNext))
@@ -153,7 +155,7 @@ test('resource directory pages', async t => {
     assert.equal(button(messages.catalogImport).disabled, true)
   })
   await t.test('examples expose composer preparation while read-only users cannot start tasks', async () => {
-    await reset('explore', {}, false)
+    await reset('explore', { section: 'insights' }, false)
     assert.equal(requests().at(-1).input.kind, 'example-task')
     const uses = [...document.querySelectorAll('button')].filter(element => element.textContent === messages.exploreUse)
     assert.ok(uses.length); assert.ok(uses.every(element => element.disabled))

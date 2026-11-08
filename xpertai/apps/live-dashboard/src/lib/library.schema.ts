@@ -20,8 +20,8 @@ export const libraryDataSchema = z.object({ meta: z.object({ canEdit: z.boolean(
 // Strip that transport metadata; keep plugin navigation parameters and all mutations strict.
 export const libraryQuerySchema = z.object({ page: z.number().int().positive().default(1), pageSize: z.number().int().min(1).max(50).default(30),
   selectionId: z.string().uuid().optional(), parameters: z.object({ audience: z.enum(['mine','public']).optional(), tab: z.enum(['datasets','sources']).optional(),
-    catalogAudience: z.enum(['mine','public']).optional(), catalogKind: kindSchema.optional(), catalogPage: z.number().int().min(1).max(100000).optional(),
-    category: z.string().max(80).optional(), appearance: z.enum(['all','light','dark']).optional(), search: z.string().max(100).optional() }).strict().optional()
+    catalogAudience: z.enum(['catalog','mine','public']).optional(), catalogKind: kindSchema.optional(), catalogPage: z.number().int().min(1).max(100000).optional(),
+    section: z.enum(['home','insights','resources']).optional(), category: z.string().max(80).optional(), appearance: z.enum(['all','light','dark']).optional(), search: z.string().max(100).optional() }).strict().optional()
 }).strip()
 export { analyticsDiscoveryResultSchema }
 export type LibraryData = z.infer<typeof libraryDataSchema>['meta']

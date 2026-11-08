@@ -106,3 +106,7 @@ Preparing an example only inserts editable text, files and skills into the compo
 For custom data in V2, select an authorized Dataset with an exact revision and explicitly map its fields to the template input roles. Never infer fields or weaken the Assistant's final-provider policy. Changed requirements outside the selected template use the normal discovery/preview/authoring workflow. Do not regenerate an unchanged template's layout or publish automatically.
 
 On a terminal failure, report the error and the existing request ID; do not claim a dashboard was saved or silently create another one. If waiting is interrupted, recover the existing request with `dashboard_get_request`. See the [handoff guide](../../docs/template-agent-handoff.mdx) for the preparation and execution boundary.
+
+## Explore analysis methods
+
+For category contribution tasks, read [Pareto analysis](references/pareto-analysis.md). For cancellation attribution tasks, read [Attribution analysis](references/attribution-analysis.md). These methods use this same skill and require no separately enabled assistant skill.

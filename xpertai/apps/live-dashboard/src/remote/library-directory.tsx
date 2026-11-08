@@ -3,11 +3,13 @@ import { z } from 'zod/v3'
 import { Badge, Button, Card, CardHeader, CardTitle, CardDescription, CardFooter, ChevronRight, Sparkles } from '@xpert-ai/plugin-shadcn-ui'
 import { directoryPageSchema, type DirectoryQuery, type DirectoryItem } from '../lib/library/directory-contract'
 import { libraryAction } from './library-gateway'
-import { ResourceImage } from './resource-image'
-export { ResourceImage } from './resource-image'
+import { catalogImages } from './library-catalog-images'
+import { exploreCovers } from './explore-covers'
+import { ResourceImage as ResourceAssetImage } from './resource-image'
 import type { messages } from './i18n'
 
 type T = ReturnType<typeof messages>
+const builtinCovers: Record<string, string> = { ...catalogImages, ...exploreCovers }
 export function useDirectory(query: DirectoryQuery, revision: number) {
   const [state, setState] = React.useState<{ page?: z.infer<typeof directoryPageSchema>; loading: boolean; error: string }>({ loading: true, error: '' })
   const key = JSON.stringify(query)
@@ -20,9 +22,12 @@ export function useDirectory(query: DirectoryQuery, revision: number) {
   }, [key, revision])
   return state
 }
+export function ResourceImage({ item }: { item: DirectoryItem }) {
+  return <ResourceAssetImage item={item} fallbackSrc={item.coverKey ? builtinCovers[item.coverKey] : undefined}/>
+}
 export function DirectoryGallery({ items, t, busy, canEdit, inserted, onOpen, onUse }: { items: DirectoryItem[]; t: T; busy: boolean; canEdit: boolean;
   inserted: Set<string>; onOpen(item: DirectoryItem): void; onUse(item: DirectoryItem): void }) {
-  return <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  return <div className={items[0]?.kind === 'example-task' ? 'explore-task-grid' : items[0]?.kind === 'component' ? 'catalog-component-grid' : 'template-grid'}>
     {items.map(item => {
       const task = item.kind === 'example-task', used = !!item.releaseId && inserted.has(item.releaseId)
       const badge = item.state === 'released' ? t.v2Installed : item.state === 'planned' ? t.shellPlanned : t.v2NotInstalled

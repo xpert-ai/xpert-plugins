@@ -63,3 +63,33 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 .sources-panel { display:flex; flex-direction:column; flex:0 0 min(380px, 42%); min-width:0; min-height:0; overflow:hidden; }
 
 .dashboard-import-dialog { width: min(48rem, calc(100% - 2rem)); max-width: calc(100% - 2rem); max-height: 90dvh; }
+
+/* Content layouts follow the available tab width without overriding shared controls. */
+.library-page { @apply mx-auto w-full max-w-screen-2xl px-8 py-10; }
+.template-grid,.explore-task-grid { @apply grid grid-cols-3 items-start gap-x-6 gap-y-8; }
+.catalog-component-grid { @apply grid grid-cols-2 items-stretch gap-6; }
+@container (max-width:960px) { .library-page { @apply px-6 py-8; } .template-grid,.explore-task-grid { @apply grid-cols-2; } }
+@container (max-width:600px) { .library-page { @apply px-4 py-6; } .template-grid,.explore-task-grid,.catalog-component-grid { @apply grid-cols-1; } }
+/* Explore geometry follows its tab container, independently of the host sidebar. */
+.explore-entry-grid { display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:1rem; }
+.explore-entry-insights { grid-row:span 2; min-height:30rem; }
+.explore-entry-knowledge { grid-column:span 2; min-height:12rem; padding-right:35%; }
+.explore-entry-schedule,.explore-entry-extensions { min-height:17rem; }
+.explore-entry-art { width:70%; max-height:14rem; }
+.explore-entry-insights .explore-entry-art { width:100%; }
+.explore-entry-knowledge .explore-entry-art { position:absolute; right:1.5rem; bottom:1.5rem; width:30%; }
+.explore-entry-schedule .explore-entry-art,.explore-entry-extensions .explore-entry-art { max-height:7rem; }
+.explore-task-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2rem 1.5rem; }
+@container (max-width: 56rem) {
+  .explore-entry-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .explore-entry-insights { grid-row:auto; min-height:20rem; }
+  .explore-entry-knowledge { grid-column:auto; min-height:20rem; padding-right:1.5rem; }
+  .explore-entry-knowledge .explore-entry-art { position:static; width:75%; }
+  .explore-task-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container (max-width: 36rem) {
+  .explore-entry-grid,.explore-task-grid { grid-template-columns:minmax(0,1fr); }
+  .explore-entry-insights,.explore-entry-knowledge,.explore-entry-schedule,.explore-entry-extensions { min-height:14rem; padding-right:40%; }
+  .explore-entry-art,.explore-entry-insights .explore-entry-art,.explore-entry-knowledge .explore-entry-art { position:absolute; right:1rem; bottom:1.5rem; width:35%; }
+  .explore-heading-art { display:none; }
+}
