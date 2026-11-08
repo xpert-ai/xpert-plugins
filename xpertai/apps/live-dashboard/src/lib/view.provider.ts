@@ -10,6 +10,7 @@ import { ViewExtensionProvider, type IXpertViewExtensionProvider, type XpertView
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardRemoteEntry } from './remote-entry'
 import { DashboardSharingService, shareInput } from './sharing.service'
+import { groupGrantAction } from './group-sharing'
 import { querySchema, queryBindingSchema, saveSchema } from './dashboard.schema'
 import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { dashboardNavigationSchema, dashboardNavigationTarget } from './dashboard-navigation'
@@ -18,6 +19,7 @@ import { dashboardIcon } from './dashboard-icon'
 import { publicDashboardManifest } from './dashboard-sources'
 import { DashboardArchiveService, importInputSchema, importBrowseSchema } from './archive.service'
 
+export const DOCUMENT_VIEW_KEY = 'dashboard'
 export const VIEW_KEY = 'live-dashboard'
 export const VIEW_PROVIDER = 'live-dashboard'
 export const FEATURE = 'live_dashboard'
@@ -29,20 +31,21 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench', 'agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
-    return [{ key: VIEW_KEY, title: text('Live dashboards', '实时看板'), hostType: context.hostType, slot, order: 35,
+    const collection: XpertExtensionViewManifest = { key: VIEW_KEY, title: text('Live dashboards', '实时看板'), hostType: context.hostType, slot, order: 35,
       icon: dashboardIcon, refreshable: true, activation: { projectResource: true, requiredFeatures: [FEATURE] },
       source: { provider: VIEW_PROVIDER, plugin: PLUGIN_NAME },
       workbench: { projectType: DASHBOARD_PROJECT_TYPE, fixed: true, openMode: 'on-demand', menu: { enabled: true, label: text('Live dashboards', '实时看板'), icon: dashboardIcon, order: 35 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 50 }, cache: { enabled: false } },
       fileAccess: { purposes: ['download'] },
-      clientCommands: [{ key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
+      clientCommands: [{ key: 'artifact.use-grants.manage', label: text('Manage group authorization', '管理群聊授权') }, { key: 'workbench.content.close' }, { key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
         { key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, label: text('Create with Assistant', '交给助理制作') },
         { key: ARTIFACT_PRESENTATION_OPEN_COMMAND, label: text('Open shared page', '打开独立页面') },
         { key: WORKBENCH_NAVIGATION_OPEN_COMMAND, label: text('Open dashboard', '打开看板') }],
       hostEvents: { subscriptions: [{ key: 'dashboard-created', event: 'assistant.tool.completed',
         filter: { toolNames: DASHBOARD_MUTATION_TOOLS }, action: { type: 'forward', debounceMs: 0 } }] },
       actions: [
+        ...groupGrantAction.options.map(key => ({ key, label: text('Group authorization', '群聊授权'), actionType: 'invoke' as const })),
         { key: 'import-preview', label: text('Import dashboard file', '导入看板文件'), actionType: 'invoke', transport: 'file' },
         ...['import-commit', 'import-discard', 'import-browse', 'save-wait', 'save-status'].map(key => ({ key, label: text('Import dashboard', '导入看板'), actionType: 'invoke' as const })),
         ...[
@@ -57,24 +60,28 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
         { key: 'save', label: text('Save', '保存'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query', label: text('Refresh', '刷新'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query-binding', label: text('Query binding', '查询绑定'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } }
-      ] }]
+      ] }
+    return [collection, { ...collection, key: DOCUMENT_VIEW_KEY, title: text('Dashboard', '看板'),
+      workbench: { ...collection.workbench, fixed: true, openMode: 'on-demand', menu: { enabled: false } },
+      view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: DOCUMENT_VIEW_KEY }, dataSource: { mode: 'platform' } } }]
   }
-  getRemoteComponentEntry() { return dashboardRemoteEntry() }
+  getRemoteComponentEntry(_context: XpertResolvedViewHostContext, entry = VIEW_KEY) { assertView(entry); return dashboardRemoteEntry(false, undefined, entry === DOCUMENT_VIEW_KEY) }
   async getViewData(context: XpertResolvedViewHostContext, viewKey: string, query: XpertViewQuery) {
     assertView(viewKey)
     const params = dashboardNavigationSchema.parse(query)
+    if (viewKey === DOCUMENT_VIEW_KEY && !params.artifactId) throw new BadRequestException('DASHBOARD_ID_REQUIRED')
     const access = await this.service.access(context)
     const currentProject = await this.projects.current(context)
     const mode = params.newDashboard ? 'draft' : params.mode ?? (access.canReadDraft ? 'draft' : 'published')
     if (mode === 'draft' && !access.canReadDraft) throw new ForbiddenException('DASHBOARD_DRAFT_ACCESS_DENIED')
-    const page = await this.service.listPage(context, params.page, params.pageSize)
+    const page = viewKey === DOCUMENT_VIEW_KEY ? { items: [], page: 1, pageSize: 1, hasMore: false } : await this.service.listPage(context, params.page, params.pageSize)
     const selectedDashboard = params.artifactId
       ? page.items.find(item => item.artifactId === params.artifactId) ?? await this.service.selectedSummary(context, params.artifactId)
       : undefined
     const versions = params.artifactId ? await this.service.history(context, params.artifactId) : undefined
     const unavailable = params.artifactId && mode === 'published' && !params.versionId && !versions?.some(version => version.current)
     const saved = !unavailable && params.artifactId ? await this.service.openDocument(context, params.artifactId, params.versionId, params.draftRevision, mode) : undefined
-    return { meta: { navigationTarget: dashboardNavigationTarget(context), access, mode, currentProject,
+    return { meta: { navigationTarget: dashboardNavigationTarget(context, viewKey === DOCUMENT_VIEW_KEY), access, mode, currentProject,
       dashboards: page.items, selectedDashboard, pagination: { page: page.page, pageSize: page.pageSize, hasMore: page.hasMore },
       sources: access.canEdit ? await this.service.sources(context) : [],
       ...(unavailable ? { notice: 'not_published' as const } : params.artifactId ? {
@@ -82,6 +89,8 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   }
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)
+    const grantAction = groupGrantAction.safeParse(action)
+    if (grantAction.success) return { success: true, data: await this.sharing.group(context, grantAction.data, request.input), refresh: false }
     if (action === 'save-wait' && this.saves) {
       const input = waitSaveRequestSchema.parse(request.input)
       return { success: true, data: await this.saves.wait(context, input.requestId, input.cursor), refresh: false }
@@ -149,4 +158,4 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     return this.archives.exportFile(context, request.fileKey)
   }
 }
-function assertView(key: string) { if (key !== VIEW_KEY) throw new BadRequestException('DASHBOARD_VIEW_UNSUPPORTED') }
+function assertView(key: string) { if (key !== VIEW_KEY && key !== DOCUMENT_VIEW_KEY) throw new BadRequestException('DASHBOARD_VIEW_UNSUPPORTED') }

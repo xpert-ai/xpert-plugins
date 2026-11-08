@@ -1,3 +1,5 @@
+import { openDashboardTab } from './open-dashboard-tab'
+import { isWorkbenchPresentation } from './bridge'
 import { LibraryApp } from './library-app'
 import { waitForDashboardSave } from './save-progress'
 import { createDashboardQuerySession } from '../lib/query-session'
@@ -29,7 +31,8 @@ import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifac
 
 installArtifactDocumentFramePolicy(document)
 
-declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_PAGE__?: 'data' } }
+declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_SINGLE__?: boolean; __DASHBOARD_PAGE__?: 'data' } }
+const singleDashboard = window.__DASHBOARD_SINGLE__ === true
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 
@@ -39,6 +42,7 @@ type ControlValue = string | number | boolean | null
 
 function App() {
   const [t, setMessages] = React.useState(() => messages('en-US'))
+  const [workbenchPresentation, setWorkbenchPresentation] = React.useState(false)
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const pickerNavigation = React.useRef(false)
   const [list, setList] = React.useState<Summary[]>([])
@@ -158,11 +162,23 @@ function App() {
     else await query(current.saved, appliedControls.current, true, [bindingId])
   }
   async function open(artifactId: string, versionId?: string, reflectNavigation = true, requestedMode = modeRef.current, draftRevision?: number) {
+    // A document tab never changes identity to another dashboard.
+    if (!readOnly && singleDashboard && activeArtifactId.current && activeArtifactId.current !== artifactId) {
+      await openDashboardTab(artifactId, versionId, requestedMode); return
+    }
     const sequence = ++requestSequence.current
     clearDocument()
     activeArtifactId.current = artifactId
     const result = await load(artifactId, versionId, requestedMode, 1, draftRevision), target = result.saved
     if (sequence !== requestSequence.current) return
+    if (!readOnly && !singleDashboard && result.currentProject && result.access?.project) {
+      // Consume the legacy collection selection before handing off. Reopening the
+      // same message card must produce a fresh selection; the collection stays a directory.
+      await requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: { ...result.navigationTarget, parameters: {} } })
+      await openDashboardTab(artifactId, versionId, result.mode)
+      activeArtifactId.current = undefined
+      return
+    }
     setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === artifactId) ?? null)
     if (result.notice === 'not_published') {
       setNotice(t.notPublished)
@@ -238,6 +254,7 @@ function App() {
     if (explicitNew && !readOnly) await selectEditorTarget(null)
   }
   React.useEffect(() => startBridge((locale, query) => {
+    setWorkbenchPresentation(isWorkbenchPresentation())
     setMessages(messages(locale))
     const parsed = dashboardNavigationSchema.safeParse(query ?? {})
     if (!parsed.success) {
@@ -253,9 +270,12 @@ function App() {
     void run(() => target.artifactId ? open(target.artifactId, target.versionId, false, target.mode, target.draftRevision) : openPicker(target.newDashboard))
   },
     (artifactId) => {
-      if (editRef.current.dirty || activeArtifactId.current !== artifactId || !autoRefresh.current.saved?.isDraft) { void load().catch(() => undefined); return }
+      if (editRef.current.dirty || activeArtifactId.current !== artifactId || !autoRefresh.current.saved?.isDraft) { if (!singleDashboard) void load().catch(() => undefined); return }
       void run(refreshSaved)
-    }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
+    }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }, () => {
+      const target = autoRefresh.current.saved
+      if (!readOnly && target) void selectEditorTarget({ artifactId: target.artifactId, ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) }).catch(() => undefined)
+    }), [])
 
   async function exportDashboard() {
     if (!saved) return
@@ -306,7 +326,12 @@ function App() {
         ++requestSequence.current
         clearDocument()
         navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined })
-        await Promise.all([selectEditorTarget(null), navigateDashboard(navigationTarget.current)])
+        await selectEditorTarget(null)
+        if (singleDashboard) {
+          await requestHost('invokeClientCommand', { commandKey: 'workbench.content.close', payload: {} })
+          return
+        }
+        await navigateDashboard(navigationTarget.current)
       }
       await load()
     } catch (error) {
@@ -336,8 +361,8 @@ function App() {
     }
   }
   const toolbar = <header className="dashboard-toolbar border-b">
-      <h1 className={readOnly ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly ? saved?.title ?? t.title : t.title}</h1>
-      {!readOnly && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
+      <h1 className={readOnly || singleDashboard ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly || singleDashboard ? saved?.title ?? t.title : t.title}</h1>
+      {!readOnly && !singleDashboard && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
         open={pickerOpen} onOpenChange={togglePicker} t={t} onDelete={requestDelete}
         onChange={(id, projectId, requestedMode) => { setPickerOpen(false); pickerNavigation.current = false; void run(() => projectId && projectId !== currentProject?.id ? switchProject(projectId, id, false, requestedMode) : open(id, undefined, true, requestedMode)) }}
         onNew={projectId => { setPickerOpen(false); pickerNavigation.current = false; void run(async () => {
@@ -373,7 +398,7 @@ function App() {
     <Button type="button" variant="outline" onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
   </section>
   return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
-    {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
+    {readOnly && !workbenchPresentation ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
     {canEdit && importing && <ImportDialog t={t} onClose={() => setImporting(false)} onImported={async id => { setImporting(false); await run(() => open(id, undefined, true, 'draft')) }}/ >}
     {download && <p className="border-b px-4 py-2 text-sm"><a className="underline underline-offset-4" href={download.url} download={download.fileName} rel="noopener">{t.exportReady}</a></p>}
     {canManage && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
@@ -402,7 +427,7 @@ function App() {
       <details className="text-xs"><summary>{t.sources}</summary><pre className="max-h-32 overflow-auto">{JSON.stringify(sources, null, 2)}</pre></details>
       <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditor(null)} disabled={busy}>{t.cancel}</Button><Button onClick={() => void run(save)} disabled={busy || !editor.trim()}><Save/>{t.save}</Button></div>
     </section> : <>
-      {!readOnly && filters}
+      {(!readOnly || workbenchPresentation) && filters}
       {unavailableDatasets.length > 0 && <div role="alert" className="px-4 py-2 text-sm"><p>{t.bindingUnavailable}</p><ul>{unavailableDatasets.map(id => <li key={id}>{[...(saved?.manifest.charts ?? []), ...(saved?.manifest.tables ?? [])].filter(view => view.datasetId === id).map(view => view.title).join(' · ') || id}</li>)}</ul></div>}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
       {inspect && <p role="status" className="border-b px-4 py-2 text-sm text-muted-foreground">{t.inspectHint}</p>}

@@ -29,6 +29,7 @@ async function setup(t) {
   const projects = [{ id: randomUUID(), name: 'Project A' }, { id: randomUUID(), name: 'Project B' }]
   let currentProject = projects[0], navigationSuccess = true
   const projectNavigation = []
+  let surface = 'legacy'
   let viewMode = 'draft'; const versionId = randomUUID()
   const items = [1, 2].map(n => ({ artifactId: randomUUID(), title: `Dashboard ${n}`, draftRevision: n,
     canDelete: true, isDraft: true, updatedAt: `2026-10-2${n}T01:00:00Z`,
@@ -37,7 +38,7 @@ async function setup(t) {
   const pickerRequests = []
   const bridge = {
     startBridge: (callback, onCreated, onReset) => { ready = callback; created = onCreated; scopeReset = onReset; return () => {} },
-    onPrepareClose: () => () => {}, isViewVisible: () => true,
+    onPrepareClose: () => () => {}, isViewVisible: () => true, isWorkbenchPresentation: () => surface === 'shared', captureViewScope: () => () => {},
     selectDashboard: async target => { selections.push(target) },
     navigateDashboard: async (_target, id) => { navigation.push(id) },
     requestHost: async (kind, request) => {
@@ -45,7 +46,7 @@ async function setup(t) {
         const id = request.query.parameters.artifactId
         const mode = request.query.parameters.mode ?? viewMode
         const saved = dashboards.find(item => item.artifactId === id) ?? dashboards[0]
-        const response = { meta: { currentProject, dashboards: excludeSelected ? dashboards.filter(item => item.artifactId !== id) : dashboards, selectedDashboard: id ? saved : undefined, sources: [], access: { project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }, mode, navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
+        const response = { meta: { currentProject, dashboards: excludeSelected ? dashboards.filter(item => item.artifactId !== id) : dashboards, selectedDashboard: id ? saved : undefined, sources: [], access: { project: surface !== 'legacy', canEdit: true, canManage: true, canReadDraft: true, archived: false }, mode, navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
           ...(id || dom.window.__DASHBOARD_READ_ONLY__ ? { saved: mode === 'published' ? { ...saved, isDraft: false, versionId, versionNumber: 1, draftRevision: undefined } : saved, versions: [] } : {}) } }
         if (id && holdOpen) {
           holdOpen = false
@@ -53,6 +54,7 @@ async function setup(t) {
         }
         return response
       }
+      if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.content.resolve') return { success: true, navigation: { target: 'workbench.view', viewKey: 'live-dashboard__dashboard', selectionId: request.payload.resourceId, parameters: { contentId: request.payload.resourceId } } }
       if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.navigation.open') { projectNavigation.push(request.payload); return { success: navigationSuccess } }
       if (kind === 'invokeClientCommand' && request.commandKey === 'assistant.chat.send_message') { assistantRequests.push({ ...request.payload, selection: selections.at(-1), projectId: currentProject.id }); return { success: true } }
       if (kind === 'executeAction' && ['projects', 'dashboards'].includes(request.actionKey)) {
@@ -96,10 +98,12 @@ async function setup(t) {
         if (id === '@xpert-ai/plugin-sdk/artifact-document') return { installArtifactDocumentFramePolicy() {} }
         if (id === 'react-dom/client') return { createRoot: element => { root = createRoot(element); return root } }
         if (id === './bridge') return bridge
+        if (id === './open-dashboard-tab') return load('open-dashboard-tab.ts')
         if (id.endsWith('.css')) return {}
         if (id === './html-dashboard') return { HtmlDashboard: React.forwardRef(() => null) }
         if (id === './standard-dashboard') return { StandardDashboard: () => null }
         if (['./sources-panel', './import-dialog', './import-targets'].includes(id)) return load(id.slice(2) + '.tsx')
+        if (id === './library-app') return { LibraryApp: () => null }
         if (id === './share-dialog') return { ShareDialog: () => null }
         if (id === './viewer-controls') return { ViewerControls: ({ children }) => children }
         if (id === './i18n') return load('i18n.ts')
@@ -124,7 +128,9 @@ async function setup(t) {
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }
     delete globalThis.ResizeObserver; delete globalThis.IS_REACT_ACT_ENVIRONMENT
   })
-  async function reset(readOnly = false, mode = 'draft', outsideFirstPage = false) {
+  async function reset(readOnly = false, mode = 'draft', outsideFirstPage = false, requestedSurface = 'legacy') {
+    surface = requestedSurface
+    dom.window.__DASHBOARD_SINGLE__ = surface === 'document'
     excludeSelected = outsideFirstPage
     viewMode = mode
     await act(async () => root?.unmount())
@@ -421,5 +427,28 @@ test('dashboard deletion UI', async t => {
     assert.equal(selections.at(-1).artifactId, items[0].artifactId)
     await click(picker())
     assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 1'))
+  })
+})
+
+
+test('dashboard workbench surfaces', async t => {
+  const h = await setup(t)
+  await t.test('project collection opens the resolved document tab, without embedding another editor', async () => {
+    await h.reset(false, 'draft', false, 'collection')
+    assert.deepEqual(JSON.parse(JSON.stringify(h.projectNavigation[0])), { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard', parameters: {} }, 'consume legacy selection so reopening the same card routes again')
+    assert.equal(h.projectNavigation.at(-1).viewKey, 'live-dashboard__dashboard')
+    assert.equal(h.projectNavigation.at(-1).parameters.contentId, h.items[0].artifactId)
+    assert.equal(h.selections.length, 0)
+  })
+  await t.test('single document owns its toolbar and ignores another dashboard receipt', async () => {
+    await h.reset(false, 'draft', false, 'document')
+    assert.equal(h.picker(), null)
+    assert.match(document.querySelector('header').textContent, /Dashboard 1/)
+    h.revise(h.items[1].artifactId, 9)
+    await h.notify(h.items[1].artifactId)
+    assert.equal(h.selections.at(-1).artifactId, h.items[0].artifactId)
+    h.revise(h.items[0].artifactId, 3)
+    await h.notify(h.items[0].artifactId)
+    assert.match(document.querySelector('header').textContent, /Updated r3/)
   })
 })

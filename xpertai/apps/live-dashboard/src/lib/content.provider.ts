@@ -14,7 +14,7 @@ const context = (scope: ContentDocumentScope): XpertResolvedViewHostContext => (
 @ContentEditorProvider(EDITOR)
 export class DashboardContentEditor {
   readonly descriptor: ResourceContentEditorRegistration = { kind: 'resource', protocolVersion: 2, key: EDITOR, title: 'Live Dashboard',
-    view: { providerKey: 'live-dashboard', viewKey: 'live-dashboard', entry: 'live-dashboard' }, supports: [{ ...MODEL, access: ['view', 'edit'] }] }
+    view: { providerKey: 'live-dashboard', viewKey: 'dashboard', entry: 'dashboard' }, supports: [{ ...MODEL, access: ['view', 'edit'] }] }
 }
 @Injectable()
 @ContentResourceProvider(DASHBOARD_CONTENT_PROVIDER)

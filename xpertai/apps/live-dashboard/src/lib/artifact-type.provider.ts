@@ -1,3 +1,5 @@
+import { readDashboardArtifact } from './dashboard-artifact'
+import { validateControls } from './dashboard-queries'
 import { DashboardService } from './dashboard.service'
 import type { ArtifactDraftRecord } from '@xpert-ai/plugin-sdk'
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common'
@@ -15,9 +17,20 @@ export class DashboardArtifactType implements IArtifactTypeProvider {
     title: { en_US: 'Live dashboard', zh_Hans: '实时看板' },
     kinds: ['file'], content: { mimeTypes: ['application/json'], maxBytes: MAX_DASHBOARD_PACKAGE_BYTES },
     collection: { allowCopy: false },
+    useGrants: { audience: 'group', permission: 'read', queryOperations: ['query', 'query-binding'] },
     sharing: { projectAccess: 'link-audience', accessModes: ['organization_all'], versionModes: ['latest', 'version'],
       allowDownload: false, mutableLinks: true, descriptor: true, shareKey: DASHBOARD_SHARE_KEY },
     presentation: { mode: 'authenticated' }
+  }
+  readonly analytics: NonNullable<IArtifactTypeProvider['analytics']> = {
+    resolveBindings: context => readDashboardArtifact(context).manifest.bindings.map(binding => ({ binding })),
+    normalizeControls: (context, datasetKey, input) => {
+      const manifest = readDashboardArtifact(context).manifest
+      const binding = manifest.bindings.find(item => item.id === datasetKey)
+      if (!binding) throw new ForbiddenException('DASHBOARD_ANALYSIS_DATASET_UNAVAILABLE')
+      const values = validateControls(manifest, input)
+      return Object.fromEntries(Object.entries(values).filter(([key]) => binding.parameters.some(parameter => parameter.controlId === key)))
+    }
   }
   async authorize(source: ArtifactTypeSource, actor: ArtifactTypeActor, _operation: ContentOperation) {
     if (!actor.userId || !actor.tenantId || source.tenantId !== actor.tenantId ||
