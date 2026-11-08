@@ -10,6 +10,8 @@ Sources, component Inspect and portable dashboard archives are tracked in the
 
 Large dashboards now support 32 Bindings by default (64 protocol ceiling), bounded query scheduling, batch preview/filter validation and durable save progress. See the [feature guide](docs/large-dashboards.mdx) and [acceptance record](docs/large-dashboards-acceptance.mdx). These features require published SDK/contracts 3.33.0 or later; no SDK patch is required.
 
+The beta resource library supports fixed resource versions, ZIP import/export, and template tasks prepared in the conversation composer. Start with the [dashboard starter](docs/dashboard-starter.mdx), [resource directory](docs/library-directory-ui.mdx), and [Agent handoff](docs/template-agent-handoff.mdx). Storage and migration follow the [resource library contract](docs/library-storage.mdx); plugin consumers do not choose a storage provider. This foundation does not install template catalogs or business datasets automatically. These beta contracts may change incompatibly.
+
 ## Ownership and flow
 
 ```text

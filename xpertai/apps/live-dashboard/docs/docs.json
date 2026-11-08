@@ -34,6 +34,7 @@
               "dataset-generation",
               "library-storage",
               "library-execution",
+              "template-agent-handoff",
               "library-import-ui",
               "library-detail-ui",
               "library-directory-ui",
