@@ -1,9 +1,9 @@
 import { z } from 'zod/v3'
 import { kindSchema } from './resource-contract'
 
-/** @beta A paged projection of display blueprints and authorized fixed V2 versions. */
+/** @beta A paged projection of authorized fixed V2 resource versions. */
 export const directoryQuerySchema = z.object({
-  audience: z.enum(['catalog', 'mine', 'public']).default('catalog'), kind: kindSchema,
+  audience: z.enum(['mine', 'public']).default('mine'), kind: kindSchema,
   page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().min(1).max(50).default(24),
   search: z.string().max(100).default(''), category: z.string().max(80).default(''),
   appearance: z.enum(['all', 'light', 'dark']).default('all'), locale: z.enum(['en', 'zh-Hans', 'zh-Hant']).default('en')

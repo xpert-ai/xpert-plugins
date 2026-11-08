@@ -36,6 +36,7 @@
               "library-execution",
               "library-import-ui",
               "library-detail-ui",
+              "library-directory-ui",
               "drafts",
               "drafts-acceptance",
               "team-sharing",

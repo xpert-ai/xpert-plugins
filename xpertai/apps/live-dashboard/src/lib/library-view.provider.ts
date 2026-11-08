@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { ViewExtensionProvider, type IXpertViewExtensionProvider, type XpertViewFileActionFile } from '@xpert-ai/plugin-sdk'
 import { analyticsDiscoveryRequestSchema, analyticsQueryRequestSchema } from '@xpert-ai/plugin-sdk/analytics'
-import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery, XpertViewFileAccessRequest } from '@xpert-ai/contracts'
+import { WORKBENCH_NAVIGATION_OPEN_COMMAND, type XpertExtensionViewManifest, type XpertResolvedViewHostContext, type XpertViewActionRequest, type XpertViewQuery, type XpertViewFileAccessRequest } from '@xpert-ai/contracts'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { DashboardDatasetService } from './dataset.service'
 import { DashboardTemplateService } from './template.service'
@@ -18,9 +18,12 @@ import { LibraryTemplateExecutionService } from './library/template-execution.se
 import { LibraryTaskPreparationService } from './library/task-preparation.service'
 import { instantiateSchema, prepareTaskSchema, executionTargetSchema } from './library/execution-contract'
 
+import { LibraryDirectoryService } from './library/directory.service'
+import { directoryQuerySchema } from './library/directory-contract'
+
 export const LIBRARY_PROVIDER = 'live-dashboard-library'
-const titles = { data: { en_US: 'Add data', zh_Hans: '添加数据', zh_Hant: '新增資料' } }
-const actions = ['discover', 'preview-query', 'dataset-open', 'dataset-save', 'dataset-preview', 'dataset-delete', 'template-create', 'dashboard-bindings']
+const titles = { explore: { en_US: 'Explore examples', zh_Hans: '探索示例', zh_Hant: '探索範例' }, templates: { en_US: 'Template library', zh_Hans: '模板库', zh_Hant: '範本庫' }, data: { en_US: 'Add data', zh_Hans: '添加数据', zh_Hant: '新增資料' } }
+const actions = ['resource-directory', 'discover', 'preview-query', 'dataset-open', 'dataset-save', 'dataset-preview', 'dataset-delete', 'template-create', 'dashboard-bindings']
 function assertPage(key: string): asserts key is LibraryPage { if (!libraryPages.some(page => page === key)) throw new BadRequestException('DASHBOARD_VIEW_UNSUPPORTED') }
 
 /**
@@ -31,7 +34,7 @@ function assertPage(key: string): asserts key is LibraryPage { if (!libraryPages
 export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider {
   constructor(private readonly dashboards: DashboardService, private readonly library: DashboardDatasetService, private readonly templates: DashboardTemplateService,
     private readonly resources: LibraryCatalogService, private readonly transfers: LibraryTransfersService,
-    private readonly execution: LibraryTemplateExecutionService, private readonly tasks: LibraryTaskPreparationService) {}
+    private readonly execution: LibraryTemplateExecutionService, private readonly tasks: LibraryTaskPreparationService, private readonly directory: LibraryDirectoryService) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench','agent.workbench.fixed','agent.workbench.main'].includes(slot)) return []
@@ -40,7 +43,7 @@ export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider
       workbench: { fixed: true, openMode: 'on-demand', menu: { enabled: true, label: titles[key], icon: dashboardIcon, order: 36 + index } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: key }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 30 }, cache: { enabled: false } },
-      clientCommands: [{ key: 'assistant.composer.insert' }],
+      clientCommands: [{ key: WORKBENCH_NAVIGATION_OPEN_COMMAND }, { key: 'assistant.composer.insert' }],
       fileAccess: { purposes: ['download'] },
       actions: [...actions, ...resourceActions].map(key => ({ key, label: { en_US: key, zh_Hans: key }, actionType: 'invoke',
         ...(resourceFileActions.includes(key) ? { transport: 'file' as const } : {}) })) }))
@@ -49,12 +52,17 @@ export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider
   async getViewData(context: XpertResolvedViewHostContext, key: string, query: XpertViewQuery) {
     assertPage(key)
     const params = libraryQuerySchema.parse(query), access = await this.dashboards.access(context)
+    if (key !== 'data') {
+      const datasets = access.canEdit && key === 'templates' ? await this.library.list(context, params.page, params.pageSize) : { items: [], hasMore: false }
+      return { meta: { canEdit: access.canEdit, sources: [], datasets: datasets.items, page: params.page, hasMore: datasets.hasMore } }
+    }
     if (!access.canEdit) return { meta: { canEdit: false, sources: [], datasets: [], page: params.page, hasMore: false } }
     const [sources, datasets] = await Promise.all([this.dashboards.sources(context), this.library.list(context, params.page, params.pageSize, params.parameters?.search)])
     return { meta: { canEdit: true, sources, datasets: datasets.items, page: datasets.page, hasMore: datasets.hasMore } }
   }
   async executeViewAction(context: XpertResolvedViewHostContext, key: string, action: string, request: XpertViewActionRequest) {
     assertPage(key)
+    if (action === 'resource-directory') return { success: true, data: await this.directory.list(context, directoryQuerySchema.parse(request.input)), refresh: false }
     if (action === 'resource-open') {
       const input = z.object({ releaseId: z.string().uuid() }).strict().parse(request.input)
       const detail = await this.resources.read(context, input.releaseId)

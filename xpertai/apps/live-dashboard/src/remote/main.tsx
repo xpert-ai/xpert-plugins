@@ -31,7 +31,7 @@ import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifac
 
 installArtifactDocumentFramePolicy(document)
 
-declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_SINGLE__?: boolean; __DASHBOARD_PAGE__?: 'data' } }
+declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_SINGLE__?: boolean; __DASHBOARD_PAGE__?: 'explore' | 'templates' | 'data' } }
 const singleDashboard = window.__DASHBOARD_SINGLE__ === true
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
