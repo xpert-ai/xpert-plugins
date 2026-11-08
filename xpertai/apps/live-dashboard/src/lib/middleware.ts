@@ -1,3 +1,5 @@
+import { LibraryTemplateExecutionService } from './library/template-execution.service'
+import { instantiateSchema } from './library/execution-contract'
 import { Optional } from '@nestjs/common'
 import { DashboardSaveRequests, saveRequestSchema, waitSaveRequestSchema } from './save-requests'
 import { boundedMap } from './bounded-map'
@@ -39,7 +41,7 @@ const providerOptionSchema = {
   'x-ui': { component: 'remoteSelect', selectUrl: '/api/live-dashboard/provider-options' }
 } satisfies JsonSchemaObjectType['properties'][string]
 
-export const DASHBOARD_GUIDANCE = `When the user asks to open, show or display an existing dashboard, prefer the platform resource_open tool with the requested title. It opens the authorized Workbench resource or asks the user to select a match. In groups it uses accepted shared references; never switch to the source Project or use dashboard_open merely to show a shared dashboard. dashboard_open reads source content for editing and may prepare an editing file; it is not the UI navigation tool. For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
+export const DASHBOARD_GUIDANCE = `When the user asks to open, show or display an existing dashboard, prefer the platform resource_open tool with the requested title. It opens the authorized Workbench resource or asks the user to select a match. In groups it uses accepted shared references; never switch to the source Project or use dashboard_open merely to show a shared dashboard. dashboard_open reads source content for editing and may prepare an editing file; it is not the UI navigation tool. For an explicitly selected library template or task, read its recipe and use dashboard_instantiate_template with the declared arguments. Follow the returned save request until succeeded before reporting a saved dashboard; do not regenerate the layout unless requested. For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt or a succeeded template save request with a dashboard receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
 @AgentMiddlewareStrategy('LiveDashboard')
 export class DashboardMiddleware implements IAgentMiddlewareStrategy {
@@ -56,7 +58,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         description: { en_US: 'Choose at least one provider from sources you can access when setting this policy. Existing unavailable IDs are retained. Upstream previews remain available.', zh_Hans: '配置此限制时至少选择一种当前可访问数据源的 Provider；暂不可用的已有值会保留，不影响上游来源预览。' } }
     }, additionalProperties: false }
   }
-  constructor(private readonly service: DashboardService, @Optional() private readonly saveRequests?: DashboardSaveRequests) {}
+  constructor(private readonly service: DashboardService, @Optional() private readonly saveRequests?: DashboardSaveRequests,
+    @Optional() private readonly libraryExecution?: LibraryTemplateExecutionService) {}
   createMiddleware(_options: unknown, context: IAgentMiddlewareContext): AgentMiddleware {
     const runId = randomUUID()
     const options = middlewareOptionsSchema.parse(_options)
@@ -214,6 +217,19 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if ((evidence.pending || activeRequests.size) && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
       return result
     }, tools: [
+      ...(this.libraryExecution ? [tool(async (input, config) => {
+        const result = await this.libraryExecution!.instantiate(scope, input, options.allowedFinalProviders)
+        if ('dashboard' in result && result.dashboard) {
+          const resourceCard = await emitDashboardCard(scope, { ...result.dashboard, state: 'draft', revision: result.dashboard.draftRevision }, config)
+          return JSON.stringify({ ...result, resourceCard })
+        }
+        if ('requestId' in result && !result.terminal) {
+          activeRequests.add(result.requestId)
+          return JSON.stringify(result)
+        }
+        return JSON.stringify(result)
+      }, { name: 'dashboard_instantiate_template', description: 'Create a NEW dashboard draft from an explicitly selected V2 library template or task recipe. For an unchanged example, read task-recipe-v2.json and pass action.arguments verbatim: omit inputs unless those arguments include them. The task already binds its dataset and fields; never invent slots, mappings or replacement datasets. For explicitly requested replacement data, pin authorized dataset revisions and exact declared field mappings. Reuse the recipe requestId for retries; choose a new requestId only for a new creation intent. Returns a durable save request: wait/get it until succeeded before claiming a dashboard was saved. No publication.',
+        schema: instantiateSchema, verboseParsingErrors: true })] : []),
       ...(this.saveRequests ? [
         tool(async ({ requestId, cursor }, config) => observeRequest(await this.saveRequests!.wait(scope, requestId, cursor, config.signal), config), {
           name: 'dashboard_wait_request', description: 'Wait up to 20 seconds for a durable save to change. Repeat with its returned cursor while nextAction=wait. A pending request is not a saved dashboard.', schema: waitSaveRequestSchema }),

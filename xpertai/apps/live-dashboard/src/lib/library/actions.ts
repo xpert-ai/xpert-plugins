@@ -8,7 +8,7 @@ import { catalogV2Query, resourceV2Schema } from './resource-contract'
 /** @beta Transport names are V2-only; V1 UI/catalog entries keep their explicit legacy route. */
 export const resourceActions = ['resource-list', 'resource-open', 'resource-draft-save', 'resource-draft-open', 'resource-release',
   'resource-publish', 'resource-withdraw', 'resource-import-status', 'resource-import-commit', 'resource-import-cancel',
-  'resource-jobs', 'resource-imports-cleanup', 'resource-files-cleanup', 'resource-upload-asset', 'resource-import']
+  'resource-jobs', 'resource-imports-cleanup', 'resource-files-cleanup', 'resource-upload-asset', 'resource-import', 'resource-prepare-task', 'resource-prepare-template', 'resource-execution-status']
 export const resourceFileActions = ['resource-upload-asset', 'resource-import']
 const target = z.object({ releaseId: z.string().uuid() }).strict()
 const draft = z.object({ draftId: z.string().uuid() }).strict()

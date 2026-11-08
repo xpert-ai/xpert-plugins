@@ -1,0 +1,49 @@
+---
+title: 示例任务与模板实例化
+description: 将固定资源准备为对话草稿，并通过现有 Agent 保存流程创建看板
+---
+
+> **Beta**：执行接口、来源记录和表结构可能随时发生不兼容调整。
+
+本批在[资源库存储与 ZIP 迁移](/library-storage)之上增加通用执行能力。资源必须先显式导入，插件不会自动安装业务模板。本批提供服务端操作和对话草稿交接函数，探索示例与模板选择界面另行接入。
+
+## 使用流程
+
+1. 选择固定版本的示例任务。`resource-prepare-task` 检查依赖与权限，将数据附件复制到当前工作区，返回提示词、文件和技能名称。模板型任务同时附带 `task-recipe-v2.json`。
+2. View 通过现有 `assistant.composer.insert` 将结果放入草稿，不自动发送。准备期间如果切换对话，过期结果不会插入新对话。
+3. 用户发送后，Agent 按配方调用 `dashboard_instantiate_template`。保持原示例时直接使用配方参数；替换数据时必须明确指定输入槽、字段映射及数据集修订。
+4. 实例化提交现有 Dashboard 保存队列。Agent 使用 `dashboard_wait_request` 或 `dashboard_get_request` 等待 `succeeded` 和草稿回执，再报告成功；不会自动发布。
+
+直接使用分析模板时，`resource-prepare-template` 接受固定版本、标题、输入映射和参数，生成 `template-recipe-v2.json`，供同样的用户发送流程使用。生成看板仅由 Agent 工具发起，View 不能绕过 middleware 的最终 Provider 限制。
+
+| 操作 | 作用 |
+| --- | --- |
+| View `resource-open` | 返回资源详情和执行可用性；最终权限与输入仍在调用时验证 |
+| View `resource-prepare-task` | 准备示例的文本、文件和技能引用 |
+| View `resource-prepare-template` | 根据明确的输入映射准备模板配方 |
+| View `resource-execution-status` | 在当前拥有者和 Assistant/Project 作用域内读取执行状态 |
+| Agent `dashboard_instantiate_template` | 按固定模板、映射和参数创建新草稿，返回保存请求或已保存回执 |
+
+## 数据和执行边界
+
+输入支持资源库数据和已有 Dashboard Dataset。后者必须固定 `artifactId + revision`；前者通过现有 Workspace Files 和 Analytics Definition Authoring API 注册 `file.table`，再发现和检查 canonical Binding。
+
+数据字段必须声明 Analytics 角色；不根据字段名猜测。检查包括必填字段、逻辑类型、空值、粒度和精确完整结果。粒度有声明时，数据中对应值必须非空且唯一。Provider 的原始查询保持不透明，不拼接 SQL 或复制凭据。
+
+标准模板将字段角色编译为现有图表、表格和筛选控件。HTML 模板在文档中插入经过转义的 `application/json` 上下文，包含映射、标题和参数，不把数据行写入 HTML，也不执行包内服务器代码。保存仍经过原有完整查询、HTML 预检及草稿并发控制。
+
+## 重试与来源
+
+新增 `plugin_live_dashboard_resource_execution_v2` 表保存创建意图、输入与作用域摘要、稳定 Manifest ID、准备后的定义及保存请求回执；现有保存队列继续负责实际执行。
+
+相同拥有者与请求 ID 复用同一次创建。新请求校验失败会回滚预留，允许修正后重试；已准备请求更改意图或作用域会被拒绝。队列提交中断后使用原 Manifest 和去重键恢复，提交前重新验证显式输入的权限和修订。队列回执过期时，仅可通过已有保存凭据恢复成功状态。
+
+看板可选的 `templateOrigin` 记录固定模板、任务、主题版本与摘要，以及输入映射、数据版本和参数。它只用于追溯，不授予访问权限或自动更新生成的看板。已有看板没有此字段仍可读取。
+
+## 当前限制与验证
+
+- 技能名称由宿主解析。SDK 暂无通用插件版本目录，资源声明非空插件版本要求时明确拒绝，不能据此声称兼容。
+- 标准模板暂不支持业务参数；HTML 参数经过严格校验。主题只使用已有标准渲染主题，不替换 HTML 样式。
+- 公开附件复制、自动工作区副本回收和长时大文件压力验证不在本批范围内。
+- 基础测试使用独立的三行合成数据和最小 HTML，位于 `tests/library-execution-package.cjs`，不依赖酒店包或生产目录内容。数据库回归通过 `LIVE_DASHBOARD_LIBRARY_TEST_DATABASE_URL` 指向独立 PostgreSQL，未提供时跳过。
+- 契约、草稿交接和隔离数据库测试不等同于真实 ChatKit、Agent、Sandbox 或 MinIO 验收；历史系统验收记录保持独立。

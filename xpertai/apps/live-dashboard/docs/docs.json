@@ -33,6 +33,7 @@
               "dataset-storage",
               "dataset-generation",
               "library-storage",
+              "library-execution",
               "drafts",
               "drafts-acceptance",
               "team-sharing",

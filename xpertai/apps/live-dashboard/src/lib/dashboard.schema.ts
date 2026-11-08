@@ -3,6 +3,7 @@ import { z } from 'zod/v3'
 import { analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai/plugin-sdk/artifact-document'
 import { sourceMetadataSchema, dashboardComponentsSchema } from './dashboard-sources'
+import { templateOriginSchema } from './library/origin.schema'
 
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
@@ -11,6 +12,8 @@ export const dashboardSchema = z.object({
   /** @beta Standard-renderer theme keys and their persisted meaning may change incompatibly during beta. */
   visualTheme: z.enum(['system', 'slate', 'contrast']).optional(),
   sourceMetadata: sourceMetadataSchema.optional(),
+  /** @beta Fixed template provenance; informational only, never authorization or a live upgrade link. */
+  templateOrigin: templateOriginSchema.optional(),
   components: dashboardComponentsSchema.optional(),
   presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),
   controls: z.array(z.object({ controlId: id, type: z.enum(['string', 'number', 'boolean', 'date']),

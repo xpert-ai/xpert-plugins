@@ -44,6 +44,41 @@ test('mounted library re-handshakes after project/conversation changes instead o
   assert.equal(messages.length, count, 'stale scope must not restart the view')
 })
 
+test('a resolved preparation response cannot insert a draft after its conversation changes', async t => {
+  const { api, receive } = transport()
+  t.after(api.startBridge(() => {}, () => {}))
+  receive({ type: 'init', scopeRevision: 1 })
+  const assertCurrent = api.captureViewScope()
+  assert.doesNotThrow(assertCurrent)
+  await Promise.resolve() // preparation resolved, composer insertion has not started
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  receive({ type: 'init', scopeRevision: 2 })
+  assert.throws(assertCurrent, /Context changed/)
+  assert.doesNotThrow(api.captureViewScope())
+})
+
+test('V2 handoff uses composer insert once, never sends, and drops a late preparation after a scope change', { timeout: 5000 }, async t => {
+  const { api, messages, receive } = transport(), gateway = {}
+  t.after(api.startBridge(() => {}, () => {}))
+  vm.runInNewContext(ts.transpileModule(readFileSync(require.resolve('../src/remote/library-gateway.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText, { exports: gateway, require: id => id === './bridge' ? api
+    : require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id) })
+  receive({ type: 'init', scopeRevision: 1 })
+  const draft = { text: 'Generate the selected template', workspaceFiles: [{ path: 'tasks/data.json', name: 'Data', mimeType: 'application/json', size: 2 }], skillNames: ['live-dashboard'] }
+  const handoff = gateway.useResourceTask(randomUUID(), randomUUID())
+  assert.equal(messages.at(-1).actionKey, 'resource-prepare-task')
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, data: draft } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(messages.at(-1).commandKey, 'assistant.composer.insert'); assert.deepEqual(messages.at(-1).payload, draft)
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true } }); await handoff
+  const stale = gateway.useResourceTask(randomUUID(), randomUUID())
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, data: draft } })
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  await assert.rejects(stale, /Context changed/)
+  assert.equal(messages.filter(message => message.type === 'invokeClientCommand').length, 1)
+})
+
 test('refresh visibility follows scoped Workbench visibility, ignoring other frames and stale messages', t => {
   const { api, receive } = transport()
   t.after(api.startBridge(() => {}, () => {}))

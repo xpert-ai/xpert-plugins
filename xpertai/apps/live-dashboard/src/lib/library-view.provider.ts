@@ -14,6 +14,9 @@ import { LibraryCatalogService } from './library/catalog.service'
 import { LibraryTransfersService } from './library/transfers.service'
 import { assetSchema } from './library/resource-contract'
 import { executeResourceAction, resourceActions, resourceFileActions } from './library/actions'
+import { LibraryTemplateExecutionService } from './library/template-execution.service'
+import { LibraryTaskPreparationService } from './library/task-preparation.service'
+import { instantiateSchema, prepareTaskSchema, executionTargetSchema } from './library/execution-contract'
 
 export const LIBRARY_PROVIDER = 'live-dashboard-library'
 const titles = { data: { en_US: 'Add data', zh_Hans: '添加数据', zh_Hant: '新增資料' } }
@@ -27,7 +30,8 @@ function assertPage(key: string): asserts key is LibraryPage { if (!libraryPages
 @ViewExtensionProvider(LIBRARY_PROVIDER)
 export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider {
   constructor(private readonly dashboards: DashboardService, private readonly library: DashboardDatasetService, private readonly templates: DashboardTemplateService,
-    private readonly resources: LibraryCatalogService, private readonly transfers: LibraryTransfersService) {}
+    private readonly resources: LibraryCatalogService, private readonly transfers: LibraryTransfersService,
+    private readonly execution: LibraryTemplateExecutionService, private readonly tasks: LibraryTaskPreparationService) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench','agent.workbench.fixed','agent.workbench.main'].includes(slot)) return []
@@ -36,6 +40,7 @@ export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider
       workbench: { fixed: true, openMode: 'on-demand', menu: { enabled: true, label: titles[key], icon: dashboardIcon, order: 36 + index } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: key }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 30 }, cache: { enabled: false } },
+      clientCommands: [{ key: 'assistant.composer.insert' }],
       fileAccess: { purposes: ['download'] },
       actions: [...actions, ...resourceActions].map(key => ({ key, label: { en_US: key, zh_Hans: key }, actionType: 'invoke',
         ...(resourceFileActions.includes(key) ? { transport: 'file' as const } : {}) })) }))
@@ -50,6 +55,20 @@ export class DashboardLibraryViewProvider implements IXpertViewExtensionProvider
   }
   async executeViewAction(context: XpertResolvedViewHostContext, key: string, action: string, request: XpertViewActionRequest) {
     assertPage(key)
+    if (action === 'resource-open') {
+      const input = z.object({ releaseId: z.string().uuid() }).strict().parse(request.input)
+      const detail = await this.resources.read(context, input.releaseId)
+      return { success: true, data: { ...detail, execution: await this.execution.availability(context, input.releaseId) }, refresh: false }
+    }
+    if (action === 'resource-prepare-task') {
+      const input = prepareTaskSchema.parse(request.input)
+      return { success: true, data: await this.tasks.prepare(context, input.releaseId, input.requestId), refresh: false }
+    }
+    if (action === 'resource-prepare-template') return { success: true,
+      data: await this.tasks.prepareTemplate(context, instantiateSchema.parse(request.input)), refresh: false }
+    // Only the Agent may create instances, preserving middleware provider restrictions.
+    if (action === 'resource-execution-status') return { success: true,
+      data: await this.execution.status(context, executionTargetSchema.parse(request.input).executionId), refresh: false }
     if (resourceActions.includes(action)) return { success: true,
       data: await executeResourceAction(this.resources, this.transfers, context, action, request.input), refresh: false }
     if (!(await this.dashboards.access(context)).canEdit) throw new ForbiddenException('DASHBOARD_DEFINITION_ACCESS_DENIED')

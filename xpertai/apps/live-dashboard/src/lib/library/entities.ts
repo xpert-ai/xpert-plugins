@@ -1,6 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
 import { libraryTable, type ResourceDocumentV2, type AssetDescriptor } from './resource-contract'
+import type { DashboardManifest } from '../dashboard.schema'
+import type { DashboardSaveRequests } from '../save-requests'
 
 /** @beta Library V2 tables are additive. Existing V1 releases and Dashboard versions are not rewritten. */
 export class LibraryOwnedRecord {
@@ -78,5 +80,17 @@ export class LibraryTransferRecord extends LibraryOwnedRecord {
   @Column({ type: 'timestamptz', nullable: true }) filesClearedAt!: Date | null
   @UpdateDateColumn({ type: 'timestamptz' }) updatedAt!: Date
 }
+/** @beta Binds a creation intent to one prepared manifest and the existing durable save pipeline. */
+@Entity(libraryTable('resource_execution_v2'))
+@Index(['tenantId', 'organizationId', 'ownerId', 'requestId'], { unique: true })
+export class LibraryExecutionRecord extends LibraryOwnedRecord {
+  @Column({ type: 'uuid' }) requestId!: string
+  @Column({ type: 'varchar' }) scopeHash!: string
+  @Column({ type: 'varchar' }) inputHash!: string
+  @Column({ type: 'uuid' }) manifestId!: string
+  @Column({ type: 'jsonb', nullable: true }) manifest!: DashboardManifest | null
+  @Column({ type: 'uuid', nullable: true }) saveRequestId!: string | null
+  @Column({ type: 'jsonb', nullable: true }) result!: Awaited<ReturnType<DashboardSaveRequests['get']>> | null
+}
 export const LIBRARY_V2_ENTITIES = [LibraryResourceRecord, LibraryDraftRecord, LibraryVersionRecord,
-  LibraryPublicationRecord, LibraryFileRecord, LibraryTransferRecord]
+  LibraryPublicationRecord, LibraryFileRecord, LibraryTransferRecord, LibraryExecutionRecord]
