@@ -73,7 +73,9 @@ test('resource detail dialog', async t => {
       if (id === 'react') return React
       if (id === '@xpert-ai/plugin-shadcn-ui') return ui
       if (id === './bridge') return bridge
-      if (id === './resource-image' || id === './library-directory') return load('resource-image.tsx')
+      if (/\.(svg|webp|png)$/.test(id)) return `https://assets.test/${id.split('/').at(-1)}`
+      if (['./library-catalog-images', './explore-covers'].includes(id)) return load(id.slice(2) + '.ts')
+      if (id === './resource-image' || id === './library-directory') return load(id.slice(2) + '.tsx')
       if (id === './library-gateway') return load('library-gateway.ts')
       return require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id)
     } }, { filename: path })
@@ -82,10 +84,10 @@ test('resource detail dialog', async t => {
   const { ResourceDetail } = load('resource-detail.tsx')
   const button = text => [...document.querySelectorAll('button')].find(element => element.textContent === text)
   async function click(element) { assert.ok(element); await act(async () => element.click()) }
-  async function reset({ kind = 'example-task', state = 'released', canEdit = true, capabilities = {} } = {}) {
+  async function reset({ kind = 'example-task', state = 'released', canEdit = true, capabilities = {}, coverKey } = {}) {
     const fixture = graph(), document = kind === 'analysis-template' ? fixture.template : fixture.task
     item = { id: randomUUID(), kind, title: document.title, description: document.description, categories: [], features: [], requirements: [], state,
-      releaseId: state === 'released' ? randomUUID() : null, version: state === 'released' ? document.version : null }
+      releaseId: state === 'released' ? randomUUID() : null, version: state === 'released' ? document.version : null, coverKey }
     if (kind === 'analysis-template') {
       const fields = dataset.definition.binding.output.fields
       document.content.inputSlots[0].fields[0].logicalType = fields.find(field => field.role === 'dimension').logicalType
@@ -103,8 +105,9 @@ test('resource detail dialog', async t => {
     await click([...document.querySelectorAll('[role=option]')].find(element => element.textContent === label))
   }
   await t.test('uninstalled entries stay informational and never fetch or prepare content', async () => {
-    await reset({ state: 'planned' })
+    await reset({ state: 'planned', coverKey: 'analysis-template-growth-attribution.svg' })
     assert.match(document.querySelector('[role=dialog]').textContent, new RegExp(messages.shellPlanned))
+    assert.equal(document.querySelector('[role=dialog] img').src, 'https://assets.test/analysis-template-growth-attribution.svg')
     assert.equal(calls.length, 0); assert.equal(button(messages.exploreUse), undefined)
   })
   await t.test('example preparation inserts files and skills without sending, and retry keeps the same intent', async () => {

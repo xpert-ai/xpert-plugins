@@ -36,6 +36,7 @@
               "library-execution",
               "template-agent-handoff",
               "content-packages",
+              "library-browser-verification",
               "library-import-ui",
               "library-detail-ui",
               "library-directory-ui",

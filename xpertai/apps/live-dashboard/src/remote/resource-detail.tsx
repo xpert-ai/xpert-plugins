@@ -8,7 +8,7 @@ import { datasetRecordSchema, type DatasetRecord, type LibraryData } from '../li
 import type { DirectoryItem } from '../lib/library/directory-contract'
 import { libraryAction, libraryCommand, useResourceTask } from './library-gateway'
 import { captureViewScope, requestHost } from './bridge'
-import { ResourceImage } from './resource-image'
+import { ResourceImage } from './library-directory'
 import type { messages } from './i18n'
 const detailSchema = z.object({ document: resourceV2Schema, capabilities: z.object({ canExport: z.boolean(), canPublish: z.boolean(), canWithdraw: z.boolean(), reasons: z.array(z.string()) }),
   execution: z.object({ supportsInstantiation: z.boolean(), canPrepareTask: z.boolean(), reasons: z.array(z.string()) }) })
