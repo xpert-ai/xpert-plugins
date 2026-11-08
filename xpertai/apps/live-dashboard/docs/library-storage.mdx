@@ -1,0 +1,63 @@
+---
+title: 资源库存储与 ZIP 迁移
+description: 模板资源的草稿、固定版本、附件及可恢复导入基础能力
+---
+
+> **Beta**：接口、资源格式及表结构可能发生不兼容调整，暂不保证向后兼容。
+
+本批提供资源库的服务端存储与迁移能力。资源通过明确上传或导入进入目录；安装插件不会写入示例数据。本批不包含探索示例、模板选择界面或模板执行。
+
+## 存储职责
+
+插件声明六张表，使用 `plugin_live_dashboard_` 前缀：
+
+| 表后缀 | 职责 |
+| --- | --- |
+| `resource_v2` | 资源逻辑身份、类型和当前版本指针 |
+| `resource_draft_v2` | 可修改的定义与并发修订号 |
+| `resource_version_v2` | 固定版本、摘要、JSONB 定义及轻量目录信息 |
+| `resource_publication_v2` | 指定版本是否公开，支持撤回 |
+| `resource_file_v2` | 拥有者范围内按摘要去重的附件及 Artifact 版本引用 |
+| `resource_transfer_v2` | ZIP 导入状态、逻辑 ID 映射、租约和结果 |
+
+支持示例任务、分析模板、视觉主题、组件和公开数据集五种资源定义。正文与附件分离，列表只返回展示信息；查询支持类型、分类、关键词、外观、拥有者/公开范围及分页。
+
+附件通过平台 Artifact 内容 API 保存；导入 ZIP 与导出副本通过 Workspace Files 保存。引用不包含存储提供者配置，实际存储方式由平台底层决定。
+
+草稿更新检查 `expectedRevision`。固定版本由逻辑 ID、版本号和 SHA-256 标识；同一拥有者下，相同版本只能复用相同内容，不能覆盖为不同定义。
+
+## 导入与导出
+
+ZIP 包含入口资源、完整依赖闭包、规范化定义以及按摘要去重的附件字节。包中不携带源部署的租户、用户、Artifact 主键、工作区路径或存储配置。
+
+1. 上传 ZIP 并预检，列出将创建、复用或发生冲突的版本。
+2. 选择 `reuse` 保留逻辑 ID，或选择 `copy` 为资源重新分配逻辑 ID，并重算依赖摘要。
+3. 显式提交导入。附件写入后，资源版本、当前版本指针和成功状态在数据库事务中提交。
+4. 失败后使用同一导入作业重试；成功作业直接返回已有结果。服务重建后，作业状态与映射仍可恢复。
+
+`requestId` 在拥有者范围内保证预检幂等；同一请求更换包或模式会被拒绝。导入目标默认为私有。导出和下载重新检查入口及依赖权限，不能凭旧文件标识绕过授权。
+
+## View 动作
+
+本批复用添加数据 View 的服务端通道，界面入口留待后续批次。
+
+- 目录与版本：`resource-list`、`resource-open`、`resource-draft-save`、`resource-draft-open`、`resource-release`。
+- 发布与撤回：`resource-publish`、`resource-withdraw`。
+- 文件上传：`resource-upload-asset`、`resource-import`，使用 View 文件传输。
+- 导入管理：`resource-import-status`、`resource-import-commit`、`resource-import-cancel`、`resource-jobs`。
+- 清理：`resource-files-cleanup`、`resource-imports-cleanup`。
+- 下载：View file grant，`purpose: download`，`fileKey: library-v2/<releaseId>`。
+
+身份来自宿主上下文。查询和读取检查资源访问权限，写入、发布和导入提交还检查编辑权限。接口不接受调用方覆盖租户、组织或拥有者。
+
+## 限制
+
+- 包及解压总量各不超过 32,000,000 字节，单定义 8,000,000 字节，单附件 16,000,000 字节；最多 100 个资源、200 个附件，压缩比上限 500。
+- 校验 ZIP 路径、重复条目、链接、解压量、摘要和依赖闭包；JSON 拒绝重复 key、原型 key、非有限数值及过深嵌套。SVG 仅允许被动矢量内容。
+- HTML 附件入库不代表允许执行；后续使用仍需 Dashboard 校验。
+- 当前普通 Artifact API 不提供跨用户公开附件复制。本批只允许不含附件的完整资源闭包公开；含附件时明确返回 `LIBRARY_PUBLIC_FILE_COPY_UNAVAILABLE`，未引入暂缓的 `readSharedArtifactVersion`。
+- 终态导入 ZIP 和无引用附件支持至少 24 小时后的显式分批清理，删除失败可重试。自动清理调度、大文件后台队列及平台实际容量验收不在本批范围内。
+
+## 验证边界
+
+契约与归档测试位于 `tests/library-v2.test.cjs`，View 传输测试位于 `tests/library-actions.test.cjs`。`tests/library-v2.postgres.cjs` 使用独立 PostgreSQL 的随机 schema 验证事务、并发、恢复与权限边界；未配置测试数据库时会跳过，不能计为通过。SDK 文件接口使用测试替身，这些测试不等同于真实平台、MinIO 或浏览器验收。

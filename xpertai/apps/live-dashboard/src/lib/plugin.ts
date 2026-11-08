@@ -17,5 +17,11 @@ import { DashboardPresentationProvider } from './presentation.provider'
 import { DashboardSharingService } from './sharing.service'
 import { DashboardArtifactType } from './artifact-type.provider'
 import { DashboardProviderOptionsController } from './provider-options.controller'
-@XpertServerPlugin({ controllers: [DashboardProviderOptionsController], providers: [DashboardLibraryViewProvider, DashboardDatasetService, DashboardTemplateService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { LIBRARY_V2_ENTITIES } from './library/entities'
+import { LibraryCatalogService } from './library/catalog.service'
+import { LibraryFilesService } from './library/files.service'
+import { LibraryTransfersService } from './library/transfers.service'
+import { LibraryFileArtifactType } from './library/file-artifact.provider'
+@XpertServerPlugin({ imports: [TypeOrmModule.forFeature(LIBRARY_V2_ENTITIES)], entities: LIBRARY_V2_ENTITIES, controllers: [DashboardProviderOptionsController], providers: [LibraryCatalogService, LibraryFilesService, LibraryTransfersService, LibraryFileArtifactType, DashboardLibraryViewProvider, DashboardDatasetService, DashboardTemplateService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
 export class LiveDashboardPlugin {}
