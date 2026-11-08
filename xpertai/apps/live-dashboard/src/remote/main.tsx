@@ -433,7 +433,7 @@ function App() {
       {inspect && <p role="status" className="border-b px-4 py-2 text-sm text-muted-foreground">{t.inspectHint}</p>}
       <div className="dashboard-workspace">
       <section className="canvas-panel" aria-busy={busy}>
-        {!busy && !html && !saved?.manifest.presentation && !error && !unavailableDatasets.length && (!saved && canEdit && currentProject
+        {!busy && !html && !saved?.manifest.presentation && !error && !unavailableDatasets.length && (!saved && canEdit
           ? <DashboardStarter t={t} onStart={text => run(async () => {
             await selectEditorTarget(null)
             await requestHost('invokeClientCommand', { commandKey: 'assistant.chat.send_message', payload: { text } })

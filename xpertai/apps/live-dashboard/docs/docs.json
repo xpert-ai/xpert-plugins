@@ -37,6 +37,7 @@
               "library-import-ui",
               "library-detail-ui",
               "library-directory-ui",
+              "dashboard-starter",
               "drafts",
               "drafts-acceptance",
               "team-sharing",

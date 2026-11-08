@@ -336,5 +336,14 @@
   "v2Installed": "Imported",
   "v2Pagination": "Resource pages",
   "v2ReadOnly": "Read-only access. You can browse and inspect resources.",
-  "v2ResultCount": "{count} resources"
+  "v2ResultCount": "{count} resources",
+  "libAskAssistant": "Analyze with Assistant",
+  "libDescribeQuestion": "You can also describe your business question in the conversation.",
+  "libExplore": "Explore examples",
+  "libNewDataHint": "Browse authorized sources, preview results and save reusable queries.",
+  "libNewExploreHint": "Browse imported or public example tasks and prepare one in your conversation.",
+  "libNewHint": "Start with a dataset or an analysis template. Dashboards are saved as drafts for review before publication.",
+  "libNewTemplateHint": "Choose an analysis template and map your data fields to prepare a dashboard task.",
+  "libNewTitle": "Choose data to start your dashboard",
+  "libStart": "Get started"
 }

@@ -336,5 +336,14 @@
   "v2Installed": "已匯入",
   "v2Pagination": "資源分頁",
   "v2ReadOnly": "目前為唯讀存取，可以瀏覽並查看資源。",
-  "v2ResultCount": "{count} 個資源"
+  "v2ResultCount": "{count} 個資源",
+  "libAskAssistant": "交給助理分析",
+  "libDescribeQuestion": "也可以在對話中描述你想瞭解的業務問題。",
+  "libExplore": "探索範例",
+  "libNewDataHint": "瀏覽已授權資料來源，預覽並儲存可重用查詢。",
+  "libNewExploreHint": "瀏覽已匯入或公開的範例任務，按需準備到對話。",
+  "libNewHint": "從已有資料集開始，或選擇一個分析範本。看板先儲存為草稿，檢查後再發布。",
+  "libNewTemplateHint": "選擇分析範本，對應資料欄位後準備看板任務。",
+  "libNewTitle": "選擇資料，開始建立你的看板",
+  "libStart": "開始"
 }

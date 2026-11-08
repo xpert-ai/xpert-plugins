@@ -336,5 +336,14 @@
   "v2Installed": "已导入",
   "v2Pagination": "资源分页",
   "v2ReadOnly": "当前为只读访问，可以浏览并查看资源。",
-  "v2ResultCount": "{count} 个资源"
+  "v2ResultCount": "{count} 个资源",
+  "libAskAssistant": "交给助理分析",
+  "libDescribeQuestion": "也可以在对话中描述你想了解的业务问题。",
+  "libExplore": "探索示例",
+  "libNewDataHint": "浏览已授权数据源，预览并保存可复用查询。",
+  "libNewExploreHint": "浏览已导入或公开的示例任务，按需准备到对话。",
+  "libNewHint": "从已有数据集开始，或选择一个分析模板。看板先保存为草稿，检查后再发布。",
+  "libNewTemplateHint": "选择分析模板，映射数据字段后准备看板任务。",
+  "libNewTitle": "选择数据，开始创建你的看板",
+  "libStart": "开始"
 }
