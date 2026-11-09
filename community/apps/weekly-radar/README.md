@@ -6,8 +6,8 @@
 
 | 仓库 | 基线（开始开发时） | 实际测试版本 |
 |---|---|---|
-| xpert-ai/xpert-plugins（本仓库） | `9bfa9659` (main) | 功能分支 `feat/weekly-radar` @ 本 PR |
-| xpert-ai/xpert（平台） | `ba8736c8` (main) | `ba8736c8` + 本地 Windows 兼容修复（详见已知限制） |
+| xpert-ai/xpert-plugins（本仓库） | `9bfa96594a3debbb33f0ba25c7ade49e7d360c8b` (main) | 功能分支 `feat/weekly-radar` @ 本 PR |
+| xpert-ai/xpert（平台） | `ba8736c897474f7db9a261aa5f64d95860bb9f60` (main) | `ba8736c897474f7db9a261aa5f64d95860bb9f60` + 本地 Windows 兼容修复（详见已知限制） |
 
 模型凭证：智谱生态外的 OpenAI 兼容端点（`deepseek-v4-flash-0731`，通过平台"模型提供商-OpenAI 兼容"连接配置），真实推理已在平台内验证。
 
@@ -151,7 +151,6 @@ corepack pnpm plugin:deploy:local \
 | 项 | 结果 | 方式 |
 |---|---|---|
 | 规则引擎断言（R1–R5、原因合并、确定性重放、ISO 周次） | 通过 | `pnpm test:rules`（本机实跑输出 `rules smoke test passed`） |
-| 查重 | 通过 | 对 `xpert-ai/xpert-plugins` 全量 **824 个 PR** 标题+正文正则扫描：`风险雷达/risk radar`、`项目风险/延期/里程碑`、`周报/weekly report` 均 **0 真实命中** |
 | 表名合规 | 通过 | 全部走 `pluginArtifactTableName()`，避免 pre-commit `check-plugin-entity-tables` 拦截 |
 | 租户隔离 | 代码级通过 | 所有读取走 `scopeWhere()` / `applyScopeToQueryBuilder()`，写入填充 `tenantId` / `organizationId` |
 | 单插件构建 | 通过 | `corepack pnpm --filter @xpert-ai/plugin-weekly-radar build`（UI + 远程组件 + 类型检查全过） |
