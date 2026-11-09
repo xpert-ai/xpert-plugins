@@ -142,6 +142,28 @@ corepack pnpm plugin:deploy:local \
 
 1. 安装插件 → 2. 重启 API 并验证加载 → 3. 打开助手模板 → 4. 基于模板创建助手 → 5. 绑定工具与工作台 → 6. 真实模型调用 + 人工确认 + 刷新恢复。
 
+## 运行截图（Xpert 平台实拍，2026-11-09）
+
+**助手入口与引导问题**（模板 starter 渲染）：
+
+![助手欢迎页与 starter](docs/screenshots/02-assistant-welcome-starters.jpg)
+
+**用户输入 → AI 处理**（模型发现条目已存在即不重复录入；调用服务端规则扫描并如实报告 0 命中，不虚构风险；日期缺失时先追问）：
+
+![对话：幂等核对与诚实风险扫描](docs/screenshots/01-chat-capture-idempotent.png)
+
+**生成周报草稿**（叙述由模型撰写，数字与风险行由服务端重算；耗时 1 分 46 秒）：
+
+![周报草稿生成](docs/screenshots/03-weekly-report-draft.png)
+
+**工作台复核（人工确认前）**：条目状态可改、风险行、周报草稿带"确认并归档"闸口：
+
+![工作台与确认闸口](docs/screenshots/04-workbench-draft-confirm.png)
+
+**人工确认后**：周报状态变为"已归档"，进入历史周报（2026-W46 · 已归档）：
+
+![确认归档后](docs/screenshots/05-workbench-archived.png)
+
 ---
 
 ## 7. 验证结果
@@ -167,11 +189,11 @@ corepack pnpm plugin:deploy:local \
 | 真实业务流程（AI + 工具） | 通过 | 对话驱动模型依次调用 `radar_upsert_entry` ×2 → `radar_scan_risks` → `radar_generate_weekly`；SSE 事件流 4 次 `on_chat_event` 对应 4 次工具调用 |
 | 数据保存与恢复 | 通过 | `plugin_weekly_radar_entry` 2 条（done/blocked 各 1，含负责人与日期）、`plugin_weekly_radar_weekly` 1 条周报草稿（`2026-W46`，`status=draft`），会话状态 `idle` |
 | 人工确认闸口（HITL） | 通过 | 信息缺失/日期歧义时模型触发 `request_user_input` 中断（`on_interrupt`），符合"不编造、先追问"的 prompt 规则；`radar_confirm_weekly` 按设计仅在用户于工作台复核后调用 |
+| 人工确认归档 | 通过 | 工作台点击"确认并归档" → 周报 `2026-W46` 状态 draft→已归档，进入历史周报（见运行截图） |
 
 ### 未验证（诚实披露）
 
-- `radar_confirm_weekly` 人工归档：周报草稿已生成（`draft`），按插件设计**必须由用户在工作台复核后确认**——这是留给用户的业务动作，不是缺陷。
-- 五场景验收中的空态、失败重试、权限隔离场景尚未逐一在 UI 走查。
+- 五场景验收中的空态、失败重试、权限隔离场景尚未逐一在 UI 走查（完整流程、保存恢复已走通，见运行截图）。
 - `plugin-dev-harness` 生命周期验证：harness 自身要求 Node ≥22.13（`node:sqlite`），本机 Node 版本组合下构建进行中，结果待补。
 
 ### 平台适配说明（超出插件范围的已修复项）
