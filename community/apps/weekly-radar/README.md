@@ -2,6 +2,15 @@
 
 > 把本周真实发生的事情沉淀为可追踪条目，用**可复算的规则**扫描未闭环风险，并生成一份**数字不会漂移**的周报。
 
+## 0. 基线与测试版本
+
+| 仓库 | 基线（开始开发时） | 实际测试版本 |
+|---|---|---|
+| xpert-ai/xpert-plugins（本仓库） | `9bfa9659` (main) | 功能分支 `feat/weekly-radar` @ 本 PR |
+| xpert-ai/xpert（平台） | `ba8736c8` (main) | `ba8736c8` + 本地 Windows 兼容修复（详见已知限制） |
+
+模型凭证：智谱生态外的 OpenAI 兼容端点（`deepseek-v4-flash-0731`，通过平台"模型提供商-OpenAI 兼容"连接配置），真实推理已在平台内验证。
+
 ---
 
 ## 1. 产品说明
@@ -141,17 +150,37 @@ corepack pnpm plugin:deploy:local \
 
 | 项 | 结果 | 方式 |
 |---|---|---|
-| 规则引擎断言（R1–R5、原因合并、确定性重放、ISO 周次） | 通过 | `pnpm test:rules`（`node --experimental-strip-types src/lib/rules.spec.ts`，本机实跑输出 `rules smoke test passed`） |
-| 查重 | 通过 | 对 `xpert-ai/xpert-plugins` 全量 **824 个 PR**（54 open / 728 merged / 42 closed）标题+正文正则扫描：`风险雷达/risk radar`、`项目风险/延期/里程碑`、`周报/weekly report` 均 **0 真实命中** |
+| 规则引擎断言（R1–R5、原因合并、确定性重放、ISO 周次） | 通过 | `pnpm test:rules`（本机实跑输出 `rules smoke test passed`） |
+| 查重 | 通过 | 对 `xpert-ai/xpert-plugins` 全量 **824 个 PR** 标题+正文正则扫描：`风险雷达/risk radar`、`项目风险/延期/里程碑`、`周报/weekly report` 均 **0 真实命中** |
 | 表名合规 | 通过 | 全部走 `pluginArtifactTableName()`，避免 pre-commit `check-plugin-entity-tables` 拦截 |
 | 租户隔离 | 代码级通过 | 所有读取走 `scopeWhere()` / `applyScopeToQueryBuilder()`，写入填充 `tenantId` / `organizationId` |
+| 单插件构建 | 通过 | `corepack pnpm --filter @xpert-ai/plugin-weekly-radar build`（UI + 远程组件 + 类型检查全过） |
+| 平台部署 | 通过 | `plugin:deploy:local`（`--scope tenant` + 管理员凭证环境变量），staged 成功、API 重启后 `loadStatus: "loaded"`、`loadError: null` |
 
-### 未验证（必须在真实环境补做，诚实披露）
+### 已验证（平台内真实使用流程，2026-11-09）
 
-- 平台内五场景验收（完整流程 / 保存恢复 / 空态 / 失败重试 / 权限隔离）**尚未在真实平台执行**。
-- 运行截图**尚未产出**（需要平台环境与演示数据）。
-- `pnpm build` 与 `plugin:deploy:local` 需在真实仓库工作区执行后确认（当前为脱离 workspace 的骨架副本）。
-- `plugin-dev-harness` 生命周期验证未执行。
+| 项 | 结果 | 证据 |
+|---|---|---|
+| 助手模板出现在模板目录 | 通过 | `/explore → 智能体模板` 可见"周报风险雷达助手"（Xpert 插件分类） |
+| 基于模板创建助手 | 通过 | `POST /api/xpert-template-installations` → `status: succeeded`、`publicationCompleted: true` |
+| 工具绑定 | 通过 | 模板图含 `Agent → Middleware(weekly-radar)` 连线；运行时经 `ToolsetStrategy('weekly-radar')` 解析（`WeeklyRadarToolsetStrategy`） |
+| 真实模型调用 | 通过 | 平台主模型冒烟 `POST /api/copilot/primary/verify` → 204；OpenAI 兼容端点 `deepseek-v4-flash-0731` |
+| 真实业务流程（AI + 工具） | 通过 | 对话驱动模型依次调用 `radar_upsert_entry` ×2 → `radar_scan_risks` → `radar_generate_weekly`；SSE 事件流 4 次 `on_chat_event` 对应 4 次工具调用 |
+| 数据保存与恢复 | 通过 | `plugin_weekly_radar_entry` 2 条（done/blocked 各 1，含负责人与日期）、`plugin_weekly_radar_weekly` 1 条周报草稿（`2026-W46`，`status=draft`），会话状态 `idle` |
+| 人工确认闸口（HITL） | 通过 | 信息缺失/日期歧义时模型触发 `request_user_input` 中断（`on_interrupt`），符合"不编造、先追问"的 prompt 规则；`radar_confirm_weekly` 按设计仅在用户于工作台复核后调用 |
+
+### 未验证（诚实披露）
+
+- `radar_confirm_weekly` 人工归档：周报草稿已生成（`draft`），按插件设计**必须由用户在工作台复核后确认**——这是留给用户的业务动作，不是缺陷。
+- 五场景验收中的空态、失败重试、权限隔离场景尚未逐一在 UI 走查。
+- `plugin-dev-harness` 生命周期验证：harness 自身要求 Node ≥22.13（`node:sqlite`），本机 Node 版本组合下构建进行中，结果待补。
+
+### 平台适配说明（超出插件范围的已修复项）
+
+开发过程中发现并修复了平台/工具链在 Windows 上的若干缺陷（详见提交历史与本地环境记录），与本插件直接相关的两项：
+
+1. `plugin-sdk` 的 `AIModelProviderStrategy` 装饰器将 `file:///D:/...` 转为 `/D:/...`，导致插件 schema YAML 加载失败——已改用 `fileURLToPath`。
+2. `server-ai` 的 `organization-plugin.store.ts` 在 Windows 上 `execFile('npm')` 触发 EINVAL（CVE-2024-27980 加固）——已加 `shell: process.platform === 'win32'`。
 
 ---
 

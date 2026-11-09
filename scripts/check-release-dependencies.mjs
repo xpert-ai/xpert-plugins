@@ -48,6 +48,9 @@ export function localReferenceErrors(file, manifest, trackedFiles) {
 function runPnpm(args, cwd) {
   const result = spawnSync('pnpm', args, {
     cwd, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024,
+    // Windows resolves pnpm through pnpm.cmd; modern Node refuses to spawn .cmd
+    // files without a shell (CVE-2024-27980 hardening).
+    shell: process.platform === 'win32',
     env: { ...process.env, CI: 'true', pnpm_config_verify_deps_before_run: 'false' }
   })
   if (result.error) throw result.error

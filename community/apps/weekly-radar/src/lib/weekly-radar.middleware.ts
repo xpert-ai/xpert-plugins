@@ -24,7 +24,7 @@ const entryStatusSchema = z
     'Entry state. planned, in_progress, blocked, pending_confirm, ai_failed, or done. pending_confirm means a fact was extracted but nobody confirmed it yet.'
   )
 
-const upsertEntrySchema = z
+export const upsertEntrySchema = z
   .object({
     operationId: z
       .string()
@@ -59,7 +59,7 @@ const upsertEntrySchema = z
   })
   .strict()
 
-const scanRisksSchema = z
+export const scanRisksSchema = z
   .object({
     weekKey: z
       .string()
@@ -69,7 +69,7 @@ const scanRisksSchema = z
   })
   .strict()
 
-const generateWeeklySchema = z
+export const generateWeeklySchema = z
   .object({
     weekKey: z.string().regex(/^\d{4}-W\d{2}$/).describe('ISO week key such as 2026-W45.'),
     highlights: z
@@ -87,13 +87,13 @@ const generateWeeklySchema = z
   })
   .strict()
 
-const confirmWeeklySchema = z
+export const confirmWeeklySchema = z
   .object({
     weekKey: z.string().regex(/^\d{4}-W\d{2}$/).describe('ISO week key such as 2026-W45.')
   })
   .strict()
 
-const listEntriesSchema = z
+export const listEntriesSchema = z
   .object({
     weekKey: z.string().regex(/^\d{4}-W\d{2}$/).optional().describe('Filter by ISO week key.'),
     status: entryStatusSchema.optional(),
