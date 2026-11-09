@@ -190,11 +190,11 @@ corepack pnpm plugin:deploy:local \
 | 数据保存与恢复 | 通过 | `plugin_weekly_radar_entry` 2 条（done/blocked 各 1，含负责人与日期）、`plugin_weekly_radar_weekly` 1 条周报草稿（`2026-W46`，`status=draft`），会话状态 `idle` |
 | 人工确认闸口（HITL） | 通过 | 信息缺失/日期歧义时模型触发 `request_user_input` 中断（`on_interrupt`），符合"不编造、先追问"的 prompt 规则；`radar_confirm_weekly` 按设计仅在用户于工作台复核后调用 |
 | 人工确认归档 | 通过 | 工作台点击"确认并归档" → 周报 `2026-W46` 状态 draft→已归档，进入历史周报（见运行截图） |
+| `plugin-dev-harness` 生命周期 | 通过 | `node plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-weekly-radar`：import → register → Nest bootstrap → `onStart` → `onPluginBootstrap` → **Plugin loaded successfully** → `onPluginDestroy` → `onStop`，全程无错误 |
 
 ### 未验证（诚实披露）
 
-- 五场景验收中的空态、失败重试、权限隔离场景尚未逐一在 UI 走查（完整流程、保存恢复已走通，见运行截图）。
-- `plugin-dev-harness` 生命周期验证：harness 自身要求 Node ≥22.13（`node:sqlite`），本机 Node 版本组合下构建进行中，结果待补。
+- 五场景验收中的空态、失败重试、权限隔离场景尚未逐一在 UI 走查（完整流程、保存恢复、人工归档已走通，见运行截图）。
 
 ### 平台适配说明（超出插件范围的已修复项）
 
