@@ -260,3 +260,11 @@ See [快速开始与样例](docs/quick-start.mdx). The App initializes the proje
 Superstore 企业 BI 样例的数据准备、三个页面和指标口径见 [Superstore](docs/superstore.mdx)。
 
 十个分析示例、酒店模板、合成数据、原创封面与 86 项目录占位已纳入内容作者工作流。通过独立 ZIP 显式导入；格式处于 Beta，详见[示例内容与模板目录](docs/content-packages.mdx)。
+
+### Inline analysis results
+
+`dashboard_present_analysis` posts a bounded, read-only A2UI Widget from a current-run
+verified preview. It rechecks access and queries the same Binding; it accepts no
+model-provided rows or SQL and saves no dashboard. Supported views: bar, line,
+table and metrics. Group projection uses the platform's generic Widget handling.
+See [inline analysis](docs/inline-analysis.mdx) for scope, limits and verification.

@@ -29,6 +29,30 @@ When `dashboard_open` or `dashboard_history` returns `selection_required`, displ
 - For a rename plus visual change, update the HTML heading and pass the new `title` together with `htmlPath` in one `dashboard_update`. Use the returned revision for further saves. Do not make a second metadata-only save just to catch up with the heading.
 - Stop only with a successful draft receipt matching the intended file bytes and title. Never turn a tool error into a claim of success.
 
+## Show one analysis result in chat
+
+For intermediate analysis, use `dashboard_present_analysis` after a successful
+`dashboard_preview` or `dashboard_preview_binding` in the same run. Pass its
+`previewId`, a title, exact field IDs, and `bar`, `line`, `table` or `metrics`.
+The tool reauthorizes and reruns that Binding, then emits a read-only Widget in
+this conversation (including groups). It does not create an Artifact or file.
+No Sandbox authoring or dashboard save is needed for this route.
+
+Charts need a declared dimension/time/identifier plus a numeric measure, with
+unique categories. The tool does not guess aggregates or sort order. For top/bottom N, explicitly set
+`orderBy: { field: "<measure ID>", direction: "desc" }` (or `asc`) before
+truncating with `maxRows`; first rows are not highest values. Rankings cover only
+returned rows, so check completeness. Set `language` to the conversation language. Use a table
+for exact high-precision values; metrics requires one already-aggregated row.
+At most 20 rows and 6 fields are displayed. Check completeness and timestamps;
+never describe a partial preview as the entire business dataset. Only say it was
+shown after `display.status` is `emitted`. Continue analyzing afterward; a Widget
+is not a final reply. In groups use `replyStage: "progress"` for interim conclusions.
+
+A preview receipt is run-local. A shared resource grant does not authorize this
+source-project query route: use governed resource analysis tools for such data.
+Never switch projects or copy another member's credentials to obtain a preview.
+
 ## Prerequisites
 
 The Assistant needs LiveDashboard, SandboxFile and skillsMiddleware; Sandbox must be enabled. For Python/JavaScript data preparation it also needs WorkspaceScriptDataset and its `workspace-script-dataset` skill. If a required tool is absent, report that exact missing capability; do not invent an equivalent tool name.

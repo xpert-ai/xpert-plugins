@@ -29,6 +29,7 @@
               "html-mode",
               "frontend-libraries",
               "frontend-libraries-acceptance",
+              "inline-analysis",
               "data-view",
               "dataset-storage",
               "dataset-generation",
