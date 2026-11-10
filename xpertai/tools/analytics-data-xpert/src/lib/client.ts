@@ -57,7 +57,7 @@ export class DataXpertAnalyticsClient {
       const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
       return analyticsDiscoveryResultSchema.parse({
         items: [{ id: datasetId, name: datasetId, kind: 'dataset',
-          metadata: { output: createDataXpertOutput(datasetId, result.effect.columns) } }],
+          metadata: { payload: parsed.payload, output: createDataXpertOutput(datasetId, result.effect.columns) } }],
         queryContract: dataXpertQueryContract
       })
     }

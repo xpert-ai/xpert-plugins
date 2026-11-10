@@ -177,6 +177,22 @@ test('schema discovery supplies valid output IDs for omitted IDs and native cube
     { ...payload, target: { ...payload.target, entityRef: 'different-cube' } }
   ]) assert.notEqual((await provider.discover({ ...request, payload: changed }, context)).items[0].id, native.id)
 })
+test('schema discovery returns a reusable normalized payload without trusted context or rows', async t => {
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(schemaResponse())))
+  const { parameterPaths, ...payload } = simpleBinding.payload
+  const result = await provider.discover({ kind: 'query-schema', payload }, context)
+  assert.deepEqual(result.items[0].metadata.payload, { ...payload, parameterPaths: {} })
+  const { analyticsBindingSchema } = require('@xpert-ai/plugin-sdk/analytics')
+  const binding = analyticsBindingSchema.parse({ id: result.items[0].id, providerId: 'data-xpert.ontology',
+    source: { kind: 'definition', definitionId: '11111111-1111-4111-8111-111111111111', versionId: '22222222-2222-4222-8222-222222222222' },
+    operation: result.queryContract.operation, contractVersion: result.queryContract.contractVersion,
+    parameters: [], ...result.items[0].metadata })
+  const preview = normalizeAnalyticsResult(binding, await provider.execute(binding, {}, context), 'preview', 100)
+  assert.equal(preview.rows[0][binding.output.fields[1].id], '9007199254740993.123456789')
+  for (const privateValue of ['9007199254740993', 'Bearer viewer', 'baseUrl', 'assistantXpertId']) {
+    assert.equal(JSON.stringify(result.items[0].metadata).includes(privateValue), false)
+  }
+})
 test('schema ID aliases remain bounded strings and cannot introduce identity overrides', async t => {
   const { provider, context, state } = await fixture(t, (_req, res) => res.end('{}'))
   for (const datasetId of [null, 1, {}, '', 'x'.repeat(513)]) {
