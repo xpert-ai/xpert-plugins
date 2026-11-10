@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" width="1000" height="620">
+  <rect width="1000" height="620" fill="#f8fafc" rx="8"/>
+  <!-- Top Bar -->
+  <rect x="20" y="20" width="960" height="50" fill="#ffffff" stroke="#e2e8f0" rx="6"/>
+  <text x="40" y="52" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">⚠️ 异常拦截、错误提示与一键重试机制 (Exception & Idempotent Retry)</text>
+
+  <!-- Error Banner Display -->
+  <rect x="20" y="90" width="960" height="70" fill="#fef2f2" stroke="#fecaca" rx="6"/>
+  <text x="45" y="125" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="#991b1b">⚠️ 模拟上游 AI 分析服务响应超时 (SIMULATED_SERVICE_TIMEOUT)，已保护当前输入内容</text>
+  <text x="45" y="145" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#b91c1c">系统已捕获上游异常，未产生重复脏数据。您可以点击右侧按钮重新尝试发起意图提炼与分析。</text>
+  
+  <rect x="780" y="105" width="180" height="38" fill="#dc2626" rx="4"/>
+  <text x="798" y="129" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">🔄 立即重试 (排除故障)</text>
+
+  <!-- Architecture Flow Comparison -->
+  <rect x="20" y="180" width="465" height="420" fill="#ffffff" stroke="#e2e8f0" rx="6"/>
+  <rect x="20" y="180" width="465" height="40" fill="#fee2e2" rx="6"/>
+  <text x="35" y="205" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="bold" fill="#991b1b">❌ 传统脆弱设计 (非幂等重试弊端)</text>
+  
+  <text x="35" y="245" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">1. 异常时整个页面白屏或直接刷新，用户输入的客诉文本全部丢失。</text>
+  <text x="35" y="280" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">2. 每次重试都盲目向数据库插入新草稿，导致产生大量孤儿半成品工单。</text>
+  <text x="35" y="315" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">3. 错误码不透明，客服只看到“未知错误”，无法获知具体失败原因。</text>
+  <rect x="35" y="350" width="430" height="180" fill="#f8fafc" stroke="#e2e8f0" rx="4"/>
+  <text x="45" y="380" font-family="monospace" font-size="11" fill="#64748b">// 脏数据累积风险示例：</text>
+  <text x="45" y="405" font-family="monospace" font-size="11" fill="#dc2626">INSERT INTO ticket (id: "t_1", status: "failed")</text>
+  <text x="45" y="430" font-family="monospace" font-size="11" fill="#dc2626">INSERT INTO ticket (id: "t_2", status: "failed")</text>
+  <text x="45" y="455" font-family="monospace" font-size="11" fill="#dc2626">INSERT INTO ticket (id: "t_3", status: "confirmed")</text>
+  <text x="45" y="480" font-family="monospace" font-size="11" fill="#64748b">-- 重复创建了两个同名的废弃工单！</text>
+
+  <!-- Right: Smart Ticket Robust Design -->
+  <rect x="515" y="180" width="465" height="420" fill="#ffffff" stroke="#e2e8f0" rx="6"/>
+  <rect x="515" y="180" width="465" height="40" fill="#dcfce7" rx="6"/>
+  <text x="530" y="205" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="bold" fill="#166534">✅ Smart Ticket 健壮设计 (幂等重试保障)</text>
+  
+  <text x="530" y="245" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">1. 前端状态保留：输入内容完整缓存在 React 状态中，异常不丢数据。</text>
+  <text x="530" y="280" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">2. 原地重试恢复：调用 retryAnalysis，递增 retryCount 并清除 failureCode。</text>
+  <text x="530" y="315" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">3. 规范错误码：抛出 SmartTicketError（CONTENT_TOO_SHORT / TIMEOUT）。</text>
+  <rect x="530" y="350" width="435" height="180" fill="#f8fafc" stroke="#e2e8f0" rx="4"/>
+  <text x="540" y="380" font-family="monospace" font-size="11" fill="#64748b">// 幂等控制与版本自增：</text>
+  <text x="540" y="405" font-family="monospace" font-size="11" fill="#16a34a">UPDATE ticket SET failureCode = NULL,</text>
+  <text x="540" y="430" font-family="monospace" font-size="11" fill="#16a34a">       retryCount = retryCount + 1,</text>
+  <text x="540" y="455" font-family="monospace" font-size="11" fill="#16a34a">       revision = revision + 1 WHERE id = :id;</text>
+  <text x="540" y="480" font-family="monospace" font-size="11" fill="#64748b">-- 始终保持单条真实工单，零脏数据产生！</text>
+</svg>
