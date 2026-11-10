@@ -107,14 +107,13 @@
 - 平台仓库 `xpert-ai/xpert` main：`ba8736c897474f7db9a261aa5f64d95860bb9f60`
 - Skills 仓库 `xpert-ai/xpert-skills` main：`4ad12dcc9292d9b05021d4f5b93f24865c99e811`
 
-## 界面截图（本地预览渲染，2026-11-10）
+## 界面截图（本地预览渲染，2026-11-10 更新：含建议结论列与合并后的 R-03）
 
 用仓库自带的 `tools/remote-view-preview` 渲染真实远程组件（`dist` 产物 + shadcn 共享组件），
 数据为虚构候选人（mock host），**不是 Xpert 真平台截图**；真平台截图待平台环境就绪后补。
 本地预览配置已随代码提交：`src/lib/remote-components/resume_screening__remote/preview.config.mjs`
 （`node tools/remote-view-preview/cli.mjs --config <该文件>`）。
 
-> 注意：下面 4 张截图是打分刻度、建议结论列、R-03 合并之前的版本，已过时，**待重截**，不要当作当前界面。
 
 ![Workbench 候选人列表](docs/screenshots/workbench-table.png)
 ![展开预筛结果（R-01 / R-03）](docs/screenshots/workbench-prescreen.png)
@@ -127,7 +126,7 @@
 - [x] `pnpm --filter @xpert-ai/plugin-resume-screening test`：**16/16 通过**（预筛边界 10、保存/恢复 3、重试不重复 3；2026-11-10 晚筛查完善后由 13 增至 16）
 - [x] `pnpm --filter @xpert-ai/plugin-resume-screening lint`：通过（spec typecheck + remote:typecheck）
 
-### 筛查完善（2026-11-10 晚，未 push，待父代理核验）
+### 筛查完善（2026-11-10 晚，已验证并推送）
 
 - 新增打分刻度 `SCORE_RUBRIC`（每维 16–20 / 11–15 / 6–10 / 0–5 四档锚点），已写进
   `resume_score` 工具描述、维度 score 的 zod 描述与助手模板第 3 步；README 有中文对照表。
@@ -138,7 +137,7 @@
   R-03 合并成一条，列出全部缺失技能。
 - 新增本地预览配置 `preview.config.mjs`（4 名虚构候选人）；冒烟验证：preview-host 启动成功，
   `requestData` 按总分倒序返回、`confirm_candidate` 按 `baseRevision` 校验并更新、state 随之变化。
-  渲染截图未重截（见上节“待重截”）。
+  渲染截图已重截：主表与预筛展开两张已更新为含建议结论列、合并后 R-03 的新界面（父代理独立复验）。
 - [x] `plugin-dev-harness` 生命周期测试：通过（register → onStart → onPluginBootstrap → onPluginDestroy → onStop）；harness 用 mock，不能据此宣称真实数据库或业务流程已通过
 - [ ] `node scripts/check-plugin-metadata.mjs --package`：本机跑不起来（`Cannot find module 'typescript'`，`xpertai/node_modules` 未安装）；已手动核验替代：`dist/index.js` 的 meta 与 package.json 一致
 - [ ] 本地 Xpert 真平台验证：完整流程 + 保存恢复 + 失败重试截图（待平台环境就绪；本机无 Docker）
