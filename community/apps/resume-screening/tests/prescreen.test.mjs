@@ -2,7 +2,7 @@
 // All data is fictional.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { prescreenCandidate, validateDimensions } from '../dist/lib/resume-screening.service.js'
+import { prescreenCandidate, suggestDecision, validateDimensions } from '../dist/lib/resume-screening.service.js'
 import { CANDIDATES, JD } from './fake-repo.mjs'
 
 const rules = (findings) => findings.map((finding) => finding.rule)
@@ -28,13 +28,49 @@ test('degree below the minimum reports R-02', () => {
   assert.equal(findings[0].severity, 'error')
 })
 
-test('each missing required skill reports its own R-03 warning', () => {
+test('all missing required skills merge into one R-03 warning listing every skill', () => {
   const findings = prescreenCandidate(JD, CANDIDATES.junior)
   const missing = findings.filter((finding) => finding.rule === 'R-03')
-  assert.equal(missing.length, 2)
-  assert.ok(missing.every((finding) => finding.severity === 'warning'))
-  assert.ok(missing.some((finding) => finding.message.includes('Spring Boot')))
-  assert.ok(missing.some((finding) => finding.message.includes('MySQL')))
+  assert.equal(missing.length, 1)
+  assert.equal(missing[0].severity, 'warning')
+  assert.match(missing[0].message, /Spring Boot/)
+  assert.match(missing[0].message, /MySQL/)
+})
+
+test('skill aliases match: spring-boot / SpringBoot / Spring all satisfy Spring Boot', () => {
+  for (const spelling of ['spring-boot', 'SpringBoot', 'Spring', 'Spring Framework']) {
+    const findings = prescreenCandidate(JD, {
+      ...CANDIDATES.senior,
+      skills: ['Java', spelling, 'MySQL']
+    })
+    assert.deepEqual(
+      findings.filter((finding) => finding.rule === 'R-03'),
+      [],
+      `spelling ${spelling} should satisfy the Spring Boot requirement`
+    )
+  }
+})
+
+test('near-miss: SQL for MySQL stays an R-03 warning and flags manual review', () => {
+  const findings = prescreenCandidate(JD, {
+    ...CANDIDATES.senior,
+    skills: ['Java', 'SQL']
+  })
+  const missing = findings.filter((finding) => finding.rule === 'R-03')
+  assert.equal(missing.length, 1)
+  assert.match(missing[0].message, /Spring Boot/)
+  assert.match(missing[0].message, /MySQL/)
+  assert.match(missing[0].message, /SQL/)
+  assert.match(missing[0].message, /verify manually/)
+})
+
+test('suggestDecision: thresholds, error cap, and unscored', () => {
+  assert.equal(suggestDecision(72, false), 'interview')
+  assert.equal(suggestDecision(72, true), 'pending')
+  assert.equal(suggestDecision(64, false), 'pending')
+  assert.equal(suggestDecision(50, false), 'pending')
+  assert.equal(suggestDecision(49, false), 'rejected')
+  assert.equal(suggestDecision(null, false), null)
 })
 
 test('findings carry a short evidence excerpt from the resume text', () => {

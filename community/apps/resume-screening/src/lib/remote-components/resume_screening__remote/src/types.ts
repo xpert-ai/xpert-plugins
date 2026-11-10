@@ -28,6 +28,8 @@ export interface CandidateRow {
   prescreen: PrescreenFinding[]
   totalScore: number | null
   decision: ResumeDecision | null
+  /** System-suggested outcome. A suggestion only; a human can override it. Null when unscored. */
+  suggestedDecision: ResumeDecision | null
   note: string | null
   revision: number
 }

@@ -78,7 +78,11 @@ nodes:
            code (R-01 years, R-02 degree, R-03 missing skill) and the evidence text.
         3. Then call resume_score with exactly five dimensions (experience, skills,
            project_relevance, stability, bonus), each 0-20 with a one-sentence reason.
-           Do not write the total yourself; the service computes it.
+           Score each dimension inside the rubric band that matches the resume evidence
+           and never inflate above it: 16-20 strong (e.g. 8+ relevant years leading a core
+           module for experience; all required skills with project evidence for skills),
+           11-15 solid, 6-10 partial, 0-5 weak. Do not write the total yourself; the
+           service computes it.
         4. Present the ranking and ask the human to confirm interview, pending, or rejected in
            the workbench. Never confirm a decision yourself; call resume_confirm only with an
            explicit human instruction, and pass baseRevision from the last read when available.

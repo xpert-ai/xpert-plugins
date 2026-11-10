@@ -32,14 +32,50 @@ function excerpt(text: string, needle: string, length = MAX_EVIDENCE_LENGTH): st
 }
 
 function normalizeSkill(skill: string): string {
-  return skill.trim().toLowerCase()
+  return skill
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, '')
+}
+
+/**
+ * Deliberate skill equivalences, keyed by normalized required skill.
+ * 'springboot' accepts 'spring' and 'springframework' because they name the
+ * same stack; 'mysql' deliberately does NOT accept 'sql' — SQL is a broader
+ * skill, not evidence of MySQL. A merely related mention is a near-miss, not
+ * a match (see prescreenCandidate).
+ */
+export const SKILL_ALIASES: Record<string, string[]> = {
+  springboot: ['spring', 'springframework']
+}
+
+function skillMatches(required: string, candidateSkills: Set<string>): boolean {
+  const normalized = normalizeSkill(required)
+  if (candidateSkills.has(normalized)) return true
+  return (SKILL_ALIASES[normalized] ?? []).some((alias) => candidateSkills.has(alias))
+}
+
+/**
+ * Suggested outcome from the total score and prescreen findings. A suggestion
+ * only — a human can override it in the Workbench. An error-level finding
+ * (R-01/R-02) caps the suggestion at 'pending': hard-rule misses only
+ * down-weight, they never auto-reject.
+ */
+export function suggestDecision(totalScore: number | null, hasErrorFinding: boolean): ResumeDecision | null {
+  if (totalScore === null) return null
+  if (totalScore >= 70) return hasErrorFinding ? 'pending' : 'interview'
+  if (totalScore >= 50) return 'pending'
+  return 'rejected'
 }
 
 /**
  * Deterministic prescreen rules. No model call happens here.
  * R-01: years of experience below the JD minimum.
  * R-02: degree level below the JD minimum.
- * R-03: each required skill missing from the resume (one warning per skill).
+ * R-03: required skills missing from the resume, merged into ONE warning
+ * listing every missing skill. A candidate skill that merely mentions a
+ * related term (e.g. "SQL" for required "MySQL") is a near-miss: still
+ * reported in the same R-03 finding, flagged for human review.
  */
 export function prescreenCandidate(
   input: { minYears: number; minDegree: keyof typeof DEGREE_RANK; requiredSkills: string[] },
@@ -63,15 +99,35 @@ export function prescreenCandidate(
     })
   }
   const candidateSkills = new Set(candidate.skills.map(normalizeSkill))
+  const missing: string[] = []
+  const nearMisses: Array<{ mentioned: string; required: string }> = []
   for (const skill of input.requiredSkills) {
-    if (!candidateSkills.has(normalizeSkill(skill))) {
-      findings.push({
-        rule: 'R-03',
-        severity: 'warning',
-        message: `Required skill "${skill}" is not found in the resume.`,
-        evidence: excerpt(candidate.resumeText, skill)
-      })
+    if (skillMatches(skill, candidateSkills)) continue
+    missing.push(skill)
+    const normalized = normalizeSkill(skill)
+    const mentioned = candidate.skills.find((candidateSkill) => {
+      const candidateNormalized = normalizeSkill(candidateSkill)
+      return (
+        candidateNormalized !== normalized &&
+        (candidateNormalized.includes(normalized) || normalized.includes(candidateNormalized))
+      )
+    })
+    if (mentioned) nearMisses.push({ mentioned, required: skill })
+  }
+  if (missing.length > 0) {
+    let message = `Required skills not found: ${missing.join(', ')}.`
+    if (nearMisses.length > 0) {
+      const details = nearMisses
+        .map(({ mentioned, required }) => `only related skill "${mentioned}" was mentioned, "${required}" was not written explicitly`)
+        .join('; ')
+      message += ` Near-miss: ${details}; please verify manually.`
     }
+    findings.push({
+      rule: 'R-03',
+      severity: 'warning',
+      message,
+      evidence: excerpt(candidate.resumeText, missing[0])
+    })
   }
   return findings
 }
@@ -335,15 +391,18 @@ export class ResumeScreeningService {
       .filter((candidate) => !search || candidate.name.toLowerCase().includes(search))
       .map((candidate) => {
         const score = scoreByCandidate.get(candidate.id as string)
+        const prescreen = candidate.prescreenFindings ?? []
+        const totalScore = score ? (score.adjustedTotal ?? score.totalScore) : null
         return {
           candidateId: candidate.id as string,
           name: candidate.name,
           yearsOfExperience: candidate.yearsOfExperience,
           degree: candidate.degree,
           skills: candidate.skills,
-          prescreen: candidate.prescreenFindings ?? [],
-          totalScore: score ? (score.adjustedTotal ?? score.totalScore) : null,
+          prescreen,
+          totalScore,
           decision: score?.decision ?? null,
+          suggestedDecision: suggestDecision(totalScore, prescreen.some((finding) => finding.severity === 'error')),
           note: score?.note ?? null,
           revision: score?.revision ?? 0
         }

@@ -12,9 +12,18 @@ import {
 import { z } from 'zod/v3'
 import { RESUME_SCREENING_ICON, RESUME_SCREENING_FEATURE, RESUME_SCREENING_MIDDLEWARE_NAME } from './constants.js'
 import { ResumeScreeningService } from './resume-screening.service.js'
-import type { ResumeScope } from './types.js'
+import { SCORE_RUBRIC } from './types.js'
+import type { ResumeScope, ScoreDimensionKey } from './types.js'
 
 const uuid = z.string().uuid().describe('Business UUID copied from an earlier tool result or the Workbench.')
+
+/** Scoring rubric, rendered from the single source of truth in types.ts. */
+const RUBRIC_TEXT = (Object.keys(SCORE_RUBRIC) as ScoreDimensionKey[])
+  .map(
+    (key) =>
+      `${key}: ${SCORE_RUBRIC[key].map((band) => `${band.min}-${band.max} ${band.anchor}`).join(' | ')}`
+  )
+  .join('\n')
 
 const prescreenSchema = z
   .object({
@@ -28,7 +37,11 @@ const dimensionSchema = z
     dimension: z
       .enum(['experience', 'skills', 'project_relevance', 'stability', 'bonus'])
       .describe('One of the five scoring dimensions. Each dimension appears exactly once.'),
-    score: z.number().int().min(0).max(20).describe('Integer score for this dimension, 0-20.'),
+    score: z
+      .number().int().min(0).max(20)
+      .describe(
+        'Integer score for this dimension, 0-20. Score inside the rubric band that matches the resume evidence (16-20 strong, 11-15 solid, 6-10 partial, 0-5 weak); do not inflate above the evidence.'
+      ),
     reason: z.string().trim().min(1).max(300).describe('One-sentence reason for this dimension score, with evidence from the resume.')
   })
   .strict()
@@ -128,7 +141,9 @@ export class ResumeScreeningMiddleware implements IAgentMiddlewareStrategy<Recor
           {
             name: 'resume_score',
             description:
-              'Save the AI score for one candidate. The model supplies only its judgment: five dimension scores with one-sentence reasons. The service validates ranges, computes the total, and makes retries idempotent. Call resume_prescreen first.',
+              'Save the AI score for one candidate. The model supplies only its judgment: five dimension scores with one-sentence reasons. The service validates ranges, computes the total, and makes retries idempotent. Call resume_prescreen first. ' +
+              'Score each dimension inside the rubric band that matches the resume evidence; do not inflate.\n' +
+              RUBRIC_TEXT,
             schema: scoreSchema,
             verboseParsingErrors: true,
             metadata: {

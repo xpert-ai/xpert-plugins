@@ -43,6 +43,12 @@ const DECISION_LABEL_KEY: Record<ResumeDecision, keyof ResumeCatalog> = {
   rejected: 'decisionRejected'
 }
 
+const SUGGESTED_LABEL_KEY: Record<ResumeDecision, keyof ResumeCatalog> = {
+  interview: 'suggestInterview',
+  pending: 'suggestPending',
+  rejected: 'suggestRejected'
+}
+
 function readWorkbenchData(value: unknown): ResumeWorkbenchData | null {
   if (!value || typeof value !== 'object') return null
   const record = value as Record<string, unknown>
@@ -310,6 +316,10 @@ function CandidateRowView({
         <TableCell>
           {row.decision ? (
             <Badge>{i18n.t(DECISION_LABEL_KEY[row.decision])}</Badge>
+          ) : row.suggestedDecision ? (
+            <span className="text-muted-foreground">
+              {i18n.t('suggestedPrefix', { decision: i18n.t(SUGGESTED_LABEL_KEY[row.suggestedDecision]) })}
+            </span>
           ) : (
             <span className="text-muted-foreground">{i18n.t('decisionUnscored')}</span>
           )}
