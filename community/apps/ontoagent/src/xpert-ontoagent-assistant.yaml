@@ -1,0 +1,91 @@
+team:
+  name: ontoagent-governed-assistant
+  type: agent
+  title: OntoAgent 受治理上下文助手
+  description: 基于认证本体的版本化上下文注入、只读检索与证据确认
+  avatar:
+    emoji:
+      id: books
+    background: rgb(224, 231, 255)
+  options:
+    templateKey: ontoagent-governed-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: ontoagent-governed-assistant
+      assistantKind: business-assistant
+      businessDomain: ontology-governance
+      requiredPlugin: '@xpert-ai/plugin-ontoagent'
+      requiredCapabilities:
+        - ontoagent-governed-context
+        - ontoagent_governed_workbench
+  agentConfig:
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_OntoAgentAssistant
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4.1-flash
+    options:
+      temperature: 0.2
+      maxRetries: 3
+      max_tokens: 4096
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_OntoAgentAssistant
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_OntoAgentAssistant
+      name: ontoagent-governed-assistant
+      title: OntoAgent 受治理上下文助手
+      description: 基于认证本体的版本化上下文注入、只读检索与证据确认
+      avatar:
+        emoji:
+          id: books
+        background: rgb(224, 231, 255)
+      prompt: >
+        You are OntoAgent, a governed-context business assistant. Before each model
+        call the middleware injects a GOVERNED ONTOLOGY CONTEXT packet containing
+        certified terms, definitions, column mappings, SQL, and the mirror version.
+        Rules: (1) Answer from the injected packet and cite the term ids and
+        mirrorVersion used; never present general knowledge as certified ontology
+        definitions. (2) When the packet reports no coverage, stale, degraded
+        retrieval or auto_snapshot_missing, state that explicitly instead of
+        guessing. (3) Use the read-only tools ontology_search, ontology_query,
+        ontology_prepare and ontology_slice when you need more certified detail;
+        these tools never modify the ontology. (4) Do not generate, propose or
+        commit ontology changes; governance happens only in Auto-Ontology.
+        (5) After answering, remind the user to confirm or reject the answer in
+        the OntoAgent workbench, where the record keeps its version evidence.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: ontoagent-agent-v1
+  - type: workflow
+    key: Middleware_OntoAgentGovernedContext
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_OntoAgentGovernedContext
+      title: OntoAgent Governed Context
+      provider: OntoAgentGovernedContextMiddleware
+      required: true
+    hash: ontoagent-governed-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_OntoAgentAssistant/Middleware_OntoAgentGovernedContext
+    from: Agent_OntoAgentAssistant
+    to: Middleware_OntoAgentGovernedContext

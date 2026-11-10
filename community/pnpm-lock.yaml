@@ -249,7 +249,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: 3.18.4
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       esbuild:
         specifier: 0.25.10
         version: 0.25.10
@@ -536,6 +536,61 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  apps/ontoagent:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.6
+        version: 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^11.0.0
+        version: 11.0.0(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31)
+      '@types/node':
+        specifier: ^20.19.9
+        version: 20.19.43
+      '@xpert-ai/contracts':
+        specifier: ^3.10.1
+        version: 3.26.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.10.1
+        version: 3.26.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
+      esbuild:
+        specifier: 0.25.10
+        version: 0.25.10
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsx:
+        specifier: 4.20.5
+        version: 4.20.5
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.31(ts-node@10.9.1)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   apps/procurement-quote-comparison:
     dependencies:
       tslib:
@@ -568,7 +623,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -669,7 +724,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -806,7 +861,7 @@ importers:
         version: 3.15.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)
       '@xpert-ai/plugin-sdk':
         specifier: 3.18.0
-        version: 3.18.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       '@xpert-ai/plugin-shadcn-ui':
         specifier: workspace:*
         version: link:../../../packages/shadcn-ui
@@ -904,7 +959,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -935,7 +990,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -966,7 +1021,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -997,7 +1052,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1028,7 +1083,7 @@ importers:
         version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -3454,7 +3509,7 @@ packages:
       '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       reflect-metadata: 0.2.2
       rxjs: 7.8.2
-      typeorm: 0.3.31(pg@8.23.0)
+      typeorm: 0.3.31(ts-node@10.9.1)
     dev: true
 
   /@nestjs/typeorm@11.0.0(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.24):
@@ -6123,7 +6178,7 @@ packages:
       - '@langchain/core'
     dev: true
 
-  /@xpert-ai/plugin-sdk@3.18.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+  /@xpert-ai/plugin-sdk@3.18.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67):
     resolution: {integrity: sha512-qbnvuN/Rq4N838nS5VzSvWPBT5IvldmPrsjEHDwxbyxHia1fowHoZEl++0pz/fA9VKpcipnVJWHKEZA2xsDjgQ==}
     peerDependencies:
       '@langchain/core': '*'
@@ -6157,7 +6212,7 @@ packages:
       lodash-es: 4.18.1
       passport-jwt: 4.0.1
       rxjs: 7.8.2
-      yaml: 2.9.0
+      yaml: 2.9.1
       zod: 3.25.67
     transitivePeerDependencies:
       - '@a2ui/lit'
@@ -6206,7 +6261,49 @@ packages:
       - supports-color
       - ws
 
-  /@xpert-ai/plugin-sdk@3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+  /@xpert-ai/plugin-sdk@3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67):
+    resolution: {integrity: sha512-hIsmO3lpn+6OLP9SgBro99sWpiJeBrxcW9WsRvYiPzGQ0o5bTR1HJR+8yE+8I9y8S6j/k2jSI2S1MGq1zsADqQ==}
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@langchain/core': 0.3.72
+      '@langchain/openai': 0.6.9(@langchain/core@0.3.72)
+      '@nestjs/common': 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      ajv: 8.20.0
+      express: 4.22.3
+      i18next: 25.6.0(typescript@5.9.2)
+      i18next-fs-backend: 2.6.8
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.18.1
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
+      yaml: 2.9.1
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - supports-color
+      - ws
+    dev: true
+
+  /@xpert-ai/plugin-sdk@3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.6)(@nestjs/core@11.1.6)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67):
     resolution: {integrity: sha512-hIsmO3lpn+6OLP9SgBro99sWpiJeBrxcW9WsRvYiPzGQ0o5bTR1HJR+8yE+8I9y8S6j/k2jSI2S1MGq1zsADqQ==}
     peerDependencies:
       '@langchain/core': '*'
@@ -6240,7 +6337,7 @@ packages:
       lodash-es: 4.18.1
       passport-jwt: 4.0.1
       rxjs: 7.8.2
-      yaml: 2.9.0
+      yaml: 2.9.1
       zod: 3.25.67
     transitivePeerDependencies:
       - '@a2ui/lit'
@@ -6248,7 +6345,7 @@ packages:
       - ws
     dev: true
 
-  /@xpert-ai/plugin-sdk@3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+  /@xpert-ai/plugin-sdk@3.18.4(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67):
     resolution: {integrity: sha512-hIsmO3lpn+6OLP9SgBro99sWpiJeBrxcW9WsRvYiPzGQ0o5bTR1HJR+8yE+8I9y8S6j/k2jSI2S1MGq1zsADqQ==}
     peerDependencies:
       '@langchain/core': '*'
@@ -6282,7 +6379,7 @@ packages:
       lodash-es: 4.18.1
       passport-jwt: 4.0.1
       rxjs: 7.8.2
-      yaml: 2.9.0
+      yaml: 2.9.1
       zod: 3.25.67
     transitivePeerDependencies:
       - '@a2ui/lit'
@@ -6325,6 +6422,48 @@ packages:
       passport-jwt: 4.0.1
       rxjs: 7.8.2
       yaml: 2.9.0
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - supports-color
+      - ws
+    dev: true
+
+  /@xpert-ai/plugin-sdk@3.26.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.1)(zod@3.25.67):
+    resolution: {integrity: sha512-WYUPQ0QeEKg54/jhWPs3NhUdhVOts9DPCZqUd5cQK2nYBhEUnevvjG5Iz9c2Kr1zHQ6BUOLExpGwkW5RqUsgqA==}
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@langchain/core': 0.3.72
+      '@langchain/openai': 0.6.9(@langchain/core@0.3.72)
+      '@nestjs/common': 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': 3.26.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      ajv: 8.20.0
+      express: 4.22.3
+      i18next: 25.6.0(typescript@5.9.2)
+      i18next-fs-backend: 2.6.8
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.18.1
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
+      yaml: 2.9.1
       zod: 3.25.67
     transitivePeerDependencies:
       - '@a2ui/lit'
@@ -12278,6 +12417,11 @@ packages:
 
   /yaml@2.9.0:
     resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
+  /yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
