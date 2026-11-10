@@ -7,6 +7,7 @@ import { ArtifactTypeProvider, ProjectAccessRuntimeCapability, XPERT_RUNTIME_CAP
 import { decodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY } from './dashboard-sharing'
 import { DASHBOARD_CONTENT_TYPE } from './content-type'
+import { dashboardIcon } from './dashboard-icon'
 
 /** Drafts require Project edit access; explicit authenticated shares may expand formal-version readership. */
 @Injectable()
@@ -14,6 +15,7 @@ import { DASHBOARD_CONTENT_TYPE } from './content-type'
 export class DashboardArtifactType implements IArtifactTypeProvider {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly dashboards: DashboardService) {}
   readonly definition: ArtifactTypeDefinition = {
+    icon: dashboardIcon,
     contentTypeId: DASHBOARD_CONTENT_TYPE,
     versioning: { mode: 'draft-only' },
     title: { en_US: 'Live dashboard', zh_Hans: '实时看板' },

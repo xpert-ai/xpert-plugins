@@ -6,6 +6,7 @@ import { ContentResourceProvider, ContentEditorProvider, ArtifactsRuntimeCapabil
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardSearchProjection } from './dashboard-search'
 import { DASHBOARD_CONTENT_TYPE } from './content-type'
+import { dashboardIcon } from './dashboard-icon'
 
 export const DASHBOARD_CONTENT_PROVIDER = 'live-dashboard.content'
 const MODEL = { typeId: DASHBOARD_CONTENT_TYPE, modelId: 'live-dashboard.manifest', schemaVersion: '1', editProtocol: { id: 'artifact-draft.cas', version: '1' } }
@@ -23,7 +24,7 @@ export class DashboardContentProvider implements IContentResourceProvider {
   readonly title = 'Live Dashboard'
   constructor(private readonly service: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   readonly catalog: ContentCatalogProvider = {
-    types: [{ ...MODEL, title: { en_US: 'Live dashboards', zh_Hans: '实时看板' }, implementationKey: 'live-dashboard',
+    types: [{ ...MODEL, icon: dashboardIcon, title: { en_US: 'Live dashboards', zh_Hans: '实时看板' }, implementationKey: 'live-dashboard',
       implementationTitle: { en_US: 'Live Dashboard', zh_Hans: '实时看板' }, defaultEditorKey: EDITOR }],
     discover: async scope => {
       await this.service.authorizeProject(context(scope))

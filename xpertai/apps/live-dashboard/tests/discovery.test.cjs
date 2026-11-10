@@ -5,6 +5,14 @@ const { setup } = require('./service-fixture.cjs')
 const { DashboardViewProvider } = require('../dist/lib/view.provider')
 const { DashboardProjectsService } = require('../dist/lib/projects.service')
 const { DashboardArtifactType } = require('../dist/lib/artifact-type.provider')
+const { DashboardContentProvider } = require('../dist/lib/content.provider')
+const { dashboardIcon } = require('../dist/lib/dashboard-icon')
+
+test('project and shared resource type metadata reuse the dashboard view icon', () => {
+  const f = setup()
+  assert.deepEqual(new DashboardArtifactType(f.runtime).definition.icon, dashboardIcon)
+  assert.deepEqual(new DashboardContentProvider(f.service, f.runtime).catalog.types[0].icon, dashboardIcon)
+})
 
 test('discovery uses the platform audience, filters semantic type and never reads shared source content', async () => {
   const f = setup(), projectId = randomUUID(), conversationId = randomUUID(), calls = []
