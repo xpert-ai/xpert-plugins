@@ -70,13 +70,17 @@
 - 平台仓库 `xpert-ai/xpert` main：`ba8736c897474f7db9a261aa5f64d95860bb9f60`
 - Skills 仓库 `xpert-ai/xpert-skills` main：`4ad12dcc9292d9b05021d4f5b93f24865c99e811`
 
-## 验证计划
+## 验证结果（2026-11-10，提交 5e90e6ce，父代理独立复验）
 
-- [ ] `pnpm --filter @xpert-ai/plugin-resume-screening build`
-- [ ] `pnpm --filter @xpert-ai/plugin-resume-screening test`
-- [ ] `plugin-dev-harness` 生命周期测试（加载 / 初始化 / 销毁）
-- [ ] 本地 Xpert 真平台验证：完整流程 + 保存恢复 + 失败重试截图（待平台环境就绪）
+- [x] `pnpm --filter @xpert-ai/plugin-resume-screening build`：全绿（远程 vite 构建 + tsc lib + copy-assets）
+- [x] `pnpm --filter @xpert-ai/plugin-resume-screening test`：**13/13 通过**（预筛边界 7、保存/恢复 3、重试不重复 3）
+- [x] `plugin-dev-harness` 生命周期测试：通过（register → onStart → onPluginBootstrap → onPluginDestroy → onStop）；harness 用 mock，不能据此宣称真实数据库或业务流程已通过
+- [ ] `node scripts/check-plugin-metadata.mjs --package`：本机跑不起来（`Cannot find module 'typescript'`，`xpertai/node_modules` 未安装）；已手动核验替代：`dist/index.js` 的 meta 与 package.json 一致
+- [ ] 本地 Xpert 真平台验证：完整流程 + 保存恢复 + 失败重试截图（待平台环境就绪；本机无 Docker）
 - [ ] PR 描述附基线 SHA、测试结果、截图（相对路径放本目录 README）
+
+备注：`verify:dist` 首次曾报过期，重跑一次完整 build 后通过，根因未完全定位；
+助手模板的 `copilotModel: qwen3.6-plus` 是仓内多应用共用的示例模型（factory、sales、valve 等均用同一值），非新编模型名。
 
 ## 已知限制 / 待核验
 
