@@ -797,5 +797,21 @@
   "exploreDraftHint": "Select an example, review the draft, then send",
   "exploreScheduleReserved": "This entry is reserved for scheduled delivery and alerts. Scheduling is not yet connected in this plugin. Start by creating a dashboard from Analysis & insights.",
   "exploreExtensionsReserved": "Models, tools and skills are managed by Xpert. Add them in the current assistant’s settings. Examples never automatically install tools or grant permissions.",
-  "v2Catalog": "Catalog"
+  "v2Catalog": "Catalog",
+  "availableDashboards": "Available dashboards",
+  "dashboardOrigins": "Dashboard source",
+  "discoveryAll": "All",
+  "discoveryProject": "This project",
+  "discoveryShared": "Shared with this group",
+  "discoverySearch": "Search available dashboards…",
+  "discoveryEditable": "Editable",
+  "discoveryReadOnly": "Read only",
+  "discoveryExplore": "Agent analysis",
+  "discoveryQuery": "Agent queries",
+  "discoveryNoMatch": "No matches. Try a shorter title or another source.",
+  "discoveryNoShares": "No dashboards have been shared with this group yet. Accepted shares appear here.",
+  "discoveryEmpty": "No dashboards available here yet. Create one in this project or accept a group share.",
+  "discoveryClearSearch": "Clear search",
+  "discoverySharedHint": "Shared dashboards open their authorized published version. Your current project stays the same.",
+  "discoveryOpenFailed": "Could not open this resource. Its authorization may have changed."
 }

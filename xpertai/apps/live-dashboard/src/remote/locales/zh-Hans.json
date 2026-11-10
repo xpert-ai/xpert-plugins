@@ -797,5 +797,21 @@
   "exploreDraftHint": "点击示例填入对话，确认后发送",
   "exploreScheduleReserved": "定时推送与异常提醒入口已预留，当前插件尚未接入调度功能。你可以先从分析与洞察创建看板。",
   "exploreExtensionsReserved": "模型、工具和技能由 Xpert 平台管理。请在当前助手的配置中添加；探索示例不会自动安装外部工具或授予权限。",
-  "v2Catalog": "资源目录"
+  "v2Catalog": "资源目录",
+  "availableDashboards": "可用看板",
+  "dashboardOrigins": "看板来源",
+  "discoveryAll": "全部",
+  "discoveryProject": "本项目",
+  "discoveryShared": "共享给本群",
+  "discoverySearch": "搜索可用看板…",
+  "discoveryEditable": "可编辑",
+  "discoveryReadOnly": "只读",
+  "discoveryExplore": "可分析",
+  "discoveryQuery": "可查询",
+  "discoveryNoMatch": "没有匹配的看板，请尝试缩短名称或切换来源。",
+  "discoveryNoShares": "本群还没有可用的共享看板。接受授权后，看板将显示在这里。",
+  "discoveryEmpty": "暂无可用看板。可以在本项目创建，或接受群聊共享授权。",
+  "discoveryClearSearch": "清除搜索",
+  "discoverySharedHint": "共享看板以授权的固定正式版本打开，当前群聊项目保持不变。",
+  "discoveryOpenFailed": "无法打开该资源，授权可能已发生变化。"
 }

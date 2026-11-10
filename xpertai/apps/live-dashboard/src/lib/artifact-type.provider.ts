@@ -6,6 +6,7 @@ import { ForbiddenException, Inject, Injectable } from '@nestjs/common'
 import { ArtifactTypeProvider, ProjectAccessRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry, type ArtifactTypeDefinition, type ArtifactTypeSource, type ArtifactTypeActor, type ContentOperation, type IArtifactTypeProvider } from '@xpert-ai/plugin-sdk'
 import { decodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY } from './dashboard-sharing'
+import { DASHBOARD_CONTENT_TYPE } from './content-type'
 
 /** Drafts require Project edit access; explicit authenticated shares may expand formal-version readership. */
 @Injectable()
@@ -13,6 +14,7 @@ import { DASHBOARD_SHARE_KEY } from './dashboard-sharing'
 export class DashboardArtifactType implements IArtifactTypeProvider {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly dashboards: DashboardService) {}
   readonly definition: ArtifactTypeDefinition = {
+    contentTypeId: DASHBOARD_CONTENT_TYPE,
     versioning: { mode: 'draft-only' },
     title: { en_US: 'Live dashboard', zh_Hans: '实时看板' },
     kinds: ['file'], content: { mimeTypes: ['application/json'], maxBytes: MAX_DASHBOARD_PACKAGE_BYTES },

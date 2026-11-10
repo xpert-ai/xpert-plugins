@@ -5,9 +5,10 @@ import { ContentResourceProvider, ContentEditorProvider, ArtifactsRuntimeCapabil
   type ContentCatalogProvider, type ContentDocumentScope, type ContentSourceInput, type ContentResourceRequest, type IContentResourceProvider } from '@xpert-ai/plugin-sdk'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardSearchProjection } from './dashboard-search'
+import { DASHBOARD_CONTENT_TYPE } from './content-type'
 
 export const DASHBOARD_CONTENT_PROVIDER = 'live-dashboard.content'
-const MODEL = { typeId: 'xpert.live-dashboard', modelId: 'live-dashboard.manifest', schemaVersion: '1', editProtocol: { id: 'artifact-draft.cas', version: '1' } }
+const MODEL = { typeId: DASHBOARD_CONTENT_TYPE, modelId: 'live-dashboard.manifest', schemaVersion: '1', editProtocol: { id: 'artifact-draft.cas', version: '1' } }
 const EDITOR = 'live-dashboard.editor'
 const context = (scope: ContentDocumentScope): XpertResolvedViewHostContext => ({ ...scope.actor, hostType: 'project', hostId: scope.projectId, slots: [] })
 @Injectable()

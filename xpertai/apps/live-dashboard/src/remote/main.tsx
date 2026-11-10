@@ -364,6 +364,11 @@ function App() {
       <h1 className={readOnly || singleDashboard ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly || singleDashboard ? saved?.title ?? t.title : t.title}</h1>
       {!readOnly && !singleDashboard && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
         open={pickerOpen} onOpenChange={togglePicker} t={t} onDelete={requestDelete}
+        onShared={referenceId => { void run(async () => {
+          const result = await requestHost('invokeClientCommand', { commandKey: 'workbench.resource.open', payload: { kind: 'group-reference', id: referenceId } })
+          if (!z.object({ success: z.literal(true) }).safeParse(result).success) throw new Error(t.discoveryOpenFailed)
+          setPickerOpen(false); pickerNavigation.current = false
+        }) }}
         onChange={(id, projectId, requestedMode) => { setPickerOpen(false); pickerNavigation.current = false; void run(() => projectId && projectId !== currentProject?.id ? switchProject(projectId, id, false, requestedMode) : open(id, undefined, true, requestedMode)) }}
         onNew={projectId => { setPickerOpen(false); pickerNavigation.current = false; void run(async () => {
           if (projectId && projectId !== currentProject?.id) { await switchProject(projectId, undefined, true); return }

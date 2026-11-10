@@ -18,6 +18,7 @@ import { DASHBOARD_PROJECT_TYPE } from './project'
 import { dashboardIcon } from './dashboard-icon'
 import { publicDashboardManifest } from './dashboard-sources'
 import { DashboardArchiveService, importInputSchema, importBrowseSchema } from './archive.service'
+import { dashboardDiscoveryQuerySchema } from './dashboard-discovery.schema'
 
 export const DOCUMENT_VIEW_KEY = 'dashboard'
 export const VIEW_KEY = 'live-dashboard'
@@ -38,7 +39,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true, defaultPageSize: 50 }, cache: { enabled: false } },
       fileAccess: { purposes: ['download'] },
-      clientCommands: [{ key: 'artifact.use-grants.manage', label: text('Manage group authorization', '管理群聊授权') }, { key: 'workbench.content.close' }, { key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
+      clientCommands: [{ key: 'workbench.resource.open', label: text('Open authorized resource', '打开授权资源') }, { key: 'artifact.use-grants.manage', label: text('Manage group authorization', '管理群聊授权') }, { key: 'workbench.content.close' }, { key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
         { key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, label: text('Create with Assistant', '交给助理制作') },
         { key: ARTIFACT_PRESENTATION_OPEN_COMMAND, label: text('Open shared page', '打开独立页面') },
         { key: WORKBENCH_NAVIGATION_OPEN_COMMAND, label: text('Open dashboard', '打开看板') }],
@@ -50,6 +51,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
         ...['import-commit', 'import-discard', 'import-browse', 'save-wait', 'save-status'].map(key => ({ key, label: text('Import dashboard', '导入看板'), actionType: 'invoke' as const })),
         ...[
           { key: 'dashboards', label: text('Select dashboard', '选择看板') },
+          { key: 'available-dashboards', label: text('Find available dashboards', '查找可用看板') },
           { key: 'projects', label: text('Select project', '选择项目') },
           { key: 'share-status', label: text('Sharing status', '分享状态') },
           { key: 'share', label: text('Team sharing', '团队分享') },
@@ -106,6 +108,13 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       const page = await this.service.searchPage(target, parsed.data)
       const access = await this.service.access(target)
       return { success: true, data: { ...page, canEdit: access.canEdit, mode: access.canReadDraft ? 'draft' : 'published' }, refresh: false }
+    }
+    if (action === 'available-dashboards') {
+      const { projectId: selectedProject, ...input } = dashboardDiscoveryQuerySchema.parse(request.input)
+      const currentProject = context.hostType === 'project' ? context.hostId : context.runtimeScope?.projectId
+      const target = selectedProject && selectedProject !== currentProject
+        ? await this.projects.pickerContext(context, selectedProject) : context
+      return { success: true, data: await this.service.availableResources(target, input), refresh: false }
     }
     if (action === 'projects') return { success: true, data: await this.projects.list(context, projectSearchSchema.parse(request.input)), refresh: false }
     if (action === 'share') return { success: true, data: await this.sharing.share(context, shareInput.parse(request.input)), refresh: false }

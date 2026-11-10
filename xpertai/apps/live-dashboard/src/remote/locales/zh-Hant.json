@@ -797,5 +797,21 @@
   "shellSearchComponent": "搜索組件或功能",
   "shellSearchTheme": "搜索視覺主題",
   "shellUnavailable": "暫不可使用",
-  "v2Catalog": "資源目錄"
+  "v2Catalog": "資源目錄",
+  "availableDashboards": "可用看板",
+  "dashboardOrigins": "看板來源",
+  "discoveryAll": "全部",
+  "discoveryProject": "本專案",
+  "discoveryShared": "共享給本群",
+  "discoverySearch": "搜尋可用看板…",
+  "discoveryEditable": "可編輯",
+  "discoveryReadOnly": "唯讀",
+  "discoveryExplore": "可分析",
+  "discoveryQuery": "可查詢",
+  "discoveryNoMatch": "沒有符合的看板，請嘗試縮短名稱或切換來源。",
+  "discoveryNoShares": "本群尚無可用的共享看板。接受授權後，看板將顯示於此。",
+  "discoveryEmpty": "暫無可用看板。可以在本專案建立，或接受群聊共享授權。",
+  "discoveryClearSearch": "清除搜尋",
+  "discoverySharedHint": "共享看板以授權的固定正式版本開啟，目前群聊專案保持不變。",
+  "discoveryOpenFailed": "無法開啟該資源，授權可能已變更。"
 }
