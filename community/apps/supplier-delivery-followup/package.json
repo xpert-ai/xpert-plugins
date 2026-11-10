@@ -1,0 +1,26 @@
+{
+  "name": "@community/apps-supplier-delivery-followup",
+  "version": "0.0.0",
+  "description": "Supplier delivery follow-up Agentic App: AI extracts delivery-date changes from supplier replies with source evidence; buyers review and confirm each change.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "echo \"(todo) add tests\""
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
