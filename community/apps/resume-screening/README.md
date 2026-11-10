@@ -70,6 +70,16 @@
 - 平台仓库 `xpert-ai/xpert` main：`ba8736c897474f7db9a261aa5f64d95860bb9f60`
 - Skills 仓库 `xpert-ai/xpert-skills` main：`4ad12dcc9292d9b05021d4f5b93f24865c99e811`
 
+## 界面截图（本地预览渲染，2026-11-10）
+
+用仓库自带的 `tools/remote-view-preview` 渲染真实远程组件（`dist` 产物 + shadcn 共享组件），
+数据为虚构候选人（mock host），**不是 Xpert 真平台截图**；真平台截图待平台环境就绪后补。
+
+![Workbench 候选人列表](docs/screenshots/workbench-table.png)
+![展开预筛结果（R-01 / R-03）](docs/screenshots/workbench-prescreen.png)
+![人工确认弹窗](docs/screenshots/workbench-confirm.png)
+![新建筛查单弹窗](docs/screenshots/workbench-create.png)
+
 ## 验证结果（2026-11-10，提交 5e90e6ce，父代理独立复验）
 
 - [x] `pnpm --filter @xpert-ai/plugin-resume-screening build`：全绿（远程 vite 构建 + tsc lib + copy-assets）
