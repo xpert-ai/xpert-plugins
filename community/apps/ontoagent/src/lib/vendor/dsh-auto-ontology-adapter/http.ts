@@ -28,9 +28,11 @@ export function createHttpAutoOntologyPort(options: HttpOptions): AutoOntologyPo
       })
       const yaml = await exported.text()
       const listed = await call('/api/terms')
-      const body = await listed.json() as { data?: AutoTermCertification[] }
-      if (!Array.isArray(body.data)) throw new Error('auto_terms_shape')
-      return { yaml, terms: body.data, source: options.source, adapterVersion: 'auto-native-v1' }
+      const body = await listed.json() as { data?: AutoTermCertification[]; terms?: AutoTermCertification[] }
+      // Auto 不同版本的 Terms 列表形状：旧版 `data`、新版 `terms`。
+      const terms = body.data ?? body.terms
+      if (!Array.isArray(terms)) throw new Error('auto_terms_shape')
+      return { yaml, terms, source: options.source, adapterVersion: 'auto-native-v1' }
     },
   }
 }
