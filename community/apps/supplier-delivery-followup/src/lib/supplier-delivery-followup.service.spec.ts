@@ -578,6 +578,20 @@ describe('SupplierDeliveryFollowupService (real TypeORM)', () => {
     expect(await db.getRepository(DeliveryChangeLog).find()).toMatchObject([{ oldQuantity: 100, newQuantity: 100 }])
   })
 
+  it('supplier-delivery-followup 验收 6: a reply whose proposals were all rejected can be closed without touching orders', async () => {
+    const replyId = await start()
+    const saved = await service.saveProposal(input(replyId), scope)
+    await service.finalizeParse(replyId, 'one proposal', scope)
+    await service.decideProposal(saved.proposalId, 'rejected', undefined, undefined, scope)
+    const before = await db.getRepository(OrderLine).find({ order: { id: 'ASC' } })
+    expect(await service.confirmReply(replyId, scope.userId, scope)).toMatchObject({
+      status: 'confirmed',
+      appliedCount: 0
+    })
+    expect(await db.getRepository(OrderLine).find({ order: { id: 'ASC' } })).toEqual(before)
+    expect(await db.getRepository(DeliveryChangeLog).count()).toBe(0)
+  })
+
   it('supplier-delivery-followup 验收 10: 上报失败保存原因并允许重试，confirmed拒绝所有解析和审核写入', async () => {
     const emptyReply = await start(DEMO_REPLIES.find((reply) => reply.kind === 'no_date')!.rawText)
     await expect(service.finalizeParse(emptyReply, '无日期', scope)).rejects.toMatchObject({ code: 'no_proposals' })

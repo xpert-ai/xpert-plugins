@@ -202,11 +202,10 @@ export function ReplyReview({
   const acceptable = reply.proposals.filter((proposal) => proposal.decision === 'pending' && !proposal.stale).length
   // Proposals still in play whose order line moved after the assistant read it; only a new parse can refresh them.
   const staleCount = reply.proposals.filter((proposal) => proposal.stale && proposal.decision !== 'rejected').length
-  const confirmHint = pending
-    ? t('review.confirmHintPending', { count: pending })
-    : !applying.length
-      ? t('review.confirmHintNone')
-      : null
+  // Only undecided proposals block confirmation. With everything rejected the reply is closed without touching orders,
+  // which is also the only way to finish a started confirmation whose remaining proposals had to be rejected.
+  const confirmHint = pending ? t('review.confirmHintPending', { count: pending }) : null
+  const nothingToApply = !pending && !applying.length && reply.proposals.length > 0
   const failureText = reply.failureCode ? t(failureKeys[reply.failureCode] ?? 'failure.other') : null
 
   const retryButton = (variant: 'default' | 'outline') => (
@@ -253,7 +252,9 @@ export function ReplyReview({
             ? t('review.resumeConfirm')
             : applying.length
               ? t('review.confirm', { count: applying.length })
-              : t('review.confirmIdle')}
+              : nothingToApply
+                ? t('review.confirmNone')
+                : t('review.confirmIdle')}
       </Button>
     )
   }
@@ -274,6 +275,9 @@ export function ReplyReview({
         <div className="flex flex-col items-end gap-1">
           {primary}
           {reviewing && confirmHint ? <p className="text-xs text-muted-foreground">{confirmHint}</p> : null}
+          {reviewing && !confirming && nothingToApply ? (
+            <p className="text-xs text-muted-foreground">{t('review.confirmNoneHint')}</p>
+          ) : null}
         </div>
       </header>
 
@@ -360,8 +364,13 @@ export function ReplyReview({
             title={t('banner.confirmedTitle')}
             body={
               reply.confirmedByName
-                ? t('banner.confirmedBody', { user: reply.confirmedByName, time: formatDateTime(reply.confirmedAt) })
-                : t('banner.confirmedBodyAnonymous', { time: formatDateTime(reply.confirmedAt) })
+                ? t(nothingToApply ? 'banner.confirmedNoneBody' : 'banner.confirmedBody', {
+                    user: reply.confirmedByName,
+                    time: formatDateTime(reply.confirmedAt)
+                  })
+                : t(nothingToApply ? 'banner.confirmedNoneBodyAnonymous' : 'banner.confirmedBodyAnonymous', {
+                    time: formatDateTime(reply.confirmedAt)
+                  })
             }
           />
         ) : null}

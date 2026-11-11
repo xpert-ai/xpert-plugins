@@ -402,6 +402,9 @@ export function Workbench() {
     setBusy(null)
     if (!result) return
     if (!result.success) setFlash({ tone: 'danger', text: errorText(code ?? result.code) })
+    // appliedCount is also 0 when a started confirmation is resumed after its writes, so go by the decisions.
+    else if (target.proposals.every((proposal) => proposal.decision === 'rejected'))
+      setFlash({ tone: 'success', text: t('action.confirmDoneNone') })
     else setFlash({ tone: 'success', text: t('action.confirmDone', { count: result.data.appliedCount }) })
     refreshReply(target.id)
     refreshLists()

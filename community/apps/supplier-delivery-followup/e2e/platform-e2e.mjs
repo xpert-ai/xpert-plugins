@@ -283,6 +283,35 @@ async function flow() {
     noDate?.failureMessage ?? noDate?.status
   )
 
+  // A reply whose proposals are all rejected must still be closable, and closing it must not change the order.
+  // Its text differs from the stop scenario below, which would otherwise reopen this reply instead of parsing a new one.
+  const rejectedId = await createReply(page, view.frame, `${tagged(SAMPLES.singleDelay)}（全部驳回）`, { parse: true })
+  const rejectable = await waitParsed(view.data, rejectedId)
+  if (rejectable?.status === 'pending_review' && rejectable.proposals.length) {
+    const orderId = rejectable.proposals[0].orderLineId
+    const before = (await view.data('orderLine', orderId)).meta
+    for (const p of rejectable.proposals) await view.action('decide_proposal', p.id, { decision: 'rejected' })
+    await page.reload()
+    view = await openWorkbench(page, { maximized: true })
+    await view.frame.locator('aside').first().getByText('DEMO-001 第1行').first().click()
+    await page.waitForTimeout(2000)
+    await view.frame.getByRole('button', { name: '全部驳回并结束' }).click()
+    await flash(view.frame, /订单没有变化/)
+    const closed = (await view.data('reply', rejectedId)).meta
+    const after = (await view.data('orderLine', orderId)).meta
+    check(
+      '提议全部驳回后可以结束这封回复，订单不变',
+      closed?.status === 'confirmed' &&
+        after?.promisedDate === before?.promisedDate &&
+        after?.quantity === before?.quantity &&
+        after?.changes?.length === before?.changes?.length,
+      `${closed?.status}，${after?.poNumber} 仍是 ${after?.promisedDate}`
+    )
+    await shot(page, 'flow-05-all-rejected-closed.png')
+  } else {
+    check('提议全部驳回后可以结束这封回复，订单不变', false, `解析结果是 ${rejectable?.status}`)
+  }
+
   if (option('--with-stop')) {
     // The chat's stop button is only on screen in the split layout.
     view = await openWorkbench(page)
