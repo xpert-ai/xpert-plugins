@@ -63,7 +63,8 @@ export class RoadEventCommandCenterMiddleware implements IAgentMiddlewareStrateg
           const saved = {
             ...current.draft,
             recommendation: { ...recommendation, generatedAt: attemptedAt, model: modelName },
-            recommendationAttempt: { status: 'succeeded' as const, attemptedAt }
+            recommendationAttempt: { status: 'succeeded' as const, attemptedAt },
+            confirmation: null
           }
           const receipt = await this.drafts.save(scope, { expectedRevision: current.revision, draft: saved })
           return JSON.stringify({

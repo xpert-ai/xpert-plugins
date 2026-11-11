@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@xpert-ai/plugin-shadcn-vue'
 import Feature from 'ol/Feature.js'
 import Map from 'ol/Map.js'
@@ -18,7 +18,7 @@ import 'ol/ol.css'
 import en from '../../../remote/locales/en-US.json'
 import zh from '../../../remote/locales/zh-Hans.json'
 import { connectToHost, type HostInit } from './bridge'
-import { draftResultSchema, draftSchema, saveDraftReceiptSchema, type RoadEventDraft } from '../domain/draft'
+import { confirmRecommendationReceiptSchema, draftResultSchema, draftSchema, saveDraftReceiptSchema, type RoadEventDraft } from '../domain/draft'
 
 type Messages = typeof en
 const context = ref<HostInit | null>(null)
@@ -33,6 +33,7 @@ const latitude = ref('')
 const longitude = ref('')
 const recommendation = ref<RoadEventDraft['recommendation']>(null)
 const recommendationAttempt = ref<RoadEventDraft['recommendationAttempt']>(null)
+const confirmation = ref<RoadEventDraft['confirmation']>(null)
 const mapTarget = ref<HTMLDivElement | null>(null)
 const mapUnavailable = ref(false)
 let disposeBridge: (() => void) | undefined
@@ -63,6 +64,7 @@ function setForm(draft: RoadEventDraft | null) {
   longitude.value = draft?.coordinates ? String(draft.coordinates.longitude) : ''
   recommendation.value = draft?.recommendation ?? null
   recommendationAttempt.value = draft?.recommendationAttempt ?? null
+  confirmation.value = draft?.confirmation ?? null
   if (draft?.occurredAt) {
     const date = new Date(draft.occurredAt)
     form.occurredAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
@@ -72,6 +74,13 @@ function setForm(draft: RoadEventDraft | null) {
   }
   syncMapSelection(true)
 }
+
+watch(() => [form.title, form.eventType, form.severity, form.locationDescription, form.description, form.occurredAt, latitude.value, longitude.value], () => {
+  if (loading.value || !confirmation.value) return
+  confirmation.value = null
+  noticeKind.value = 'info'
+  notice.value = messages.value.confirmationCleared
+})
 
 function syncMapSelection(center = false) {
   if (!map || !mapSelection || !mapSource) return
@@ -130,6 +139,7 @@ function showError(error: unknown) {
   const code = error instanceof Error ? error.message : ''
   noticeKind.value = 'error'
   notice.value = code === 'conflict' ? messages.value.conflict
+    : code === 'recommendation_required' ? messages.value.recommendationRequired
     : code === 'invalid_input' || error instanceof Error && error.name === 'ZodError' ? messages.value.validationError
       : messages.value.saveError
 }
@@ -167,7 +177,9 @@ async function saveDraft() {
       longitude: longitude.value.trim() ? Number(longitude.value) : Number.NaN,
       latitude: latitude.value.trim() ? Number(latitude.value) : Number.NaN
     },
-    recommendation: recommendation.value
+    recommendation: recommendation.value,
+    recommendationAttempt: recommendationAttempt.value,
+    confirmation: null
   })
   if (!parsed.success) {
     noticeKind.value = 'error'
@@ -192,8 +204,26 @@ async function saveDraft() {
     }, saveDraftReceiptSchema)
     revision.value = receipt.revision
     updatedAt.value = receipt.updatedAt
+    confirmation.value = null
     noticeKind.value = 'success'
     notice.value = messages.value.saved
+  } catch (error) {
+    showError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function confirmRecommendation() {
+  if (!bridge || !recommendation.value || saving.value || loading.value || confirmation.value) return
+  saving.value = true
+  try {
+    const receipt = await bridge.action('confirm_recommendation', { expectedRevision: revision.value }, confirmRecommendationReceiptSchema)
+    revision.value = receipt.revision
+    updatedAt.value = receipt.updatedAt
+    confirmation.value = receipt.confirmation
+    noticeKind.value = 'success'
+    notice.value = messages.value.confirmed
   } catch (error) {
     showError(error)
   } finally {
@@ -334,6 +364,14 @@ onBeforeUnmount(() => {
           <aside v-if="recommendationAttempt?.status === 'failed'" class="field-wide recommendation-failure" role="alert">
             <strong>{{ messages.recommendationFailed }}</strong>
             <span>{{ messages.recommendationRetry }}</span>
+          </aside>
+
+          <aside v-if="recommendation" class="field-wide recommendation-confirmation" :class="{ confirmed: confirmation }" role="status">
+            <strong v-if="confirmation">{{ messages.confirmed }}</strong>
+            <Button v-else type="button" variant="outline" :disabled="loading || saving || !connected" @click="confirmRecommendation">
+              {{ messages.confirm }}
+            </Button>
+            <span v-if="confirmation">{{ messages.confirmedBy }} {{ confirmation.confirmedBy }} · {{ new Date(confirmation.confirmedAt).toLocaleString(context?.locale) }}</span>
           </aside>
 
           <div class="form-footer field-wide">

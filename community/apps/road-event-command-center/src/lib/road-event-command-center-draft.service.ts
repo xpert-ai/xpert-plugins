@@ -53,12 +53,23 @@ export class RoadEventCommandCenterDraftService {
     const id = recordId(scope)
     const current = await this.records.findOneBy({ ...scope, id })
     const updatedAt = new Date().toISOString()
+    const previousDraft = current ? draftSchema.parse(JSON.parse(current.payloadJson)) : null
+    const eventFields = ['title', 'eventType', 'severity', 'locationDescription', 'description', 'occurredAt', 'coordinates'] as const
+    const eventIsUnchanged = previousDraft && eventFields.every((field) =>
+      JSON.stringify(previousDraft[field] ?? null) === JSON.stringify(parsed.draft[field] ?? null)
+    )
+    const recommendationIsUnchanged = previousDraft && JSON.stringify(previousDraft.recommendation ?? null) === JSON.stringify(parsed.draft.recommendation ?? null)
+    const draftToSave = previousDraft ? {
+      ...parsed.draft,
+      ...(eventIsUnchanged ? {} : { recommendation: null, recommendationAttempt: null }),
+      confirmation: eventIsUnchanged && recommendationIsUnchanged ? previousDraft.confirmation ?? null : null
+    } : parsed.draft
     if (!current) {
       if (parsed.expectedRevision !== 0) throw new Error('conflict')
       try {
         await this.records.insert({
           ...scope, id, revision: 1,
-          payloadJson: JSON.stringify(parsed.draft), updatedAt
+          payloadJson: JSON.stringify(draftToSave), updatedAt
         })
       } catch (error) {
         if (isUniqueViolation(error)) throw new Error('conflict')
@@ -69,9 +80,32 @@ export class RoadEventCommandCenterDraftService {
     if (current.revision !== parsed.expectedRevision) throw new Error('conflict')
     const result = await this.records.update(
       { ...scope, id, revision: parsed.expectedRevision },
-      { revision: parsed.expectedRevision + 1, payloadJson: JSON.stringify(parsed.draft), updatedAt }
+      { revision: parsed.expectedRevision + 1, payloadJson: JSON.stringify(draftToSave), updatedAt }
     )
     if (result.affected !== 1) throw new Error('conflict')
     return { revision: parsed.expectedRevision + 1, updatedAt }
+  }
+  async confirmRecommendation(scope: DraftScope, expectedRevision: number) {
+    const id = recordId(scope)
+    const current = await this.records.findOneBy({ ...scope, id })
+    if (!current) throw new Error('draft_not_found')
+    if (current.revision !== expectedRevision) throw new Error('conflict')
+
+    const draft = draftSchema.parse(JSON.parse(current.payloadJson))
+    if (!draft.recommendation || draft.recommendationAttempt?.status !== 'succeeded') {
+      throw new Error('recommendation_required')
+    }
+    if (draft.confirmation?.status === 'confirmed') {
+      return { revision: current.revision, updatedAt: current.updatedAt, confirmation: draft.confirmation }
+    }
+
+    const updatedAt = new Date().toISOString()
+    const confirmation = { status: 'confirmed' as const, confirmedAt: updatedAt, confirmedBy: scope.userId }
+    const result = await this.records.update(
+      { ...scope, id, revision: expectedRevision },
+      { revision: expectedRevision + 1, payloadJson: JSON.stringify({ ...draft, confirmation }), updatedAt }
+    )
+    if (result.affected !== 1) throw new Error('conflict')
+    return { revision: expectedRevision + 1, updatedAt, confirmation }
   }
 }

@@ -27,6 +27,11 @@ export const draftSchema = z.object({
     status: z.enum(['succeeded', 'failed']),
     attemptedAt: z.string().datetime(),
     errorCode: z.enum(['model_unavailable', 'model_error', 'invalid_output']).optional()
+  }).strict().nullable().optional(),
+  confirmation: z.object({
+    status: z.literal('confirmed'),
+    confirmedAt: z.string().datetime(),
+    confirmedBy: z.string().min(1).max(128)
   }).strict().nullable().optional()
 }).strict()
 
@@ -57,4 +62,18 @@ export const draftResultSchema = z.object({
 export const saveDraftReceiptSchema = z.object({
   revision: z.number().int().min(1),
   updatedAt: z.string().datetime()
+}).strict()
+
+export const confirmRecommendationSchema = z.object({
+  expectedRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
+}).strict()
+
+export const confirmRecommendationReceiptSchema = z.object({
+  revision: z.number().int().min(1),
+  updatedAt: z.string().datetime(),
+  confirmation: z.object({
+    status: z.literal('confirmed'),
+    confirmedAt: z.string().datetime(),
+    confirmedBy: z.string().min(1).max(128)
+  }).strict()
 }).strict()

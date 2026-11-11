@@ -49,6 +49,44 @@ test('TypeORM persists and scopes road-event drafts in a relational database', a
     const updated = await nextService.save(scope, { expectedRevision: 1, draft: { ...draft, severity: 'critical' } })
     assert.equal(updated.revision, 2)
     await assert.rejects(nextService.save(scope, { expectedRevision: 1, draft }), /conflict/)
+
+    const recommendation = {
+      summary: 'Protect the blocked lane and verify that all road users are safe.',
+      severity: 'high',
+      actions: [{ title: 'Secure the scene', details: 'Set up traffic control and confirm whether anyone is injured.', priority: 'immediate' }],
+      cautions: ['Confirm the current conditions with an on-scene report.'],
+      generatedAt: '2026-11-11T10:00:00.000Z',
+      model: 'test-model'
+    }
+    const withRecommendation = {
+      ...draft,
+      severity: 'critical',
+      recommendation,
+      recommendationAttempt: { status: 'succeeded', attemptedAt: '2026-11-11T10:00:00.000Z' }
+    }
+    const recommendationSaved = await nextService.save(scope, { expectedRevision: 2, draft: withRecommendation })
+    assert.equal(recommendationSaved.revision, 3)
+
+    const confirmed = await nextService.confirmRecommendation(scope, 3)
+    assert.equal(confirmed.revision, 4)
+    assert.equal(confirmed.confirmation.status, 'confirmed')
+    assert.equal(confirmed.confirmation.confirmedBy, scope.userId)
+    assert.ok(confirmed.confirmation.confirmedAt)
+    assert.deepEqual((await new RoadEventCommandCenterDraftService(repository).get(scope)).draft.confirmation, confirmed.confirmation)
+
+    const duplicateConfirmation = await nextService.confirmRecommendation(scope, 4)
+    assert.equal(duplicateConfirmation.revision, 4)
+    assert.deepEqual(duplicateConfirmation.confirmation, confirmed.confirmation)
+
+    const edited = await nextService.save(scope, {
+      expectedRevision: 4,
+      draft: { ...withRecommendation, description: 'The right lane is now reopened after debris removal.' }
+    })
+    assert.equal(edited.revision, 5)
+    const afterEdit = await nextService.get(scope)
+    assert.equal(afterEdit.draft.recommendation, null)
+    assert.equal(afterEdit.draft.recommendationAttempt, null)
+    assert.equal(afterEdit.draft.confirmation, null)
   } finally {
     await dataSource.destroy()
   }

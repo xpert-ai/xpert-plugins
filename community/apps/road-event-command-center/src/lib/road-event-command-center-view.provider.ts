@@ -16,7 +16,7 @@ import type { IXpertViewExtensionProvider } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { FEATURE, PLUGIN_NAME, PROVIDER_KEY, REMOTE_ENTRY, VIEW_KEY } from './constants.js'
 import { RoadEventCommandCenterDraftService } from './road-event-command-center-draft.service.js'
-import { saveDraftReceiptSchema, saveDraftSchema } from './domain/draft.js'
+import { confirmRecommendationReceiptSchema, confirmRecommendationSchema, saveDraftReceiptSchema, saveDraftSchema } from './domain/draft.js'
 import type { DraftScope } from './road-event-command-center-draft.service.js'
 
 function escapeInline(value: string, tag: 'script' | 'style') {
@@ -63,6 +63,10 @@ export class RoadEventCommandCenterViewProvider implements IXpertViewExtensionPr
         key: 'save_draft',
         label: { en_US: 'Save draft', zh_Hans: '保存草稿' },
         actionType: 'invoke'
+      }, {
+        key: 'confirm_recommendation',
+        label: { en_US: 'Confirm recommendation', zh_Hans: '确认处置建议' },
+        actionType: 'invoke'
       }]
     }]
   }
@@ -91,12 +95,20 @@ export class RoadEventCommandCenterViewProvider implements IXpertViewExtensionPr
   ): Promise<XpertViewActionResult> {
     const scope = this.scope(context, viewKey)
     try {
-      if (actionKey !== 'save_draft') throw new Error('not_found')
-      const input = saveDraftSchema.parse(request.input)
-      return { success: true, data: saveDraftReceiptSchema.parse(await this.drafts.save(scope, input)) }
+      if (actionKey === 'save_draft') {
+        const input = saveDraftSchema.parse(request.input)
+        return { success: true, data: saveDraftReceiptSchema.parse(await this.drafts.save(scope, input)) }
+      }
+      if (actionKey === 'confirm_recommendation') {
+        const input = confirmRecommendationSchema.parse(request.input)
+        return { success: true, data: confirmRecommendationReceiptSchema.parse(await this.drafts.confirmRecommendation(scope, input.expectedRevision)) }
+      }
+      throw new Error('not_found')
     } catch (error) {
       if (error instanceof z.ZodError) return { success: false, data: { code: 'invalid_input' } }
       if (error instanceof Error && error.message === 'conflict') return { success: false, data: { code: 'conflict' } }
+      if (error instanceof Error && error.message === 'recommendation_required') return { success: false, data: { code: 'recommendation_required' } }
+      if (error instanceof Error && error.message === 'draft_not_found') return { success: false, data: { code: 'draft_not_found' } }
       throw error
     }
   }
