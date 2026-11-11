@@ -4,6 +4,7 @@
   "generatedBy": "模型",
   "recommendationFailed": "上次 AI 建议生成失败",
   "recommendationRetry": "草稿内容仍已保留。请在道路事件助手对话中明确要求重试生成建议。",
+  "recommendationStale": "事件信息已更改。保存后请让助手重新生成建议，再进行确认。",
   "confirm": "确认处置建议",
   "confirmed": "值班人员已确认该建议",
   "confirmedBy": "确认人：",

@@ -73,45 +73,13 @@ body {
   grid-column: 1 / -1;
 }
 
-.field input,
-.field select,
-.field textarea {
-  box-sizing: border-box;
+.field-select-trigger {
   width: 100%;
-  min-width: 0;
-  border: 1px solid #cbd5d3;
-  border-radius: 5px;
-  padding: 10px 11px;
-  color: #1f2c29;
-  background: #fff;
-  font: inherit;
-  font-weight: 400;
-  outline: none;
 }
 
-.field input,
-.field select {
-  min-height: 40px;
-}
-
-.field textarea {
-  min-height: 116px;
-  resize: vertical;
-  line-height: 1.5;
-}
-
-.field input:focus,
-.field select:focus,
-.field textarea:focus {
-  border-color: #178878;
-  box-shadow: 0 0 0 3px rgb(23 136 120 / 14%);
-}
-
-.field input:disabled,
-.field select:disabled,
-.field textarea:disabled {
-  color: #83908d;
-  background: #f2f5f4;
+.field > [data-slot='input'],
+.field > [data-slot='textarea'] {
+  width: 100%;
 }
 
 .form-footer {
@@ -321,42 +289,6 @@ body {
   .form-actions > * {
     flex: 1 1 0;
   }
-}
-
-.command-center-card [data-slot='card-content'] {
-  padding-top: 16px;
-}
-
-.command-center-card [data-slot='card-header'] {
-  border-bottom: 1px solid #e5ebe9;
-}
-
-.command-center-card [data-slot='card-title'] {
-  font-size: 16px;
-  line-height: 1.35;
-}
-
-.command-center-card [data-slot='card-description'] {
-  font-size: 12px;
-}
-
-.command-center-card button {
-  min-height: 38px;
-  border-radius: 5px;
-}
-
-.command-center-toolbar [data-slot='badge'] {
-  border-radius: 999px;
-}
-
-.command-center-toolbar [data-slot='badge'][data-variant='default'] {
-  background: #d9f3ec;
-  color: #116c5b;
-}
-
-.command-center-toolbar [data-slot='badge'][data-variant='secondary'] {
-  background: #e6ecea;
-  color: #52615d;
 }
 
 .command-center-card [data-slot='card-content'] > p {

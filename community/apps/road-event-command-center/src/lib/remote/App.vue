@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@xpert-ai/plugin-shadcn-vue'
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@xpert-ai/plugin-shadcn-vue'
 import Feature from 'ol/Feature.js'
 import Map from 'ol/Map.js'
 import View from 'ol/View.js'
@@ -34,6 +34,7 @@ const longitude = ref('')
 const recommendation = ref<RoadEventDraft['recommendation']>(null)
 const recommendationAttempt = ref<RoadEventDraft['recommendationAttempt']>(null)
 const confirmation = ref<RoadEventDraft['confirmation']>(null)
+const savedEventFingerprint = ref<string | null>(null)
 const mapTarget = ref<HTMLDivElement | null>(null)
 const mapUnavailable = ref(false)
 let disposeBridge: (() => void) | undefined
@@ -45,6 +46,9 @@ const tiandituToken = import.meta.env.VITE_TIANDITU_TOKEN?.trim()
 const DEFAULT_MAP_CENTER: [number, number] = [118.96, 32.15]
 
 const messages = computed<Messages>(() => context.value?.locale.startsWith('zh') ? zh : en)
+const recommendationStale = computed(() => Boolean(
+  recommendation.value && (!savedEventFingerprint.value || currentEventFingerprint() !== savedEventFingerprint.value)
+))
 const form = reactive({
   title: '',
   eventType: 'accident' as RoadEventDraft['eventType'],
@@ -72,7 +76,38 @@ function setForm(draft: RoadEventDraft | null) {
     const date = new Date()
     form.occurredAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
   }
+  savedEventFingerprint.value = draft ? eventFingerprint(draft) : null
   syncMapSelection(true)
+}
+
+function eventFingerprint(draft: RoadEventDraft) {
+  const date = new Date(draft.occurredAt)
+  const localOccurredAt = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  return JSON.stringify({
+    title: draft.title,
+    eventType: draft.eventType,
+    severity: draft.severity,
+    locationDescription: draft.locationDescription,
+    description: draft.description,
+    occurredAt: localOccurredAt,
+    coordinates: draft.coordinates ?? null
+  })
+}
+
+function currentEventFingerprint() {
+  const hasCoordinates = latitude.value.trim() !== '' || longitude.value.trim() !== ''
+  return JSON.stringify({
+    title: form.title,
+    eventType: form.eventType,
+    severity: form.severity,
+    locationDescription: form.locationDescription,
+    description: form.description,
+    occurredAt: form.occurredAt,
+    coordinates: hasCoordinates ? {
+      longitude: longitude.value.trim() ? Number(longitude.value) : null,
+      latitude: latitude.value.trim() ? Number(latitude.value) : null
+    } : null
+  })
 }
 
 watch(() => [form.title, form.eventType, form.severity, form.locationDescription, form.description, form.occurredAt, latitude.value, longitude.value], () => {
@@ -80,7 +115,7 @@ watch(() => [form.title, form.eventType, form.severity, form.locationDescription
   confirmation.value = null
   noticeKind.value = 'info'
   notice.value = messages.value.confirmationCleared
-})
+}, { flush: 'sync' })
 
 function syncMapSelection(center = false) {
   if (!map || !mapSelection || !mapSource) return
@@ -204,9 +239,11 @@ async function saveDraft() {
     }, saveDraftReceiptSchema)
     revision.value = receipt.revision
     updatedAt.value = receipt.updatedAt
-    confirmation.value = null
-    noticeKind.value = 'success'
-    notice.value = messages.value.saved
+    await loadDraft()
+    if (noticeKind.value !== 'error') {
+      noticeKind.value = 'success'
+      notice.value = messages.value.saved
+    }
   } catch (error) {
     showError(error)
   } finally {
@@ -239,6 +276,15 @@ onMounted(async () => {
     context.value = await bridge.connected
     connected.value = true
     document.documentElement.lang = context.value.locale
+    const removeContextListener = bridge.onContextChange((nextContext) => {
+      if (context.value?.instanceId !== nextContext.instanceId) return
+      context.value = nextContext
+      document.documentElement.lang = nextContext.locale
+    })
+    disposeBridge = () => {
+      removeContextListener()
+      bridge?.dispose()
+    }
     await loadDraft()
     bridge.resize()
   } catch {
@@ -276,36 +322,42 @@ onBeforeUnmount(() => {
         </div>
       </CardHeader>
       <CardContent>
-        <div class="draft-form" role="form" @keydown.enter.prevent="saveDraft">
+        <div class="draft-form" role="form">
           <label class="field field-wide">
             <span>{{ messages.titleLabel }}</span>
-            <input v-model="form.title" :placeholder="messages.titlePlaceholder" maxlength="80" required minlength="5" :disabled="loading">
+            <Input v-model="form.title" :placeholder="messages.titlePlaceholder" maxlength="80" required minlength="5" :disabled="loading" />
           </label>
 
           <label class="field">
             <span>{{ messages.eventTypeLabel }}</span>
-            <select v-model="form.eventType" :disabled="loading">
-              <option value="accident">{{ messages.types.accident }}</option>
-              <option value="road_blockage">{{ messages.types.road_blockage }}</option>
-              <option value="hazard">{{ messages.types.hazard }}</option>
-              <option value="weather">{{ messages.types.weather }}</option>
-              <option value="other">{{ messages.types.other }}</option>
-            </select>
+            <Select v-model="form.eventType" :disabled="loading">
+              <SelectTrigger class="field-select-trigger" :aria-label="messages.eventTypeLabel"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="accident">{{ messages.types.accident }}</SelectItem>
+                <SelectItem value="road_blockage">{{ messages.types.road_blockage }}</SelectItem>
+                <SelectItem value="hazard">{{ messages.types.hazard }}</SelectItem>
+                <SelectItem value="weather">{{ messages.types.weather }}</SelectItem>
+                <SelectItem value="other">{{ messages.types.other }}</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
 
           <label class="field">
             <span>{{ messages.severityLabel }}</span>
-            <select v-model="form.severity" :disabled="loading">
-              <option value="low">{{ messages.severities.low }}</option>
-              <option value="medium">{{ messages.severities.medium }}</option>
-              <option value="high">{{ messages.severities.high }}</option>
-              <option value="critical">{{ messages.severities.critical }}</option>
-            </select>
+            <Select v-model="form.severity" :disabled="loading">
+              <SelectTrigger class="field-select-trigger" :aria-label="messages.severityLabel"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">{{ messages.severities.low }}</SelectItem>
+                <SelectItem value="medium">{{ messages.severities.medium }}</SelectItem>
+                <SelectItem value="high">{{ messages.severities.high }}</SelectItem>
+                <SelectItem value="critical">{{ messages.severities.critical }}</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
 
           <label class="field field-wide">
             <span>{{ messages.locationLabel }}</span>
-            <input v-model="form.locationDescription" :placeholder="messages.locationPlaceholder" maxlength="160" required minlength="2" :disabled="loading">
+            <Input v-model="form.locationDescription" :placeholder="messages.locationPlaceholder" maxlength="160" required minlength="2" :disabled="loading" />
           </label>
 
           <section class="field-wide location-picker" aria-labelledby="map-picker-title">
@@ -322,18 +374,18 @@ onBeforeUnmount(() => {
             <div class="coordinate-fields">
               <label class="field">
                 <span>{{ messages.latitudeLabel }}</span>
-                <input v-model="latitude" type="text" inputmode="decimal" autocomplete="off" :placeholder="messages.latitudePlaceholder" :disabled="loading" @change="syncMapSelection()">
+                <Input v-model="latitude" type="text" inputmode="decimal" autocomplete="off" :placeholder="messages.latitudePlaceholder" :disabled="loading" @change="syncMapSelection()" />
               </label>
               <label class="field">
                 <span>{{ messages.longitudeLabel }}</span>
-                <input v-model="longitude" type="text" inputmode="decimal" autocomplete="off" :placeholder="messages.longitudePlaceholder" :disabled="loading" @change="syncMapSelection()">
+                <Input v-model="longitude" type="text" inputmode="decimal" autocomplete="off" :placeholder="messages.longitudePlaceholder" :disabled="loading" @change="syncMapSelection()" />
               </label>
             </div>
           </section>
 
           <label class="field field-wide">
             <span>{{ messages.descriptionLabel }}</span>
-            <textarea v-model="form.description" :placeholder="messages.descriptionPlaceholder" rows="5" maxlength="2000" required minlength="10" :disabled="loading" @keydown.enter.stop />
+            <Textarea v-model="form.description" :placeholder="messages.descriptionPlaceholder" rows="5" maxlength="2000" required minlength="10" :disabled="loading" @keydown.enter.stop />
           </label>
 
           <section v-if="recommendation" class="field-wide recommendation-panel" aria-labelledby="recommendation-title">
@@ -342,6 +394,7 @@ onBeforeUnmount(() => {
               <span>{{ messages.recommendationSeverity }}: {{ messages.severities[recommendation.severity] }}</span>
             </div>
             <p class="recommendation-summary">{{ recommendation.summary }}</p>
+            <p v-if="recommendationStale" class="recommendation-meta">{{ messages.recommendationStale }}</p>
             <ol class="recommendation-actions">
               <li v-for="(action, index) in recommendation.actions" :key="`${index}-${action.title}`">
                 <strong>{{ action.title }}</strong>
@@ -358,7 +411,7 @@ onBeforeUnmount(() => {
 
           <label class="field">
             <span>{{ messages.occurredAtLabel }}</span>
-            <input v-model="form.occurredAt" type="datetime-local" required :disabled="loading">
+            <Input v-model="form.occurredAt" type="datetime-local" required :disabled="loading" />
           </label>
 
           <aside v-if="recommendationAttempt?.status === 'failed'" class="field-wide recommendation-failure" role="alert">
@@ -368,7 +421,7 @@ onBeforeUnmount(() => {
 
           <aside v-if="recommendation" class="field-wide recommendation-confirmation" :class="{ confirmed: confirmation }" role="status">
             <strong v-if="confirmation">{{ messages.confirmed }}</strong>
-            <Button v-else type="button" variant="outline" :disabled="loading || saving || !connected" @click="confirmRecommendation">
+            <Button v-else type="button" variant="outline" :disabled="loading || saving || !connected || recommendationStale || recommendationAttempt?.status !== 'succeeded'" @click="confirmRecommendation">
               {{ messages.confirm }}
             </Button>
             <span v-if="confirmation">{{ messages.confirmedBy }} {{ confirmation.confirmedBy }} · {{ new Date(confirmation.confirmedAt).toLocaleString(context?.locale) }}</span>

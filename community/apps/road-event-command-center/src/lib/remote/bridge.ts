@@ -14,6 +14,7 @@ const envelopeSchema = z.object({
 }).passthrough()
 type Envelope = z.infer<typeof envelopeSchema>
 type Pending = { resolve: (message: Envelope) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
+type ContextListener = (context: HostInit) => void
 
 export interface HostInit {
   instanceId: string
@@ -23,8 +24,10 @@ export interface HostInit {
 
 export function connectToHost() {
   let instanceId: string | null = null
+  let hostContext: HostInit | null = null
   let resolveInit: ((value: HostInit) => void) | undefined
   let rejectInit: ((error: Error) => void) | undefined
+  const contextListeners = new Set<ContextListener>()
   const readyInterval = setInterval(() => {
     if (!instanceId) window.parent.postMessage({ channel: CHANNEL, protocolVersion: 1, type: 'ready' }, '*')
   }, 1000)
@@ -43,7 +46,14 @@ export function connectToHost() {
     if (message.type === 'init' && message.instanceId) {
       if (instanceId && instanceId !== message.instanceId) return
       instanceId = message.instanceId
-      resolveInit?.({ instanceId, locale: message.locale ?? 'en-US', debug: message.debug?.enabled === true })
+      const nextContext = {
+        instanceId,
+        locale: message.locale ?? hostContext?.locale ?? 'en-US',
+        debug: message.debug?.enabled ?? hostContext?.debug ?? false
+      }
+      hostContext = nextContext
+      resolveInit?.(nextContext)
+      contextListeners.forEach((listener) => listener(nextContext))
       resolveInit = undefined
       rejectInit = undefined
       clearTimeout(initTimer)
@@ -79,6 +89,10 @@ export function connectToHost() {
 
   return {
     connected,
+    onContextChange(listener: ContextListener) {
+      contextListeners.add(listener)
+      return () => contextListeners.delete(listener)
+    },
     async query<T>(schema: z.ZodType<T>): Promise<T> {
       const response = await request('requestData', { query: { parameters: {} } })
       if (response.type !== 'data') throw new Error('unexpected_response')

@@ -4,6 +4,7 @@
   "generatedBy": "Model",
   "recommendationFailed": "The last AI recommendation attempt failed",
   "recommendationRetry": "The event draft is still saved. Explicitly ask the road-event Assistant to retry the recommendation in chat.",
+  "recommendationStale": "The event details have changed. Save them and ask the Assistant to regenerate the recommendation before confirming.",
   "confirm": "Confirm response recommendation",
   "confirmed": "The duty officer confirmed this recommendation",
   "confirmedBy": "Confirmed by:",

@@ -74,15 +74,19 @@ test('TypeORM persists and scopes road-event drafts in a relational database', a
     assert.ok(confirmed.confirmation.confirmedAt)
     assert.deepEqual((await new RoadEventCommandCenterDraftService(repository).get(scope)).draft.confirmation, confirmed.confirmation)
 
-    const duplicateConfirmation = await nextService.confirmRecommendation(scope, 4)
-    assert.equal(duplicateConfirmation.revision, 4)
+    const noOpSave = await nextService.save(scope, { expectedRevision: 4, draft: withRecommendation })
+    assert.equal(noOpSave.revision, 5)
+    assert.deepEqual((await nextService.get(scope)).draft.confirmation, confirmed.confirmation)
+
+    const duplicateConfirmation = await nextService.confirmRecommendation(scope, 5)
+    assert.equal(duplicateConfirmation.revision, 5)
     assert.deepEqual(duplicateConfirmation.confirmation, confirmed.confirmation)
 
     const edited = await nextService.save(scope, {
-      expectedRevision: 4,
+      expectedRevision: 5,
       draft: { ...withRecommendation, description: 'The right lane is now reopened after debris removal.' }
     })
-    assert.equal(edited.revision, 5)
+    assert.equal(edited.revision, 6)
     const afterEdit = await nextService.get(scope)
     assert.equal(afterEdit.draft.recommendation, null)
     assert.equal(afterEdit.draft.recommendationAttempt, null)
