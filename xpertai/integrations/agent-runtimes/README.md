@@ -66,6 +66,22 @@ checkpointed before guest shutdown; failed persistence keeps the runner availabl
 for reconciliation. No adapter promises rollback or exactly-once remote effects.
 Explicit file inputs remain unsupported and fail before launch.
 
+## Project workspace instructions
+
+For an explicit implementation task in `AgentRuntimeContext.projectTask`, the JSONL
+and OpenCode runner adapters supplement CLI input after acquiring the host receipt.
+The receipt supplies the actual working directory; the task context supplies purpose.
+Neither a provider name nor `executionEnvironment.type` determines this instruction.
+The agent is asked to read `project.md` when present, discover relevant installed
+skills under `skills/`, apply project/environment constraints, and report conflicts.
+Requested delivery paths remain relative to that working directory. The original
+prompt, delivery policy and structured input are preserved without mutation.
+
+This requires the matching host/SDK task-context addition. Older hosts, ordinary
+invocations, review tasks and remote OpenCode without a runner receipt keep their
+existing prompt. The host retains mounting, permissions and reply routing. The
+instruction grants no access, does not prove files exist, and adds no new executor.
+
 ## Results and resource cards
 
 The adapters request a versioned `xpert-task-result` final JSON envelope. The shared parser validates it against the SDK schema; ordinary text or an invalid envelope remains text. The host has no provider-specific response parsing. Supported items are `analysis` (findings), `changes` (changed paths), `tests` (actual checks and status), and `file` (an explicitly requested deliverable).

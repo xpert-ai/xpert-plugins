@@ -1,6 +1,7 @@
 import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
+import { withProjectWorkspaceContext } from './project-workspace.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
@@ -119,7 +120,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       'POST',
       {
         messageID: handle.runId,
-        parts: [{ type: 'text', text: agentPrompt(request.input) }]
+        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner)) }]
       },
       context,
       handle

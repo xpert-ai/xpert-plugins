@@ -8,6 +8,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
+import { withProjectWorkspaceContext } from './project-workspace.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
@@ -67,7 +68,7 @@ export async function startComputerJsonl(
   }
   await context.checkpoint({ status: 'running', handle })
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
-  await runner.request(receipt, { method: 'POST', path: '/task', body: { prompt: agentPrompt(request.input) } })
+  await runner.request(receipt, { method: 'POST', path: '/task', body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt)) } })
   return { status: 'running' as const, handle }
 }
 
