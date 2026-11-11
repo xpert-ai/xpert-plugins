@@ -109,8 +109,18 @@ Install matching ChatKit types/UI with resource-card support and the host/SDK re
 ## Tools
 
 `delegate_task` performs a bounded initial wait, then returns the real task status.
-`task_status` accepts unique task IDs, `mode: any | all`, and `timeoutMs` from 0 to
-60,000 (default 30,000). Pending tasks retain their IDs; do not relaunch them.
+Launch, status and cancellation receipts consistently expose `invocationId`; the
+existing `taskId` receipt field is an alias for that same identity. Supply this
+invocation ID in `task_status.taskIds` and `task_cancel.taskId`. Project
+`projectTaskId` and `taskExecutionId` identify different records and are not accepted
+as invocation IDs. The host still validates ownership and access.
+
+`task_status` accepts unique invocation IDs, `mode: any | all`, and `timeoutMs` from
+0 to 60,000 (default 30,000). Pending tasks retain their IDs; do not relaunch them.
+For ordinary invocations, wait with the same IDs or do independent work. When a
+Project dispatch has already registered durable result delivery, finish independent
+work and end the current turn so its result event can resume coordination. This is
+Agent guidance: it does not create a subscription or suspend the execution by itself.
 `task_cancel` requests cancellation; only confirmed process exit means cancelled.
 All three tools carry localized display names/icons and optional `changeSummary`.
 
