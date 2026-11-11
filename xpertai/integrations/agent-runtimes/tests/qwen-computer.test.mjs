@@ -62,6 +62,42 @@ function fixture() {
   return { strategy, context, request, runner, calls, snapshots, setOutput: (value) => (output = value) }
 }
 
+test('JSONL result file is read only after a verified final receipt, then checkpointed before stop', async () => {
+  const f = fixture()
+  const reference = { version: 1, path: 'output/result.json', sha256: 'a'.repeat(64) }
+  const text = '```xpert-task-result-file\n' + JSON.stringify(reference) + '\n```'
+  f.runner.readTaskResultFile = async (_, value) => {
+    assert.deepEqual(value, reference)
+    f.calls.push('result-file')
+    return { version: 1, summary: '{"verdict":"indeterminate"}', items: [] }
+  }
+  const started = await f.strategy.start(f.request, f.context)
+  const events = [{ type: 'result', subtype: 'success', is_error: false, result: text }]
+  f.setOutput({ state: 'running', events })
+  assert.equal((await f.strategy.inspect(started.handle, f.context)).status, 'running')
+  assert.equal(f.calls.includes('result-file'), false)
+  f.setOutput({ state: 'exited', exitCode: 0, events })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, '{"verdict":"indeterminate"}')
+  assert.deepEqual(f.calls.slice(-4), ['result-file', { mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
+  assert.equal(f.snapshots.at(-1).result.text, result.result.text)
+})
+
+test('JSONL invalid file submission fails explicitly without file export or a second launch', async () => {
+  const f = fixture()
+  f.runner.readTaskResultFile = async () => { throw Error('private contents') }
+  const started = await f.strategy.start(f.request, f.context)
+  const text = '```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```'
+  f.setOutput({ state: 'exited', exitCode: 0, events: [{ type: 'result', subtype: 'success', is_error: false, result: text }] })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.match(result.error, /task_result_file_invalid/)
+  assert.equal(result.result, undefined)
+  assert.deepEqual(f.calls.slice(-2), ['checkpoint', 'stop'])
+  assert.equal(f.calls.filter(value => value === 'start').length, 1)
+})
+
 test('Computer Qwen checkpoints before dispatch and exports before cleanup; replay only inspects', async () => {
   const f = fixture()
   const started = await f.strategy.start(f.request, f.context)

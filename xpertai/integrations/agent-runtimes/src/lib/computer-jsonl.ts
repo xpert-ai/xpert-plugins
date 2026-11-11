@@ -9,7 +9,7 @@ import {
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, taskResult } from './task-result.js'
+import { outputDelivery, resolveTaskResult } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
@@ -68,7 +68,10 @@ export async function startComputerJsonl(
   }
   await context.checkpoint({ status: 'running', handle })
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
-  await runner.request(receipt, { method: 'POST', path: '/task', body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt)) } })
+  await runner.request(receipt, {
+    method: 'POST', path: '/task',
+    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt), typeof runner.readTaskResultFile === 'function') }
+  })
   return { status: 'running' as const, handle }
 }
 
@@ -156,13 +159,12 @@ export async function inspectComputerJsonl(
   const delivery = outputDelivery(handle.metadata?.delivery)
   // Missing final protocol data is a failed result even after exit code 0.
   // Persist it before cleanup; descendant completion below still gates terminal settlement.
-  const observation: AgentRuntimeObservation =
+  let observation: AgentRuntimeObservation =
     state.state === 'exited' && state.exitCode === 0 && completion.ok
       ? {
           status: 'succeeded',
           handle,
-          progress,
-          result: { ...taskResult(completion.text, delivery), data: { workingDirectory: receipt.workingDirectory } }
+          progress
         }
       : {
           status: 'failed',
@@ -172,6 +174,20 @@ export async function inspectComputerJsonl(
             diagnostic.exitCode !== undefined ? ` (exit code ${diagnostic.exitCode})` : ''
           }`
         }
+  if (observation.status === 'succeeded' && completion.ok) {
+    try {
+      observation.result = {
+        ...(await resolveTaskResult(completion.text, delivery, runner.readTaskResultFile
+          ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined)),
+        data: { workingDirectory: receipt.workingDirectory }
+      }
+    } catch {
+      observation = {
+        status: 'failed', handle, progress,
+        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
+      }
+    }
+  }
   if (observation.result && delivery.mode !== 'none') {
     const paths =
       delivery.paths ?? (observation.result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))

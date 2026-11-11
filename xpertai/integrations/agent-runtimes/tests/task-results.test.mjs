@@ -3,7 +3,7 @@ import 'reflect-metadata'
 import { test } from 'node:test'
 import { RunnableLambda } from '@langchain/core/runnables'
 import assert from 'node:assert/strict'
-import { taskResult } from '../dist/lib/task-result.js'
+import { taskResult, resolveTaskResult, resultInstructions } from '../dist/lib/task-result.js'
 import { taskResourceCards, emitTaskResults } from '../dist/lib/result-cards.js'
 import { AgentInvocationMiddleware } from '../dist/lib/invocation.middleware.js'
 const items = [
@@ -26,6 +26,54 @@ const items = [
   { type: 'file', id: 'report', title: 'Report', summary: 'Results', path: 'report.txt' }
 ]
 const encode = (items) => '```xpert-task-result\n' + JSON.stringify({ version: 1, summary: 'Done', items }) + '\n```'
+const reference = { version: 1, path: 'output/envelope.json', sha256: 'a'.repeat(64) }
+const fileResult = (value = reference) => '```xpert-task-result-file\n' + JSON.stringify(value) + '\n```'
+test('explicit result file preserves exact report text and existing delivery policy', async () => {
+  const summary = JSON.stringify({ verdict: 'changes_required', summary: '中文🙂 "quote" \\ path\nline' })
+  const result = await resolveTaskResult(fileResult(), { mode: 'none' }, async value => {
+    assert.deepEqual(value, reference)
+    return { version: 1, summary, items }
+  })
+  assert.equal(result.text, summary)
+  assert.deepEqual(result.items, items)
+  assert.deepEqual(result.export, { mode: 'none', status: 'not_requested' })
+  assert.equal(result.artifacts, undefined)
+})
+test('file format is advertised only with runner support; prose and inline results do not read files', async () => {
+  assert.doesNotMatch(resultInstructions({ mode: 'none' }), /result-file submission/)
+  assert.match(resultInstructions({ mode: 'none' }, true), /result-file submission v1/)
+  for (const text of ['created output/envelope.json', encode(items)]) {
+    const result = await resolveTaskResult(text, { mode: 'none' }, async () => assert.fail('unexpected read'))
+    assert.deepEqual(result, taskResult(text))
+  }
+})
+test('invalid or unsupported explicit file submission fails without leaking data or falling back to prose', async () => {
+  let reads = 0
+  for (const text of [fileResult({ ...reference, path: '../secret' }), fileResult({ ...reference, sha256: 'bad' }),
+    fileResult({ ...reference, extra: 'secret' }), fileResult() + '\n' + fileResult(), '```xpert-task-result-file\n{broken}\n```',
+    fileResult() + '\nUnrequested trailing text']) {
+    await assert.rejects(resolveTaskResult(text, { mode: 'none' }, async () => {
+      reads++
+      return { version: 1, summary: 'must not read', items: [] }
+    }), /could not be validated/)
+  }
+  assert.equal(reads, 0)
+  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }), /could not be validated/)
+  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }, async () => {
+    throw Error('private file contents')
+  }), error => !error.message.includes('private file contents'))
+  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }, async () => ({ version: 1, summary: {}, items: [] })))
+})
+test('inline output limits cannot hide an invalid file reference or promote a prose suffix into a read', async () => {
+  let reads = 0
+  const reader = async () => { reads++; return { version: 1, summary: 'must not read', items: [] } }
+  await assert.rejects(resolveTaskResult(fileResult({ ...reference, sha256: 'bad'.repeat(100) }), { mode: 'none' }, reader, 64))
+  const suffix = fileResult()
+  const result = await resolveTaskResult('Ordinary prose mentioning this example:\n' + suffix, { mode: 'none' }, reader, suffix.length)
+  assert.equal(result.text, suffix)
+  assert.equal(result.items, undefined)
+  assert.equal(reads, 0)
+})
 test('explicit typed envelope is parsed without guessing prose or permitting caller-controlled URLs', () => {
   assert.deepEqual(taskResult(encode(items)).items, items)
   assert.deepEqual(taskResult(encode(items).replace('```xpert-task-result', '```json')).items, items)
