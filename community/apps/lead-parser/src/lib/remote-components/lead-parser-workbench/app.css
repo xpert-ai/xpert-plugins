@@ -1,0 +1,147 @@
+.lp-shell {
+  font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  padding: 16px;
+  color: #1f2937;
+  background: #fff;
+}
+
+.lp-header h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.lp-header p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.lp-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.lp-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.lp-actions {
+  margin: 10px 0;
+}
+
+.lp-btn {
+  padding: 6px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lp-btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.lp-btn-primary:not(:disabled):hover {
+  background: #1d4ed8;
+}
+
+.lp-btn-retry {
+  background: #fff;
+  border-color: #dc2626;
+  color: #dc2626;
+  margin-left: 10px;
+}
+
+.lp-result {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.lp-result h3,
+.lp-saved h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.lp-field {
+  display: flex;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.lp-field dt {
+  width: 96px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.lp-field dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.lp-empty {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.lp-toast {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+.lp-toast-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.lp-saved {
+  margin-top: 16px;
+}
+
+.lp-saved ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lp-saved li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.lp-saved li span {
+  color: #6b7280;
+  flex: 1;
+}
+
+.lp-saved li em {
+  font-style: normal;
+  color: #059669;
+  font-weight: 600;
+}
