@@ -1,0 +1,8 @@
+export const PLUGIN_NAME = '@community/apps-road-event-command-center'
+export const PLUGIN_NAMESPACE = 'road_event_command_center'
+export const PROVIDER_KEY = 'road-event-command-center.workbench'
+export const MIDDLEWARE_NAME = 'road-event-command-center.workspace'
+export const TEMPLATE_KEY = 'road-event-command-center-assistant'
+export const VIEW_KEY = 'road-event-command-center.command-center'
+export const REMOTE_ENTRY = 'road-event-command-center.remote'
+export const FEATURE = 'road-event-command-center.workspace'

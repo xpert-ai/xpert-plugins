@@ -1,0 +1,68 @@
+{
+  "name": "@community/apps-road-event-command-center",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-assisted road event command center for Xpert.",
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@8.15.8",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "road_event_command_center"
+    }
+  },
+  "scripts": {
+    "clean": "node scripts/clean-dist.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit",
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json && vite build",
+    "dev:preview": "vite --host 0.0.0.0 --port 4175 --strictPort",
+    "test": "pnpm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "ol": "^10.11.0",
+    "tslib": "^2.3.0",
+    "vue": "^3.5.29"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.4",
+    "@xpert-ai/plugin-sdk": "^3.18.4",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "22.18.6",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "@xpert-ai/plugin-shadcn-vue": "workspace:*",
+    "reflect-metadata": "0.2.2",
+    "sql.js": "1.13.0",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "vite": "^7.2.4",
+    "vue-tsc": "^3.3.7",
+    "zod": "3.25.67"
+  }
+}
