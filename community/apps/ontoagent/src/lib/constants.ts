@@ -10,12 +10,27 @@ export const ONTOAGENT_TEMPLATE_FILE = 'xpert-ontoagent-assistant.yaml'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 
-/** Auto 模式只读工具：不产生任何本体写入入口（ADR-0018/OA2）。 */
-export const ONTOAGENT_MIDDLEWARE_TOOL_NAMES = [
+/** 只读工具：auto 模式也注册；不产生任何本体写入入口。 */
+export const ONTOAGENT_READONLY_TOOL_NAMES = [
   'ontology_prepare',
   'ontology_slice',
   'ontology_query',
   'ontology_search'
+]
+
+/** local 产线工具：生成/导入/提交/转交；auto 模式不注册。 */
+export const ONTOAGENT_WRITE_TOOL_NAMES = [
+  'ontology_generate',
+  'ontology_import',
+  'ontology_commit',
+  'ontology_seed',
+  'ontology_transfer',
+  'ontology_transfer_inbox'
+]
+
+export const ONTOAGENT_MIDDLEWARE_TOOL_NAMES = [
+  ...ONTOAGENT_READONLY_TOOL_NAMES,
+  ...ONTOAGENT_WRITE_TOOL_NAMES
 ]
 
 export const ONTOAGENT_ICON =

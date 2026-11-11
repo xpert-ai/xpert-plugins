@@ -4,9 +4,9 @@ import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { OntoAgentGovernedContextMiddleware } from './ontoagent.middleware.js'
 import { OntoAgentService } from './ontoagent.service.js'
 import { OntoAgentViewProvider } from './ontoagent-view.provider.js'
-import { OntoAgentAnswerRecord, OntoAgentSyncRun } from './entities/index.js'
+import { OntoAgentAnswerRecord, OntoAgentSyncRun, OntoAgentTransfer } from './entities/index.js'
 
-const ONTOAGENT_ENTITIES = [OntoAgentAnswerRecord, OntoAgentSyncRun]
+const ONTOAGENT_ENTITIES = [OntoAgentAnswerRecord, OntoAgentSyncRun, OntoAgentTransfer]
 
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(ONTOAGENT_ENTITIES)],

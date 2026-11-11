@@ -8,3 +8,5 @@ const packageRoot = join(__dirname, '..')
 
 await mkdir(join(packageRoot, 'dist', 'lib'), { recursive: true })
 await cp(join(packageRoot, 'src', 'xpert-ontoagent-assistant.yaml'), join(packageRoot, 'dist', 'xpert-ontoagent-assistant.yaml'))
+await mkdir(join(packageRoot, 'dist', 'seed'), { recursive: true })
+await cp(join(packageRoot, 'src', 'seed', 'ontoagent-demo.json'), join(packageRoot, 'dist', 'seed', 'ontoagent-demo.json'))

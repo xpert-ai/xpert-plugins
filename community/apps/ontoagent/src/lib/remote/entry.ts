@@ -12,8 +12,17 @@ interface SyncRun {
   createdAt?: string
 }
 interface OverviewData {
+  contextSource?: 'local' | 'auto'
   mirrorVersion?: string
   assertionCount?: number
+  local?: {
+    version?: string
+    assertions?: number
+    nodes?: number
+    terms?: number
+    invariantViolations?: number
+  }
+  transfers?: { total?: number; pending?: number; done?: number }
   manifest?: {
     sourceDigest?: string
     stale?: boolean
@@ -23,6 +32,21 @@ interface OverviewData {
     unsupported?: unknown[]
   } | null
   items?: SyncRun[]
+}
+interface TransferItem {
+  id?: string
+  transferId?: string
+  taskId?: string
+  status?: string
+  sender?: string
+  recipient?: string
+  depth?: number
+  baseVersion?: string
+  packetHash?: string
+  attempt?: number
+  generation?: number
+  reason?: string
+  createdAt?: string
 }
 interface TermItem { id: string; label: string; aliases: string[]; status: string; assertionCount: number }
 interface AnswerItem {
@@ -39,7 +63,7 @@ interface AnswerItem {
 }
 interface Page<T> { items: T[]; total: number; page: number; pageSize: number }
 
-type Tab = 'overview' | 'terms' | 'answers'
+type Tab = 'overview' | 'terms' | 'answers' | 'transfers'
 
 const bridge = new HostBridge()
 const root = document.querySelector<HTMLDivElement>('#app')!
@@ -50,7 +74,7 @@ const state = {
   search: '',
   status: '',
   comment: '',
-  data: null as OverviewData | Page<TermItem> | Page<AnswerItem> | null,
+  data: null as OverviewData | Page<TermItem> | Page<AnswerItem> | Page<TransferItem> | null,
   loading: false,
   busy: '',
   notice: null as null | { type: 'success' | 'error'; message: string },
@@ -146,6 +170,8 @@ function render() {
     view.append(renderOverview(state.data as OverviewData | null))
   } else if (state.tab === 'terms') {
     view.append(renderTerms(state.data as Page<TermItem> | null))
+  } else if (state.tab === 'transfers') {
+    view.append(renderTransfers(state.data as Page<TransferItem> | null))
   } else {
     view.append(renderAnswers(state.data as Page<AnswerItem> | null))
   }
@@ -157,6 +183,15 @@ function renderHeader() {
   const titleWrap = el('div')
   titleWrap.append(el('h1', 'oa-title', t('title')), el('p', 'oa-subtitle', t('subtitle')))
   const actions = el('div', 'oa-actions')
+  const overview = state.data as OverviewData | null
+  if (overview?.contextSource === 'local') {
+    actions.append(
+      button(state.busy === 'seed_demo' ? t('seeding') : t('seed'), () => void run('seed_demo'), {
+        kind: 'secondary',
+        disabled: state.busy !== ''
+      })
+    )
+  }
   actions.append(
     button(state.busy === 'sync_now' ? t('syncing') : t('sync'), () => void run('sync_now'), {
       kind: 'primary',
@@ -170,7 +205,7 @@ function renderHeader() {
 
 function renderTabs() {
   const tabs = el('nav', 'oa-tabs')
-  for (const tab of ['overview', 'terms', 'answers'] as Tab[]) {
+  for (const tab of ['overview', 'terms', 'answers', 'transfers'] as Tab[]) {
     tabs.append(button(t(tab), () => switchTab(tab), { kind: state.tab === tab ? 'tab active' : 'tab' }))
   }
   return tabs
@@ -187,6 +222,19 @@ function renderOverview(data: OverviewData | null) {
   section.append(statusLine)
 
   const facts = el('dl', 'oa-facts')
+  if (data?.contextSource === 'local') {
+    facts.append(
+      fact(t('contextSource'), 'local'),
+      fact(t('localVersion'), data?.local?.version ?? '-'),
+      fact(t('localAssertions'), String(data?.local?.assertions ?? 0)),
+      fact(t('localTerms'), String(data?.local?.terms ?? 0)),
+      fact(t('transferTotal'), String(data?.transfers?.total ?? 0)),
+      fact(t('transferPending'), String(data?.transfers?.pending ?? 0))
+    )
+    section.append(facts)
+    if ((data?.local?.assertions ?? 0) === 0) section.append(el('p', 'oa-muted', t('noLocalTerms')))
+    return section
+  }
   facts.append(
     fact(t('sourceDigest'), manifest?.sourceDigest ?? '-'),
     fact(t('assertionCount'), String(data?.assertionCount ?? manifest?.assertionCount ?? 0)),
@@ -236,6 +284,7 @@ function renderOverview(data: OverviewData | null) {
 
 function renderTerms(data: Page<TermItem> | null) {
   const section = el('section')
+  const local = (data as (Page<TermItem> & { contextSource?: string }) | null)?.contextSource === 'local'
   const bar = el('div', 'oa-toolbar')
   const input = el('input', 'oa-input') as HTMLInputElement
   input.placeholder = t('searchPlaceholder')
@@ -247,7 +296,7 @@ function renderTerms(data: Page<TermItem> | null) {
 
   const items = data?.items ?? []
   if (items.length === 0) {
-    section.append(el('p', 'oa-muted', t('noTerms')))
+    section.append(el('p', 'oa-muted', local ? t('noLocalTerms') : t('noTerms')))
   } else {
     const table = el('table', 'oa-table')
     const head = el('tr')
@@ -266,6 +315,37 @@ function renderTerms(data: Page<TermItem> | null) {
     }
     section.append(table)
   }
+  section.append(renderPagination(data))
+  return section
+}
+
+function renderTransfers(data: Page<TransferItem> | null) {
+  const section = el('section')
+  const items = data?.items ?? []
+  if (items.length === 0) {
+    section.append(el('p', 'oa-muted', t('noTransfers')))
+    return section
+  }
+  const table = el('table', 'oa-table')
+  const head = el('tr')
+  for (const label of [t('createdAt'), t('status'), t('sender'), t('recipient'), t('depth'), t('mirrorVersion'), t('packetHash')]) {
+    head.append(el('th', undefined, label))
+  }
+  table.append(head)
+  for (const item of items) {
+    const row = el('tr')
+    row.append(
+      el('td', undefined, formatTime(item.createdAt)),
+      el('td', undefined, item.status ?? '-'),
+      el('td', undefined, item.sender ?? '-'),
+      el('td', undefined, item.recipient ?? '-'),
+      el('td', undefined, String(item.depth ?? 0)),
+      el('td', undefined, item.baseVersion ?? '-'),
+      el('td', undefined, (item.packetHash ?? '-').slice(0, 18))
+    )
+    table.append(row)
+  }
+  section.append(table)
   section.append(renderPagination(data))
   return section
 }

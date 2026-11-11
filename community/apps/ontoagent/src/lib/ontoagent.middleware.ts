@@ -20,6 +20,28 @@ import type { PreparedPrompt } from './vendor/pipeline-types.js'
 const prepareSchema = z.object({
   task: z.string().min(1).describe('业务问题或任务原文，用于组装完整术语包。')
 })
+const generateSchema = z.object({
+  task: z.string().optional().describe('任务描述；与 corpus 至少给一个。'),
+  corpus: z.array(z.string()).optional().describe('语料段落（原文），用于抽取语料本体。'),
+  autoApprove: z.boolean().optional().describe('是否直接批准顶层 gov: 变更（默认 false：挂起待人审）。')
+})
+const importSchema = z.object({
+  ttl: z.string().min(1).describe('TTL/OWL 文本（企业权威本体）。'),
+  source: z.string().optional().describe('来源标识，写进证据定位。')
+})
+const commitSchema = z.object({
+  delta: z.string().min(1).describe('Delta JSON 文本：deltaId + baseVersion.hash + ops。')
+})
+const transferSchema = z.object({
+  recipient: z.string().min(1).describe('接收方主体 id，例如 assistant:analyst 或 user:alice。'),
+  task: z.string().min(1).describe('转交的业务任务；用于切片。'),
+  taskId: z.string().optional().describe('任务 id；缺省由任务文本派生。'),
+  parentTransferId: z.string().optional().describe('原样转交时给出父 transferId。')
+})
+const inboxSchema = z.object({
+  page: z.number().int().positive().optional(),
+  status: z.string().optional().describe('received / processing / done / rejected / conflict')
+})
 const querySchema = z.object({
   termId: z.string().min(1).describe('auto:term: 开头的术语 ID（由 ontology_search 返回）。')
 })
@@ -38,9 +60,9 @@ export class OntoAgentGovernedContextMiddleware implements IAgentMiddlewareStrat
     },
     description: {
       en_US:
-        'Inject versioned, certified ontology term packets before each model call, with read-only ontology tools. Auto mode is read-only: no ontology generation or writes.',
+        'Inject versioned ontology term packets before each model call with read-only ontology tools. local = plugin-owned ontology production line (import / generate / governed commit / packet transfer); auto = certified Auto-Ontology mirror, read-only.',
       zh_Hans:
-        '在每次模型调用前注入带版本、已认证的完整术语包，并提供只读本体的工具。Auto 模式只读：不生成本体、不写本体。'
+        '在每次模型调用前注入带版本的本体术语包，并提供本体工具。local = 插件自有本体产线（导入 / 生成 / 受治理提交 / 只读转交）；auto = Auto-Ontology 认证快照，只读。'
     },
     icon: { type: 'svg', value: ONTOAGENT_ICON, color: '#4f46e5' },
     features: [ONTOAGENT_FEATURE],
@@ -117,6 +139,101 @@ export class OntoAgentGovernedContextMiddleware implements IAgentMiddlewareStrat
       }
     )
 
+    const localMode = service.config().contextSource === 'local'
+    const writeTools = localMode
+      ? [
+          tool(
+            async (input: z.infer<typeof generateSchema>) => {
+              try {
+                return stringify(
+                  await service.generate(scope, {
+                    task: input.task,
+                    corpus: input.corpus?.map((text, index) => ({ id: 'c' + String(index + 1), text })),
+                    autoApprove: input.autoApprove
+                  })
+                )
+              } catch (error) {
+                return stringify({ error: messageOf(error) })
+              }
+            },
+            {
+              name: 'ontology_generate',
+              description:
+                'Generate candidate assertions from a task or corpus, run them through the gate, and commit accepted ones. Returns stage/accepted/rejected and the resulting version. Requires models.baseUrl + models.chatModel.',
+              schema: generateSchema
+            }
+          ),
+          tool(
+            async (input: z.infer<typeof importSchema>) => {
+              try {
+                return stringify(await service.importTtl(scope, input.ttl, input.source ?? 'inline'))
+              } catch (error) {
+                return stringify({ error: messageOf(error) })
+              }
+            },
+            {
+              name: 'ontology_import',
+              description:
+                'Import an authoritative TTL/OWL ontology (classes, properties, labels, definitions, subclass relations) through the gate. Use this instead of letting the model restate the enterprise ontology.',
+              schema: importSchema
+            }
+          ),
+          tool(
+            async (input: z.infer<typeof commitSchema>) => {
+              try {
+                return stringify(await service.commitDelta(scope, input.delta))
+              } catch (error) {
+                return stringify({ error: messageOf(error) })
+              }
+            },
+            {
+              name: 'ontology_commit',
+              description:
+                'Submit a Delta JSON authored by you or a human. Gate findings, T2 escalation, and baseVersion conflicts are returned verbatim; nothing is written when rejected.',
+              schema: commitSchema
+            }
+          ),
+          tool(async () => stringify(await service.seed(scope)), {
+            name: 'ontology_seed',
+            description:
+              'Load the bundled demo ontology (customers, invoices, order lines, products, revenue, receivables, joins) idempotently. Useful for a first run without any external service.',
+            schema: z.object({})
+          }),
+          tool(
+            async (input: z.infer<typeof transferSchema>) => {
+              try {
+                return stringify(
+                  await service.transferPacket(scope, {
+                    recipient: input.recipient as string,
+                    task: input.task as string,
+                    taskId: input.taskId,
+                    parentTransferId: input.parentTransferId
+                  })
+                )
+              } catch (error) {
+                return stringify({ error: messageOf(error) })
+              }
+            },
+            {
+              name: 'ontology_transfer',
+              description:
+                'Hand a read-only, versioned ontology packet to another subject (assistant or user) inside this tenant. Idempotent by transferId, depth-limited, and loop-checked. It never writes ontology on the receiving side.',
+              schema: transferSchema
+            }
+          ),
+          tool(
+            async (input: z.infer<typeof inboxSchema>) =>
+              stringify(await service.listTransfers(scope, input as { status?: never; page?: number })),
+            {
+              name: 'ontology_transfer_inbox',
+              description:
+                'List ontology packet transfers for this tenant with status, depth, baseVersion, attempt/generation and receipt.',
+              schema: inboxSchema
+            }
+          )
+        ]
+      : []
+
     return {
       name: ONTOAGENT_MIDDLEWARE_NAME,
       stateSchema: z.object({
@@ -124,7 +241,7 @@ export class OntoAgentGovernedContextMiddleware implements IAgentMiddlewareStrat
         ontoagentPrepared: z.record(z.unknown()).optional(),
         ontoagentRecordError: z.string().optional()
       }),
-      tools: [prepareTool, sliceTool, queryTool, searchTool],
+      tools: [prepareTool, sliceTool, queryTool, searchTool, ...writeTools],
       beforeModel: async (state) => {
         const task = lastText(state.messages, HumanMessage)
         if (!task) return {}

@@ -75,8 +75,8 @@ export class OntoAgentViewProvider implements IXpertViewExtensionProvider {
         key: ONTOAGENT_VIEW_KEY,
         title: text('OntoAgent Governed Workbench', 'OntoAgent 受治理工作台'),
         description: text(
-          'Sync certified Auto-Ontology snapshots, inspect mirror versions and exclusions, and review evidence-backed answers.',
-          '同步认证快照、查看镜像版本与排除项，并审核带版本证据的回答。'
+          'Inspect ontology source and version, the term catalogue, packet transfers, and review evidence-backed answers.',
+          '查看本体来源与版本、术语目录、Packet 转交与带证据回答的审核。'
         ),
         icon: VIEW_ICON,
         hostType: 'agent',
@@ -156,6 +156,13 @@ export class OntoAgentViewProvider implements IXpertViewExtensionProvider {
             key: 'sync_now',
             label: text('Sync / Retry', '同步 / 重试'),
             icon: 'ri-refresh-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'seed_demo',
+            label: text('Load demo ontology', '加载示例本体'),
+            icon: 'ri-database-2-line',
             placement: 'toolbar',
             actionType: 'invoke'
           },
@@ -240,6 +247,16 @@ export class OntoAgentViewProvider implements IXpertViewExtensionProvider {
       if (actionKey === 'sync_now') {
         const data = await this.service.syncNow(scope)
         return { ...success('Auto-Ontology sync finished', 'Auto-Ontology 同步已完成'), data }
+      }
+      if (actionKey === 'seed_demo') {
+        const data = await this.service.seed(scope)
+        return {
+          ...success(
+            data.seeded ? 'Demo ontology loaded' : 'Demo ontology already present',
+            data.seeded ? '示例本体已导入' : '示例本体已存在（幂等）'
+          ),
+          data
+        }
       }
       if (actionKey === 'confirm_answer') {
         const data = await this.service.reviewAnswer(scope, requireTargetId(request), 'confirmed', getComment(request))

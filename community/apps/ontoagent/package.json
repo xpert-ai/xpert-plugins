@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-ontoagent",
-  "version": "0.0.1",
-  "description": "OntoAgent governed ontology context workbench: versioned Auto-Ontology mirror, retrieval recall, prompt injection, and evidence-backed answer confirmation.",
+  "version": "0.1.0",
+  "description": "OntoAgent governed ontology workbench: import/generate ontology through a gate, inject versioned term packets, transfer read-only packets, and review evidence-backed answers.",
   "author": {
     "name": "OntoAgent"
   },
