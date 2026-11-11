@@ -147,12 +147,13 @@ export class SupplierDeliveryFollowupViewProvider implements IXpertViewExtension
           }
         }
         case 'reply': {
-          const reply = await this.service.getReply(id, scope)
+          // Decisions and their revision come from one read, so the revision always matches what is displayed.
+          const reply = await this.service.getReplyForReview(id, scope)
           const proposals = await Promise.all(reply.proposals.map((proposal) => this.proposalDto(proposal, scope)))
           return {
             meta: {
               id: reply.id,
-              revision: await this.service.reviewRevision(reply.id, scope),
+              revision: reply.reviewRevision,
               rawText: reply.rawText,
               status: reply.status,
               confirmationInProgress: reply.status !== 'confirmed' && Boolean(reply.confirmationStartedAt),

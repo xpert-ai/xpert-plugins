@@ -164,6 +164,23 @@ export class SupplierDeliveryFollowupService {
     return { ...reply, parseTimedOut: this.timedOut(reply), proposals }
   }
 
+  /**
+   * What a reviewer is shown, with the review revision taken from the very rows returned. A decision that
+   * changes after this read is not in `reviewRevision`, so confirming this snapshot is rejected instead of
+   * applying something the reviewer never saw.
+   */
+  async getReplyForReview(id: string, scope: DeliveryScope) {
+    const reply = await this.findReply(id, scope)
+    const all = await this.proposals.find({ where: { ...scopeWhere(scope), replyId: id }, order: { id: 'ASC' } })
+    return {
+      ...reply,
+      parseTimedOut: this.timedOut(reply),
+      // Older attempts remain stored for recovery but cannot be reviewed/confirmed as current output.
+      proposals: all.filter((proposal) => proposal.parseAttempt === reply.parseAttempt),
+      reviewRevision: reply.revision + all.reduce((sum, proposal) => sum + proposal.revision, 0)
+    }
+  }
+
   /** Read-only workbench projection; does not change the Agent list/search contract. */
   async getWorkbenchOverview(scope: DeliveryScope) {
     const [orders, replies] = await Promise.all([

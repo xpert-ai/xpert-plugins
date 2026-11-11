@@ -395,6 +395,37 @@ describe('Supplier delivery tier 1 regression (real TypeORM)', () => {
     expect(await db.getRepository(ChangeProposal).findBy({ replyId: reply.id })).toMatchObject([{ revision: 0 }])
   })
 
+  it('supplier-delivery-followup 验收 7: the review revision belongs to the proposals the view returned', async () => {
+    const reply = await start()
+    const saved = await service.saveProposal(proposal(reply.id), scope)
+    await service.finalizeParse(reply.id, 'one proposal', scope)
+    await service.decideProposal(saved.proposalId, 'accepted', undefined, undefined, scope)
+    const proposals = db.getRepository(ChangeProposal)
+    const find = proposals.find.bind(proposals)
+    // Another reviewer changes the date right after this view read the proposals.
+    jest.spyOn(proposals, 'find').mockImplementationOnce(async (options) => {
+      const rows = await find(options)
+      await service.decideProposal(saved.proposalId, 'edited', '2026-12-15', undefined, scope)
+      return rows
+    })
+    const view = await provider.getViewData(scope, DELIVERY_WORKBENCH_KEY, {
+      parameters: { table: 'reply', id: reply.id }
+    })
+    const shown = view.meta as { revision: number; proposals: Array<{ finalDate: string | null }> }
+    expect(shown.proposals[0].finalDate).toBe('2026-11-28')
+    // Confirming what that view showed must not write the date it never displayed.
+    expect(
+      await provider.executeViewAction(scope, DELIVERY_WORKBENCH_KEY, 'confirm_reply', {
+        targetId: reply.id,
+        input: { expectedRevision: shown.revision }
+      })
+    ).toEqual({ success: false, code: 'concurrent_change' })
+    expect(await db.getRepository(OrderLine).findOneByOrFail({ poNumber: 'DEMO-001', lineNo: 1 })).toMatchObject({
+      promisedDate: '2026-11-20'
+    })
+    expect(await db.getRepository(DeliveryChangeLog).count()).toBe(0)
+  })
+
   it('supplier-delivery-followup 验收 7: a failed insert counts as a duplicate only when the row exists afterwards', async () => {
     await service.importDemoData(scope)
     const replies = db.getRepository(SupplierReply)
