@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "noEmit": true,
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["react", "react-dom"]
+  },
+  "include": [
+    "src/lib/remote-components/**/*.ts",
+    "src/lib/remote-components/**/*.tsx",
+    "src/lib/remote-components/**/*.json",
+    "src/lib/workbench-contract.ts"
+  ]
+}
