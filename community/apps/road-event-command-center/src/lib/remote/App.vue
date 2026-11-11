@@ -331,7 +331,7 @@ onBeforeUnmount(() => {
           <label class="field">
             <span>{{ messages.eventTypeLabel }}</span>
             <Select v-model="form.eventType" :disabled="loading">
-              <SelectTrigger class="field-select-trigger" :aria-label="messages.eventTypeLabel"><SelectValue /></SelectTrigger>
+              <SelectTrigger class="field-select-trigger" :aria-label="messages.eventTypeLabel"><SelectValue>{{ messages.types[form.eventType] }}</SelectValue></SelectTrigger>
               <SelectContent>
                 <SelectItem value="accident">{{ messages.types.accident }}</SelectItem>
                 <SelectItem value="road_blockage">{{ messages.types.road_blockage }}</SelectItem>
@@ -345,7 +345,7 @@ onBeforeUnmount(() => {
           <label class="field">
             <span>{{ messages.severityLabel }}</span>
             <Select v-model="form.severity" :disabled="loading">
-              <SelectTrigger class="field-select-trigger" :aria-label="messages.severityLabel"><SelectValue /></SelectTrigger>
+              <SelectTrigger class="field-select-trigger" :aria-label="messages.severityLabel"><SelectValue>{{ messages.severities[form.severity] }}</SelectValue></SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">{{ messages.severities.low }}</SelectItem>
                 <SelectItem value="medium">{{ messages.severities.medium }}</SelectItem>

@@ -194,6 +194,8 @@ test('local preview mounts the Vue entry through an HTML document', () => {
   assert.match(app, /<Button type="button"[^>]*@click="saveDraft"/)
   assert.match(app, /<Input v-model="form\.title"/)
   assert.match(app, /<Select v-model="form\.eventType"/)
+  assert.match(app, /<SelectValue>{{ messages\.types\[form\.eventType\] }}<\/SelectValue>/)
+  assert.match(app, /<SelectValue>{{ messages\.severities\[form\.severity\] }}<\/SelectValue>/)
   assert.match(app, /<Textarea v-model="form\.description"/)
   assert.doesNotMatch(app, /<input\b|<select\b|<textarea\b/)
   assert.match(app, /flush: 'sync'/)
