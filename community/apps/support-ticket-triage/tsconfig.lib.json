@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext", "moduleResolution": "NodeNext", "target": "ES2022", "lib": ["ES2022", "DOM"],
+    "rootDir": "src", "outDir": "dist", "declaration": true, "sourceMap": true, "types": ["node"],
+    "experimentalDecorators": true, "emitDecoratorMetadata": true, "useDefineForClassFields": false,
+    "strict": true, "skipLibCheck": true, "importHelpers": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/lib/remote-components/**"]
+}

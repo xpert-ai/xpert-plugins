@@ -1,0 +1,7 @@
+{
+  "title": "售后工单分诊台", "subtitle": "AI 负责分析，人工负责最终确认", "newTicket": "新建工单",
+  "customerName": "客户姓名", "email": "邮箱", "subject": "主题", "description": "问题描述", "create": "创建并入队",
+  "search": "搜索工单", "refresh": "刷新", "analyse": "让 AI 分析", "approve": "批准回复", "reject": "驳回",
+  "simulateFailure": "模拟失败", "retry": "重试", "empty": "暂无工单", "loading": "正在加载…", "reply": "回复草稿",
+  "evidence": "依据", "failure": "失败原因", "attempts": "尝试次数"
+}
