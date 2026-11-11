@@ -196,7 +196,7 @@ XPERT_ASSISTANT_ID=<正常助手> XPERT_FAULT_ASSISTANT_ID=<故障助手> corepa
 | 工作台界面（Remote Component，React + shadcn-ui） | `src/lib/remote-components/supplier-delivery-workbench/src/` |
 | 助手模板（YAML DSL） | `src/xpert-supplier-delivery-followup-assistant.yaml` |
 | 模型失败落盘（`wrapModelCall` 钩子，只改「同一次解析」的回复） | `src/lib/supplier-delivery-followup.middleware.ts`、`service.ts` 的 `reportModelFailure` |
-| 测试（9 个文件，158 个用例；sql.js 和真实 PostgreSQL 两种模式） | `src/**/*.spec.ts`、`src/testing/` |
+| 测试（9 个文件，162 个用例；sql.js 和真实 PostgreSQL 两种模式） | `src/**/*.spec.ts`、`src/testing/` |
 
 `remote-components/supplier-delivery-workbench/app.js` 和 `app.css` 是界面的构建产物，按仓库惯例随代码提交；`check:remote` 会检查它们和源码是否一致。
 
