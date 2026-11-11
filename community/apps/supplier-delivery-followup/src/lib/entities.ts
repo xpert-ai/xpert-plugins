@@ -60,6 +60,8 @@ export class ChangeProposal extends ScopedRecord {
   @Column({ type: 'int' }) orderLineRevision!: number
   // Preserve the pre-change date even if execution stops between order update and log insert.
   @Column({ type: 'varchar', length: 10 }) orderLineDate!: string
+  // The order quantity the assistant read; null on proposals saved before quantity changes were logged.
+  @Column({ type: 'double precision', nullable: true }) orderLineQuantity!: number | null
   @Column({ type: 'int' }) parseAttempt!: number
   @Column({ type: 'varchar' }) changeType!: ChangeType
   @Column({ type: 'varchar', nullable: true }) proposedDate!: string | null
@@ -85,6 +87,9 @@ export class DeliveryChangeLog extends ScopedRecord {
   @Column({ type: 'varchar', length: 10 }) oldDate!: string
   @Column({ type: 'varchar', length: 10 }) newDate!: string
   @Column({ type: 'varchar', nullable: true }) aiDate!: string | null
+  // Confirmation can also write the order quantity; both sides are kept so the change stays traceable.
+  @Column({ type: 'double precision', nullable: true }) oldQuantity!: number | null
+  @Column({ type: 'double precision', nullable: true }) newQuantity!: number | null
   @Column({ type: 'simple-json' }) batches!: Batch[]
   @Column({ type: 'varchar' }) confirmedBy!: string
   @Column({ type: 'varchar', nullable: true }) confirmedByName!: string | null

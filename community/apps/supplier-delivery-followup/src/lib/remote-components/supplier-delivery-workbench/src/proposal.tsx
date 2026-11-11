@@ -105,6 +105,14 @@ export function ProposalCard({
   onEdit: () => void
 }) {
   const po = t('proposal.order', { po: proposal.poNumber, line: proposal.lineNo })
+  // The quantity confirming would write: a human edit wins over the assistant's value. Once the reply is no longer
+  // under review the order may already hold it (or have moved on), so the comparison is only shown while reviewing.
+  const writeQuantity = proposal.finalQuantity ?? proposal.proposedQuantity
+  const willChangeQuantity =
+    !readOnly &&
+    proposal.decision !== 'rejected' &&
+    writeQuantity !== null &&
+    writeQuantity !== proposal.orderedQuantity
   const edited = proposal.decision === 'edited'
   // Show the date confirming would write (a human edit wins), relative to the date the assistant saw.
   const target = edited ? effectiveDate(proposal) : proposal.proposedDate
@@ -158,9 +166,22 @@ export function ProposalCard({
             label={t('proposal.quantity')}
             evidence={<EvidenceButton proposal={proposal} field="proposedQuantity" onShow={onShowEvidence} />}
           >
-            <span className="tabular-nums">
-              {proposal.proposedQuantity} {proposal.unit}
-            </span>
+            {willChangeQuantity ? (
+              <>
+                <span className={`font-medium tabular-nums ${toneClass.warning}`}>
+                  {t('proposal.quantityChange', {
+                    from: proposal.orderedQuantity,
+                    to: writeQuantity,
+                    unit: proposal.unit
+                  })}
+                </span>
+                <span className="block text-xs text-muted-foreground">{t('proposal.quantityChangeHint')}</span>
+              </>
+            ) : (
+              <span className="tabular-nums">
+                {writeQuantity} {proposal.unit}
+              </span>
+            )}
           </Row>
         ) : null}
         {proposal.batches.length ? (

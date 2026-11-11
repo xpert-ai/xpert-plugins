@@ -553,6 +553,31 @@ describe('SupplierDeliveryFollowupService (real TypeORM)', () => {
     expect(await db.getRepository(ChangeProposal).count()).toBe(2)
   })
 
+  it('supplier-delivery-followup 验收 6: a quantity written on confirmation is recorded in the change log', async () => {
+    const replyId = await start()
+    const saved = await service.saveProposal(input(replyId, { proposedQuantity: 35 }), scope)
+    await service.finalizeParse(replyId, 'one proposal', scope)
+    await service.decideProposal(saved.proposalId, 'accepted', undefined, undefined, scope)
+    await service.confirmReply(replyId, scope.userId, scope)
+    expect(await db.getRepository(OrderLine).findOneByOrFail({ poNumber: 'DEMO-001', lineNo: 1 })).toMatchObject({
+      quantity: 35
+    })
+    expect(await db.getRepository(DeliveryChangeLog).find()).toMatchObject([{ oldQuantity: 100, newQuantity: 35 }])
+  })
+
+  it('supplier-delivery-followup 验收 6: a confirmation that leaves the quantity alone logs it as unchanged', async () => {
+    const replyId = await start()
+    const { proposedQuantity: _omitted, ...withoutQuantity } = input(replyId)
+    const saved = await service.saveProposal(
+      { ...withoutQuantity, evidence: withoutQuantity.evidence.filter((item) => item.field !== 'proposedQuantity') },
+      scope
+    )
+    await service.finalizeParse(replyId, 'one proposal', scope)
+    await service.decideProposal(saved.proposalId, 'accepted', undefined, undefined, scope)
+    await service.confirmReply(replyId, scope.userId, scope)
+    expect(await db.getRepository(DeliveryChangeLog).find()).toMatchObject([{ oldQuantity: 100, newQuantity: 100 }])
+  })
+
   it('supplier-delivery-followup 验收 10: 上报失败保存原因并允许重试，confirmed拒绝所有解析和审核写入', async () => {
     const emptyReply = await start(DEMO_REPLIES.find((reply) => reply.kind === 'no_date')!.rawText)
     await expect(service.finalizeParse(emptyReply, '无日期', scope)).rejects.toMatchObject({ code: 'no_proposals' })

@@ -114,6 +114,17 @@ export function OrderInspector({
                       {t('inspector.timelineAi', { date: formatDate(change.aiDate) })}
                     </p>
                   ) : null}
+                  {change.oldQuantity != null &&
+                  change.newQuantity != null &&
+                  change.oldQuantity !== change.newQuantity ? (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {t('inspector.timelineQuantity', {
+                        from: change.oldQuantity,
+                        to: change.newQuantity,
+                        unit: order.unit
+                      })}
+                    </p>
+                  ) : null}
                   {change.batches.length ? (
                     <ul className="mt-1 text-xs text-muted-foreground tabular-nums">
                       {change.batches.map((batch, index) => (

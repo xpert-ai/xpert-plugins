@@ -186,6 +186,8 @@ export class SupplierDeliveryFollowupViewProvider implements IXpertViewExtension
                 oldDate: log.oldDate,
                 newDate: log.newDate,
                 aiDate: log.aiDate,
+                oldQuantity: log.oldQuantity ?? null,
+                newQuantity: log.newQuantity ?? null,
                 batches: log.batches,
                 confirmedBy: log.confirmedBy,
                 confirmedByName: log.confirmedByName ?? null,

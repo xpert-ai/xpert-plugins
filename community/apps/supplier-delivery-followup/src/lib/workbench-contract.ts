@@ -118,6 +118,9 @@ export interface ChangeLogDto {
   oldDate: string
   newDate: string
   aiDate: string | null
+  /** Order quantity before and after this confirmation; null on records written before quantities were logged. */
+  oldQuantity: number | null
+  newQuantity: number | null
   batches: BatchDto[]
   confirmedBy: string
   confirmedByName: string | null
