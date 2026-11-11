@@ -143,6 +143,15 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         }
       }
       const process = await runner.inspect(handle.runner)
+      if (process.state === 'exited') {
+        const controlEvidence = runnerCompletion(context, handle, 'failed', process.completion)
+        return {
+          status: controlEvidence ? 'failed' : 'unknown',
+          handle,
+          error: 'The OpenCode runner exited before a verifiable task result was recorded.',
+          controlEvidence
+        }
+      }
       if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
     }
     let messages: z.infer<typeof Message>[]

@@ -206,6 +206,64 @@ test('Computer Qwen keeps uncertain launches unknown and checks workspace/profil
   assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
 })
 
+test('Qwen returns a recoverable failure when the runner and all descendants have exited without a task result', async () => {
+  for (const exitCode of [0, 137, undefined]) {
+    const f = fixture()
+    const started = await f.strategy.start(f.request, f.context)
+    f.runner.inspect = async () => ({
+      state: 'exited',
+      exitCode,
+      completion: exitEvidence(started.handle.runner)
+    })
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'failed')
+    assert.equal(result.controlEvidence.outcome, 'failed')
+    assert.equal(result.result, undefined)
+    assert.equal(result.handle.metadata.completion.code, 'runner_unavailable')
+    assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+    assert.equal(f.calls.includes('GET'), false)
+    assert.equal(f.calls.includes('stop'), false)
+  }
+})
+
+test('Qwen never settles an unavailable runner without matching descendant completion evidence', async () => {
+  const f = fixture()
+  const started = await f.strategy.start(f.request, f.context)
+  const valid = exitEvidence(started.handle.runner)
+  for (const process of [
+    { state: 'unknown', completion: valid },
+    { state: 'exited' },
+    { state: 'exited', completion: { ...valid, processId: 'different-process' } },
+    { state: 'exited', completion: { ...valid, coverage: 'parent' } },
+    { state: 'exited', completion: { ...valid, environment: { ...valid.environment, instanceId: 'replaced' } } }
+  ]) {
+    f.runner.inspect = async () => process
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'unknown')
+    assert.equal(result.controlEvidence, undefined)
+  }
+  assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+})
+
+test('a truncated Qwen result is persisted as failure and only settles after descendant cleanup', async () => {
+  for (const confirmed of [true, false]) {
+    const f = fixture()
+    const started = await f.strategy.start(f.request, f.context)
+    f.setOutput({ state: 'exited', exitCode: 0, previewTruncated: true, events: [] })
+    f.runner.stop = async () => ({
+      state: 'exited',
+      ...(confirmed ? { completion: exitEvidence(started.handle.runner) } : {})
+    })
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(f.snapshots.at(-1).status, 'failed')
+    assert.equal(f.snapshots.at(-1).handle.metadata.completion.code, 'activity_incomplete')
+    assert.equal(result.status, confirmed ? 'failed' : 'unknown')
+    assert.equal(result.result, undefined)
+    assert.equal(result.controlEvidence?.outcome, confirmed ? 'failed' : undefined)
+    assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+  }
+})
+
 test('Computer Qwen leaves runner available when durable result checkpoint fails', async () => {
   const f = fixture()
   const started = await f.strategy.start(f.request, f.context)

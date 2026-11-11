@@ -92,6 +92,7 @@ function setup() {
   }
   return {
     strategy,
+    runner,
     context,
     request,
     events,
@@ -152,6 +153,33 @@ test('an incomplete runner checkpoint remains unknown and never re-dispatches', 
   const before = f.events.length
   assert.equal((await f.strategy.start({ ...f.request, previous: pending }, f.context)).status, 'unknown')
   assert.equal(f.events.length, before)
+})
+
+test('OpenCode reports failure after confirmed runner termination without replaying the task', async () => {
+  const f = setup()
+  const started = await f.strategy.start(f.request, f.context)
+  f.runner.inspect = async () => ({ state: 'exited', exitCode: 137, completion: exitEvidence(f.receipt) })
+  const before = f.events.length
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.equal(result.controlEvidence.outcome, 'failed')
+  assert.equal(result.result, undefined)
+  assert.equal(f.events.length, before)
+})
+
+test('OpenCode does not infer termination from an exited parent or unrelated completion receipt', async () => {
+  const f = setup()
+  const started = await f.strategy.start(f.request, f.context)
+  for (const process of [
+    { state: 'unknown', completion: exitEvidence(f.receipt) },
+    { state: 'exited' },
+    { state: 'exited', completion: { ...exitEvidence(f.receipt), invocationId: 'another-invocation' } }
+  ]) {
+    f.runner.inspect = async () => process
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'unknown')
+    assert.equal(result.controlEvidence, undefined)
+  }
 })
 
 test('does not stop the guest when terminal result persistence fails', async () => {

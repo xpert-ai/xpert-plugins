@@ -99,10 +99,14 @@ export async function inspectComputerJsonl(
       'runner_unavailable',
       'The CLI runner is unavailable; completion cannot be verified.'
     ).diagnostic
+    // A verified process-family exit permits failure delivery, never a fabricated success or replay.
+    const controlEvidence =
+      process.state === 'exited' ? runnerCompletion(context, handle, 'failed', process.completion) : undefined
     return {
-      status: 'unknown',
+      status: controlEvidence ? 'failed' : 'unknown',
       handle: { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } },
-      error: `[${diagnostic.code}] ${diagnostic.message}`
+      error: `[${diagnostic.code}] ${diagnostic.message}`,
+      controlEvidence
     }
   }
   const state = State.parse(await runner.request(handle.runner, { method: 'GET', path: '/task' }))
@@ -150,6 +154,8 @@ export async function inspectComputerJsonl(
   const diagnostic = { ...completion.diagnostic, ...(state.exitCode !== undefined ? { exitCode: state.exitCode } : {}) }
   handle = { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } }
   const delivery = outputDelivery(handle.metadata?.delivery)
+  // Missing final protocol data is a failed result even after exit code 0.
+  // Persist it before cleanup; descendant completion below still gates terminal settlement.
   const observation: AgentRuntimeObservation =
     state.state === 'exited' && state.exitCode === 0 && completion.ok
       ? {
@@ -159,7 +165,7 @@ export async function inspectComputerJsonl(
           result: { ...taskResult(completion.text, delivery), data: { workingDirectory: receipt.workingDirectory } }
         }
       : {
-          status: receiptLost && state.exitCode === 0 ? 'unknown' : 'failed',
+          status: 'failed',
           handle,
           progress,
           error: `[${diagnostic.code}] ${diagnostic.message}${

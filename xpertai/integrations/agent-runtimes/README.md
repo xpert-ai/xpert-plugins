@@ -66,6 +66,16 @@ checkpointed before guest shutdown; failed persistence keeps the runner availabl
 for reconciliation. No adapter promises rollback or exactly-once remote effects.
 Explicit file inputs remain unsupported and fail before launch.
 
+If a runner exits before a verifiable CLI result is recorded, the adapter reports
+failure only when the existing completion check proves that this invocation's owned
+process and descendants have exited in the original environment instance. Exit code
+0 alone does not prove a task result. Missing or mismatched completion evidence keeps
+`unknown`; the adapter does not launch a replacement or fabricate a success.
+For a truncated final JSONL receipt, it checkpoints the failed result before cleanup
+and reports terminal failure only after matching descendant-exit confirmation.
+These are execution outcomes; the coordinating Agent still decides task recovery
+and business acceptance.
+
 ## Project workspace instructions
 
 For an explicit implementation task in `AgentRuntimeContext.projectTask`, the JSONL
