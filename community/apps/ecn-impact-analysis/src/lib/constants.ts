@@ -5,7 +5,8 @@ import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
  * Physical entity tables resolve to `plugin_ecn_impact_<tableKey>`.
  */
 export const ECN_IMPACT_PLUGIN_NAME = '@xpert-ai/plugin-ecn-impact-analysis' as const
-export const ECN_IMPACT_INSTALL_LEVEL = 'organization' as const
+/** Tenant-level: registers TypeORM entities, installable in any tenant. */
+export const ECN_IMPACT_INSTALL_LEVEL = 'tenant' as const
 export const PLUGIN_ARTIFACT_NAMESPACE = 'ecn_impact' as const
 
 export const pluginArtifactKey = (localKey: string) => `${PLUGIN_ARTIFACT_NAMESPACE}.${localKey}`
