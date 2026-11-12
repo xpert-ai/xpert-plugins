@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.6.1
+
+### Patch Changes
+
+- dcb272a: Show draft, published-version and unsaved dashboard states, and reliably select share URLs for copying with localized failure feedback.
+
 ## 0.6.0
 
 ### Minor Changes
