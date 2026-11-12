@@ -3,12 +3,17 @@ import { z } from 'zod/v3'
 import { analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai/plugin-sdk/artifact-document'
 import { sourceMetadataSchema, dashboardComponentsSchema } from './dashboard-sources'
+import { templateOriginSchema } from './library/origin.schema'
 
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
   schema: z.literal('xpert.live-dashboard'), id: z.string().uuid(), title: z.string().min(1).max(160),
   bindings: z.array(analyticsBindingSchema).max(MAX_DASHBOARD_BINDINGS),
+  /** @beta Standard-renderer theme keys and their persisted meaning may change incompatibly during beta. */
+  visualTheme: z.enum(['system', 'slate', 'contrast']).optional(),
   sourceMetadata: sourceMetadataSchema.optional(),
+  /** @beta Fixed template provenance; informational only, never authorization or a live upgrade link. */
+  templateOrigin: templateOriginSchema.optional(),
   components: dashboardComponentsSchema.optional(),
   presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),
   controls: z.array(z.object({ controlId: id, type: z.enum(['string', 'number', 'boolean', 'date']),
@@ -78,7 +83,7 @@ export const dashboardSchema = z.object({
  */
 export type DashboardManifest = z.output<typeof dashboardSchema>
 /** Updates never choose identity or source scope; those come from the authorized saved version. */
-export const dashboardChangesSchema = dashboardSchema.innerType().pick({ title: true, bindings: true,
+export const dashboardChangesSchema = dashboardSchema.innerType().pick({ title: true, visualTheme: true, bindings: true,
   controls: true, charts: true, tables: true, presentation: true, sourceMetadata: true, components: true }).partial().strict()
 export type DashboardChanges = z.output<typeof dashboardChangesSchema>
 export const controlsSchema = z.record(z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()]))

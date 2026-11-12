@@ -96,3 +96,15 @@ the host's declared Binding bridge. They do not call data-xpert directly. Filter
 new declared parameters; refreshing performs another request. Responses must declare
 `fromCache: false`, meaning the data-xpert Action result cache was bypassed. Upstream source
 caches and business-data freshness are separate concerns.
+
+## Reuse a discovered query
+
+`query-schema` returns both `items[0].metadata.payload` and
+`items[0].metadata.output`. Copy both into the preview binding. The payload is
+the validated native Action envelope, including an empty `parameterPaths` when
+no controls are mapped; it contains no trusted connection options or actor
+credentials. Output contains declared field metadata, not business rows.
+Use output field IDs for `grain`, and declare uniqueness only when the query
+semantics prove it. A successful schema discovery still requires a separate
+binding preview. Adapter-owned time validation errors require correcting the
+query against published metadata; they do not establish missing source data.

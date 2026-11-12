@@ -4,6 +4,7 @@ import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { ArtifactsRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { DashboardService } from './dashboard.service'
 import { DASHBOARD_SHARE_KEY, dashboardSharingIssues } from './dashboard-sharing'
+import { executeGroupGrant, groupGrantAction } from './group-sharing'
 
 export const shareInput = z.object({ artifactId: z.string().uuid(), versionMode: z.enum(['latest', 'version']), versionId: z.string().uuid().optional() }).strict()
   .refine(value => value.versionMode !== 'version' || !!value.versionId, 'A fixed share requires a published version')
@@ -11,6 +12,9 @@ export const shareInput = z.object({ artifactId: z.string().uuid(), versionMode:
 @Injectable()
 export class DashboardSharingService {
   constructor(private readonly dashboards: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+  group(context: XpertResolvedViewHostContext, action: z.infer<typeof groupGrantAction>, input: unknown) {
+    return executeGroupGrant(this.runtime, this.dashboards, context, action, input)
+  }
   async inspect(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string) {
     const versions = await this.dashboards.history(context, artifactId)
     const selected = versionId ? versions.find(version => version.versionId === versionId) : versions.find(version => version.current)

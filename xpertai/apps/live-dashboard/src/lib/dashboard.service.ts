@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import { createHash } from 'node:crypto'
 import type { AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
-  ArtifactContentRuntimeCapability, ProjectAccessRuntimeCapability, AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  ContentResourcesRuntimeCapability, ArtifactContentRuntimeCapability, ProjectAccessRuntimeCapability, AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord
 } from '@xpert-ai/plugin-sdk'
 import { dashboardSchema, dashboardChangesSchema, type DashboardManifest, type DashboardChanges } from './dashboard.schema'
@@ -17,6 +17,8 @@ import { resolveLibraryAssets } from './document-libraries'
 import { decodeDashboardPackage, encodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY, dashboardSharingIssues } from './dashboard-sharing'
 import type { DashboardAccess, DashboardMode } from './project'
+import { DASHBOARD_CONTENT_TYPE } from './content-type'
+import type { ConversationResourceQuery } from '@xpert-ai/contracts'
 
 export const PLUGIN_NAME = '@xpert-ai/plugin-live-dashboard'
 const RESOURCE_TYPE = 'live-dashboard'
@@ -43,6 +45,23 @@ export class DashboardService {
   }
   async list(context: XpertResolvedViewHostContext) {
     return (await this.listPage(context)).items
+  }
+  /** Unified discovery is host-owned. The domain only filters its semantic type and adds authoring affordances. */
+  async availableResources(context: XpertResolvedViewHostContext, query: ConversationResourceQuery) {
+    const access = await this.access(context)
+    const id = projectId(context)
+    if (!id || !context.organizationId) throw new ForbiddenException('DASHBOARD_PROJECT_REQUIRED')
+    const page = await this.runtime.require(ContentResourcesRuntimeCapability).discovery.list({
+      actor: { tenantId: context.tenantId, organizationId: context.organizationId, userId: context.userId },
+      projectId: id, ...(context.hostType === 'agent' ? { assistantId: context.hostId } : {}),
+      conversationId: context.runtimeScope?.conversationId
+    }, { ...query, typeId: DASHBOARD_CONTENT_TYPE, limit: 20 })
+    return { ...page, canEdit: access.canEdit, mode: access.canReadDraft ? 'draft' as const : 'published' as const,
+      items: await Promise.all(page.items.map(async item => {
+        if (item.resource.kind !== 'project-content') return item
+        if (!item.contentSource || item.contentSource.providerKey !== 'live-dashboard.content') throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+        return { ...item, dashboard: await this.selectedSummary(context, item.contentSource.resourceId) }
+      })) }
   }
   async access(context: XpertResolvedViewHostContext): Promise<DashboardAccess> {
     const access = await this.authorizeProject(context)

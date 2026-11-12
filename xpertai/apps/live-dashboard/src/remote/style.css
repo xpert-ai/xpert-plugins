@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 @import '@xpert-ai/plugin-shadcn-ui/style.css';
+/* Shared package CSS is precompiled; expose its host tokens to local Tailwind utilities. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+}
 @source './**/*.{ts,tsx}';
 html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; overflow:hidden; }
 .dashboard-shell { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; background:var(--background); color:var(--foreground); }
@@ -20,7 +29,7 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 .dashboard-picker { min-width:0; flex:1 1 420px; max-width:680px; }
 .picker-project { min-width:0; flex:0 1 40%; }
 .picker-dashboard { min-width:0; flex:1; text-align:left; }
-.dashboard-picker-menu { width:min(680px, calc(100vw - 24px), var(--radix-popover-content-available-width, 680px)); height:min(420px, calc(100dvh - 24px), var(--radix-popover-content-available-height, 420px)); overflow:hidden; }
+.dashboard-picker-menu { width:min(780px, calc(100vw - 24px), var(--radix-popover-content-available-width, 780px)); height:min(480px, calc(100dvh - 24px), var(--radix-popover-content-available-height, 480px)); overflow:hidden; }
 .picker-panels { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); gap:0; height:100%; min-height:0; }
 .picker-pane { display:flex; min-width:0; min-height:0; margin:0; overflow:hidden; }
 .picker-project-pane { border-right:1px solid var(--border); }
@@ -34,7 +43,7 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 
 .picker-column { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:auto; }
 .picker-column-heading { display:flex; align-items:center; justify-content:space-between; gap:4px; padding:2px 12px; min-height:36px; flex:none; }
-.picker-command { flex: 1; min-height: 0; height: auto; }
+.picker-command { flex: 1 0 132px; min-height: 132px; height: auto; }
 .picker-list { flex: 1; min-height: 0; max-height: none; padding: 6px; }
 .picker-dashboard-row { display:flex; align-items:center; gap:2px; min-width:0; }
 .picker-dashboard-row [cmdk-item] { flex:1; min-width:0; }
@@ -54,3 +63,33 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 .sources-panel { display:flex; flex-direction:column; flex:0 0 min(380px, 42%); min-width:0; min-height:0; overflow:hidden; }
 
 .dashboard-import-dialog { width: min(48rem, calc(100% - 2rem)); max-width: calc(100% - 2rem); max-height: 90dvh; }
+
+/* Content layouts follow the available tab width without overriding shared controls. */
+.library-page { @apply mx-auto w-full max-w-screen-2xl px-8 py-10; }
+.template-grid,.explore-task-grid { @apply grid grid-cols-3 items-start gap-x-6 gap-y-8; }
+.catalog-component-grid { @apply grid grid-cols-2 items-stretch gap-6; }
+@container (max-width:960px) { .library-page { @apply px-6 py-8; } .template-grid,.explore-task-grid { @apply grid-cols-2; } }
+@container (max-width:600px) { .library-page { @apply px-4 py-6; } .template-grid,.explore-task-grid,.catalog-component-grid { @apply grid-cols-1; } }
+/* Explore geometry follows its tab container, independently of the host sidebar. */
+.explore-entry-grid { display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:1rem; }
+.explore-entry-insights { grid-row:span 2; min-height:30rem; }
+.explore-entry-knowledge { grid-column:span 2; min-height:12rem; padding-right:35%; }
+.explore-entry-schedule,.explore-entry-extensions { min-height:17rem; }
+.explore-entry-art { width:70%; max-height:14rem; }
+.explore-entry-insights .explore-entry-art { width:100%; }
+.explore-entry-knowledge .explore-entry-art { position:absolute; right:1.5rem; bottom:1.5rem; width:30%; }
+.explore-entry-schedule .explore-entry-art,.explore-entry-extensions .explore-entry-art { max-height:7rem; }
+.explore-task-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2rem 1.5rem; }
+@container (max-width: 56rem) {
+  .explore-entry-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .explore-entry-insights { grid-row:auto; min-height:20rem; }
+  .explore-entry-knowledge { grid-column:auto; min-height:20rem; padding-right:1.5rem; }
+  .explore-entry-knowledge .explore-entry-art { position:static; width:75%; }
+  .explore-task-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container (max-width: 36rem) {
+  .explore-entry-grid,.explore-task-grid { grid-template-columns:minmax(0,1fr); }
+  .explore-entry-insights,.explore-entry-knowledge,.explore-entry-schedule,.explore-entry-extensions { min-height:14rem; padding-right:40%; }
+  .explore-entry-art,.explore-entry-insights .explore-entry-art,.explore-entry-knowledge .explore-entry-art { position:absolute; right:1rem; bottom:1.5rem; width:35%; }
+  .explore-heading-art { display:none; }
+}

@@ -1,6 +1,6 @@
 import { z } from 'zod/v3'
 
-export const DASHBOARD_MUTATION_TOOLS = ['dashboard_create', 'dashboard_create_html', 'dashboard_update', 'dashboard_wait_request', 'dashboard_get_request']
+export const DASHBOARD_MUTATION_TOOLS = ['dashboard_create', 'dashboard_create_html', 'dashboard_update', 'dashboard_wait_request', 'dashboard_get_request', 'dashboard_instantiate_template']
 const receiptSchema = z.object({ dashboard: z.object({ artifactId: z.string().uuid(), draftRevision: z.number().int().positive(), status: z.literal('draft') }) })
 /** Tool start/failed logs can share the host event channel; only a saved receipt opens a View. */
 export function createdDashboard(output: unknown) {

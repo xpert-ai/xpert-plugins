@@ -49,6 +49,23 @@ test('discovery exposes current typed previews and native query contracts, witho
   assert.deepEqual((await f.provider.discover({}, f.context)).items, [])
   await assert.rejects(f.provider.discover({ datasetId: 'sales' }, f.context), /revoked/)
 })
+
+test('group disclosure requires project management, not merely readable file metadata', async () => {
+  const f = fixture()
+  await assert.rejects(f.provider.authorizeGroupSharing(f.binding, f.context), /SHARING_UNAVAILABLE/)
+  f.definition.file = { catalog: 'projects', projectId: uuid(9), filePath: 'sales.csv' }
+  f.binding.payload.contractHash = contractHash(f.definition)
+  let manages = false, checks = 0
+  const provider = new FileAnalyticsProvider({ require: capability => capability.id === 'platform.workspace.files' ? f.files : {
+    assertManage: async input => { checks++; assert.equal(input.actor, f.context.actor); if (!manages) throw new ForbiddenException('management required') },
+    listReadable: async () => [{ projectId: uuid(9), archived: false }]
+  } })
+  await assert.rejects(provider.authorizeGroupSharing(f.binding, f.context), /management required/)
+  manages = true
+  await provider.authorizeGroupSharing(f.binding, f.context)
+  assert.equal(checks, 2)
+  assert.equal(f.state.reads, 0)
+})
 test('filter, file update, serialized Binding reopen and freshness all re-read authorized files', async () => {
   const f = fixture()
   const all = normalizeAnalyticsResult(f.binding, await f.provider.execute(f.binding, { region: null }, f.context), 'q1', 1000)

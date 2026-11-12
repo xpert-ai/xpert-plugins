@@ -1,23 +1,21 @@
 import * as React from 'react'
-import { Button } from '@xpert-ai/plugin-shadcn-ui'
+import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Database, WandSparkles, Table2, ChevronRight } from '@xpert-ai/plugin-shadcn-ui'
 import type { messages } from './i18n'
+import { openLibrary } from './library-gateway'
+import type { LibraryPage } from '../lib/library.schema'
 
-export function DashboardStarter({ t, onStart }: {
-  t: ReturnType<typeof messages>; onStart: (text: string) => Promise<void>
-}) {
-  return <section className="mx-auto grid max-w-2xl gap-5 p-6" aria-label={t.starterTitle}>
-    <div><h2>{t.starterTitle}</h2><p className="text-sm text-muted-foreground">{t.starterHint}</p></div>
-    <div className="grid gap-3">
-      {([
-        ['regionalTitle', 'regionalDescription', 'regionalPrompt'],
-        ['salesTitle', 'salesDescription', 'salesPrompt'],
-        ['qualityTitle', 'qualityDescription', 'qualityPrompt'],
-        ['superstoreTitle', 'superstoreDescription', 'superstorePrompt']
-      ] as const).map(([title, description, prompt]) => <div key={title} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-        <div><p>{t[title]}</p><p className="text-sm text-muted-foreground">{t[description]}</p></div>
-        <Button variant="outline" onClick={() => void onStart(t[prompt])} aria-label={`${t.tryExample}: ${t[title]}`}>{t.tryExample}</Button>
-      </div>)}
-    </div>
-    <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{t.realDataHint}</p><Button onClick={() => void onStart(t.realDataPrompt)}>{t.realDataTitle}</Button></div>
+/** @beta Starter navigation and entry points may change during the workbench rollout. */
+export function DashboardStarter({ t, onStart }: { t: ReturnType<typeof messages>; onStart: (text: string) => Promise<void> }) {
+  const [busy, setBusy] = React.useState(false), [error, setError] = React.useState('')
+  async function navigate(page: LibraryPage) { setBusy(true); setError(''); try { await openLibrary(page) } catch (e) { setError(e instanceof Error ? e.message : t.error) } finally { setBusy(false) } }
+  return <section className="mx-auto h-full max-w-5xl space-y-6 overflow-auto p-6" aria-label={t.libNewTitle}>
+    <div className="space-y-3 py-6"><h2 className="text-2xl font-semibold tracking-tight">{t.libNewTitle}</h2><p className="max-w-2xl text-muted-foreground">{t.libNewHint}</p></div>
+    <div className="grid gap-4 lg:grid-cols-3">{([
+      { page: 'data', title: t.libMyData, hint: t.libNewDataHint, Icon: Database },
+      { page: 'templates', title: t.libTemplates, hint: t.libNewTemplateHint, Icon: Table2 },
+      { page: 'explore', title: t.libExplore, hint: t.libNewExploreHint, Icon: WandSparkles }
+    ] as const).map(({page,title,hint,Icon}) => <Card key={page}><CardHeader><Icon className="text-primary"/><CardTitle>{title}</CardTitle><CardDescription>{hint}</CardDescription></CardHeader><CardContent><Button variant={page === 'data' ? 'default' : 'outline'} disabled={busy} onClick={() => void navigate(page)}>{t.libStart}<ChevronRight/></Button></CardContent></Card>)}</div>
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-5"><p className="text-sm text-muted-foreground">{t.libDescribeQuestion}</p><Button variant="ghost" disabled={busy} onClick={() => void onStart(t.realDataPrompt)}>{t.libAskAssistant}<ChevronRight/></Button></div>
+    {error && <p role="alert" className="text-destructive">{error}</p>}
   </section>
 }
