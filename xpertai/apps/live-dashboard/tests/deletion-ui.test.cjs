@@ -166,6 +166,22 @@ async function setup(t) {
 
 test('dashboard deletion UI', async t => {
   const harness = await setup(t)
+  await t.test('picker shows draft and published version badges without changing selection', async () => {
+    await harness.reset()
+    harness.setPickerFixtures(harness.projects, [
+      harness.items[0],
+      { ...harness.items[1], isDraft: false, versionId: harness.versionId, versionNumber: 3 },
+      { ...harness.items[0], artifactId: randomUUID(), title: 'New edit', versionId: harness.versionId, versionNumber: 3 },
+      { artifactId: randomUUID(), title: 'Published only', isDraft: false, versionNumber: 2 }
+    ])
+    await harness.click(harness.picker())
+    const rows = [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')]
+    assert.deepEqual(rows.map(row => row.querySelector('[data-slot=badge]').textContent),
+      ['Working draft', 'Published v3', 'Working draft', 'Published v2'])
+    assert.equal(rows[0].getAttribute('aria-current'), 'true')
+    await harness.click(rows[1])
+    assert.equal(harness.selections.at(-1).artifactId, harness.items[1].artifactId)
+  })
   await t.test('a successful draft receipt reloads metadata and exact Assistant revision without navigating', async () => {
     await harness.reset()
     const id = harness.items[0].artifactId
@@ -214,7 +230,7 @@ test('dashboard deletion UI', async t => {
     await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Project B'))
     assert.equal(harness.projectNavigation.length, 0)
     assert.equal(harness.pickerRequests.at(-1).input.projectId, harness.projects[1].id)
-    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Dashboard 2'))
+    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
     assert.equal(harness.projectNavigation.at(-1).projectId, harness.projects[1].id)
     assert.equal(harness.projectNavigation.at(-1).target, 'assistant.project')
     assert.equal(harness.projectNavigation.at(-1).selectionId, harness.items[1].artifactId)
@@ -230,7 +246,7 @@ test('dashboard deletion UI', async t => {
     await harness.reset(); harness.failNavigation()
     await harness.click(harness.picker())
     await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Project B'))
-    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Dashboard 2'))
+    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
     assert.match(document.querySelector('[role="alert"]').textContent, /Could not switch project/)
     assert.match(harness.picker().textContent, /Dashboard 1/)
     assert.match(harness.picker().textContent, /Project A/)
@@ -293,7 +309,7 @@ test('dashboard deletion UI', async t => {
     await harness.fill('Search dashboards…', 'Board 22')
     assert.equal(count('Dashboards'), 1); assert.equal(count('Project'), 22)
     assert.equal(harness.pickerRequests.at(-1).input.page, 1)
-    assert.equal(document.querySelector('section[aria-label="Dashboards"] [role=option]').textContent, 'Board 22')
+    assert.equal(document.querySelector('section[aria-label="Dashboards"] [role=option] .truncate').textContent, 'Board 22')
     await harness.fill('Search projects', 'Project B')
     assert.equal(count('Project'), 1)
     assert.equal(document.querySelector('input[aria-label="Search dashboards…"]').value, 'Board 22')
@@ -313,7 +329,7 @@ test('dashboard deletion UI', async t => {
     harness.holdSearch('Board 1')
     await harness.fill('Search dashboards…', 'Board 1')
     await harness.fill('Search dashboards…', 'Board 2')
-    const titles = () => [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')].map(item => item.textContent)
+    const titles = () => [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option] .truncate')].map(item => item.textContent)
     assert.deepEqual(titles(), ['Board 2', 'Board 20', 'Board 21', 'Board 22'])
     await harness.finishPicker()
     assert.deepEqual(titles(), ['Board 2', 'Board 20', 'Board 21', 'Board 22'])
@@ -340,8 +356,8 @@ test('dashboard deletion UI', async t => {
     assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).input)), { artifactId: items[0].artifactId, expectedRevision: 1, confirmed: true })
     assert.equal(remaining().length, 1)
     await click(picker())
-    assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 1'))
-    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 2'))
+    assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
+    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
   })
   await t.test('a published dashboard outside the first list page can be deleted with its current draft revision', async () => {
     await harness.reset(false, 'published', true)
@@ -374,6 +390,23 @@ test('dashboard deletion UI', async t => {
     assert.equal(harness.button('Delete dashboard “Dashboard 1”'), undefined)
     assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
   })
+  await t.test('an empty dashboard is labeled unsaved and can be deleted without opening it', async () => {
+    await harness.reset()
+    harness.setPickerFixtures(harness.projects, [
+      harness.items[0], { ...harness.items[1], isEmpty: true, isDraft: false, draftRevision: 0 }
+    ])
+    await harness.click(harness.picker())
+    const row = [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')]
+      .find(element => element.textContent.includes('Dashboard 2'))
+    assert.equal(row.querySelector('[data-slot=badge]').textContent, 'Not saved')
+    assert.equal(row.getAttribute('aria-disabled'), 'true')
+    const selected = harness.selections.at(-1).artifactId
+    await harness.click(harness.button('Delete dashboard “Dashboard 2”'))
+    assert.match(harness.dialog().textContent, /Dashboard 2/)
+    await harness.click(harness.button('Delete dashboard')); await harness.finishDelete()
+    assert.equal(harness.calls.at(-1).input.expectedRevision, 0)
+    assert.equal(harness.selections.at(-1).artifactId, selected)
+  })
 
   for (const hold of [false, true]) {
     await t.test(`deletion clears the same dashboard after an Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
@@ -388,8 +421,8 @@ test('dashboard deletion UI', async t => {
       assert.equal(selections.at(-1), null)
       assert.equal(navigation.at(-1), undefined)
       await click(picker())
-      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 1'))
-      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 2'))
+      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
+      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
     })
 
     await t.test(`deletion does not select another dashboard on a late Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
@@ -403,8 +436,8 @@ test('dashboard deletion UI', async t => {
       assert.equal(selections.at(-1), null)
       assert.equal(navigation.at(-1), undefined)
       await click(picker())
-      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 1'), 'an older open response must not restore the deleted list entry')
-      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 2'))
+      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'), 'an older open response must not restore the deleted list entry')
+      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
     })
   }
 
@@ -420,6 +453,6 @@ test('dashboard deletion UI', async t => {
     assert.match(picker().textContent, /Dashboard 1/)
     assert.equal(selections.at(-1).artifactId, items[0].artifactId)
     await click(picker())
-    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.textContent === 'Dashboard 1'))
+    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
   })
 })

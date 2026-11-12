@@ -70,3 +70,21 @@ test('queue submission interruption can re-enqueue the same job on recovery', as
   assert.equal((await f.make().get(f.context, request.requestId)).state, 'queued')
   assert.deepEqual([...f.jobs.keys()], [id])
 })
+
+
+test('failed first background save discards its empty artifact and a new request can retry', async () => {
+  const f = fixture(), request = await f.service.submit(f.context, f.manifest, null, 0, 'upload-failure')
+  f.calls.failUpload = true
+  await assert.rejects(f.run(request), /DASHBOARD_SAVE_VALIDATION_FAILED/)
+  assert.equal((await f.make().get(f.context, request.requestId)).state, 'failed')
+  assert.equal(f.artifacts.size, 1)
+  assert.equal([...f.artifacts.values()][0].status, 'deleted')
+  assert.equal(f.drafts.size, 0)
+  f.calls.failUpload = false
+  const retry = await f.service.submit(f.context, f.manifest, null, 0, 'upload-retry')
+  await f.run(retry)
+  const result = await f.make().get(f.context, retry.requestId)
+  assert.equal(result.state, 'succeeded')
+  assert.equal(result.dashboard.draftRevision, 1)
+  assert.equal(f.artifacts.size, 1)
+})

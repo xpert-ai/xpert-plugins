@@ -180,16 +180,51 @@ test('non-default filter probes preserve the host validation error for Agent rep
   assert.equal(s.artifacts.size, 0)
 })
 
-test('retry initializes the same empty Artifact after the first file upload fails', async () => {
+test('failed first upload disappears from the picker and retry initializes the same identity', async () => {
   const s = setup(); s.calls.failUpload = true
   await assert.rejects(s.service.save(s.context, example, null), /UPLOAD_FAILED/)
   assert.equal(s.artifacts.size, 1); assert.equal(s.versions.length, 0)
+  assert.deepEqual(await s.service.list(s.context), [])
+  assert.equal([...s.artifacts.values()][0].status, 'deleted')
   const artifactId = [...s.artifacts.keys()][0]
   s.calls.failUpload = false
   const receipt = await s.service.save(s.context, example, null)
   assert.equal(receipt.artifactId, artifactId); assert.equal(receipt.draftRevision, 1)
   assert.equal(s.artifacts.size, 1)
   assert.deepEqual((await s.service.open(s.context, artifactId)).manifest, example)
+})
+
+test('draft persistence failure after content upload leaves no active shell', async () => {
+  const s = setup(); s.calls.failDraftSave = true
+  await assert.rejects(s.service.save(s.context, example, null), /DRAFT_SAVE_FAILED/)
+  assert.equal(s.files.size, 1, 'compensation does not delete workspace content')
+  assert.equal(s.drafts.size, 0)
+  assert.deepEqual(await s.service.list(s.context), [])
+})
+
+test('a failed update preserves the previous saved draft and its active identity', async () => {
+  const s = setup(), saved = await s.service.save(s.context, example, null)
+  s.calls.failUpload = true
+  await assert.rejects(s.service.update(s.context, saved.artifactId, 1, { title: 'failed edit' }, null), /UPLOAD_FAILED/)
+  assert.equal(s.artifacts.get(saved.artifactId).status, 'active')
+  assert.equal(s.drafts.get(saved.artifactId).revision, 1)
+  assert.deepEqual((await s.service.open(s.context, saved.artifactId)).manifest, example)
+})
+
+test('missing compensation support rejects new saves before creating an Artifact', async () => {
+  const s = setup(); delete s.capabilities['platform.artifact-drafts'].discardEmpty
+  await assert.rejects(s.service.save(s.context, example, null), /DASHBOARD_LIFECYCLE_UPGRADE_REQUIRED/)
+  assert.equal(s.artifacts.size, 0)
+})
+
+test('cleanup failure retains both error causes instead of reporting a successful save', async () => {
+  const s = setup(); s.calls.failUpload = true
+  s.capabilities['platform.artifact-drafts'].discardEmpty = async () => { throw Error('CLEANUP_OFFLINE') }
+  await assert.rejects(s.service.save(s.context, example, null), error => {
+    assert.equal(error.message, 'DASHBOARD_SAVE_CLEANUP_FAILED')
+    assert.deepEqual(error.errors.map(cause => cause.message), ['UPLOAD_FAILED', 'CLEANUP_OFFLINE'])
+    return true
+  })
 })
 
 

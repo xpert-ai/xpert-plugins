@@ -140,8 +140,17 @@ try {
   await dialog.getByRole('button', { name: '开启分享', exact: true }).click()
   const shareUrl = await dialog.getByLabel('分享链接', { exact: true }).inputValue()
   assert.ok(shareUrl.startsWith('https://platform.test/artifacts/view/'))
+  // Read the real browser clipboard from the host; leave the opaque View sandbox unchanged.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url })
+  await page.evaluate(() => navigator.clipboard.writeText('previous clipboard contents'))
+  await dialog.evaluate(element => {
+    const text = element.querySelector('[data-slot="dialog-description"]')
+    const range = document.createRange(); range.selectNodeContents(text)
+    const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range)
+  })
   await dialog.getByRole('button', { name: '复制链接', exact: true }).click()
   await dialog.getByRole('button', { name: '已复制', exact: true }).waitFor()
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), shareUrl, 'First click must copy the exact share URL')
   await dialog.getByRole('combobox', { name: '版本策略', exact: true }).click()
   await view.getByRole('option', { name: '固定正式版本', exact: true }).click()
   await dialog.getByRole('combobox', { name: '版本', exact: true }).click()

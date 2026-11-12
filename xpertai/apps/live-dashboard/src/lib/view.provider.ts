@@ -105,7 +105,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       return { success: true, data: action === 'share-status' ? await this.sharing.inspect(context, input.artifactId, input.versionId) : await this.sharing.revoke(context, input.artifactId), refresh: false }
     }
     if (action === 'delete') {
-      const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(), confirmed: z.literal(true), projectId: z.string().uuid().optional() }).strict().safeParse(request.input)
+      const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().nonnegative(), confirmed: z.literal(true), projectId: z.string().uuid().optional() }).strict().safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_DELETION_CONFIRMATION_REQUIRED')
       const input = parsed.data
       const target = input.projectId ? await this.projects.pickerContext(context, input.projectId) : context

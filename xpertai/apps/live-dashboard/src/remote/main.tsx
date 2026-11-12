@@ -292,7 +292,7 @@ function App() {
   }
   async function deleteDashboard() {
     const target = confirmDelete
-    if (deleting || !target?.canDelete || !target.draftRevision) return
+    if (deleting || !target?.canDelete || target.draftRevision === undefined) return
     setDeleteError(''); setDeleting(true)
     try {
       const receipt = z.object({ artifactId: z.literal(target.artifactId) }).parse(actionSchema.parse(await requestHost('executeAction', {
@@ -314,7 +314,7 @@ function App() {
     } finally { setDeleting(false) }
   }
   function requestDelete(target: Summary, projectId?: string) {
-    if (readOnly || !target.canDelete || !target.draftRevision) return
+    if (readOnly || !target.canDelete || target.draftRevision === undefined) return
     setPickerOpen(false)
     setDeleteError(''); setConfirmDelete({ ...target, ...(projectId ? { projectId } : {}) })
   }
@@ -354,7 +354,7 @@ function App() {
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
         </Button>
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
-          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
+          canDelete={canManage && !!selectedDashboard?.canDelete && selectedDashboard.draftRevision !== undefined} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
           onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
           onEdit={() => void run(async () => {
             if (!saved) return
