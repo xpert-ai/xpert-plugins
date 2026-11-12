@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
-import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, Check, Plus, Trash2, Button, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@xpert-ai/plugin-shadcn-ui'
+import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, Check, Plus, Trash2, Badge, Button, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardProjectSchema, dashboardProjectsSchema } from '../lib/projects.schema'
 import { dashboardPickerPageSchema } from '../lib/dashboard-view.schema'
 import type { DashboardMode } from '../lib/project'
@@ -61,7 +61,9 @@ function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, 
             <TooltipTrigger asChild><div className="picker-dashboard-row">
               <CommandItem value={item.artifactId} data-current={item.artifactId === value}
                 className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
-                <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>{item.artifactId === value && <Check aria-hidden="true"/>}
+                <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>
+                <Badge variant={item.isDraft || item.isEmpty ? 'outline' : 'secondary'}>{item.isEmpty ? t.unsaved : item.isDraft ? t.draft : item.versionNumber != null ? i18n.t('publishedVersion', { version: item.versionNumber }) : t.published}</Badge>
+                {item.artifactId === value && <Check aria-hidden="true"/>}
               </CommandItem>
               {onDelete && item.canDelete && !!item.draftRevision && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
                 aria-label={i18n.t('deleteDashboardNamed', { title: item.title ?? item.artifactId })}

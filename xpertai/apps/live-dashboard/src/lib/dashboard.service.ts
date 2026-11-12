@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import type { AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
   ArtifactContentRuntimeCapability, ProjectAccessRuntimeCapability, AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
-  type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord
+  type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord, type ArtifactDraftRecord
 } from '@xpert-ai/plugin-sdk'
 import { dashboardSchema, dashboardChangesSchema, type DashboardManifest, type DashboardChanges } from './dashboard.schema'
 import { assertComponentElements } from './source-validation'
@@ -57,11 +57,9 @@ export class DashboardService {
     const result = await this.runtime.require(ArtifactsRuntimeCapability).listArtifacts({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceIdPrefix: hostPrefix(context), status: 'active', page, pageSize, includeCurrentVersion: true })
     const items = result.items.filter((item) => item.resourceId.startsWith(hostPrefix(context)) && (item.userId === context.userId || !item.userId && item.projectId === projectId(context)))
     const drafts = new Map((access.canReadDraft ? await this.runtime.require(ArtifactDraftsRuntimeCapability).list(items.map(item => item.id)) : []).map(draft => [draft.artifactId, draft]))
-    return { page, pageSize, hasMore: page * pageSize < result.total, items: items.filter(item => access.canReadDraft || !!item.currentVersionId).map(item => {
-      const draft = drafts.get(item.id)
-      return { ...summary(item), canDelete: !!draft && access.canManage,
-        ...(draft ? { title: draft.title ?? item.title, draftRevision: draft.revision, updatedAt: draft.updatedAt ?? item.updatedAt } : {}) }
-    }) }
+    return { page, pageSize, hasMore: page * pageSize < result.total, items: await Promise.all(
+      items.filter(item => access.canReadDraft || !!item.currentVersionId).map(item => this.pickerSummary(item, drafts.get(item.id), access))
+    ) }
   }
   async searchPage(context: XpertResolvedViewHostContext, input: { search: string; page: number }) {
     // Search the authorized display titles, including editor drafts. Filtering a stored
@@ -83,8 +81,14 @@ export class DashboardService {
     if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
     if (!access.canReadDraft && !artifact.currentVersionId) return undefined
     const draft = access.canReadDraft ? (await this.runtime.require(ArtifactDraftsRuntimeCapability).list([artifactId]))[0] : undefined
-    return { ...summary(artifact), canDelete: !!draft && access.canManage,
-      ...(draft ? { title: draft.title ?? artifact.title, draftRevision: draft.revision } : {}) }
+    return this.pickerSummary(artifact, draft, access)
+  }
+  private async pickerSummary(artifact: ArtifactRecord, draft: ArtifactDraftRecord | undefined, access: DashboardAccess) {
+    const isEmpty = access.canReadDraft && !draft && !artifact.currentVersionId &&
+      !(await this.runtime.require(ArtifactsRuntimeCapability).listArtifactVersions({ artifactId: artifact.id })).length
+    return { ...summary(artifact), isEmpty, canDelete: access.canManage && !!draft,
+      isDraft: !!draft && draft.revision !== draft.publishedRevision,
+      ...(draft ? { title: draft.title ?? artifact.title, draftRevision: draft.revision, updatedAt: draft.updatedAt ?? artifact.updatedAt } : {}) }
   }
   async trash(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number) {
     await this.authorizeProject(context, 'manage')
