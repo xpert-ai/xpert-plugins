@@ -60,12 +60,12 @@ function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, 
           return <Tooltip key={item.artifactId}>
             <TooltipTrigger asChild><div className="picker-dashboard-row">
               <CommandItem value={item.artifactId} data-current={item.artifactId === value}
-                className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled || item.isEmpty} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
+                className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
                 <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>
                 <Badge variant={item.isDraft || item.isEmpty ? 'outline' : 'secondary'}>{item.isEmpty ? t.unsaved : item.isDraft ? t.draft : item.versionNumber != null ? i18n.t('publishedVersion', { version: item.versionNumber }) : t.published}</Badge>
                 {item.artifactId === value && <Check aria-hidden="true"/>}
               </CommandItem>
-              {onDelete && item.canDelete && item.draftRevision !== undefined && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
+              {onDelete && item.canDelete && !!item.draftRevision && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
                 aria-label={i18n.t('deleteDashboardNamed', { title: item.title ?? item.artifactId })}
                 onKeyDown={event => { if (event.key === 'Enter') event.stopPropagation() }} onClick={() => onDelete(item)}><Trash2 aria-hidden="true"/></Button>}
             </div></TooltipTrigger>

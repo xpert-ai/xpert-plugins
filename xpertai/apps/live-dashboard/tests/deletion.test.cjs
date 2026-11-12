@@ -20,7 +20,6 @@ function setup(project = false) {
       listArtifacts: async input => { assert.ok(['active', 'archived'].includes(input.status)); return { items: artifact.status === input.status ? [artifact] : [], total: artifact.status === input.status ? 1 : 0 } }
     },
     'platform.artifact-drafts': {
-      discardEmpty: async () => true,
       get: async (_id, options) => { assert.equal(options?.includeArchived, true); return draft },
       list: async () => draft.revision ? [draft] : [],
       setRecycled: async input => {
@@ -49,11 +48,7 @@ test('list transports delete permission and the exact reviewed draft revision', 
   assert.equal(parsed.meta.dashboards[0].draftRevision, 3)
   assert.equal(parsed.meta.dashboards[0].title, 'Working title')
   s.draft.revision = 0
-  const empty = (await s.service.list(s.context))[0]
-  assert.equal(empty.canDelete, true)
-  assert.equal(empty.isEmpty, true)
-  assert.equal(empty.isDraft, false)
-  assert.equal(empty.draftRevision, 0)
+  assert.equal((await s.service.list(s.context))[0].canDelete, false, 'uninitialized/legacy artifacts have no CAS draft to recycle')
 })
 
 test('direct selection transports authorized deletion metadata independently of list pagination', async () => {
@@ -90,7 +85,7 @@ test('delete returns HTTP 400 without mutation for missing confirmation or inval
   for (const input of [ undefined, null, {}, { ...s.input(), confirmed: false },
     { ...s.input(), confirmed: 'true' }, { artifactId: s.artifact.id, expectedRevision: 3 },
     { artifactId: s.artifact.id, confirmed: true },
-    { ...s.input(), expectedRevision: -1 }, { ...s.input(), expectedRevision: 1.5 },
+    { ...s.input(), expectedRevision: 0 }, { ...s.input(), expectedRevision: 1.5 },
     { ...s.input(), userId: 'other' }, { ...s.input(), artifactId: 'invalid' } ]) {
     await assert.rejects(s.view.executeViewAction(s.context, 'live-dashboard', 'delete', { input }), error => {
       assert.equal(error.getStatus?.(), 400)
@@ -101,17 +96,6 @@ test('delete returns HTTP 400 without mutation for missing confirmation or inval
   assert.deepEqual(s.calls, [])
   assert.equal(s.artifact.status, 'active')
   assert.equal(s.draft.revision, 3)
-})
-
-test('empty dashboard deletion uses revision zero and still requires management access', async () => {
-  const s = setup(true); s.draft.revision = 0
-  const input = { ...s.input(), expectedRevision: 0 }
-  await s.view.executeViewAction(s.context, 'live-dashboard', 'delete', { input })
-  assert.deepEqual(s.calls, [{ artifactId: s.artifact.id, expectedRevision: 0, recycled: true }])
-  assert.equal(s.artifact.status, 'archived')
-  const denied = setup(true); denied.draft.revision = 0; denied.access.canManage = false
-  assert.equal((await denied.service.list(denied.context))[0].canDelete, false)
-  await assert.rejects(denied.service.trash(denied.context, denied.artifact.id, 0), /PROJECT_MANAGE_DENIED/)
 })
 
 test('delete rejects foreign tenant, organization, owner, Assistant and plugin identities before mutation', async () => {

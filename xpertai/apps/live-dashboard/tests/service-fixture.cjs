@@ -42,14 +42,9 @@ function setup() {
       async readBuffer(ref) { return { buffer: files.get(ref.filePath) } }
     },
     'platform.artifact-drafts': {
-      async discardEmpty({ artifactId }) {
-        if (drafts.has(artifactId) || versions.some(version => version.artifactId === artifactId)) return false
-        artifacts.get(artifactId).status = 'deleted'; return true
-      },
       async list(ids) { return [...drafts.values()].filter(draft => ids.includes(draft.artifactId)) },
       async get(id) { return drafts.get(id) ?? null },
       async save(input) {
-        if (calls.failDraftSave) throw Error('DRAFT_SAVE_FAILED')
         const a = artifacts.get(input.artifactId), previous = drafts.get(a.id)
         if ((previous?.revision ?? 0) !== input.expectedRevision || (a.currentVersionId ?? null) !== input.expectedCurrentVersionId) throw Error('DRAFT_CONFLICT')
         const draft = { ...input, id: previous?.id ?? randomUUID(), revision: input.expectedRevision + 1, baseVersionId: input.expectedCurrentVersionId,
@@ -74,9 +69,9 @@ function setup() {
         links.set(input.artifactId, link); return { link }
       },
       async revokeArtifactShare({ artifactId }) { links.get(artifactId).status = 'revoked' },
-      async listArtifacts(input) { const items = [...artifacts.values()].filter(a => !input?.status || a.status === input.status); return { items, total: items.length } },
-      async findArtifactBySource(source) { return [...artifacts.values()].find(a => a.status !== 'deleted' && a.resourceId === source.resourceId) },
-      async createArtifact(input) { assert.deepEqual(input.type, { pluginName: '@xpert-ai/plugin-live-dashboard', resourceType: 'live-dashboard' }); const previous = [...artifacts.values()].find(a => a.resourceId === input.source.resourceId); const a = { id: previous?.id ?? randomUUID(), status: 'active', ...input.source, ...input.scope, title: input.title, metadata: input.metadata }; artifacts.set(a.id, a); return a },
+      async listArtifacts() { return { items: [...artifacts.values()] } },
+      async findArtifactBySource(source) { return [...artifacts.values()].find(a => a.resourceId === source.resourceId) },
+      async createArtifact(input) { assert.deepEqual(input.type, { pluginName: '@xpert-ai/plugin-live-dashboard', resourceType: 'live-dashboard' }); const a = { id: randomUUID(), status: 'active', ...input.source, ...input.scope, title: input.title, metadata: input.metadata }; artifacts.set(a.id, a); return a },
       async getArtifact(id) { return artifacts.get(id) },
       async listArtifactVersions({ artifactId }) { return versions.filter(v => v.artifactId === artifactId) },
       async ensureArtifactVersion(input) {

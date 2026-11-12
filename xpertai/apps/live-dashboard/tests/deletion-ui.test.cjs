@@ -390,22 +390,16 @@ test('dashboard deletion UI', async t => {
     assert.equal(harness.button('Delete dashboard “Dashboard 1”'), undefined)
     assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
   })
-  await t.test('an empty dashboard is labeled unsaved and can be deleted without opening it', async () => {
+  await t.test('an empty dashboard is labeled unsaved without exposing deletion', async () => {
     await harness.reset()
     harness.setPickerFixtures(harness.projects, [
-      harness.items[0], { ...harness.items[1], isEmpty: true, isDraft: false, draftRevision: 0 }
+      harness.items[0], { ...harness.items[1], isEmpty: true, isDraft: false, canDelete: false, draftRevision: undefined }
     ])
     await harness.click(harness.picker())
     const row = [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')]
       .find(element => element.textContent.includes('Dashboard 2'))
     assert.equal(row.querySelector('[data-slot=badge]').textContent, 'Not saved')
-    assert.equal(row.getAttribute('aria-disabled'), 'true')
-    const selected = harness.selections.at(-1).artifactId
-    await harness.click(harness.button('Delete dashboard “Dashboard 2”'))
-    assert.match(harness.dialog().textContent, /Dashboard 2/)
-    await harness.click(harness.button('Delete dashboard')); await harness.finishDelete()
-    assert.equal(harness.calls.at(-1).input.expectedRevision, 0)
-    assert.equal(harness.selections.at(-1).artifactId, selected)
+    assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
   })
 
   for (const hold of [false, true]) {

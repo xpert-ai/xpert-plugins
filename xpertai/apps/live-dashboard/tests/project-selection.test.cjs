@@ -58,6 +58,22 @@ test('dashboard picker summaries follow draft publication and preserve member vi
   await expectSummary(false, 2, undefined, 'Unpublished change')
 })
 
+test('unsaved metadata is not presented as a usable draft or a deletable saved dashboard', async () => {
+  const f = projectFixture()
+  f.calls.failUpload = true
+  await assert.rejects(f.service.save(f.context, example, null), /UPLOAD_FAILED/)
+  const page = await f.service.listPage(f.context)
+  assert.equal(page.items.length, 1)
+  const selected = await f.service.selectedSummary(f.context, page.items[0].artifactId)
+  for (const item of [page.items[0], selected]) {
+    assert.equal(item.isEmpty, true)
+    assert.equal(item.isDraft, false)
+    assert.equal(item.canDelete, false)
+    assert.equal(item.draftRevision, undefined)
+    assert.equal(item.versionNumber, undefined)
+  }
+})
+
 test('Project members consume the published version and cannot read/edit the newer draft', async () => {
   const f = projectFixture()
   const first = await f.service.save(f.context, example, null)
