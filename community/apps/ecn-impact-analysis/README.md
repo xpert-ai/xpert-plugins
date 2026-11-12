@@ -159,4 +159,32 @@ corepack pnpm plugin:deploy:local \
 
 ## 测试与验证
 
-见 PR 描述中的"验证结果"章节（四层测试：单元/构建 → 生命周期 harness → 界面集成 → 平台真实业务流程）。
+### 已执行的测试与结果
+
+| 层 | 内容 | 结果 |
+|---|---|---|
+| 1. 单元/构建 | 37 个 vitest 断言：状态机流转、impactKey 幂等 upsert、人工结论不被 AI 重试覆盖、跨租户 not_found 不泄露存在性、mock 数据集自洽（BOM relationPath/物料一致性）、ERP 瞬态故障一次失败+重试恢复、工具 schema"自然 payload 一次通过"契约 | ✅ 全部通过 |
+| 1. 构建 | typecheck（lib+remote）、build、verify:dist、实体名检查（community check:entity-names）、入口加载与元信息对齐 | ✅ 全部通过 |
+| 2. 生命周期 | plugin-dev-harness：入口加载 → meta/register 校验 → Nest 容器 → onPluginBootstrap/onStart → onPluginDestroy/onStop | ✅ 全过 |
+| 3. 界面集成 | 真实 dist 在 View Host 渲染：评估台列表/详情/审核按钮/证据展开/日志，hostEvents 工具完成事件自动刷新，requestData/executeAction 桥接 | ✅ 通过（见截图） |
+| 4. 平台业务流程 | 六步：plugin:deploy:local 安装 → API 重启 → loadStatus=loaded → 模板创建助手 → 工具与工作台绑定（画布可见 9 工具）→ **真实模型调用**（deepseek-flash，7 工具全链路 38 秒）→ **人工确认**（12 条逐条采纳 10/驳回 1/驳回 1，含备注留痕）→ 归档 | ✅ 全部通过 |
+| 4. 保存与恢复 | 刷新/重进后评估单、12 条审核结论、操作日志完整保留 | ✅ 通过（见截图） |
+| 4. 失败与重试 | 机制层：瞬态故障模拟（单测）、report_analysis_failure 状态回退+lastError 留痕（单测）、save_analysis 幂等不覆盖人工结论（单测）；对话级失败上报流程因模型深度思考时长未在本次录屏中完整演示，未验证部分如实说明 | ⚠️ 机制已验证，对话级演示见面试现场 |
+
+### 测试命令
+
+```sh
+cd community
+corepack pnpm --filter @xpert-ai/plugin-ecn-impact-analysis typecheck
+corepack pnpm --filter @xpert-ai/plugin-ecn-impact-analysis test
+corepack pnpm --filter @xpert-ai/plugin-ecn-impact-analysis build   # 含 verify:dist
+# 生命周期（仓库根目录）
+node plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-ecn-impact-analysis
+```
+
+### 基线与实际测试版本
+
+- xpert-ai/xpert main @ `ba8736c897474f7db9a261aa5f64d95860bb9f60`（2026-11-06）
+- xpert-ai/xpert-plugins main @ `6f7b7b68b2ffd5632cdcb5a5311838978d23eb83`（2026-11-11，本分支基线）
+- 实际测试：上述 xpert checkout 本地 source-hybrid 运行（API :3000 / Cloud :4200 / Compose 项目 xpert-6f0d47fd），模型 deepseek-flash
+
