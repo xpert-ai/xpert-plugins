@@ -92,6 +92,46 @@ corepack pnpm --filter @xpert-ai/plugin-ecn-impact-analysis test
 corepack pnpm --filter @xpert-ai/plugin-ecn-impact-analysis build   # 生成远程组件 + tsc + copy-assets + verify:dist
 ```
 
+## 运行截图
+
+> 以下截图来自真实运行环境：Xpert 开源版 main（source-hybrid 本地部署）+ DeepSeek 模型，完整走通「安装 → 模板创建助手 → 真实模型调用 → 人工确认 → 归档」闭环。
+
+### 画布：Agent 节点 + 中间件（9 个工具）
+
+助手从模板创建后，Agent 已连接 ECN 中间件，9 个 `ecn_impact_*` 工具全部暴露给模型；模型绑定 deepseek-flash。
+
+![画布](docs/screenshots/canvas-assistant-middleware.png)
+
+### 对话：真实 AI 调用全链路
+
+对话录入变更后，模型按标准流程依次调用 7 个工具（查物料 → 建评估单 → 查 BOM 父件链 → 查工艺路线 → 查在制工单 → 查库存 → 保存分析），过程约 38 秒：
+
+![对话全链路](docs/screenshots/chat-full-toolchain.png)
+
+### 工具调用明细（紧凑 DTO 输入输出）
+
+每个工具调用可展开查看输入/输出。注意"查询工艺路线"的入参 `materialNos: ["P-1003","A-210","EA-200"]` 是模型从 BOM 父件链结果中自主组合的——体现 Agentic 行为：
+
+![工具调用明细](docs/screenshots/tool-call-detail.png)
+
+### 变更影响评估台（Workbench 视图）
+
+AI 保存的评估单（12 条影响项、总体风险高）从插件表加载渲染；影响项按 BOM 父件/工艺路线/在制工单/库存分组，逐条带证据、置信度与建议措施：
+
+![评估台](docs/screenshots/review-desk-view.png)
+
+### 人工确认完成
+
+工程师逐条采纳/驳回（可附审核备注），全部处理后「确认评估」，状态流转为已确认，记录确认人：
+
+![确认完成](docs/screenshots/review-confirmed.png)
+
+### 保存与恢复
+
+刷新/重进后评估单、审核结论、操作日志完整保留（数据持久化于插件自有表，非页面内存）：
+
+![刷新恢复](docs/screenshots/review-restored-after-reload.png)
+
 ## 运行说明
 
 环境要求：Xpert 开源版（main 分支）、Node 22+、pnpm（corepack）、PostgreSQL/Redis（平台基础设施）。
