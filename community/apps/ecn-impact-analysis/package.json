@@ -1,0 +1,89 @@
+{
+  "name": "@xpert-ai/plugin-ecn-impact-analysis",
+  "version": "0.1.0",
+  "description": "Engineering change (ECN) impact analysis app plugin: AI-assisted evidence gathering across mock PLM/ERP/MES data, reviewable impact items, and a governed human confirmation workbench.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/ecn-impact-analysis"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "private": true,
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "ecn_impact"
+    }
+  },
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "generate:remote": "node scripts/build-remote.mjs",
+    "build": "pnpm run generate:remote && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run verify:dist",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "vitest run",
+    "verify:dist": "node scripts/build-remote.mjs --check && node scripts/copy-assets.mjs --check"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.26.2",
+    "@xpert-ai/plugin-sdk": "^3.26.2",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/typeorm": "11.0.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^22.17.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@xpert-ai/contracts": "3.26.2",
+    "@xpert-ai/plugin-sdk": "3.26.2",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "^0.28.1",
+    "lucide-react": "1.24.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "tailwindcss": "^4.3.3",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
