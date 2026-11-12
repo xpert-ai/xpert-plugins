@@ -65,7 +65,9 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     const params = dashboardNavigationSchema.parse(query)
     const access = await this.service.access(context)
     const currentProject = await this.projects.current(context)
-    const mode = params.newDashboard ? 'draft' : params.mode ?? (access.canReadDraft ? 'draft' : 'published')
+    // Explicit revision/version selections use the same precedence as openDocument.
+    const mode = params.newDashboard || params.draftRevision !== undefined ? 'draft'
+      : params.versionId ? 'published' : params.mode ?? (access.canReadDraft ? 'draft' : 'published')
     if (mode === 'draft' && !access.canReadDraft) throw new ForbiddenException('DASHBOARD_DRAFT_ACCESS_DENIED')
     const page = await this.service.listPage(context, params.page, params.pageSize)
     const selectedDashboard = params.artifactId

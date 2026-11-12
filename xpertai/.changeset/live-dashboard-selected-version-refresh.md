@@ -1,0 +1,5 @@
+---
+"@xpert-ai/plugin-live-dashboard": patch
+---
+
+Keep the selected working draft or published version during manual and periodic refresh. Preserve draft selection after publication and follow subsequent Assistant saves without switching pinned historical versions.

@@ -193,7 +193,8 @@ function App() {
     if (!current.saved) { await openPicker(); return }
     if (editRef.current.dirty || current.editor !== null) return
     const previous = current.saved, sequence = ++requestSequence.current
-    const result = await load(previous.artifactId, previous.versionId ?? undefined, previous.isDraft ? 'draft' : 'published')
+    const selectedMode = modeRef.current
+    const result = await load(previous.artifactId, selectedMode === 'draft' ? undefined : previous.versionId ?? undefined, selectedMode)
     if (sequence !== requestSequence.current || activeArtifactId.current !== previous.artifactId || editRef.current.dirty) return
     setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === previous.artifactId) ?? null)
     const target = result.saved
@@ -201,7 +202,7 @@ function App() {
     if (target.draftRevision !== previous.draftRevision || target.versionId !== previous.versionId) { setExecutions({}); setSourceSelection(null); setInspect(false); setDownload(null) }
     setSaved(target); setVersions(result.versions ?? [])
     if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
-      ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
+      ...(result.mode === 'draft' ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
     if (sequence !== requestSequence.current) return
     if (!target.manifest.presentation) await query(target, appliedControls.current, true)
     else if (target.draftRevision === previous.draftRevision && target.versionId === previous.versionId) htmlDashboard.current?.refresh()
@@ -252,7 +253,7 @@ function App() {
     void run(() => target.artifactId ? open(target.artifactId, target.versionId, false, target.mode, target.draftRevision) : openPicker(target.newDashboard))
   },
     (artifactId) => {
-      if (editRef.current.dirty || activeArtifactId.current !== artifactId || !autoRefresh.current.saved?.isDraft) { void load().catch(() => undefined); return }
+      if (editRef.current.dirty || activeArtifactId.current !== artifactId || modeRef.current !== 'draft') { void load().catch(() => undefined); return }
       void run(refreshSaved)
     }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
 
@@ -354,7 +355,7 @@ function App() {
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
         </Button>
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
-          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
+          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved ? mode === 'draft' ? 'draft' : saved.versionId ?? undefined : undefined}
           onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
           onEdit={() => void run(async () => {
             if (!saved) return
