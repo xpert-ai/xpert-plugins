@@ -1,0 +1,369 @@
+/* ECN Impact Review Desk — layout on top of shadcn primitives + host theme tokens. */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background, #fff);
+  color: var(--foreground, #09090b);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+}
+
+.ecn-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background, #fff);
+}
+
+.ecn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  flex: none;
+}
+
+.ecn-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ecn-heading h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ecn-heading .eyebrow {
+  font-size: 11px;
+  color: var(--muted-foreground, #71717a);
+  margin: 0 0 2px;
+}
+
+.ecn-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.ecn-body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* ---------- left list ---------- */
+
+.ecn-list {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  flex: none;
+  border-right: 1px solid var(--border, #e4e4e7);
+  min-height: 0;
+}
+
+.ecn-list-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  flex: none;
+}
+
+.ecn-list-toolbar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ecn-list-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px;
+}
+
+.ecn-list-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.ecn-list-item:hover {
+  background: var(--accent, #f4f4f5);
+}
+
+.ecn-list-item.selected {
+  background: var(--accent, #eef2ff);
+  border-color: var(--xui-color-border, #c7d2fe);
+}
+
+.ecn-list-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ecn-list-item-no {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.ecn-list-item-material {
+  color: var(--muted-foreground, #71717a);
+  font-size: 12px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecn-list-item-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- right detail ---------- */
+
+.ecn-detail {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 16px 24px;
+}
+
+.ecn-section {
+  margin-bottom: 16px;
+}
+
+.ecn-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.ecn-divider {
+  height: 1px;
+  background: var(--border, #e4e4e7);
+  margin: 4px 0 10px;
+}
+
+.ecn-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 20px;
+}
+
+.ecn-kv label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground, #71717a);
+  margin-bottom: 2px;
+}
+
+.ecn-kv .value {
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ecn-summary-box {
+  background: var(--muted, #f4f4f5);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ecn-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+
+.dark .ecn-error-banner {
+  border-color: #7f1d1d;
+  background: #450a0a;
+  color: #fca5a5;
+}
+
+/* ---------- item table ---------- */
+
+.ecn-item {
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.ecn-item.accepted {
+  border-left: 3px solid #16a34a;
+}
+
+.ecn-item.rejected {
+  border-left: 3px solid #dc2626;
+}
+
+.ecn-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ecn-item-header:hover {
+  background: var(--accent, #f4f4f5);
+}
+
+.ecn-item-target {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.ecn-item-desc {
+  color: var(--muted-foreground, #52525b);
+  font-size: 12px;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ecn-item-body {
+  border-top: 1px solid var(--border, #e4e4e7);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ecn-item-body .row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+}
+
+.ecn-evidence {
+  background: var(--muted, #f4f4f5);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.ecn-review-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ecn-review-row input {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* ---------- misc ---------- */
+
+.ecn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted-foreground, #71717a);
+}
+
+.ecn-empty h2 {
+  font-size: 14px;
+  color: var(--foreground, #09090b);
+  margin: 0;
+}
+
+.ecn-footer {
+  flex: none;
+  border-top: 1px solid var(--border, #e4e4e7);
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--muted-foreground, #71717a);
+}
+
+.ecn-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.ecn-log li {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border, #e4e4e7);
+}
+
+.ecn-log time {
+  color: var(--muted-foreground, #71717a);
+  flex: none;
+  font-size: 11px;
+  padding-top: 1px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 10px 0 4px;
+}
+
+.ecn-dialog-input,
+.ecn-dialog-select {
+  width: 100%;
+}
