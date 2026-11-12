@@ -1,0 +1,6 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint", "name": "针对管件铸造企业的报价助手",
+  "colors": { "primary": "#2563EB" },
+  "navigation": { "groups": [{ "group": "开发与验收", "pages": ["setup", "design", "verification"] }] }
+}

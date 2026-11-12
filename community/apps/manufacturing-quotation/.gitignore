@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.local/
+test-results/
+*.log
+__pycache__/
+.venv/

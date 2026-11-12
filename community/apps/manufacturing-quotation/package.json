@@ -1,0 +1,35 @@
+{
+  "name": "@xpert-ai/plugin-manufacturing-quotation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Quotation assistant for pipe fitting foundries with DeepSeek text/image input and deterministic backend pricing.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" }, "./package.json": "./package.json" },
+  "files": ["dist", "templates", "docs", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.txt"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/write-template.mjs && node scripts/build-remote.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
+    "test": "vitest run",
+    "verify:dist": "node scripts/verify-dist.mjs && node scripts/build-remote.mjs --check"
+  },
+  "xpert": { "plugin": { "level": "system", "artifactNamespace": "manufacturing_quotation" } },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.72",
+    "@nestjs/common": "^11.1.13", "@nestjs/core": "^11.1.13", "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.33.1", "@xpert-ai/plugin-sdk": "^3.33.1",
+    "typeorm": "^0.3.28", "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13", "@nestjs/core": "11.1.13", "@nestjs/typeorm": "11.0.0",
+    "@xpert-ai/contracts": "3.33.1", "@xpert-ai/plugin-sdk": "3.33.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "@types/node": "^22.17.0", "@types/react": "^18.3.31", "@types/react-dom": "^18.3.7",
+    "@tailwindcss/cli": "^4.3.3", "@tailwindcss/node": "^4.3.3", "tailwindcss": "^4.3.3",
+    "esbuild": "^0.27.0", "pg": "^8.16.3", "pg-mem": "^3.0.5",
+    "react": "18.3.1", "react-dom": "18.3.1", "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28", "typescript": "^5.9.2", "vitest": "^3.2.4", "zod": "3.25.67"
+  }
+}
