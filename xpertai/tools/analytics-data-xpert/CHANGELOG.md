@@ -1,5 +1,18 @@
 # @xpert-ai/plugin-analytics-data-xpert
 
+## 0.2.0
+
+### Minor Changes
+
+- fbd2708: Expose explicit resource and entity discovery for dashboard imports through the Analytics query contract. Return provider-owned target patches that preserve native Action arguments and parameter paths, without inferring SQL or MDX semantics from display names. Resource discovery and imported queries continue to use the current actor's authorization.
+
+### Patch Changes
+
+- 4761c96: Require Xpert contracts and plugin SDK 3.32.0 or a compatible later 3.x release to forward validated DataXpert diagnostics during discovery and execution. Unrecognized upstream errors expose only their HTTP status.
+- ba4f160: Preserve declared DataXpert result-column metadata and discover binding output schemas through authorized read-only queries before dashboard preview. Keep exact decimal values and legacy authored bindings compatible with the existing SDK runtime.
+
+  Generate valid dataset IDs at the discovery boundary when callers omit the local key or supply a native cube reference, preserving valid authored IDs and the native query target.
+
 ## 0.1.2
 
 ### Patch Changes

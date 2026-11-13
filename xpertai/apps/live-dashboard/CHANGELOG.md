@@ -1,5 +1,43 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.6.2
+
+### Patch Changes
+
+- 00cdeca: Keep the selected working draft or published version during manual and periodic refresh. Preserve draft selection after publication and follow subsequent Assistant saves without switching pinned historical versions.
+
+  Defer Assistant save notifications during navigation and editing, keep catalog refreshes independent of the selected document mode, and prevent late refresh responses from replacing the editor's saved revision.
+
+## 0.6.1
+
+### Patch Changes
+
+- dcb272a: Show draft, published-version and unsaved dashboard states, and reliably select share URLs for copying with localized failure feedback.
+
+## 0.6.0
+
+### Minor Changes
+
+- 61e962f: Support a default authoring capacity of 32 Bindings and a storage ceiling of 64, with installation policy that preserves historical dashboard maintenance. Add incremental source queries, bounded scheduling, searchable Sources with individual refresh and bounded previews, batch Agent validation, and durable scoped save validation with progress, idempotency and recovery.
+
+  Require published SDK/contracts 3.33.0 and use its Artifact Document scheduler and grouped query runtime directly, removing the temporary SDK backport. Live source dispatch remains limited to 60 per minute; immutable Sandbox snapshot replay has a separate bounded interaction budget.
+
+## 0.5.0
+
+### Minor Changes
+
+- fbd2708: Add a Sources side panel with saved query configuration, parameter mappings, output fields and recent execution results. Inspect HTML components or standard charts and tables to open their declared sources without triggering business interactions. Extend Agent authoring with validated source metadata and stable component references.
+
+  Export saved dashboard pages, definitions and bundled dependencies as integrity-checked archives. Import archives into independent drafts with explicit resource mapping, current-user query validation and preserved internal component IDs. Native resource mapping uses provider discovery extensions; Data Xpert users need the companion Analytics Data Xpert provider update.
+
+  Keep complete query payloads restricted to definition editors, bound result previews to memory, and validate archive size, contents, dependency bytes and import-session scope. Include localized controls, authoring guidance and acceptance documentation.
+
+### Patch Changes
+
+- 5e06dea: Report malformed JSON input locations with the field, UTF-16 offset, line, column and offending character without echoing the payload. Distinguish syntax errors from valid JSON with an invalid object shape.
+
+  Include expected and observed Binding IDs in HTML preflight failures and clarify how to preserve existing Binding identities and current-run preview receipts when updating filters. Failed preflight checks leave saved drafts and published versions unchanged.
+
 ## 0.4.1
 
 ### Patch Changes

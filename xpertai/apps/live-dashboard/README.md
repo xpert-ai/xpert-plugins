@@ -212,7 +212,7 @@ The renderer runs in a script-only sandbox with no-network CSP. A small in-memor
 
 ## Build and validation
 
-Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.33.0 and the Data Analytics renderer 0.1.35; no local platform or community links are required. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
+Use the xpertai workspace's declared Corepack/pnpm. Live Dashboard uses published SDK/contracts 3.35.0 for resource discovery, group sharing and inline widget presentation. Development dependencies pin the Data Analytics renderer to 0.1.35. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
 
 ```sh
 corepack pnpm install --frozen-lockfile

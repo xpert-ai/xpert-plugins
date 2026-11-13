@@ -25,7 +25,7 @@ async function setup(t) {
   const ui = await import('@xpert-ai/plugin-shadcn-ui'), i18nUi = await import('@xpert-ai/plugin-shadcn-ui/i18n')
   const { createRoot } = uiRequire('react-dom/client')
   let root, ready, created, scopeReset, rejectDelete = false, releaseDelete, holdOpen = false, releaseOpen
-  const calls = [], navigation = [], selections = [], assistantRequests = []
+  const calls = [], navigation = [], selections = [], assistantRequests = [], viewRequests = []
   const projects = [{ id: randomUUID(), name: 'Project A' }, { id: randomUUID(), name: 'Project B' }]
   let currentProject = projects[0], navigationSuccess = true, projectContextVisible = true
   const projectNavigation = []
@@ -43,12 +43,13 @@ async function setup(t) {
     navigateDashboard: async (_target, id) => { navigation.push(id) },
     requestHost: async (kind, request) => {
       if (kind === 'requestData') {
+        viewRequests.push(request.query)
         const id = request.query.parameters.artifactId
         const mode = request.query.parameters.mode ?? viewMode
         const saved = dashboards.find(item => item.artifactId === id) ?? dashboards[0]
         const response = { meta: { currentProject: projectContextVisible ? currentProject : undefined, dashboards: excludeSelected ? dashboards.filter(item => item.artifactId !== id) : dashboards, selectedDashboard: id ? saved : undefined, sources: [], access: { project: surface !== 'legacy', canEdit: true, canManage: true, canReadDraft: true, archived: false }, mode, navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
           ...(id || dom.window.__DASHBOARD_READ_ONLY__ ? { saved: mode === 'published' ? { ...saved, isDraft: false, versionId, versionNumber: 1, draftRevision: undefined } : saved, versions: [] } : {}) } }
-        if (id && holdOpen) {
+        if (holdOpen) {
           holdOpen = false
           await new Promise(resolve => { releaseOpen = resolve })
         }
@@ -117,6 +118,7 @@ async function setup(t) {
         if (id === './toolbar-menu') return load('toolbar-menu.tsx')
         if (id === './discovered-dashboard-column') return load('discovered-dashboard-column.tsx')
         if (id === './dashboard-discovery-data') return load('dashboard-discovery-data.ts')
+        if (id === './dashboard-status-badge') return load('dashboard-status-badge.tsx')
         if (id === './dashboard-picker') return load('dashboard-picker.tsx')
         if (id === './save-progress') return load('save-progress.ts')
         if (id === './picker-data') return load('picker-data.ts')
@@ -146,7 +148,7 @@ async function setup(t) {
     await act(async () => root?.unmount())
     modules.clear(); dashboards = [...items]; calls.length = 0; navigation.length = 0; selections.length = 0; assistantRequests.length = 0
     pickerProjects = undefined; pickerDashboards = undefined; pickerRequests.length = 0; heldSearch = undefined; failedPage = undefined
-    rejectDelete = false; holdOpen = false; currentProject = projects[0]; projectNavigation.length = 0; navigationSuccess = true
+    rejectDelete = false; holdOpen = false; releaseOpen = undefined; currentProject = projects[0]; projectNavigation.length = 0; navigationSuccess = true; viewRequests.length = 0
     dom.window.__DASHBOARD_READ_ONLY__ = readOnly
     document.body.innerHTML = '<div id="root"></div>'
     await act(async () => load('main.tsx'))
@@ -170,7 +172,7 @@ async function setup(t) {
     },
     failNavigation: () => { navigationSuccess = false },
     hostProjectChange: async () => { currentProject = projects[1]; dashboards = []; await act(async () => { scopeReset(); ready('en-US', { parameters: { picker: 'dashboards' } }) }); await flush() },
-    items, versionId, calls, navigation, selections, click, button, picker, dialog,
+    items, versionId, calls, navigation, selections, click, button, picker, dialog, viewRequests,
     revise: (id, revision) => { dashboards = dashboards.map(item => item.artifactId === id ? { ...item, draftRevision: revision, title: `Updated r${revision}`, manifest: { ...item.manifest, title: `Updated r${revision}` } } : item) },
     failDelete: value => { rejectDelete = value },
     finishDelete: async () => { await act(async () => releaseDelete()); await flush() },
@@ -182,6 +184,22 @@ async function setup(t) {
 
 test('dashboard deletion UI', async t => {
   const harness = await setup(t)
+  await t.test('picker shows draft and published version badges without changing selection', async () => {
+    await harness.reset()
+    harness.setPickerFixtures(harness.projects, [
+      harness.items[0],
+      { ...harness.items[1], isDraft: false, versionId: harness.versionId, versionNumber: 3 },
+      { ...harness.items[0], artifactId: randomUUID(), title: 'New edit', versionId: harness.versionId, versionNumber: 3 },
+      { artifactId: randomUUID(), title: 'Published only', isDraft: false, versionNumber: 2 }
+    ])
+    await harness.click(harness.picker())
+    const rows = [...document.querySelectorAll('section[aria-label="Available dashboards"] [role=option]')]
+    assert.deepEqual(rows.map(row => row.querySelector('[data-slot=badge]').textContent),
+      ['Working draft', 'Published v3', 'Working draft', 'Published v2'])
+    assert.equal(rows[0].getAttribute('aria-current'), 'true')
+    await harness.click(rows[1])
+    assert.equal(harness.selections.at(-1).artifactId, harness.items[1].artifactId)
+  })
   await t.test('a successful draft receipt reloads metadata and exact Assistant revision without navigating', async () => {
     await harness.reset()
     const id = harness.items[0].artifactId
@@ -405,15 +423,30 @@ test('dashboard deletion UI', async t => {
     assert.equal(harness.button('Delete dashboard “Dashboard 1”'), undefined)
     assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
   })
+  await t.test('an empty dashboard is labeled unsaved without exposing deletion', async () => {
+    await harness.reset()
+    harness.setPickerFixtures(harness.projects, [
+      harness.items[0], { ...harness.items[1], isEmpty: true, isDraft: false, canDelete: false, draftRevision: undefined }
+    ])
+    await harness.click(harness.picker())
+    const row = document.querySelector('section[aria-label="Available dashboards"] [role=option][aria-label="Dashboard 2"]')
+    assert.equal(row.querySelector('[data-slot=badge]').textContent, 'Not saved')
+    assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
+  })
 
   for (const hold of [false, true]) {
-    await t.test(`deletion clears the same dashboard after an Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
+    await t.test(`deletion clears the same dashboard with an Assistant update ${hold ? 'deferred during deletion' : 'loaded before deletion'}`, async () => {
       await harness.reset()
-      const { items, navigation, selections, click, button, picker, finishDelete, notify, finishOpen } = harness
-      await click(button('More actions')); await click(button('Delete dashboard')); await click(button('Delete dashboard'))
-      await notify(items[0].artifactId, hold)
+      const { items, navigation, selections, click, button, picker, finishDelete, notify, viewRequests } = harness
+      await click(button('More actions')); await click(button('Delete dashboard'))
+      if (!hold) await notify(items[0].artifactId)
+      await click(button('Delete dashboard'))
+      const requestsBeforeReceipt = viewRequests.length
+      if (hold) {
+        await notify(items[0].artifactId)
+        assert.equal(viewRequests.length, requestsBeforeReceipt, 'a save receipt waits for the pending delete')
+      }
       await finishDelete()
-      if (hold) await finishOpen()
       assert.match(picker().textContent, /Choose a dashboard/)
       assert.equal(!!document.querySelector('header .toolbar-version'), false)
       assert.equal(selections.at(-1), null)
