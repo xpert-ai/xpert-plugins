@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target":"ES2022", "module":"ESNext", "moduleResolution":"Bundler", "lib":["ES2022","DOM"],
+    "jsx":"react-jsx", "strict":true, "skipLibCheck":true, "esModuleInterop":true,"resolveJsonModule":true,"noEmit":true,
+    "baseUrl":".", "paths":{
+      "@xpert-ai/plugin-shadcn-ui":["vendor/shadcn-ui/index.ts"],
+      "@xpert-ai/plugin-shadcn-ui/i18n":["vendor/shadcn-ui/src/i18n.tsx"],
+      "#lib/utils":["vendor/shadcn-ui/src/lib/utils.ts"]
+    }
+  },"include":["src/remote/**/*.ts","src/remote/**/*.tsx","vendor/shadcn-ui/**/*.ts","vendor/shadcn-ui/**/*.tsx"]
+}
