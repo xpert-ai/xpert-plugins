@@ -10,6 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { EXPEDITE_CLOCK, systemClock } from './clock.js'
 import { ENTITIES } from './entities/index.js'
+import { ExpediteViewProvider } from './expedite-view.provider.js'
 import { ExpediteShortageMiddleware } from './expedite.middleware.js'
 import { ExpediteService } from './expedite.service.js'
 import { MockSupplyDataSource } from './supply/mock-supply-data-source.js'
@@ -23,7 +24,8 @@ import { SupplyDataSource } from './supply/supply-data-source.js'
     { provide: SupplyDataSource, useClass: MockSupplyDataSource },
     { provide: EXPEDITE_CLOCK, useValue: systemClock },
     ExpediteService,
-    ExpediteShortageMiddleware
+    ExpediteShortageMiddleware,
+    ExpediteViewProvider
   ],
   exports: [ExpediteService]
 })

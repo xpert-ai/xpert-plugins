@@ -28,6 +28,12 @@ export const MIDDLEWARE_NAME = 'ExpediteShortageMiddleware'
 /** 视图提供者 key（工作台视图） */
 export const VIEW_PROVIDER_KEY = artifactKey('views')
 
+/** 工作台视图 key（助手模板 yaml 的 defaultViewKey 要与它一致） */
+export const VIEW_KEY = artifactKey('workbench')
+
+/** 远程界面入口名：对应 src/lib/remote-components/<入口名>/ 目录 */
+export const REMOTE_ENTRY = 'expedite-workbench'
+
 /** 助手模板提供者 key */
 export const TEMPLATE_PROVIDER_KEY = artifactKey('templates')
 

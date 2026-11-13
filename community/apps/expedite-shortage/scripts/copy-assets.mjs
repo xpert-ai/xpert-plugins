@@ -8,7 +8,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const check = process.argv.includes('--check')
 
 /** 需要随包发布的资源：[源文件, dist 中的目标位置]（相对包根目录）；后续阶段在这里追加 */
-const ASSETS = []
+const ASSETS = [
+  ['src/expedite-shortage-assistant.yaml', 'dist/expedite-shortage-assistant.yaml'],
+  ['src/lib/remote-components/expedite-workbench/app.js', 'dist/lib/remote-components/expedite-workbench/app.js'],
+  ['src/lib/remote-components/expedite-workbench/app.css', 'dist/lib/remote-components/expedite-workbench/app.css']
+]
 
 for (const [from, to] of ASSETS) {
   const source = await readFile(resolve(root, from))
