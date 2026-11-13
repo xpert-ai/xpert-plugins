@@ -146,14 +146,38 @@ try {
   assert.equal(await frame.getByRole('button', { name: '保存样本', exact: true }).isEnabled(), false)
   await frame.getByLabel('照片', { exact: true }).setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image') })
   await visible(frame.getByText('这个文件无法作为照片读取，请换一张 JPG、PNG 或 WebP 图片。', { exact: true }))
-  // Browser-generated fixture pixels exercise the real file-input, decoding and JPEG resize path.
-  const base64 = await page.evaluate(() => {
-    const canvas=document.createElement('canvas');canvas.width=80;canvas.height=60;
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#dde4ea';ctx.fillRect(0,0,80,60);ctx.fillStyle='#71808b';ctx.fillRect(8,20,64,12);
-    return canvas.toDataURL('image/png').split(',')[1]
-  })
-  await frame.getByLabel('照片', { exact: true }).setInputFiles({ name: 'fixture.png', mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') })
-  await visible(frame.getByRole('img', { name: '已选择的照片' }))
+  // Decode the encoded preview to check actual output pixels, rather than CSS size.
+  // Small images must not be enlarged; landscape and portrait images must keep their aspect ratio.
+  const uploadSizes = [
+    { input: [80, 60], output: [80, 60] },
+    { input: [1920, 2560], output: [960, 1280] },
+    { input: [2560, 1920], output: [1280, 960] }
+  ]
+  const imageDimensions = async dataUrl => page.evaluate(async url => {
+    const bitmap = await createImageBitmap(await (await fetch(url)).blob())
+    try { return [bitmap.width, bitmap.height] } finally { bitmap.close() }
+  }, dataUrl)
+  for (const [index, size] of uploadSizes.entries()) {
+    const base64 = await page.evaluate(([width, height]) => {
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#dde4ea'; ctx.fillRect(0, 0, width, height)
+      ctx.fillStyle = '#71808b'; ctx.fillRect(width * 0.1, height / 3, width * 0.8, height * 0.2)
+      return canvas.toDataURL('image/png').split(',')[1]
+    }, size.input)
+    const file = { name: `fixture-${index}.png`, mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') }
+    const input = frame.getByLabel('照片', { exact: true })
+    if (index === uploadSizes.length - 1) {
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), input.click()])
+      await chooser.setFiles(file)
+    } else await input.setInputFiles(file)
+    const preview = frame.getByRole('img', { name: '已选择的照片' })
+    await visible(preview)
+    await frame.getByRole('status').waitFor({ state: 'hidden' })
+    const dataUrl = await preview.getAttribute('src')
+    assert.ok(dataUrl.startsWith('data:image/jpeg'))
+    assert.deepEqual(await imageDimensions(dataUrl), size.output, `decoded dimensions for ${size.input.join('x')}`)
+  }
   await frame.getByLabel('样本名称', { exact: true }).fill('Fixture image 1')
   await choose('人工参考类别', '给排水与漏水')
   const requestsBefore = await page.evaluate(() => window.dataCalls)
@@ -165,7 +189,9 @@ try {
   await click(frame.getByRole('button', { name: '保存样本', exact: true }))
   await visible(frame.getByRole('button', { name: 'Fixture image 1', exact: true }))
   assert.equal((await intake.listCases(scope)).length, 1)
-  assert.ok((await intake.getCaseDetail(scope, (await intake.listCases(scope))[0].id)).photoDataUrl.startsWith('data:image/jpeg'))
+  const savedPhoto = (await intake.getCaseDetail(scope, (await intake.listCases(scope))[0].id)).photoDataUrl
+  assert.ok(savedPhoto.startsWith('data:image/jpeg'))
+  assert.deepEqual(await imageDimensions(savedPhoto), [1280, 960], 'persisted image has the resized dimensions')
   await click(frame.getByRole('tab', { name: '新建验收', exact: true }))
   await frame.getByLabel('验收名称', { exact: true }).fill('Fixture A/B acceptance')
   await frame.getByRole('checkbox', { name: 'Fixture image 1', exact: true }).check()
@@ -219,7 +245,7 @@ try {
   await screenshot('comparison-narrow-dark.png')
   assert.equal(commands.length, 2)
   assert.deepEqual(errors, [])
-  if (screenshotDir) await writeFile(join(screenshotDir, 'receipt.json'), JSON.stringify({ simulatedHost: true, simulatedModel: true, calls, samples: 1, evaluations: 1, cases: ['upload','locale preservation','failure','review','retry history','decision','reload','narrow dark theme'] }, null, 2))
+  if (screenshotDir) await writeFile(join(screenshotDir, 'receipt.json'), JSON.stringify({ simulatedHost: true, simulatedModel: true, calls, samples: 1, evaluations: 1, uploadSizes, cases: ['upload','file chooser event','decoded resize dimensions','persisted resize dimensions','locale preservation','failure','review','retry history','decision','reload','narrow dark theme'] }, null, 2))
   console.log('Workbench E2E passed: real upload/resize, A/B, failure/retry history, human decision, reload, locale and responsive theme. Host/model are fixtures.')
 } catch (error) {
   await screenshot('failure-diagnostic.png')
