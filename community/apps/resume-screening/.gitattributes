@@ -1,0 +1,2 @@
+# Preserve patch bytes; unified-diff context prefixes are not source indentation.
+docs/host-compatibility-ba8736c.patch -text -whitespace

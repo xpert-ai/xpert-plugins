@@ -1,0 +1,346 @@
+{
+  "recordedOn": "2026-11-12",
+  "environment": "Original localhost Web4200/API3000, existing PostgreSQL/Redis, no new database",
+  "versions": {
+    "pluginPackage": "@xpert-ai/plugin-resume-screening",
+    "pluginVersion": "0.1.0",
+    "pluginInitialMainBase": "9bfa96594a3debbb33f0ba25c7ade49e7d360c8b",
+    "hostLocalMainCloneBase": "ba8736c897474f7db9a261aa5f64d95860bb9f60",
+    "pluginWorkingTreeBase": "6aeb9c347f4b42974c88cd91312bc9219642ef0a",
+    "hostWorkingTreeBase": "ba8736c897474f7db9a261aa5f64d95860bb9f60"
+  },
+  "installation": {
+    "uninstallSuccess": true,
+    "afterUninstallRestart": "absent",
+    "officialCommand": "corepack pnpm plugin:deploy:local",
+    "scope": "tenant",
+    "action": "installed",
+    "validation": {
+      "build": "passed",
+      "test": "passed",
+      "deployOutput": "passed"
+    },
+    "restartRequired": true,
+    "afterRestart": [
+      {
+        "name": "@xpert-ai/plugin-resume-screening",
+        "packageName": "@xpert-ai/plugin-resume-screening",
+        "currentVersion": "0.1.0",
+        "version": null,
+        "source": "code",
+        "loadStatus": "loaded",
+        "level": "system",
+        "scopeKey": "system:global"
+      }
+    ],
+    "apiReady": "ready",
+    "targetDescriptorCount": 1,
+    "originalBusinessPreservation": {
+      "semanticJsonEqual": true,
+      "changedFields": [],
+      "note": "Object property order is not a business change."
+    }
+  },
+  "assistant": {
+    "name": "简历初筛交付演示20261112",
+    "version": "1",
+    "source": "plugin",
+    "templateId": "@xpert-ai/plugin-resume-screening:resume-screening-assistant",
+    "dependencyVersion": "0.1.0",
+    "model": "deepseek-flash · deepseek",
+    "middleware": "ResumeScreeningMiddleware",
+    "toolCount": 5,
+    "view": "resume_screening__workbench"
+  },
+  "workflow": {
+    "fictionalDataOnly": true,
+    "screeningCount": 1,
+    "candidateCount": 2,
+    "dimensions": [
+      14,
+      16,
+      16,
+      14,
+      2
+    ],
+    "realModelToolCalls": 3,
+    "scoreSaveReceipt": {
+      "status": "saved",
+      "duplicate": false,
+      "totalScore": 62
+    },
+    "candidates": [
+      {
+        "name": "交付候选人甲（虚构）",
+        "aiTotalScore": 62,
+        "totalScore": 65,
+        "decision": "pending",
+        "revision": 2,
+        "scoreState": "current"
+      },
+      {
+        "name": "交付候选人乙（虚构未选中）",
+        "aiTotalScore": null,
+        "totalScore": null,
+        "decision": null,
+        "revision": 0,
+        "scoreState": "unscored"
+      }
+    ],
+    "topLevelRefreshRestored": true,
+    "rescoreConfirmationCancelledAt": [
+      "row",
+      "selected batch",
+      "candidate details"
+    ],
+    "firstAttemptFailure": {
+      "phase": "scoring task preparation",
+      "hostStatus": 401,
+      "reason": "expired client authorization",
+      "modelInvoked": false,
+      "retry": "one UI retry succeeded"
+    }
+  },
+  "validation": {
+    "defaultTests": {
+      "total": 57,
+      "passed": 56,
+      "skipped": 1,
+      "failed": 0,
+      "skipReason": "PostgreSQL opt-in"
+    },
+    "postgresSeparate": {
+      "passed": 1,
+      "failed": 0,
+      "isolatedRandomSchemaCleaned": true
+    },
+    "lintTypecheck": "passed",
+    "build": "passed",
+    "dist": "passed",
+    "metadata": "passed with process NODE_PATH=community/node_modules",
+    "lifecycle": "passed; mocked infrastructure",
+    "invalidScores": {
+      "scoreAndReviewUnchanged": true,
+      "tests": [
+        {
+          "rejected": true,
+          "adjustedTotal": 101
+        },
+        {
+          "rejected": true,
+          "adjustedTotal": -1
+        },
+        {
+          "rejected": true,
+          "adjustedTotal": 1.5
+        }
+      ]
+    },
+    "uiScoreInputs": [
+      {
+        "value": "101",
+        "saveEnabled": false
+      },
+      {
+        "value": "-1",
+        "saveEnabled": false
+      },
+      {
+        "value": "1.5",
+        "saveEnabled": false
+      },
+      {
+        "value": "0",
+        "saveEnabled": true
+      },
+      {
+        "value": "100",
+        "saveEnabled": true
+      }
+    ],
+    "permissions": {
+      "total": 16,
+      "passed": 16,
+      "checks": [
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 unauthorized manifest"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 unauthorized list"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 known ID read"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 forbidden update"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 forbidden scoring"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 forbidden confirmation"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 forbidden execution session"
+        },
+        {
+          "passed": true,
+          "expected": 200,
+          "actual": 200,
+          "case": "test001 shared original assistant normal access"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test001 spoofed other organization"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 unauthorized manifest"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 unauthorized list"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 known ID read"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 forbidden update"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 forbidden scoring"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 forbidden confirmation"
+        },
+        {
+          "passed": true,
+          "expected": 403,
+          "actual": 403,
+          "case": "test002 forbidden execution session"
+        }
+      ]
+    }
+  },
+  "documentationQA": {
+    "markdownFiles": 24,
+    "relativeLinks": 226,
+    "validImages": 81,
+    "textFilesScanned": 101,
+    "errors": [],
+    "warnings": []
+  },
+  "notCovered": [
+    "fresh database",
+    "other operating systems",
+    "real provider 429/timeout",
+    "long batches and persistent cancellation/progress",
+    "all sharing/role combinations",
+    "PDF/OCR"
+  ],
+  "sourceSha256": {
+    "algorithm": "SHA-256; aggregate hashes canonical JSON path->file hash sorted by path",
+    "aggregate": "e38e82c86efb7c5cf9bdbed50cce81cbabb9409d94399221d9ebe93d7b382540",
+    "files": {
+      "community/apps/resume-screening/package.json": "b1635bf28deff96083db33cf3bdadcdcd31f2548aea4afd65b79ffb3e478f720",
+      "community/apps/resume-screening/src/index.ts": "60936232dd556aa5514e2256e151da9d1657190e350cf3557a21a6296d3a92a8",
+      "community/apps/resume-screening/src/lib/action-contract.ts": "b54647cbcaff0335c97e4a61e7e7897145ec3b3098177fbca104619387349c55",
+      "community/apps/resume-screening/src/lib/candidate-evidence.ts": "b6a19cf0cb314f3036efb7626a02b92acaeeb7e327bf62f902a5eb6ec9ab7ecd",
+      "community/apps/resume-screening/src/lib/constants.ts": "b8a304c3f0c0bd5687351208267db21ab0e903ff97473e82d2bdbbef881ef45f",
+      "community/apps/resume-screening/src/lib/entities/index.ts": "232d21dd8116a3c2e04b0b9910d12714e7a863f9e5af5d4a3e50388ba06708f0",
+      "community/apps/resume-screening/src/lib/entities/resume-candidate.entity.ts": "2aeb358ef52b3a5aad1edfb031bd1d786ec0b1884eb7e96bc57f113c5cd1eb57",
+      "community/apps/resume-screening/src/lib/entities/resume-score.entity.ts": "70913f622d93ce82c0bbae033a33728940478936052d4a7106050c1831c24870",
+      "community/apps/resume-screening/src/lib/entities/resume-scoring-task.entity.ts": "af3f1c502178a852335ab7fd70a649c484890a18925d4c41596396347107a24d",
+      "community/apps/resume-screening/src/lib/entities/resume-screening.entity.ts": "dea2caf04ffc20f50405a8b0290bad1a8c68060308147a7f9b8b81529a965beb",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/app.css": "50108ae9421d68a8880637f7ea095325e303ea00f817bdb351f92f71fdf2c94c",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/app.js": "4931b1126b7c670adcb624fcf9a2970d5e3f01f8b15798c0b644b3e493fc899c",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/preview.config.mjs": "55799d37156478740b722dd77243c05cd38b4cbbc98216afed690abe9f258252",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/remote/locales/en-US.json": "0e8e10b1198e822fb53cf1828f455de09310e7ada4c1b17e81f6ea60bcb312f3",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/remote/locales/zh-Hans.json": "d23b07f5d5e1a960cdb424064884d48dafa37d702810a8e40f32944bca6ebe46",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/assistant-request.ts": "8a12817ac943c8c9fe210e07759f9ea81debfc6ed253fcd164f2abc0c64aa204",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/bridge.ts": "28b0a77e7c0ae92ea171c54810df3bbe921dfb33f34bfd3ac8b9f8e33bbba27c",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/candidate-panel.tsx": "af0aa6b3cb1ec16f0f0d17be249a733a5fc98eed321881cd3eff211d6a9879ad",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/i18n.ts": "2c5a1b1711188f1fe158e3df0f58dde584d963d0e72839654fb642a3e8a1287c",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/loading-state.tsx": "686a94aba5adaabe8b3640ac1d2b80e3efa111d34e3bfe3efae5931c45a952ea",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/main.tsx": "97b3622a75b810d6109e51b09f566f4bcf595f62377740e8da21bdfeef853b26",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/react-dom-client-shim.ts": "4f6ece3512e6ffd79948166ee0f74c54f61fe652181e6bd1fdf5ee41f6d55fab",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/react-dom-shim.ts": "f283bb59cf67c44051dfb075d0edf65dfe8bcb973ff9ffc67f69d56dc61b1e9e",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/react-jsx-runtime-shim.ts": "43b79105e73cf5616225d7f2404060f2473606d4d2a6c14c6224c588cf6034c5",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/react-shim.ts": "7c23d079073a396a078eb4fb1b8646948d7d73fb154ca0fb229f1b06337d5395",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/score-details-dialog.tsx": "46203113b89313b9539422a74e085d672ca2d5de28bd8b781cc44450a406348b",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/screening-list.tsx": "8fb412f2e87f21423d27038e7d12278971de4de980a4dee2e76b30bacdae522f",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/skill-input.ts": "7a7459bec438fe3f381c4824d4386d071e602b5331b507f5ca94c58f5589f077",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/skill-tags-input.tsx": "2f10ae649e3ebd04f674f6675ceeeffff168928d1b6902e17382ee22e5f02e15",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/styles.css": "5a4f27261a4cc261db2c74af5fc6f95a473503ab12bcba40bfd76ef3e3bce2b9",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/types.ts": "625ad97c711276664a2e08c7859796ae234c7915cb7eabb6fe741738fd0386bf",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/vendor.ts": "aaa6d0b49d6c2770b775ecef09a309f5828a4ca0ef96f25a8d68a388c696cb13",
+      "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/src/workbench.tsx": "f185a2affd5fbdbe962c96c8c29f3ec953f9e883526c7a12e5f0c6609728bfb7",
+      "community/apps/resume-screening/src/lib/resume-screening-view.provider.ts": "8f80c597fe0656d61fb067ae5256e3b292385d34a240cdfb216716948c41ade7",
+      "community/apps/resume-screening/src/lib/resume-screening.middleware.ts": "d780ce55186f0ffaeef70e48d6c6672a916cdef6278717c1d4ff26df185575ee",
+      "community/apps/resume-screening/src/lib/resume-screening.plugin.ts": "67261a866b12516cdd54befcbf25a23032b0a4e42337b4b78410da17662d0602",
+      "community/apps/resume-screening/src/lib/resume-screening.service.ts": "76caadc7fb7adf1bf0774d79680a82584ea1548fdcd485ea519a6fd4ab8df0e7",
+      "community/apps/resume-screening/src/lib/resume-screening.target-app.ts": "9589b253188184528e9750d3197153dd976a39e16495738c52f41dc995269c6e",
+      "community/apps/resume-screening/src/lib/resume-screening.templates.ts": "04059e1ff857042e541a85a618788e269ce716f4302c8a08c8087a8921715095",
+      "community/apps/resume-screening/src/lib/revision-conflict.error.ts": "16eff9d078eb7e40f5e7c280a25df7bbe48d62879e40c57ae1641ea1e2484ef2",
+      "community/apps/resume-screening/src/lib/screening-edit.ts": "031875be284ab0fd5926216a0aae36622751ee435a2f753eb50dc75057012d30",
+      "community/apps/resume-screening/src/lib/types.ts": "7100f32511b3ff7cd52037af7b0edb3b04d121da2283ed4c70bd948d06b239c9",
+      "community/apps/resume-screening/src/xpert-resume-screening-assistant.yaml": "0e1dcdbd01546b2d42a09a5cd890643316d64b35b8e67d35d455208f3d841aed",
+      "community/apps/resume-screening/tests/bridge.test.mjs": "60f9c44329865019b5472ec020f07791d99df44be7b99cfab21f6eb238f452e8",
+      "community/apps/resume-screening/tests/candidate-lifecycle.test.mjs": "7f1063f78e2433ada1d60da4f9504d7ab722b1356da889803795ce64505d91c5",
+      "community/apps/resume-screening/tests/fake-repo.mjs": "5d6b37d070c1ac949bb62e4840b19965e0eef54c9abcc7a10eea17229dc49d52",
+      "community/apps/resume-screening/tests/postgres.test.mjs": "7ff6982999c7cb0be529f057e12ef20e78d220aee501a41eedb98686ed37306f",
+      "community/apps/resume-screening/tests/prescreen.test.mjs": "73f3dcf7a4043004ae7a7880009753a4cd5c391a14b3168feb042268e1d00f05",
+      "community/apps/resume-screening/tests/retry.test.mjs": "e8bbf2131ba50dab4f168ba60b352998fbb62f5b19e211275f4f34a006aef892",
+      "community/apps/resume-screening/tests/save-restore.test.mjs": "c2b7249d59d5430f175bcbef6e1d5cfb44ce5d944d71458488f2c9227f4f3c6d",
+      "community/apps/resume-screening/tests/screening-edit.test.mjs": "5688f466fe7d6afed4bdf6436c2e21f8d2465bc07e4084bde60e617533dde4e2",
+      "community/apps/resume-screening/tests/screening-list.test.mjs": "5ac2544d98ef0b00f0f6ac26e4773a8771fab294ced90ee0bafc662e0233d874",
+      "community/apps/resume-screening/tests/workflow.test.mjs": "ed536c05c40c4b0afdd2c404e5fd161b269f86da6b89495acf5613a24f7eab13",
+      "community/pnpm-lock.yaml": "0418e76d82adb1010f362d98c0700937073dff23547ee416b73212efaf9a2f29"
+    }
+  },
+  "artifactSha256": {
+    "community/apps/resume-screening/dist/index.js": "707d822a0dd81f928012f2b1c3768b2562350d2004d210dfb991ff1692069d91",
+    "community/apps/resume-screening/dist/xpert-resume-screening-assistant.yaml": "0e1dcdbd01546b2d42a09a5cd890643316d64b35b8e67d35d455208f3d841aed",
+    "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/app.js": "4931b1126b7c670adcb624fcf9a2970d5e3f01f8b15798c0b644b3e493fc899c",
+    "community/apps/resume-screening/src/lib/remote-components/resume_screening__remote/app.css": "50108ae9421d68a8880637f7ea095325e303ea00f817bdb351f92f71fdf2c94c"
+  }
+}
