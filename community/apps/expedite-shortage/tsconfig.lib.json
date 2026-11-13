@@ -9,6 +9,7 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/**/*.spec.ts",
+    "src/lib/testing/**",
     "src/lib/remote-components/**/*.ts",
     "src/lib/remote-components/**/*.tsx"
   ]
