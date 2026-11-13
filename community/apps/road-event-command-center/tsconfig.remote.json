@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src/lib/remote/**/*.ts", "src/lib/remote/**/*.vue"],
+  "exclude": []
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>道路事件智能指挥中心 · 本地预览</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; font-family: system-ui, sans-serif; color: #24312e; background: #eef3f1; }
+      .preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 58px; padding: 10px 20px; border-bottom: 1px solid #d5dfdc; background: #fff; }
+      .preview-bar strong { font-size: 14px; }
+      .preview-bar span { color: #64736f; font-size: 12px; }
+      .preview-frame { display: block; width: 100%; height: calc(100vh - 58px); min-height: 560px; border: 0; background: #f4f7f6; }
+      @media (max-width: 640px) { .preview-bar { align-items: flex-start; flex-direction: column; gap: 3px; padding: 11px 14px; } .preview-frame { height: calc(100vh - 65px); } }
+    </style>
+  </head>
+  <body>
+    <header class="preview-bar">
+      <strong>本地宿主模拟预览</strong>
+      <span>草稿保存在此浏览器标签页的会话存储中；Xpert 内实际使用平台数据库。</span>
+    </header>
+    <iframe
+      id="remote-view"
+      class="preview-frame"
+      src="/preview-view.html"
+      sandbox="allow-scripts"
+      title="道路事件草稿工作台"
+    ></iframe>
+    <script type="module" src="/src/lib/remote/preview-host.ts"></script>
+  </body>
+</html>
