@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>工单分诊板 · Remote Component 预览宿主</title>
+    <style>
+      :root { color-scheme: light; }
+      body { margin: 0; font: 14px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f6f7f9; color: #1f2328; }
+      header { padding: 14px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+      header h1 { margin: 0; font-size: 15px; font-weight: 600; }
+      header p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
+      #frame { width: 100%; border: 0; background: #fff; display: block; }
+      #host-note { padding: 10px 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; background: #fff; }
+      pre { margin: 0; padding: 10px 20px; background: #0f172a; color: #cbd5e1; font-size: 11px; max-height: 140px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>工单分诊板（Remote Component 预览宿主）</h1>
+      <p>通过文档化的 remote component 协议把插件的 iframe 组件挂到真实平台接口上</p>
+    </header>
+    <iframe id="frame" sandbox="allow-scripts allow-same-origin" height="820"></iframe>
+    <div id="host-note">宿主侧只做三件事：握手、转发 requestData、转发 executeAction；数据与动作都经平台的 view-host 接口，不落本地假数据。</div>
+    <pre id="log"></pre>
+
+    <script type="module">
+      const CHANNEL = 'xpertai.remote_component'
+      const config = window.__HOST_CONFIG__ ?? {}
+      const VIEW = config.viewKey
+      const BASE = `/api/view-hosts/agent/${config.xpertId}/views/${VIEW}`
+      const logEl = document.getElementById('log')
+      const frame = document.getElementById('frame')
+
+      const log = (msg, extra) => {
+        const line = `${new Date().toISOString().slice(11, 19)} ${msg}${extra ? ' ' + JSON.stringify(extra).slice(0, 400) : ''}`
+        logEl.textContent = `${line}\n${logEl.textContent}`
+      }
+
+      const login = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: config.email, password: config.password })
+      }).then((response) => response.json())
+
+      if (!login?.token) {
+        log('login failed', login)
+        throw new Error('login failed')
+      }
+      log('login ok')
+
+      const call = (path, init = {}) =>
+        fetch(`${BASE}${path}`, {
+          ...init,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${login.token}`,
+            'tenant-id': config.tenantId,
+            'organization-id': config.organizationId,
+            'x-scope-level': 'organization',
+            ...(init.headers ?? {})
+          }
+        }).then(async (response) => ({ status: response.status, body: await response.json().catch(() => null) }))
+
+      const instanceId = 'preview-host'
+      frame.srcdoc = await fetch('/component.html').then((response) => response.text())
+      log('component loaded')
+
+      window.addEventListener('message', async (event) => {
+        if (event.source !== frame.contentWindow) return
+        const message = event.data
+        if (!message || message.channel !== CHANNEL || message.protocolVersion !== 1) return
+
+        if (message.type === 'ready') {
+          frame.contentWindow.postMessage({ channel: CHANNEL, protocolVersion: 1, type: 'init', instanceId, locale: 'zh-Hans' }, '*')
+          log('handshake: init sent')
+          return
+        }
+        if (message.instanceId !== instanceId) return
+
+        if (message.type === 'requestData') {
+          const { status, body } = await call('/data')
+          log(`requestData -> ${status}`, body?.item?.summary)
+          frame.contentWindow.postMessage({
+            channel: CHANNEL, protocolVersion: 1, instanceId, requestId: message.requestId, type: 'data', data: body
+          }, '*')
+          return
+        }
+        if (message.type === 'executeAction') {
+          const { status, body } = await call(`/actions/${message.actionKey}`, { method: 'POST', body: JSON.stringify({ input: message.input ?? {} }) })
+          log(`executeAction ${message.actionKey} -> ${status}`, body)
+          frame.contentWindow.postMessage({
+            channel: CHANNEL, protocolVersion: 1, instanceId, requestId: message.requestId, type: 'actionResult', result: body
+          }, '*')
+          return
+        }
+        if (message.type === 'resize' && message.height) {
+          frame.style.height = `${Math.max(640, Math.min(message.height, 1600))}px`
+        }
+      })
+    </script>
+  </body>
+</html>
