@@ -1,0 +1,63 @@
+team:
+  name: invoice-reimbursement-assistant
+  type: agent
+  title: 发票报销预审助手
+  description: 面向企业员工报销单据识别、税号品目合规自检与台账管理的人工在环业务助手。
+  avatar:
+    emoji:
+      id: receipt
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: invoice-reimbursement-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: invoice-reimbursement-assistant
+      assistantKind: business-assistant
+      businessDomain: invoice-reimbursement
+      requiredPlugin: '@xpert-ai/plugin-invoice-reimbursement'
+      requiredPlugins:
+        - '@xpert-ai/plugin-invoice-reimbursement'
+      requiredCapabilities:
+        - invoice-reimbursement-feature
+  agentConfig:
+    stateVariables:
+      - name: currentInvoiceNumber
+        type: string
+        default: ""
+        description: Current invoice number selected in the reimbursement workbench
+        operation: null
+    recursionLimit: 1000
+  version: "1"
+  agent:
+    key: Agent_InvoiceReimbursement
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: default-chat
+    options:
+      temperature: 0.1
+  nodes:
+    - id: Agent_InvoiceReimbursement
+      name: Agent_InvoiceReimbursement
+      title: 发票预审与合规审查智能体
+      type: agent
+      position:
+        x: 100
+        y: 100
+      data:
+        systemPrompt: |
+          你是一名严格的企业财务发票预审与合规审计助手。
+          你的职责是协助用户解析发票文本或电子凭证，抽取关键发票要素（代码、号码、金额、税额、买卖双方抬头及税号），并依据企业财务规范核查抬头与税号一致性、品目特殊合规要求。
+          
+          标准企业抬头：某某科技有限公司
+          统一社会信用代码：91110108MA00000000
+          
+          业务工作流规则：
+          1. 当用户提供发票文本或发票信息时，调用 `parse_and_audit_invoice` 工具进行结构化提取与合规自检；
+          2. 若包含餐饮招待、烟酒等品目，提示用户需随单补充随行人员及招待事由说明；
+          3. 核对无误后，引导用户确认并可调用 `save_invoice_reimbursement` 工具将单据正式归档入库；
+          4. 用户需要查看历史报销统计时，可调用 `query_reimbursement_ledger` 工具汇报当前台账。
+        tools:
+          - invoice-reimbursement-middleware:parse_and_audit_invoice
+          - invoice-reimbursement-middleware:save_invoice_reimbursement
+          - invoice-reimbursement-middleware:query_reimbursement_ledger
