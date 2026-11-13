@@ -19,14 +19,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Textarea
+  Textarea,
+  Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger,
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogCancel, AlertDialogAction
 } from '@xpert-ai/plugin-shadcn-ui'
-import { executeAction, invokeClientCommand, notify, requestData, syncAssistantContext } from './bridge'
+import { executeAction, notify, requestData, syncAssistantContext, WorkbenchActionError } from './bridge'
+import { RESUME_REVISION_CONFLICT, RESUME_CRITERIA_LOCKED } from '../../../action-contract.js'
+import { sendScoringRequest, type ScoringRequest } from './assistant-request'
 import { i18n, useLocalizedMessage, type ResumeCatalog } from './i18n'
 import type { CandidateRow, HostContext, ResumeDecision, ResumeWorkbenchData } from './types'
 import { React } from './vendor'
+import { ScoreDetailsDialog } from './score-details-dialog'
+import { parseSkillInput } from './skill-input'
+import type { ScreeningEditState } from '../../../types.js'
+import { CandidatePanel } from './candidate-panel'
+import { SkillTagsInput } from './skill-tags-input'
+import { ScreeningList } from './screening-list'
+import { LoadingState } from './loading-state'
+import { screeningFormErrors } from './screening-form'
 
-const { useCallback, useEffect, useState } = React
+const { useCallback, useEffect, useRef, useState } = React
 
 type DegreeKey = 'high_school' | 'associate' | 'bachelor' | 'master' | 'doctorate'
 const DEGREES: DegreeKey[] = ['high_school', 'associate', 'bachelor', 'master', 'doctorate']
@@ -64,8 +77,24 @@ function readWorkbenchData(value: unknown): ResumeWorkbenchData | null {
     jobTitle: typeof summary['jobTitle'] === 'string' ? summary['jobTitle'] : null,
     status: typeof summary['status'] === 'string' ? summary['status'] : null,
     tableKey: 'candidates',
-    table: { key: 'candidates', items: items as CandidateRow[], total, page, pageSize }
+    table: { key: 'candidates', items: items as CandidateRow[], total, page, pageSize },
+    jdText: typeof summary['jdText'] === 'string' ? summary['jdText'] : '',
+    edit: readEditState(summary['edit']),
+    screenings: Array.isArray(summary['screenings']) ? summary['screenings'] as ResumeWorkbenchData['screenings'] : []
   }
+}
+
+function readEditState(value: unknown): ScreeningEditState | undefined {
+  if (!value || typeof value !== 'object' || !('title' in value) || typeof value.title !== 'string'
+    || !('jobTitle' in value) || typeof value.jobTitle !== 'string'
+    || !('jdText' in value) || typeof value.jdText !== 'string'
+    || !('minYears' in value) || typeof value.minYears !== 'number'
+    || !('minDegree' in value) || !DEGREES.includes(value.minDegree as DegreeKey)
+    || !('requiredSkills' in value) || !Array.isArray(value.requiredSkills)
+    || !value.requiredSkills.every((skill: unknown) => typeof skill === 'string')
+    || !('version' in value) || typeof value.version !== 'string'
+    || !('criteriaLocked' in value) || typeof value.criteriaLocked !== 'boolean') return undefined
+  return value as ScreeningEditState
 }
 
 function degreeLabel(degree: string) {
@@ -73,34 +102,116 @@ function degreeLabel(degree: string) {
 }
 
 export function ResumeWorkbench({ context }: { context: HostContext }) {
+  const initialId = context.initialQuery?.parameters?.['screeningId']
+  const [activeId, setActiveId] = useState<string | null>(typeof initialId === 'string' ? initialId : null)
+  const [listRefresh, setListRefresh] = useState(0)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<{ id: string; state: ScreeningEditState } | null>(null)
+  useEffect(() => { i18n.setLocale(context.locale) }, [context.locale])
+  useEffect(() => { if (typeof initialId === 'string') setActiveId(initialId) }, [initialId])
+  return <>
+    <div hidden={activeId !== null} className="h-full min-w-0">
+      <ScreeningList active={activeId === null} refreshKey={listRefresh}
+        onOpen={setActiveId} onCreate={() => setCreateOpen(true)} onEdit={setEditTarget} />
+    </div>
+    {activeId ? <ScreeningWorkspace key={activeId} context={context} initialId={activeId}
+      onBack={() => { setActiveId(null); setListRefresh((value) => value + 1); void syncAssistantContext(null).catch(() => {}) }} /> : null}
+    <CreateScreeningDialog open={createOpen || editTarget !== null} edit={editTarget}
+      onClose={() => { setCreateOpen(false); setEditTarget(null) }} onSaved={(id) => {
+        if (createOpen) setActiveId(id)
+        setCreateOpen(false); setEditTarget(null); setListRefresh((value) => value + 1)
+      }} />
+  </>
+}
+
+function ScreeningWorkspace({ context, initialId, onBack }: { context: HostContext; initialId: string; onBack: () => void }) {
   const [data, setData] = useState<ResumeWorkbenchData | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useLocalizedMessage(i18n, '')
+  const [refreshError, setRefreshError] = useLocalizedMessage(i18n, '')
+  const hasCurrentData = useRef(false)
+  const blockingLoad = useRef(true)
   const [search, setSearch] = useState(context.initialQuery?.search ?? '')
+  const [searchDraft, setSearchDraft] = useState(context.initialQuery?.search ?? '')
   const [page, setPage] = useState(1)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [detailsId, setDetailsId] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<CandidateRow | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [addOpen, setAddOpen] = useState(false)
+  const [candidatePanel, setCandidatePanel] = useState<{ id: string | null } | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [pendingScore, setPendingScore] = useState<{ ids: string[]; replaceReviewed: boolean } | null>(null)
+  const [preparing, setPreparing] = useState(false)
+  const preparingRef = useRef(false)
+  const [jobOpen, setJobOpen] = useState(false)
+  const screeningId = initialId
+  const requestSequence = useRef(0)
+  const [sending, setSending] = useState(false)
+  const [failedScoringRequest, setFailedScoringRequest] = useState<ScoringRequest | null>(null)
+  const [assistantError, setAssistantError] = useLocalizedMessage(i18n, '')
+  const sendingRef = useRef(false)
+  const activeScreeningId = useRef(data?.screeningId)
+  activeScreeningId.current = data?.screeningId
 
-  const load = useCallback(async (query: { search?: string; page?: number; pageSize?: number }) => {
-    setLoading(true)
+  const sendToAssistant = async (request: ScoringRequest) => {
+    if (sendingRef.current) return
+    sendingRef.current = true
+    setSending(true)
+    setAssistantError('')
+    setFailedScoringRequest(null)
+    try {
+      await sendScoringRequest(request)
+      notify(i18n.t('assistantSent'))
+    } catch (error) {
+      if (activeScreeningId.current !== request.screeningId) return
+      setFailedScoringRequest(request)
+      const reason = error instanceof Error ? error.message.split('\n')[0].slice(0, 250) : ''
+      setAssistantError(reason ? i18n.message('assistantFailedWithReason', { reason }) : i18n.message('assistantFailed'))
+    } finally {
+      sendingRef.current = false
+      setSending(false)
+    }
+  }
+
+  useEffect(() => {
+    setFailedScoringRequest(null)
+    setAssistantError('')
+  }, [data?.screeningId, setAssistantError])
+  useEffect(() => { setSelectedIds([]) }, [screeningId, search, page])
+
+  const load = useCallback(async (query: { search?: string; page?: number; pageSize?: number }, background = false) => {
+    const sequence = ++requestSequence.current
+    const silent = background && hasCurrentData.current && !blockingLoad.current
+    if (!silent) {
+      hasCurrentData.current = false
+      blockingLoad.current = true
+      setLoading(true)
+    }
     setErrorMessage('')
+    setRefreshError('')
     try {
       const result = await requestData({
         search: query.search || undefined,
         page: query.page ?? 1,
-        pageSize: query.pageSize ?? 20
+        pageSize: query.pageSize ?? 20,
+        parameters: { screeningId }
       })
       const parsed = readWorkbenchData(result)
       if (!parsed) throw new Error('Unexpected workbench data')
+      if (sequence !== requestSequence.current) return
       setData(parsed)
-    } catch {
-      setErrorMessage(i18n.message('loadFailed'))
+      hasCurrentData.current = true
+    } catch (error) {
+      if (sequence === requestSequence.current) {
+        const reason = error instanceof Error ? error.message.split('\n')[0].slice(0, 250) : ''
+        if (silent) setRefreshError(i18n.message('backgroundRefreshFailed'))
+        else setErrorMessage(reason ? i18n.message('loadFailedWithReason', { reason }) : i18n.message('loadFailed'))
+      }
     } finally {
-      setLoading(false)
+      if (sequence === requestSequence.current) {
+        blockingLoad.current = false
+        setLoading(false)
+      }
     }
-  }, [setErrorMessage])
+  }, [setErrorMessage, setRefreshError, screeningId])
 
   useEffect(() => {
     i18n.setLocale(context.locale)
@@ -111,71 +222,113 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
   }, [load, search, page])
 
   useEffect(() => {
-    window.__resumeScreeningReload = () => {
-      void load({ search, page })
+    let refreshing = false
+    let queued = false
+    let disposed = false
+    const refresh = async () => {
+      queued = true
+      if (refreshing) return
+      refreshing = true
+      do {
+        queued = false
+        await load({ search, page }, true)
+      } while (queued && !disposed)
+      refreshing = false
     }
+    window.__resumeScreeningReload = () => { void refresh() }
     return () => {
+      disposed = true
       window.__resumeScreeningReload = undefined
     }
   }, [load, search, page])
 
   useEffect(() => {
-    void syncAssistantContext(data?.screeningId ?? null)
+    void syncAssistantContext(data?.screeningId ?? null).catch(() => {})
   }, [data?.screeningId])
 
   const totalPages = data ? Math.max(1, Math.ceil(data.table.total / data.table.pageSize)) : 1
   const rows = data?.table.items ?? []
+  const applySearch = (next: string) => {
+    const query = next.trim()
+    setSelectedIds([])
+    setPage(1)
+    setSearch(query)
+    if (query === search && page === 1) void load({ search: query, page: 1 })
+  }
+  const scoreCandidates = async (ids: string[], confirmed = false, replaceReviewed = false) => {
+    if (!data?.screeningId || !ids.length || preparingRef.current || sendingRef.current) return
+    const selectedRows = rows.filter((row) => ids.includes(row.candidateId))
+    if (!confirmed && selectedRows.some((row) => row.aiTotalScore != null || row.totalScore !== null || row.decision
+      || (row.scoreState !== undefined && row.scoreState !== 'unscored'))) {
+      setPendingScore({ ids, replaceReviewed: selectedRows.some((row) => Boolean(row.decision) && row.scoreState !== 'stale') })
+      return
+    }
+    setCandidatePanel(null)
+    preparingRef.current = true; setPreparing(true); setAssistantError('')
+    try {
+      const task = await executeAction('prepare_scoring', '', { screeningId: data.screeningId,
+        candidateIds: ids, requestId: crypto.randomUUID(), replaceReviewed })
+      if (!task.data?.taskId) throw new Error('Missing scoring task')
+      await sendToAssistant({ screeningId: data.screeningId, text: i18n.t('scoringSelectedRequest', {
+        screeningId: data.screeningId, taskId: task.data.taskId, candidateIds: ids.join(', ')
+      }) })
+    } catch { setAssistantError(i18n.message('scorePrepareFailed')) }
+    finally { preparingRef.current = false; setPreparing(false) }
+  }
+  const toggleCandidate = (id: string, selected: boolean) => {
+    setSelectedIds((current) => selected ? [...new Set([...current, id])].slice(0, 20) : current.filter((item) => item !== id))
+  }
 
   return (
     <main className="flex h-full w-full flex-col gap-4 overflow-auto bg-background p-4 text-sm">
-      <header className="flex flex-wrap items-center gap-2">
-        <h1 className="text-base font-semibold">{i18n.t('title')}</h1>
-        {data?.title ? <span className="text-muted-foreground">{data.title}</span> : null}
-        {data?.jobTitle ? <Badge variant="secondary">{data.jobTitle}</Badge> : null}
-        <span className="ml-auto flex flex-wrap items-center gap-2">
-          <Input
-            aria-label={i18n.t('searchLabel')}
-            placeholder={i18n.t('searchPlaceholder')}
-            value={search}
-            onChange={(event) => {
-              setPage(1)
-              setSearch(event.target.value)
-            }}
-            className="w-56"
-          />
-          <Button
-            variant="outline"
-            disabled={loading}
-            onClick={() => void load({ search, page })}
-          >
-            {i18n.t('refresh')}
-          </Button>
-          <Button variant="outline" onClick={() => setCreateOpen(true)}>
-            {i18n.t('createTitle')}
-          </Button>
-          <Button
-            disabled={!data?.screeningId}
-            onClick={() => setAddOpen(true)}
-          >
-            {i18n.t('addTitle')}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={!data?.screeningId}
-            onClick={() => {
-              void invokeClientCommand('assistant.chat.send_message', {
-                message: i18n.t('askAssistant'),
-                context: { screeningId: data?.screeningId }
-              })
-            }}
-          >
-            {i18n.t('askAssistant')}
-          </Button>
-        </span>
+      <header className="grid gap-3 border-b pb-4">
+        <div><Button variant="link" size="sm" onClick={onBack}>{i18n.t('backToScreenings')}</Button></div>
+        <h1 className="text-base font-semibold">{data?.title ?? i18n.t('title')}</h1>
+        <Collapsible open={jobOpen} onOpenChange={setJobOpen}>
+        <div className="flex flex-wrap items-center gap-2">
+          {data?.jobTitle ? <Badge variant="secondary">{data.jobTitle}</Badge> : null}
+          {data?.jdText ? <CollapsibleTrigger asChild><Button variant="ghost" size="sm">
+            {i18n.t(jobOpen ? 'hideJob' : 'viewJob')}
+          </Button></CollapsibleTrigger> : null}
+        </div>
+          {data?.jdText ? <CollapsibleContent className="pt-3"><p className="max-w-4xl whitespace-pre-wrap break-words text-muted-foreground">{data.jdText}</p></CollapsibleContent> : null}
+        </Collapsible>
       </header>
+      {assistantError ? (
+        <p role="alert" className="text-destructive">
+          {assistantError}{' '}
+          {failedScoringRequest && failedScoringRequest.screeningId === data?.screeningId ? <Button variant="link" disabled={sending} onClick={() => failedScoringRequest && void sendToAssistant(failedScoringRequest)}>
+            {i18n.t('retry')}
+          </Button> : null}
+        </p>
+      ) : null}
+      {data?.screeningId ? <section className="grid gap-3" aria-label={i18n.t('candidateSection')}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+        <form className="flex flex-wrap items-center gap-2" aria-label={i18n.t('candidateSearchForm')}
+          onSubmit={(event) => { event.preventDefault(); if (!loading) applySearch(searchDraft) }}>
+          <Input aria-label={i18n.t('searchLabel')} placeholder={i18n.t('searchPlaceholder')} value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)} className="min-w-40 flex-1 sm:max-w-80" />
+          <Button type="submit" variant="outline" disabled={loading}>{i18n.t('searchAction')}</Button>
+          <Button type="button" variant="outline" disabled={loading} onClick={() => { setSearchDraft(''); applySearch('') }}>{i18n.t('resetAction')}</Button>
+        </form>
+          <Button disabled={loading} onClick={() => setCandidatePanel({ id: null })}>{i18n.t('addTitle')}</Button>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+          <Button variant="outline" disabled={loading || preparing || sending || !selectedIds.length}
+            onClick={() => void scoreCandidates(selectedIds)}>{i18n.t('scoreSelectionAction')}</Button>
+          {selectedIds.length ? <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{i18n.t('selectedCount', { count: selectedIds.length })}</span>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>{i18n.t('clearSelection')}</Button>
+          </div> : null}
+        </div>
+      </section> : null}
 
+      {refreshError ? <p role="alert" className="text-destructive">
+        {refreshError}{' '}
+        <Button variant="link" onClick={() => void load({ search, page }, true)}>{i18n.t('retry')}</Button>
+      </p> : null}
       {loading ? (
-        <p className="text-muted-foreground">{i18n.t('loading')}</p>
+        <LoadingState />
       ) : errorMessage ? (
         <p className="text-destructive">
           {errorMessage}{' '}
@@ -193,8 +346,8 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
       ) : rows.length === 0 ? (
         <section className="grid place-items-center py-16 text-center">
           <div>
-            <p className="font-medium">{i18n.t('noCandidatesTitle')}</p>
-            <p className="mt-1 text-muted-foreground">{i18n.t('noCandidatesHint')}</p>
+            <p className="font-medium">{i18n.t(search.trim() ? 'noMatchesTitle' : 'noCandidatesTitle')}</p>
+            <p className="mt-1 text-muted-foreground">{i18n.t(search.trim() ? 'noMatchesHint' : 'noCandidatesHint')}</p>
           </div>
         </section>
       ) : (
@@ -202,6 +355,9 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead><Checkbox aria-label={i18n.t('selectPage')}
+                  checked={rows.length > 0 && rows.every((row) => selectedIds.includes(row.candidateId))}
+                  onCheckedChange={(checked) => setSelectedIds(checked === true ? rows.map((row) => row.candidateId).slice(0, 20) : [])} /></TableHead>
                 <TableHead>{i18n.t('colCandidate')}</TableHead>
                 <TableHead>{i18n.t('colYears')}</TableHead>
                 <TableHead>{i18n.t('colDegree')}</TableHead>
@@ -216,9 +372,13 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
                 <CandidateRowView
                   key={row.candidateId}
                   row={row}
-                  expanded={expandedId === row.candidateId}
-                  onToggle={() => setExpandedId(expandedId === row.candidateId ? null : row.candidateId)}
+                  onDetails={() => setDetailsId(row.candidateId)}
                   onConfirm={() => setConfirmTarget(row)}
+                  selected={selectedIds.includes(row.candidateId)}
+                  onSelect={(selected) => toggleCandidate(row.candidateId, selected)}
+                  onResume={() => setCandidatePanel({ id: row.candidateId })}
+                  onScore={() => void scoreCandidates([row.candidateId])}
+                  scoring={sending || preparing}
                 />
               ))}
             </TableBody>
@@ -229,7 +389,7 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {i18n.t('prevPage')}
               </Button>
-              <span>{i18n.t('pageOf', { page, totalPages })}</span>
+              <span>{i18n.t('pageOf', { page: data.table.page, totalPages })}</span>
               <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
                 {i18n.t('nextPage')}
               </Button>
@@ -238,6 +398,12 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
         </>
       )}
 
+      <ScoreDetailsDialog
+        row={rows.find((row) => row.candidateId === detailsId) ?? null}
+        onClose={() => setDetailsId(null)}
+        onReview={(row) => { setDetailsId(null); setConfirmTarget(row) }}
+        onResume={(row) => { setDetailsId(null); setCandidatePanel({ id: row.candidateId }) }}
+      />
       <ConfirmDialog
         row={confirmTarget}
         screeningId={data?.screeningId ?? null}
@@ -247,47 +413,46 @@ export function ResumeWorkbench({ context }: { context: HostContext }) {
           void load({ search, page })
         }}
       />
-      <CreateScreeningDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSaved={() => {
-          setCreateOpen(false)
-          setPage(1)
-          void load({ search, page: 1 })
-        }}
-      />
-      <AddCandidateDialog
-        open={addOpen}
+      <CandidatePanel
+        open={candidatePanel !== null}
+        candidateId={candidatePanel?.id ?? null}
         screeningId={data?.screeningId ?? null}
-        onClose={() => setAddOpen(false)}
+        onClose={() => setCandidatePanel(null)}
+        onScore={(id) => { void scoreCandidates([id]) }}
         onSaved={() => {
-          setAddOpen(false)
           void load({ search, page })
         }}
       />
+      <AlertDialog open={pendingScore !== null} onOpenChange={(open) => !open && setPendingScore(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{i18n.t(pendingScore?.replaceReviewed ? 'reevaluateTitle' : 'rescoreTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{i18n.t(pendingScore?.replaceReviewed ? 'reevaluateHint' : 'rescoreHint')}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>{i18n.t('createCancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const request = pendingScore; setPendingScore(null); if (request) void scoreCandidates(request.ids, true, request.replaceReviewed) }}>{i18n.t('reevaluateConfirm')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }
 
 function CandidateRowView({
   row,
-  expanded,
-  onToggle,
-  onConfirm
+  onDetails,
+  onConfirm, selected, onSelect, onResume, onScore, scoring
 }: {
   row: CandidateRow
-  expanded: boolean
-  onToggle: () => void
+  onDetails: () => void
   onConfirm: () => void
+  selected: boolean; onSelect: (selected: boolean) => void; onResume: () => void; onScore: () => void; scoring: boolean
 }) {
   const blockers = row.prescreen.filter((finding) => finding.severity === 'error').length
   return (
     <>
       <TableRow>
+        <TableCell><Checkbox checked={selected} aria-label={i18n.t('selectCandidate', { name: row.name })}
+          onCheckedChange={(checked) => onSelect(checked === true)} /></TableCell>
         <TableCell>
-          <button type="button" className="font-medium underline-offset-2 hover:underline" onClick={onToggle}>
-            {row.name}
-          </button>
+          <Button variant="link" size="sm" onClick={onResume}>{row.name}</Button>
           {row.note ? <p className="mt-1 max-w-64 truncate text-xs text-muted-foreground">{row.note}</p> : null}
         </TableCell>
         <TableCell>{row.yearsOfExperience}</TableCell>
@@ -307,6 +472,11 @@ function CandidateRowView({
           ) : (
             <span className="font-semibold">{row.totalScore}</span>
           )}
+          {row.scoreState === 'stale' || row.scoreState === 'unverified' ? <p className="mb-1 max-w-52 text-xs text-muted-foreground">{i18n.t(`state_${row.scoreState}`)}</p> : null}
+          <Button variant="ghost" size="sm" onClick={onDetails} aria-label={i18n.t('openScoreDetails', { name: row.name })} aria-haspopup="dialog">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10v1" /></svg>
+            {i18n.t('scoreDetailsButton')}
+          </Button>
           {blockers > 0 ? (
             <Badge variant="destructive" className="ml-2">
               {blockers}
@@ -325,33 +495,14 @@ function CandidateRowView({
           )}
         </TableCell>
         <TableCell>
-          <Button variant="outline" size="sm" disabled={row.totalScore === null} onClick={onConfirm}>
-            {i18n.t('confirmTitle')}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={onResume}>{i18n.t('viewResume')}</Button>
+            <Button variant="outline" size="sm" disabled={scoring} onClick={onScore}>{i18n.t(row.aiTotalScore != null || row.totalScore !== null || (row.scoreState !== undefined && row.scoreState !== 'unscored') ? 'rescoreOne' : 'scoreOne')}</Button>
+            <Button variant="ghost" size="sm" disabled={row.totalScore === null || row.scoreState === 'stale'} onClick={onConfirm}>{i18n.t('confirmTitle')}</Button>
+          </div>
         </TableCell>
       </TableRow>
-      {expanded ? (
-        <TableRow>
-          <TableCell colSpan={7}>
-            <p className="mb-2 font-medium">{i18n.t('findingsTitle')}</p>
-            {row.prescreen.length === 0 ? (
-              <p className="text-muted-foreground">{i18n.t('findingsEmpty')}</p>
-            ) : (
-              <ul className="space-y-2">
-                {row.prescreen.map((finding, index) => (
-                  <li key={`${finding.rule}-${index}`} className="text-xs">
-                    <Badge variant={finding.severity === 'error' ? 'destructive' : 'secondary'}>
-                      {finding.severity === 'error' ? i18n.t('severityError') : i18n.t('severityWarning')}
-                    </Badge>{' '}
-                    <span className="font-mono">{finding.rule}</span> {finding.message}
-                    {finding.evidence ? <p className="mt-1 text-muted-foreground">{finding.evidence}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </TableCell>
-        </TableRow>
-      ) : null}
+
     </>
   )
 }
@@ -375,12 +526,16 @@ function ConfirmDialog({
 
   useEffect(() => {
     if (row) {
-      setDecision(row.decision ?? 'pending')
+      setDecision(row.decision ?? row.suggestedDecision ?? 'pending')
       setAdjustedTotal(row.totalScore === null ? '' : String(row.totalScore))
       setNote(row.note ?? '')
       setErrorMessage('')
     }
   }, [row, setErrorMessage])
+
+  const adjustedTotalInvalid = adjustedTotal.trim() !== '' && (
+    !Number.isInteger(Number(adjustedTotal)) || Number(adjustedTotal) < 0 || Number(adjustedTotal) > 100
+  )
 
   return (
     <Dialog open={row !== null} onOpenChange={(open) => !open && onClose()}>
@@ -412,9 +567,16 @@ function ConfirmDialog({
             <Input
               id="confirm-adjusted"
               inputMode="numeric"
+              type="number" min={0} max={100} step={1}
               value={adjustedTotal}
+              aria-invalid={adjustedTotalInvalid || undefined}
+              aria-describedby={adjustedTotalInvalid ? 'confirm-adjusted-hint confirm-adjusted-error' : 'confirm-adjusted-hint'}
               onChange={(event) => setAdjustedTotal(event.target.value)}
             />
+            <p id="confirm-adjusted-hint" className="text-muted-foreground">{i18n.t('confirmAdjustedHint')}</p>
+            {adjustedTotalInvalid ? <p id="confirm-adjusted-error" role="alert" className="text-destructive">
+              {i18n.t('confirmAdjustedInvalid')}
+            </p> : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="confirm-note">{i18n.t('confirmNoteLabel')}</Label>
@@ -422,6 +584,7 @@ function ConfirmDialog({
               id="confirm-note"
               placeholder={i18n.t('confirmNotePlaceholder')}
               value={note}
+              maxLength={500}
               onChange={(event) => setNote(event.target.value)}
             />
           </div>
@@ -432,27 +595,26 @@ function ConfirmDialog({
             {i18n.t('confirmCancel')}
           </Button>
           <Button
-            disabled={!row || !screeningId || saving}
+            disabled={!row || !screeningId || saving || adjustedTotalInvalid}
             onClick={async () => {
-              if (!row || !screeningId) return
+              if (!row || !screeningId || adjustedTotalInvalid) return
               setSaving(true)
               setErrorMessage('')
               try {
-                const parsedAdjusted = adjustedTotal.trim() === '' ? undefined : Number(adjustedTotal)
+                const parsedAdjusted = adjustedTotal.trim() === '' ? null : Number(adjustedTotal)
                 await executeAction('confirm_candidate', row.candidateId, {
                   screeningId,
                   candidateId: row.candidateId,
                   decision,
                   adjustedTotal: parsedAdjusted,
-                  note: note.trim() === '' ? undefined : note.trim(),
+                  note: note.trim(),
                   baseRevision: row.revision
                 })
                 notify(i18n.t('confirmSaved'))
                 onSaved()
               } catch (error) {
-                const message = error instanceof Error ? error.message : ''
                 setErrorMessage(
-                  message.includes('revision')
+                  error instanceof WorkbenchActionError && error.code === RESUME_REVISION_CONFLICT
                     ? i18n.message('confirmRevisionConflict')
                     : i18n.message('confirmFailed')
                 )
@@ -471,13 +633,19 @@ function ConfirmDialog({
 
 function CreateScreeningDialog({
   open,
+  edit,
   onClose,
   onSaved
 }: {
   open: boolean
+  edit: { id: string; state: ScreeningEditState } | null
   onClose: () => void
-  onSaved: () => void
+  onSaved: (id: string) => void
 }) {
+  const requestId = useRef(crypto.randomUUID())
+  const lastEdit = useRef(edit)
+  if (edit) lastEdit.current = edit
+  const displayEdit = open ? edit : lastEdit.current
   const [title, setTitle] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [jdText, setJdText] = useState('')
@@ -487,30 +655,49 @@ function CreateScreeningDialog({
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useLocalizedMessage(i18n, '')
 
+  useEffect(() => {
+    if (!open) return
+    const saved = edit?.state
+    setTitle(saved?.title ?? '')
+    setJobTitle(saved?.jobTitle ?? '')
+    setJdText(saved?.jdText ?? '')
+    setMinYears(String(saved?.minYears ?? 5))
+    setMinDegree(saved?.minDegree ?? 'bachelor')
+    setSkills(saved?.requiredSkills.join(', ') ?? '')
+    setErrorMessage('')
+  }, [open, edit, setErrorMessage])
+  const criteriaLocked = saving || displayEdit?.state.criteriaLocked === true
+  const fieldErrors = screeningFormErrors({ title, jobTitle, jdText, minYears, skills })
+  const invalidFields = Object.values(fieldErrors).filter((key) => key !== null)
+
   return (
-    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+    <Dialog open={open} onOpenChange={(value) => !value && !saving && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{i18n.t('createTitle')}</DialogTitle>
+          <DialogTitle>{i18n.t(displayEdit ? 'editTitle' : 'createTitle')}</DialogTitle>
         </DialogHeader>
+        {displayEdit ? <p className="text-muted-foreground">{i18n.t(displayEdit.state.criteriaLocked ? 'editCriteriaLocked' : 'editCriteriaHint')}</p> : null}
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="create-title">{i18n.t('createTitleLabel')}</Label>
-            <Input id="create-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <Input id="create-title" aria-required="true" aria-invalid={Boolean(fieldErrors.title)} aria-describedby={fieldErrors.title ? 'create-validation' : undefined} maxLength={200} disabled={saving} value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="create-job-title">{i18n.t('createJobTitleLabel')}</Label>
-            <Input id="create-job-title" value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
+            <Input id="create-job-title" aria-required="true" aria-invalid={Boolean(fieldErrors.jobTitle)} aria-describedby={fieldErrors.jobTitle ? 'create-validation' : undefined} maxLength={200} disabled={criteriaLocked} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="create-jd">{i18n.t('createJdLabel')}</Label>
-            <Textarea id="create-jd" rows={5} value={jdText} onChange={(event) => setJdText(event.target.value)} />
+            <Textarea id="create-jd" aria-required="true" aria-invalid={Boolean(fieldErrors.jdText)} aria-describedby={fieldErrors.jdText ? 'create-validation' : undefined} maxLength={20000} disabled={criteriaLocked} rows={5} value={jdText} onChange={(event) => setJdText(event.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="create-min-years">{i18n.t('createMinYearsLabel')}</Label>
               <Input
                 id="create-min-years"
+                aria-required="true" aria-invalid={Boolean(fieldErrors.minYears)} aria-describedby={fieldErrors.minYears ? 'create-validation' : undefined}
+                disabled={criteriaLocked}
+                type="number" min={0} max={50} step={1}
                 inputMode="numeric"
                 value={minYears}
                 onChange={(event) => setMinYears(event.target.value)}
@@ -518,7 +705,7 @@ function CreateScreeningDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="create-min-degree">{i18n.t('createMinDegreeLabel')}</Label>
-              <Select value={minDegree} onValueChange={(value) => setMinDegree(value as DegreeKey)}>
+              <Select disabled={criteriaLocked} value={minDegree} onValueChange={(value) => setMinDegree(value as DegreeKey)}>
                 <SelectTrigger id="create-min-degree">
                   <SelectValue />
                 </SelectTrigger>
@@ -534,147 +721,48 @@ function CreateScreeningDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="create-skills">{i18n.t('createSkillsLabel')}</Label>
-            <Input
-              id="create-skills"
-              placeholder={i18n.t('createSkillsHint')}
-              value={skills}
-              onChange={(event) => setSkills(event.target.value)}
-            />
+            <SkillTagsInput id="create-skills" value={skills} onChange={setSkills} disabled={criteriaLocked} limit={20} />
           </div>
+          {invalidFields.length ? <div id="create-validation" role="status" className="text-destructive">
+            <ul className="list-inside list-disc">{invalidFields.map((key) => <li key={key}>{i18n.t(key)}</li>)}</ul>
+          </div> : null}
           {errorMessage ? <p className="text-destructive">{errorMessage}</p> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={saving} onClick={onClose}>
             {i18n.t('createCancel')}
           </Button>
           <Button
-            disabled={saving}
+            disabled={saving || invalidFields.length > 0}
             onClick={async () => {
               setSaving(true)
               setErrorMessage('')
               try {
-                await executeAction('create_screening', '', {
+                const result = await executeAction(edit ? 'update_screening' : 'create_screening', '', {
+                  ...(edit ? { screeningId: edit.id, baseVersion: edit.state.version } : { requestId: requestId.current }),
                   title: title.trim(),
                   jobTitle: jobTitle.trim(),
                   jdText: jdText.trim(),
                   minYears: Number(minYears),
                   minDegree,
-                  requiredSkills: skills.split(/[,，]/).map((skill) => skill.trim()).filter(Boolean)
+                  requiredSkills: edit?.state.criteriaLocked ? edit.state.requiredSkills : parseSkillInput(skills)
                 })
-                notify(i18n.t('createSaved'))
-                setTitle('')
-                setJobTitle('')
-                setJdText('')
-                setSkills('')
-                onSaved()
-              } catch {
-                setErrorMessage(i18n.message('createFailed'))
+                if (!result.data?.screeningId) throw new Error('Missing screening id')
+                requestId.current = crypto.randomUUID()
+                notify(i18n.t(edit ? 'editSaved' : 'createSaved'))
+                onSaved(result.data.screeningId)
+              } catch (error) {
+                setErrorMessage(edit
+                  ? i18n.message(error instanceof WorkbenchActionError && error.code === RESUME_REVISION_CONFLICT
+                    ? 'editConflict' : error instanceof WorkbenchActionError && error.code === RESUME_CRITERIA_LOCKED
+                      ? 'editCriteriaChanged' : 'editFailed')
+                  : i18n.message('createFailed'))
               } finally {
                 setSaving(false)
               }
             }}
           >
-            {i18n.t('createSubmit')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function AddCandidateDialog({
-  open,
-  screeningId,
-  onClose,
-  onSaved
-}: {
-  open: boolean
-  screeningId: string | null
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const [name, setName] = useState('')
-  const [years, setYears] = useState('0')
-  const [degree, setDegree] = useState<DegreeKey>('bachelor')
-  const [skills, setSkills] = useState('')
-  const [resumeText, setResumeText] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [errorMessage, setErrorMessage] = useLocalizedMessage(i18n, '')
-
-  return (
-    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{i18n.t('addTitle')}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="add-name">{i18n.t('addNameLabel')}</Label>
-            <Input id="add-name" value={name} onChange={(event) => setName(event.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="add-years">{i18n.t('addYearsLabel')}</Label>
-              <Input id="add-years" inputMode="numeric" value={years} onChange={(event) => setYears(event.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="add-degree">{i18n.t('addDegreeLabel')}</Label>
-              <Select value={degree} onValueChange={(value) => setDegree(value as DegreeKey)}>
-                <SelectTrigger id="add-degree">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEGREES.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {i18n.t(DEGREE_LABEL_KEY[item])}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="add-skills">{i18n.t('addSkillsLabel')}</Label>
-            <Input id="add-skills" value={skills} onChange={(event) => setSkills(event.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="add-resume">{i18n.t('addResumeLabel')}</Label>
-            <Textarea id="add-resume" rows={6} value={resumeText} onChange={(event) => setResumeText(event.target.value)} />
-          </div>
-          {errorMessage ? <p className="text-destructive">{errorMessage}</p> : null}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {i18n.t('addCancel')}
-          </Button>
-          <Button
-            disabled={!screeningId || saving}
-            onClick={async () => {
-              if (!screeningId) return
-              setSaving(true)
-              setErrorMessage('')
-              try {
-                await executeAction('add_candidate', '', {
-                  screeningId,
-                  name: name.trim(),
-                  yearsOfExperience: Number(years),
-                  degree,
-                  skills: skills.split(/[,，]/).map((skill) => skill.trim()).filter(Boolean),
-                  resumeText: resumeText.trim()
-                })
-                notify(i18n.t('addSaved'))
-                setName('')
-                setSkills('')
-                setResumeText('')
-                onSaved()
-              } catch {
-                setErrorMessage(i18n.message('addFailed'))
-              } finally {
-                setSaving(false)
-              }
-            }}
-          >
-            {i18n.t('addSubmit')}
+            {i18n.t(saving ? 'editSaving' : displayEdit ? 'editSave' : 'createSubmit')}
           </Button>
         </DialogFooter>
       </DialogContent>

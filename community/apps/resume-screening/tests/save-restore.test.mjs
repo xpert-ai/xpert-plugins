@@ -7,11 +7,8 @@ import { ResumeScreeningService } from '../dist/lib/resume-screening.service.js'
 import { CANDIDATES, DIMENSIONS, JD, SCOPE, createFakeRepository } from './fake-repo.mjs'
 
 function makeService() {
-  return new ResumeScreeningService(
-    createFakeRepository(),
-    createFakeRepository(),
-    createFakeRepository()
-  )
+  const scores = createFakeRepository()
+  return new ResumeScreeningService(createFakeRepository(), createFakeRepository([], { scores }), scores)
 }
 
 test('create -> prescreen -> score -> confirm -> workbench read restores the result', async () => {
@@ -97,4 +94,24 @@ test('confirming a candidate that was never scored fails with a clear error', as
     }),
     /No score exists/
   )
+})
+
+test('clearing a manual adjustment restores the AI score and survives a fresh read', async () => {
+  const service = makeService()
+  const screening = await service.createScreening(SCOPE, JD)
+  const candidate = await service.addCandidate(SCOPE, { screeningId: screening.id, ...CANDIDATES.senior })
+  await service.saveScore(SCOPE, { screeningId: screening.id, candidateId: candidate.id, dimensions: DIMENSIONS })
+  const review = { screeningId: screening.id, candidateId: candidate.id, decision: 'pending', note: 'fictional review' }
+  await service.confirmScreening(SCOPE, { ...review, adjustedTotal: 75, baseRevision: 1 })
+  // Omitted adjustment preserves an existing review for older callers.
+  await service.confirmScreening(SCOPE, { ...review, baseRevision: 2 })
+  assert.equal((await service.getWorkbenchData(SCOPE)).items[0].totalScore, 75)
+  await service.confirmScreening(SCOPE, { ...review, adjustedTotal: null, baseRevision: 3 })
+  const restored = (await service.getWorkbenchData(SCOPE, { screeningId: screening.id })).items[0]
+  assert.equal(restored.aiTotalScore, 72)
+  assert.equal(restored.totalScore, 72)
+  assert.equal(restored.note, review.note)
+  assert.equal(restored.decision, 'pending')
+  await assert.rejects(service.confirmScreening(SCOPE, { ...review, adjustedTotal: 90, baseRevision: 3 }),
+    (error) => error.errorCode === 'revision_conflict')
 })

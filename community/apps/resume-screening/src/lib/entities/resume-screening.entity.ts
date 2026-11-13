@@ -56,6 +56,13 @@ export class ResumeScreening {
   @Column({ type: 'int', default: 0 })
   candidateCount?: number
 
+  /** Sealed atomically before accepting the first candidate; never reopened. */
+  @Column({ type: 'boolean', default: false })
+  criteriaLocked?: boolean
+
+  @Column({ type: 'int', default: 1 })
+  editRevision?: number
+
   @CreateDateColumn()
   createdAt?: Date
 

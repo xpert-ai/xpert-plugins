@@ -1,9 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { createHash } from 'node:crypto'
+import { In, IsNull } from 'typeorm'
 import { InjectRepository } from '@nestjs/typeorm'
 import type { Repository } from 'typeorm'
 import { ResumeCandidate } from './entities/resume-candidate.entity.js'
 import { ResumeScore } from './entities/resume-score.entity.js'
 import { ResumeScreening } from './entities/resume-screening.entity.js'
+import { ResumeScoringTask } from './entities/resume-scoring-task.entity.js'
+import { ResumeRevisionConflictError, ResumeCriteriaLockedError } from './revision-conflict.error.js'
+import { screeningEditFields, screeningEditVersion, sameScreeningCriteria } from './screening-edit.js'
+import { candidateFields, candidateEvidence, scoreState, uniqueSkills, scoreHistoryEntry } from './candidate-evidence.js'
 import { DEGREE_RANK, SCORE_DIMENSIONS } from './types.js'
 import type {
   AddCandidateInput,
@@ -16,13 +22,20 @@ import type {
   ResumeWorkbenchData,
   ResumeWorkbenchQuery,
   ScoreDimensionInput,
-  ScoreReceipt
+  ScoreReceipt,
+  UpdateScreeningInput,
+  CandidateDetail, CandidateFields, ResumeScreeningStatus, ScreeningListItem, ScreeningListSummary
 } from './types.js'
 
 const MAX_EVIDENCE_LENGTH = 200
 const MAX_RESUME_TEXT_LENGTH = 20000
 const MAX_NOTE_LENGTH = 500
 const DECISIONS: ResumeDecision[] = ['interview', 'pending', 'rejected']
+function validateRequestId(value?: string) {
+  if (value !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new BadRequestException('requestId must be a UUID.')
+  }
+}
 
 function excerpt(text: string, needle: string, length = MAX_EVIDENCE_LENGTH): string {
   const index = needle ? text.toLowerCase().indexOf(needle.toLowerCase()) : -1
@@ -166,14 +179,98 @@ export class ResumeScreeningService {
     @InjectRepository(ResumeCandidate)
     private readonly candidates: Repository<ResumeCandidate>,
     @InjectRepository(ResumeScore)
-    private readonly scores: Repository<ResumeScore>
+    private readonly scores: Repository<ResumeScore>,
+    @Optional() @InjectRepository(ResumeScoringTask)
+    private readonly tasks?: Repository<ResumeScoringTask>
   ) {}
 
   private screeningWhere(scope: ResumeScope, id: string) {
-    return { id, tenantId: scope.tenantId, organizationId: scope.organizationId ?? undefined } as Record<string, unknown>
+    return { ...this.scopeWhere(scope), id,
+      ...(scope.workspaceId ? { workspaceId: scope.workspaceId } : {}),
+      ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      ...(scope.assistantId && !scope.projectId ? { xpertId: scope.assistantId } : {}) }
+  }
+
+  private scopeWhere(scope: ResumeScope) {
+    if (!scope.tenantId) throw new BadRequestException('Authenticated tenant context is required.')
+    return { tenantId: scope.tenantId, organizationId: scope.organizationId ?? IsNull() }
+  }
+
+  async listScreenings(scope: ResumeScope, page = 1) {
+    const { id: _id, ...where } = this.screeningWhere(scope, undefined)
+    const items = await this.screenings.find({ where: where as never,
+      order: { createdAt: 'DESC', id: 'ASC' }, take: 100, skip: (Math.max(1, page) - 1) * 100 })
+    return items.map(({ id, title, jobTitle }) => ({ id: id as string, title, jobTitle }))
+  }
+
+  async getScreeningList(scope: ResumeScope, query: { search?: string; status?: string; page?: number; pageSize?: number } = {}) {
+    const statuses: ResumeScreeningStatus[] = ['draft', 'prescreened', 'scored', 'reviewing', 'completed', 'failed']
+    if (query.status && !statuses.includes(query.status as ResumeScreeningStatus)) {
+      throw new BadRequestException('Invalid screening status filter.')
+    }
+    const { id: _id, ...where } = this.screeningWhere(scope, undefined)
+    const builder = this.screenings.createQueryBuilder('screening').where(where)
+    const search = query.search?.trim().toLowerCase()
+    if (search) builder.andWhere('(LOWER(screening.title) LIKE :search OR LOWER(screening.jobTitle) LIKE :search)',
+      { search: `%${search.replace(/[\\%_]/g, '\\$&')}%` })
+    if (query.status) builder.andWhere('screening.status = :status', { status: query.status })
+    const total = await builder.getCount()
+    const pageSize = Number.isFinite(query.pageSize) ? Math.min(50, Math.max(1, Math.floor(query.pageSize))) : 20
+    const page = Math.min(Number.isFinite(query.page) ? Math.max(1, Math.floor(query.page)) : 1,
+      Math.max(1, Math.ceil(total / pageSize)))
+    const records = await builder.orderBy('screening.createdAt', 'DESC').addOrderBy('screening.id', 'ASC')
+      .offset((page - 1) * pageSize).limit(pageSize).getMany()
+    const items: ScreeningListItem[] = await Promise.all(records.map(async (screening) => ({
+      id: screening.id as string, title: screening.title, jobTitle: screening.jobTitle, status: screening.status ?? 'draft',
+      candidateCount: await this.candidates.count({ where: { ...this.scopeWhere(scope), screeningId: screening.id } as never }),
+      updatedAt: screening.updatedAt?.toISOString() ?? null
+    })))
+    const summary: ScreeningListSummary = { kind: 'screening_list', page, pageSize }
+    return { items, total, summary }
+  }
+
+  async getScreeningDetail(scope: ResumeScope, screeningId: string) {
+    const screening = await this.requireScreening(scope, screeningId)
+    const candidateCount = await this.candidates.count({ where: { ...this.scopeWhere(scope), screeningId } as never })
+    return { screeningId, title: screening.title, jobTitle: screening.jobTitle, status: screening.status ?? 'draft',
+      candidateCount, edit: { ...screeningEditFields(screening), version: screeningEditVersion(screening),
+        criteriaLocked: screening.criteriaLocked === true || candidateCount > 0 } }
+  }
+
+  /** Explicit item read: the model receives saved evidence, never invented input. */
+  async getCandidateContext(scope: ResumeScope, screeningId: string, candidateId: string) {
+    const screening = await this.requireScreening(scope, screeningId)
+    const candidate = await this.requireCandidate(scope, screeningId, candidateId)
+    const evidence = candidateEvidence(screening, candidate)
+    return { screeningId, candidateId, evidenceVersion: evidence.version, candidateRevision: evidence.candidateRevision,
+      jobTitle: screening.jobTitle, jdText: screening.jdText,
+      minYears: screening.minYears, minDegree: screening.minDegree, requiredSkills: screening.requiredSkills,
+      name: candidate.name, resumeText: candidate.resumeText, yearsOfExperience: candidate.yearsOfExperience,
+      degree: candidate.degree, skills: candidate.skills, prescreen: candidate.prescreenFindings ?? [] }
+  }
+
+  private async refreshStatus(scope: ResumeScope, screeningId: string) {
+    const where = { ...this.scopeWhere(scope), screeningId }
+    const count = await this.candidates.count({ where: where as never })
+    const scoreCount = await this.candidateQuery(scope, screeningId)
+      .andWhere('score.candidateRevision = candidate.revision').getCount()
+    const confirmed = await this.candidateQuery(scope, screeningId)
+      .andWhere('score.candidateRevision = candidate.revision').andWhere('score.decision IS NOT NULL').getCount()
+    const screening = await this.requireScreening(scope, screeningId)
+    const status = count > 0 && confirmed === count ? 'completed'
+      : confirmed > 0 ? 'reviewing' : count > 0 && scoreCount === count ? 'scored'
+      : scoreCount > 0 || screening.status === 'prescreened' ? 'prescreened' : 'draft'
+    await this.screenings.update(this.screeningWhere(scope, screeningId) as never, { candidateCount: count, status })
+  }
+
+  private candidateQuery(scope: ResumeScope, screeningId: string) {
+    return this.candidates.createQueryBuilder('candidate')
+      .leftJoin(ResumeScore, 'score', 'score.candidateId = CAST(candidate.id AS varchar) AND score.screeningId = candidate.screeningId AND score.tenantId = candidate.tenantId AND (score.organizationId = candidate.organizationId OR (score.organizationId IS NULL AND candidate.organizationId IS NULL))')
+      .where({ ...this.scopeWhere(scope), screeningId })
   }
 
   private async requireScreening(scope: ResumeScope, screeningId: string): Promise<ResumeScreening> {
+    if (!screeningId) throw new BadRequestException('Screening id is required.')
     const screening = await this.screenings.findOne({ where: this.screeningWhere(scope, screeningId) as never })
     if (!screening) {
       throw new NotFoundException(`Screening ${screeningId} was not found in the current tenant or organization.`)
@@ -182,8 +279,9 @@ export class ResumeScreeningService {
   }
 
   private async requireCandidate(scope: ResumeScope, screeningId: string, candidateId: string): Promise<ResumeCandidate> {
+    if (!screeningId || !candidateId) throw new BadRequestException('Screening and candidate ids are required.')
     const candidate = await this.candidates.findOne({
-      where: { id: candidateId, screeningId, tenantId: scope.tenantId } as never
+      where: { ...this.scopeWhere(scope), id: candidateId, screeningId } as never
     })
     if (!candidate) {
       throw new NotFoundException(`Candidate ${candidateId} was not found in screening ${screeningId}.`)
@@ -192,39 +290,81 @@ export class ResumeScreeningService {
   }
 
   async createScreening(scope: ResumeScope, input: CreateScreeningInput): Promise<ResumeScreening> {
-    if (!input.title?.trim() || !input.jobTitle?.trim() || !input.jdText?.trim()) {
-      throw new BadRequestException('Title, job title and JD text are required.')
+    this.scopeWhere(scope)
+    validateRequestId(input.requestId)
+    if (input.requestId) {
+      const existing = await this.screenings.findOne({ where: this.screeningWhere(scope, input.requestId) as never })
+      if (existing) return existing
     }
-    if (!Number.isInteger(input.minYears) || input.minYears < 0 || input.minYears > 50) {
-      throw new BadRequestException('minYears must be an integer between 0 and 50.')
-    }
-    if (!input.requiredSkills || input.requiredSkills.length === 0 || input.requiredSkills.length > 20) {
-      throw new BadRequestException('Provide 1-20 required skills.')
-    }
+    const fields = screeningEditFields(input)
     const screening = this.screenings.create({
+      ...(input.requestId ? { id: input.requestId } : {}),
       tenantId: scope.tenantId,
       organizationId: scope.organizationId ?? undefined,
       workspaceId: scope.workspaceId ?? undefined,
       projectId: scope.projectId ?? undefined,
       createdById: scope.userId ?? undefined,
-      xpertId: input.xpertId,
+      xpertId: scope.assistantId ?? input.xpertId,
       agentKey: input.agentKey,
-      title: input.title.trim(),
-      jobTitle: input.jobTitle.trim(),
-      jdText: input.jdText.trim(),
-      minYears: input.minYears,
-      minDegree: input.minDegree,
-      requiredSkills: input.requiredSkills.map((skill) => skill.trim()).filter(Boolean),
+      ...fields,
       status: 'draft',
-      candidateCount: 0
+      candidateCount: 0,
+      criteriaLocked: false,
+      editRevision: 1
     })
+    if (input.requestId) {
+      // A caller-selected UUID must only INSERT. Repository.save could update
+      // a same-UUID row belonging to a different scope before authorization.
+      try { await this.screenings.insert(screening) } catch {
+        const existing = await this.screenings.findOne({ where: this.screeningWhere(scope, input.requestId) as never })
+        if (existing) return existing
+        throw new ConflictException('Screening could not be created. Retry with the same request ID.')
+      }
+      return this.requireScreening(scope, input.requestId)
+    }
     return this.screenings.save(screening)
+  }
+
+  async updateScreening(scope: ResumeScope, input: UpdateScreeningInput): Promise<ResumeScreening> {
+    const fields = screeningEditFields(input)
+    if (!/^[a-f0-9]{64}$/.test(input.baseVersion ?? '')) {
+      throw new BadRequestException('A valid screening edit version is required.')
+    }
+    const screening = await this.requireScreening(scope, input.screeningId)
+    if (input.baseVersion !== screeningEditVersion(screening)) {
+      throw new ResumeRevisionConflictError('Screening changed. Reload before editing again.')
+    }
+    const count = await this.candidates.count({
+      where: { ...this.scopeWhere(scope), screeningId: input.screeningId } as never
+    })
+    if ((screening.criteriaLocked || count > 0) && !sameScreeningCriteria(screeningEditFields(screening), fields)) {
+      throw new ResumeCriteriaLockedError('Scoring criteria are locked after adding a candidate. Create a new screening for new criteria.')
+    }
+    const updated = await this.screenings.update({ ...this.screeningWhere(scope, input.screeningId),
+      editRevision: screening.editRevision ?? 1, criteriaLocked: screening.criteriaLocked ?? false } as never,
+    { ...fields, editRevision: (screening.editRevision ?? 1) + 1 })
+    if (!updated.affected) throw new ResumeRevisionConflictError('Screening changed. Reload before editing again.')
+    return this.requireScreening(scope, input.screeningId)
   }
 
   async addCandidate(scope: ResumeScope, input: AddCandidateInput): Promise<ResumeCandidate> {
     const screening = await this.requireScreening(scope, input.screeningId)
+    validateRequestId(input.requestId)
+    if (input.requestId) {
+      const existing = await this.candidates.findOne({ where: {
+        ...this.scopeWhere(scope), id: input.requestId, screeningId: input.screeningId
+      } as never })
+      if (existing) {
+        await this.refreshStatus(scope, input.screeningId)
+        return existing
+      }
+    }
     if (!input.name?.trim()) {
       throw new BadRequestException('Candidate name is required.')
+    }
+    if (!(input.degree in DEGREE_RANK) || !Array.isArray(input.skills) || input.skills.length > 50
+      || input.skills.some((skill) => typeof skill !== 'string' || !skill.trim() || skill.length > 100) || input.name.length > 200) {
+      throw new BadRequestException('Invalid candidate degree, name, or skills.')
     }
     if (!input.resumeText?.trim() || input.resumeText.length > MAX_RESUME_TEXT_LENGTH) {
       throw new BadRequestException(`Resume text is required and must be at most ${MAX_RESUME_TEXT_LENGTH} characters.`)
@@ -232,21 +372,132 @@ export class ResumeScreeningService {
     if (!Number.isInteger(input.yearsOfExperience) || input.yearsOfExperience < 0 || input.yearsOfExperience > 60) {
       throw new BadRequestException('yearsOfExperience must be an integer between 0 and 60.')
     }
+    // Seal with one conditional write before insertion. A failed insertion keeps
+    // the seal, so no concurrent candidate can ever observe changed criteria.
+    if (!screening.criteriaLocked) {
+      const sealed = await this.screenings.update({ ...this.screeningWhere(scope, input.screeningId),
+        criteriaLocked: false, editRevision: screening.editRevision ?? 1 } as never,
+      { criteriaLocked: true, editRevision: (screening.editRevision ?? 1) + 1 })
+      if (!sealed.affected) {
+        const current = await this.requireScreening(scope, input.screeningId)
+        if (!current.criteriaLocked) throw new ResumeRevisionConflictError('Criteria changed. Reload before adding the candidate.')
+      }
+    }
     const candidate = this.candidates.create({
+      ...(input.requestId ? { id: input.requestId } : {}),
       tenantId: scope.tenantId,
       organizationId: scope.organizationId ?? undefined,
       screeningId: screening.id as string,
       name: input.name.trim(),
       yearsOfExperience: input.yearsOfExperience,
       degree: input.degree,
-      skills: input.skills.map((skill) => skill.trim()).filter(Boolean),
+      skills: uniqueSkills(input.skills),
       resumeText: input.resumeText.trim(),
-      prescreenFindings: []
+      prescreenFindings: [],
+      revision: 1
     })
-    const saved = await this.candidates.save(candidate)
-    screening.candidateCount = (screening.candidateCount ?? 0) + 1
-    await this.screenings.save(screening)
+    let saved: ResumeCandidate
+    if (input.requestId) {
+      try { await this.candidates.insert(candidate) } catch {
+        const existing = await this.candidates.findOne({ where: {
+          ...this.scopeWhere(scope), id: input.requestId, screeningId: input.screeningId
+        } as never })
+        if (!existing) throw new ConflictException('Candidate could not be added. Retry with the same request ID.')
+      }
+      saved = await this.requireCandidate(scope, input.screeningId, input.requestId)
+    } else saved = await this.candidates.save(candidate)
+    await this.refreshStatus(scope, screening.id as string)
     return saved
+  }
+
+  async getCandidateDetail(scope: ResumeScope, screeningId: string, candidateId: string): Promise<CandidateDetail> {
+    const screening = await this.requireScreening(scope, screeningId)
+    const candidate = await this.requireCandidate(scope, screeningId, candidateId)
+    const score = await this.scores.findOne({ where: { ...this.scopeWhere(scope), screeningId, candidateId } as never })
+    const state = scoreState(score, candidateEvidence(screening, candidate))
+    return { ...candidateFields(candidate), candidateId, screeningId, revision: candidate.revision ?? 1,
+      scoreState: state, evidence: score?.evidence,
+      history: score && state === 'stale' ? [...(score.history ?? []), scoreHistoryEntry(score)] : score?.history ?? [] }
+  }
+
+  async updateCandidate(scope: ResumeScope, input: CandidateFields & {
+    screeningId: string; candidateId: string; baseRevision: number
+  }): Promise<CandidateDetail> {
+    await this.requireScreening(scope, input.screeningId)
+    const current = await this.requireCandidate(scope, input.screeningId, input.candidateId)
+    const fields = candidateFields(input)
+    if (!Number.isInteger(input.baseRevision) || input.baseRevision !== (current.revision ?? 1)) {
+      throw new ResumeRevisionConflictError('Resume changed. Reload before editing again.')
+    }
+    if (JSON.stringify(candidateFields(current)) === JSON.stringify(fields)) {
+      return this.getCandidateDetail(scope, input.screeningId, input.candidateId)
+    }
+    const changed = await this.candidates.update({ ...this.scopeWhere(scope), screeningId: input.screeningId,
+      id: input.candidateId, revision: input.baseRevision } as never,
+    { ...fields, revision: input.baseRevision + 1, prescreenFindings: [] })
+    if (!changed.affected) throw new ResumeRevisionConflictError('Resume changed. Reload before editing again.')
+    await this.refreshStatus(scope, input.screeningId)
+    return this.getCandidateDetail(scope, input.screeningId, input.candidateId)
+  }
+
+  async prepareScoring(scope: ResumeScope, input: {
+    screeningId: string; candidateIds: string[]; requestId: string; replaceReviewed?: boolean
+  }) {
+    validateRequestId(input.requestId)
+    if (!input.requestId || !Array.isArray(input.candidateIds) || input.candidateIds.length < 1
+      || input.candidateIds.length > 20 || new Set(input.candidateIds).size !== input.candidateIds.length) {
+      throw new BadRequestException('Select 1-20 different candidates.')
+    }
+    const screening = await this.requireScreening(scope, input.screeningId)
+    if (!this.tasks) throw new BadRequestException('Scoring task persistence is unavailable.')
+    const previous = await this.tasks.findOne({ where: { ...this.scopeWhere(scope), id: input.requestId,
+      screeningId: input.screeningId } as never })
+    if (previous) {
+      if (JSON.stringify(previous.items.map((item) => item.candidateId)) !== JSON.stringify(input.candidateIds)) {
+        throw new ConflictException('A request ID cannot be reused for another selection.')
+      }
+      return { taskId: previous.id as string, candidateIds: input.candidateIds }
+    }
+    const items = []
+    for (const candidateId of input.candidateIds) {
+      const candidate = await this.requireCandidate(scope, input.screeningId, candidateId)
+      const score = await this.scores.findOne({ where: { ...this.scopeWhere(scope),
+        screeningId: input.screeningId, candidateId } as never })
+      const evidence = candidateEvidence(screening, candidate)
+      if (score?.decision && scoreState(score, evidence) !== 'stale' && !input.replaceReviewed) {
+        throw new ConflictException('Selection includes reviewed candidates. Explicitly confirm re-evaluation first.')
+      }
+      items.push({ candidateId, evidence, scoreRevision: score?.revision ?? 0 })
+    }
+    const task = this.tasks.create({ id: input.requestId, tenantId: scope.tenantId,
+      organizationId: scope.organizationId ?? undefined, screeningId: input.screeningId,
+      items, replaceReviewed: input.replaceReviewed === true })
+    try { await this.tasks.insert(task) } catch {
+      throw new ResumeRevisionConflictError('Scoring request changed. Retry after refreshing.')
+    }
+    return { taskId: task.id as string, candidateIds: input.candidateIds }
+  }
+
+  async getScoringTarget(scope: ResumeScope, screeningId: string, taskId: string, candidateId: string) {
+    await this.requireScreening(scope, screeningId)
+    if (!this.tasks) throw new BadRequestException('Scoring task persistence is unavailable.')
+    const task = await this.tasks.findOne({ where: { ...this.scopeWhere(scope), id: taskId, screeningId } as never })
+    const target = task?.items.find((item) => item.candidateId === candidateId)
+    if (!task || !target) throw new NotFoundException('Candidate is not in this authorized scoring selection.')
+    const candidate = await this.requireCandidate(scope, screeningId, candidateId)
+    if ((candidate.revision ?? 1) !== target.evidence.candidateRevision) {
+      throw new ResumeRevisionConflictError('Resume changed after selection. Start a new scoring request.')
+    }
+    return { task, target }
+  }
+
+  async saveSelectedScore(scope: ResumeScope, input: {
+    screeningId: string; taskId: string; candidateId: string; dimensions: ScoreDimensionInput[]
+  }) {
+    const { task, target } = await this.getScoringTarget(scope, input.screeningId, input.taskId, input.candidateId)
+    return this.saveScore(scope, { ...input, operationId: input.taskId,
+      expectedEvidence: target.evidence.version, expectedScoreRevision: target.scoreRevision,
+      replaceReviewed: task.replaceReviewed })
   }
 
   /** Deterministic prescreen. Persists findings on the candidate and returns them. */
@@ -262,11 +513,12 @@ export class ResumeScreeningService {
         resumeText: candidate.resumeText
       }
     )
-    candidate.prescreenFindings = findings
-    await this.candidates.save(candidate)
+    const updated = await this.candidates.update({ ...this.scopeWhere(scope), screeningId,
+      id: candidateId, revision: candidate.revision ?? 1 } as never, { prescreenFindings: findings })
+    if (!updated.affected) throw new ResumeRevisionConflictError('Resume changed during prescreen. Start a new scoring request.')
     if (screening.status === 'draft') {
-      screening.status = 'prescreened'
-      await this.screenings.save(screening)
+      await this.screenings.update({ ...this.screeningWhere(scope, screeningId), status: 'draft' } as never,
+        { status: 'prescreened' })
     }
     return findings
   }
@@ -276,48 +528,97 @@ export class ResumeScreeningService {
    * validates ranges, computes the total, and enforces idempotency:
    * the same operationId returns the stored receipt, and a second save for the
    * same (screeningId, candidateId) updates the existing row instead of
-   * creating a duplicate. No transaction is opened and no external call is
-   * made inside this write.
+   * creating a duplicate. Tools additionally require a persisted human-selected
+   * scoring task. No plugin-managed transaction is opened.
    */
   async saveScore(
     scope: ResumeScope,
-    input: { screeningId: string; candidateId: string; operationId?: string; dimensions: ScoreDimensionInput[] }
+    input: { screeningId: string; candidateId: string; operationId?: string; dimensions: ScoreDimensionInput[];
+      expectedEvidence?: string; expectedScoreRevision?: number; replaceReviewed?: boolean }
   ): Promise<ScoreReceipt> {
-    await this.requireScreening(scope, input.screeningId)
-    await this.requireCandidate(scope, input.screeningId, input.candidateId)
-    if (input.operationId) {
-      const existingByOperation = await this.scores.findOne({ where: { operationId: input.operationId } as never })
+    const screening = await this.requireScreening(scope, input.screeningId)
+    const candidate = await this.requireCandidate(scope, input.screeningId, input.candidateId)
+    const evidence = candidateEvidence(screening, candidate)
+    if (input.expectedEvidence && input.expectedEvidence !== evidence.version) {
+      throw new ResumeRevisionConflictError('Resume changed. Start a new scoring request.')
+    }
+    const operationId = input.operationId ? createHash('sha256').update(JSON.stringify([
+      scope.tenantId, scope.organizationId ?? null, input.screeningId, input.candidateId, input.operationId
+    ])).digest('hex') : undefined
+    if (operationId) {
+      const existingByOperation = await this.scores.findOne({ where: { ...this.scopeWhere(scope), operationId } as never })
       if (existingByOperation) {
+        await this.refreshStatus(scope, input.screeningId)
         return toReceipt(existingByOperation, true, 'Score was already saved for this operation.')
       }
     }
     const { totalScore } = validateDimensions(input.dimensions)
     const existing = await this.scores.findOne({
-      where: { screeningId: input.screeningId, candidateId: input.candidateId } as never
+      where: { ...this.scopeWhere(scope), screeningId: input.screeningId, candidateId: input.candidateId } as never
     })
+    if (input.expectedScoreRevision !== undefined && input.expectedScoreRevision !== (existing?.revision ?? 0)) {
+      throw new ResumeRevisionConflictError('Score or human review changed after selection. Refresh and select again.')
+    }
     if (existing) {
+      if (JSON.stringify(existing.dimensions) === JSON.stringify(input.dimensions)
+        && (!existing.evidence || existing.evidence.version === evidence.version) && !input.replaceReviewed
+        && scoreState(existing, evidence) !== 'stale') {
+        await this.refreshStatus(scope, input.screeningId)
+        return toReceipt(existing, true, 'The same score is already saved.')
+      }
+      if (existing.decision && scoreState(existing, evidence) !== 'stale' && !input.replaceReviewed) {
+        throw new ConflictException('A human has confirmed this candidate. The confirmed score cannot be replaced by AI.')
+      }
+      const revision = existing.revision ?? 1
+      const history = [...(existing.history ?? []), scoreHistoryEntry(existing)]
       existing.dimensions = input.dimensions
       existing.totalScore = totalScore
       existing.adjustedTotal = null
-      existing.operationId = input.operationId ?? existing.operationId
+      existing.operationId = operationId ?? existing.operationId
       existing.revision = (existing.revision ?? 1) + 1
-      const saved = await this.scores.save(existing)
-      return toReceipt(saved, true, 'Score was updated for the same candidate; no duplicate record was created.')
+      existing.scoredAt = new Date()
+      const updated = await this.scores.update({ ...this.scopeWhere(scope), id: existing.id, revision } as never,
+        { dimensions: existing.dimensions, totalScore, adjustedTotal: null, operationId: existing.operationId,
+          revision: existing.revision, scoredAt: existing.scoredAt, evidence, history, decision: null, note: null, decidedById: null,
+          candidateRevision: candidate.revision ?? 1, evidenceVersion: evidence.version })
+      if (!updated.affected) throw new ResumeRevisionConflictError('Reload before scoring again.')
+      await this.refreshStatus(scope, input.screeningId)
+      return toReceipt(existing, true, 'Score was updated for the same candidate; no duplicate record was created.')
     }
     const created = this.scores.create({
       tenantId: scope.tenantId,
       organizationId: scope.organizationId ?? undefined,
       screeningId: input.screeningId,
       candidateId: input.candidateId,
-      operationId: input.operationId,
+      operationId,
       dimensions: input.dimensions,
       totalScore,
+      scoredAt: new Date(),
       adjustedTotal: null,
       decision: null,
       note: null,
-      revision: 1
+      revision: 1,
+      evidence, history: [], candidateRevision: candidate.revision ?? 1, evidenceVersion: evidence.version
     })
-    const saved = await this.scores.save(created)
+    let saved: ResumeScore
+    try {
+      saved = await this.scores.save(created)
+    } catch (error) {
+      // Concurrent first writes are arbitrated by the database unique constraint.
+      // A retry of the winning operation returns its receipt; another operation
+      // receives a conflict instead of silently overwriting the winner.
+      const winner = await this.scores.findOne({ where: {
+        ...this.scopeWhere(scope), screeningId: input.screeningId, candidateId: input.candidateId
+      } as never })
+      if (!winner) throw error
+      if ((operationId && winner.operationId === operationId) || (winner.evidenceVersion === evidence.version
+        && JSON.stringify(winner.dimensions) === JSON.stringify(input.dimensions))) {
+        await this.refreshStatus(scope, input.screeningId)
+        return toReceipt(winner, true, 'Score was already saved. No duplicate was created.')
+      }
+      throw new ResumeRevisionConflictError('Another score was saved. Reload before retrying.')
+    }
+    await this.refreshStatus(scope, input.screeningId)
     return toReceipt(saved, false, 'Score was saved.')
   }
 
@@ -326,28 +627,33 @@ export class ResumeScreeningService {
     if (!DECISIONS.includes(input.decision)) {
       throw new BadRequestException(`Decision must be one of: ${DECISIONS.join(', ')}.`)
     }
-    if (input.adjustedTotal !== undefined && (!Number.isInteger(input.adjustedTotal) || input.adjustedTotal < 0 || input.adjustedTotal > 100)) {
+    if (input.adjustedTotal !== undefined && input.adjustedTotal !== null
+      && (!Number.isInteger(input.adjustedTotal) || input.adjustedTotal < 0 || input.adjustedTotal > 100)) {
       throw new BadRequestException('adjustedTotal must be an integer between 0 and 100.')
     }
     if (input.note !== undefined && input.note.length > MAX_NOTE_LENGTH) {
       throw new BadRequestException(`Note must be at most ${MAX_NOTE_LENGTH} characters.`)
     }
-    await this.requireScreening(scope, input.screeningId)
-    await this.requireCandidate(scope, input.screeningId, input.candidateId)
+    const screening = await this.requireScreening(scope, input.screeningId)
+    const candidate = await this.requireCandidate(scope, input.screeningId, input.candidateId)
     const score = await this.scores.findOne({
-      where: { screeningId: input.screeningId, candidateId: input.candidateId } as never
+      where: { ...this.scopeWhere(scope), screeningId: input.screeningId, candidateId: input.candidateId } as never
     })
     if (!score) {
       throw new NotFoundException(`No score exists for candidate ${input.candidateId} yet. Score the candidate before confirming.`)
     }
+    if (scoreState(score, candidateEvidence(screening, candidate)) === 'stale') {
+      throw new ResumeRevisionConflictError('Resume changed. Re-score before confirming.')
+    }
     if (input.baseRevision !== undefined && input.baseRevision !== score.revision) {
-      const error = new BadRequestException(
+      throw new ResumeRevisionConflictError(
         `Score was changed by someone else (current revision ${score.revision}). Reload and confirm again.`
       )
-      // Stable machine-readable code for the Workbench to branch on.
-      ;(error as unknown as { errorCode: string }).errorCode = 'revision_conflict'
-      throw error
     }
+    if (!Number.isInteger(input.baseRevision) || input.baseRevision < 1) {
+      throw new BadRequestException('baseRevision is required. Reload before confirming.')
+    }
+    const revision = score.revision ?? 1
     score.decision = input.decision
     if (input.adjustedTotal !== undefined) {
       score.adjustedTotal = input.adjustedTotal
@@ -357,42 +663,49 @@ export class ResumeScreeningService {
     }
     score.decidedById = scope.userId ?? score.decidedById
     score.revision = (score.revision ?? 1) + 1
-    const saved = await this.scores.save(score)
-    return toReceipt(saved, false, 'Confirmation was saved.')
+    const updated = await this.scores.update({ ...this.scopeWhere(scope), id: score.id, revision } as never,
+      { decision: score.decision, adjustedTotal: score.adjustedTotal, note: score.note,
+        decidedById: score.decidedById, revision: score.revision })
+    if (!updated.affected) throw new ResumeRevisionConflictError('Reload before confirming again.')
+    await this.refreshStatus(scope, input.screeningId)
+    return toReceipt(score, false, 'Confirmation was saved.')
   }
 
   /** Paged Workbench read, sorted by total score descending. Scope is applied before paging. */
   async getWorkbenchData(scope: ResumeScope, query: ResumeWorkbenchQuery = {}): Promise<ResumeWorkbenchData> {
-    const page = Math.max(1, query.page ?? 1)
-    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
-    if (!query.screeningId) {
+    const page = Number.isFinite(query.page) ? Math.max(1, Math.floor(query.page)) : 1
+    const pageSize = Number.isFinite(query.pageSize) ? Math.min(100, Math.max(1, Math.floor(query.pageSize))) : 20
+    const screenings = await this.listScreenings(scope)
+    const screeningId = query.screeningId ?? screenings[0]?.id
+    if (!screeningId) {
       return {
         items: [],
         total: 0,
-        summary: { screeningId: null, title: null, jobTitle: null, status: null, page, pageSize }
+        summary: { screeningId: null, title: null, jobTitle: null, status: null, page, pageSize, screenings }
       }
     }
-    const screening = await this.requireScreening(scope, query.screeningId)
-    const candidates = await this.candidates.find({
-      where: { screeningId: screening.id, tenantId: scope.tenantId } as never,
-      order: { createdAt: 'ASC' } as never,
-      take: pageSize,
-      skip: (page - 1) * pageSize
-    })
-    const total = await this.candidates.count({
-      where: { screeningId: screening.id, tenantId: scope.tenantId } as never
-    })
-    const scores = await this.scores.find({
-      where: { screeningId: screening.id, tenantId: scope.tenantId } as never
-    })
-    const scoreByCandidate = new Map(scores.map((score) => [score.candidateId as string, score]))
+    const screening = await this.requireScreening(scope, screeningId)
+    const candidateQuery = this.candidateQuery(scope, screening.id as string)
     const search = query.search?.trim().toLowerCase() ?? ''
+    if (search) candidateQuery.andWhere('LOWER(candidate.name) LIKE :search', { search: `%${search.replace(/[\\%_]/g, '\\$&')}%` })
+    const total = await candidateQuery.getCount()
+    const currentPage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)))
+    const candidates = await candidateQuery
+      .addSelect('CASE WHEN score.candidateRevision = candidate.revision THEN COALESCE(score.adjustedTotal, score.totalScore, -1) ELSE -1 END', 'effective_score')
+      .orderBy('effective_score', 'DESC').addOrderBy('candidate.createdAt', 'ASC').addOrderBy('candidate.id', 'ASC')
+      .offset((currentPage - 1) * pageSize).limit(pageSize).getMany()
+    const scores = candidates.length ? await this.scores.find({
+      where: { ...this.scopeWhere(scope), screeningId: screening.id, candidateId: In(candidates.map((item) => item.id)) } as never,
+      select: ['id', 'candidateId', 'dimensions', 'totalScore', 'adjustedTotal', 'decision', 'note', 'revision',
+        'candidateRevision', 'evidenceVersion']
+    }) : []
+    const scoreByCandidate = new Map(scores.map((score) => [score.candidateId as string, score]))
     const rows: CandidateRow[] = candidates
-      .filter((candidate) => !search || candidate.name.toLowerCase().includes(search))
       .map((candidate) => {
         const score = scoreByCandidate.get(candidate.id as string)
         const prescreen = candidate.prescreenFindings ?? []
-        const totalScore = score ? (score.adjustedTotal ?? score.totalScore) : null
+        const state = scoreState(score, candidateEvidence(screening, candidate))
+        const totalScore = score && state !== 'stale' ? (score.adjustedTotal ?? score.totalScore) : null
         return {
           candidateId: candidate.id as string,
           name: candidate.name,
@@ -401,10 +714,14 @@ export class ResumeScreeningService {
           skills: candidate.skills,
           prescreen,
           totalScore,
-          decision: score?.decision ?? null,
-          suggestedDecision: suggestDecision(totalScore, prescreen.some((finding) => finding.severity === 'error')),
+          adjustedTotal: state === 'stale' ? null : score?.adjustedTotal ?? null,
+          decision: state === 'stale' ? null : score?.decision ?? null,
+          suggestedDecision: suggestDecision(state === 'stale' ? null : score?.totalScore ?? null, prescreen.some((finding) => finding.severity === 'error')),
           note: score?.note ?? null,
-          revision: score?.revision ?? 0
+          revision: score?.revision ?? 0,
+          dimensions: score?.dimensions ?? [],
+          aiTotalScore: score?.totalScore ?? null,
+          scoreState: state, candidateRevision: candidate.revision ?? 1
         }
       })
       .sort((a, b) => (b.totalScore ?? -1) - (a.totalScore ?? -1))
@@ -416,8 +733,14 @@ export class ResumeScreeningService {
         title: screening.title,
         jobTitle: screening.jobTitle,
         status: screening.status ?? 'draft',
-        page,
-        pageSize
+        page: currentPage,
+        pageSize,
+        jdText: screening.jdText,
+        edit: { ...screeningEditFields(screening), version: screeningEditVersion(screening),
+          criteriaLocked: screening.criteriaLocked === true || (await this.candidates.count({ where: {
+            ...this.scopeWhere(scope), screeningId: screening.id
+          } as never })) > 0 },
+        screenings
       }
     }
   }

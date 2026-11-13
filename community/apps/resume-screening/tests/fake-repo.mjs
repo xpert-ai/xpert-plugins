@@ -7,12 +7,15 @@ function matches(row, where) {
   if (!where) return true
   return Object.entries(where).every(([key, value]) => {
     if (value === undefined) return true
+    if (value?._type === 'isNull') return row[key] == null
+    if (value?._type === 'not' && value._value?._type === 'isNull') return row[key] != null
+    if (value?._type === 'in') return value._value.includes(row[key])
     if (value === null) return row[key] === null || row[key] === undefined
     return row[key] === value
   })
 }
 
-export function createFakeRepository(initial = []) {
+export function createFakeRepository(initial = [], { scores } = {}) {
   const rows = [...initial]
   return {
     rows,
@@ -20,7 +23,46 @@ export function createFakeRepository(initial = []) {
     // service calls it without await. An async fake would hand save() a
     // Promise with no enumerable fields.
     create(input) {
-      return { ...input, id: randomUUID(), createdAt: new Date(), updatedAt: new Date() }
+      return { ...input, id: input.id ?? randomUUID(), createdAt: new Date(), updatedAt: new Date() }
+    },
+    async insert(entity) {
+      if (rows.some((row) => row.id === entity.id)) throw new Error('duplicate primary key')
+      rows.push(structuredClone(entity))
+      return { identifiers: [{ id: entity.id }] }
+    },
+    async update(where, patch) {
+      const selected = rows.filter((row) => matches(row, where))
+      for (const row of selected) Object.assign(row, structuredClone(patch))
+      return { affected: selected.length }
+    },
+    createQueryBuilder(alias) {
+      let where, search, status, currentOnly = false, confirmedOnly = false, offset = 0, limit = Infinity
+      const selected = () => rows.filter((row) => {
+        const score = scores?.rows.find((item) => item.candidateId === row.id)
+        return matches(row, where) && (!search || `${row.name ?? ''} ${row.title ?? ''} ${row.jobTitle ?? ''}`.toLowerCase().includes(search))
+          && (!status || row.status === status)
+          && (!currentOnly || (score && (score.candidateRevision ?? 1) === (row.revision ?? 1)))
+          && (!confirmedOnly || score?.decision != null)
+      })
+      return {
+        leftJoin() { return this },
+        where(value) { where = value; return this },
+        andWhere(sql, parameters) {
+          if (parameters?.search) search = parameters.search.slice(1, -1).replace(/\\([\\%_])/g, '$1')
+          else if (parameters?.status) status = parameters.status
+          else if (sql.includes('candidateRevision')) currentOnly = true
+          else if (sql.includes('decision IS NOT NULL')) confirmedOnly = true
+          return this
+        },
+        addSelect() { return this }, orderBy() { return this }, addOrderBy() { return this },
+        offset(value) { offset = value; return this }, limit(value) { limit = value; return this },
+        async getCount() { return selected().length },
+        async getMany() {
+          if (alias === 'screening') return structuredClone(selected().sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id)).slice(offset, offset + limit))
+          const score = (row) => { const item = scores?.rows.find((score) => score.candidateId === row.id); return (item?.candidateRevision ?? 1) === (row.revision ?? 1) ? item?.adjustedTotal ?? item?.totalScore ?? -1 : -1 }
+          return structuredClone(selected().sort((a, b) => score(b) - score(a) || a.createdAt - b.createdAt || a.id.localeCompare(b.id)).slice(offset, offset + limit))
+        }
+      }
     },
     async save(entity) {
       const now = new Date()
@@ -43,10 +85,10 @@ export function createFakeRepository(initial = []) {
       }
       if (typeof options.skip === 'number') result = result.slice(options.skip)
       if (typeof options.take === 'number') result = result.slice(0, options.take)
-      return result
+      return structuredClone(result)
     },
     async findOne(options = {}) {
-      return rows.find((row) => matches(row, options.where)) ?? null
+      return structuredClone(rows.find((row) => matches(row, options.where)) ?? null)
     },
     async count(options = {}) {
       return rows.filter((row) => matches(row, options.where)).length

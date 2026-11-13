@@ -1,4 +1,5 @@
 export interface HostContext {
+  debug?: import('./debug').RemoteDebugConfig
   manifest?: { key?: string }
   payload?: unknown
   initialQuery?: { search?: string; parameters?: Record<string, unknown> }
@@ -27,11 +28,16 @@ export interface CandidateRow {
   skills: string[]
   prescreen: PrescreenFinding[]
   totalScore: number | null
+  adjustedTotal?: number | null
   decision: ResumeDecision | null
   /** System-suggested outcome. A suggestion only; a human can override it. Null when unscored. */
   suggestedDecision: ResumeDecision | null
   note: string | null
   revision: number
+  dimensions?: Array<{ dimension: 'experience' | 'skills' | 'project_relevance' | 'stability' | 'bonus'; score: number; reason: string }>
+  aiTotalScore?: number | null
+  scoreState?: import('../../../types.js').ScoreState
+  candidateRevision?: number
 }
 
 export interface WorkbenchTable {
@@ -49,9 +55,13 @@ export interface ResumeWorkbenchData {
   status: string | null
   tableKey: string
   table: WorkbenchTable
+  jdText: string
+  screenings: Array<{ id: string; title: string; jobTitle: string }>
+  edit?: import('../../../types.js').ScreeningEditState
 }
 
 export interface BridgeMessage {
+  debug?: HostContext['debug']
   channel?: string
   protocolVersion?: number
   instanceId?: string

@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm'
 import { RESUME_SCORE_TABLE } from '../constants.js'
-import type { ResumeDecision, ScoreDimensionInput } from '../types.js'
+import type { ResumeDecision, ScoreDimensionInput, ResumeEvidence, ScoreHistoryEntry } from '../types.js'
 
 @Entity(RESUME_SCORE_TABLE)
 @Index(['tenantId', 'organizationId', 'screeningId'])
@@ -34,6 +34,10 @@ export class ResumeScore {
   @Column({ type: 'int' })
   totalScore!: number
 
+  /** AI score save time; human review must not change it. Null for legacy rows. */
+  @Column({ type: 'timestamptz', nullable: true })
+  scoredAt?: Date | null
+
   /** Human-adjusted total. Null until a human overrides the AI total. */
   @Column({ type: 'int', nullable: true })
   adjustedTotal?: number | null
@@ -50,6 +54,18 @@ export class ResumeScore {
   /** Optimistic-concurrency revision. Incremented on every confirm. */
   @Column({ type: 'int', default: 1 })
   revision?: number
+
+  @Column({ type: 'json', nullable: true })
+  evidence?: ResumeEvidence | null
+
+  @Column({ type: 'json', nullable: true })
+  history?: ScoreHistoryEntry[] | null
+
+  @Column({ type: 'int', default: 1 })
+  candidateRevision?: number
+
+  @Column({ type: 'varchar', nullable: true })
+  evidenceVersion?: string | null
 
   @CreateDateColumn()
   createdAt?: Date

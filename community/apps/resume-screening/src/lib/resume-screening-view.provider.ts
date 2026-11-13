@@ -28,12 +28,14 @@ import {
 } from './constants.js'
 import { ResumeScreeningService } from './resume-screening.service.js'
 import type { ResumeDegreeLevel, ResumeScope } from './types.js'
+import type { ResumeViewActionResult } from './action-contract.js'
+import { ResumeRevisionConflictError, ResumeCriteriaLockedError } from './revision-conflict.error.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const requireFromHere = createRequire(__filename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
-const TOOL_NAMES = ['resume_prescreen', 'resume_score', 'resume_confirm']
+const TOOL_NAMES = ['resume_prescreen', 'resume_score']
 const DEGREE_LEVELS: ResumeDegreeLevel[] = ['high_school', 'associate', 'bachelor', 'master', 'doctorate']
 
 @Injectable()
@@ -133,12 +135,17 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
           ]
         },
         clientCommands: [
+          { key: 'assistant.context.set', label: text('Set screening context', '设置筛查上下文') },
           {
             key: 'assistant.chat.send_message',
             label: text('Send to Assistant Chat', '发送到 Assistant 对话')
           }
         ],
         actions: [
+          { key: 'get_screening', label: text('View screening', '查看筛查单'), placement: 'row', actionType: 'invoke' },
+          { key: 'get_candidate', label: text('View resume', '查看简历'), placement: 'row', actionType: 'invoke' },
+          { key: 'update_candidate', label: text('Edit resume', '编辑简历'), placement: 'row', actionType: 'invoke' },
+          { key: 'prepare_scoring', label: text('Score selected candidates', '评分所选候选人'), placement: 'toolbar', actionType: 'invoke' },
           {
             key: 'refresh',
             label: text('Refresh', '刷新'),
@@ -150,6 +157,13 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
             key: 'create_screening',
             label: text('New Screening', '新建筛查单'),
             icon: 'ri-add-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'update_screening',
+            label: text('Edit Screening', '编辑筛查单'),
+            icon: 'ri-edit-line',
             placement: 'toolbar',
             actionType: 'invoke'
           },
@@ -185,16 +199,18 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
     }
 
     const appScript = await readFile(join(__dirname, 'remote-components', RESUME_SCREENING_REMOTE_ENTRY_KEY, 'app.js'), 'utf8')
+    const appCss = await readFile(join(__dirname, 'remote-components', RESUME_SCREENING_REMOTE_ENTRY_KEY, 'app.css'), 'utf8')
     const react = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
 
     return {
       html: renderRemoteReactIframeHtml({
-        title: 'Resume Screening',
+        title: '简历初筛',
         lang: 'zh-Hans',
         reactUmd: react,
         reactDomUmd: reactDom,
-        appScript
+        appScript,
+        appCss
       }),
       contentType: 'text/html; charset=utf-8'
     }
@@ -203,6 +219,11 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
   async getViewData(context: XpertResolvedViewHostContext, viewKey: string, query: XpertViewQuery): Promise<XpertViewDataResult> {
     if (viewKey !== RESUME_SCREENING_VIEW_KEY) {
       return {}
+    }
+
+    if (getStringParameter(query.parameters, 'mode') === 'screenings') {
+      return this.service.getScreeningList(scopeFromContext(context), { search: query.search,
+        status: getStringParameter(query.parameters, 'status'), page: query.page, pageSize: query.pageSize })
     }
 
     return this.service.getWorkbenchData(scopeFromContext(context), {
@@ -218,7 +239,7 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
     viewKey: string,
     actionKey: string,
     request: XpertViewActionRequest
-  ): Promise<XpertViewActionResult> {
+  ): Promise<ResumeViewActionResult> {
     if (viewKey !== RESUME_SCREENING_VIEW_KEY) {
       return failure('Unsupported view', '不支持的视图')
     }
@@ -229,9 +250,42 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
       if (actionKey === 'refresh') {
         return success('Resume screening view refreshed', '简历初筛视图已刷新')
       }
+      if (actionKey === 'get_screening') {
+        const screening = await this.service.getScreeningDetail(scope, requireScreeningId(request))
+        return { ...success('Screening loaded', '筛查单已加载'), data: { screening } }
+      }
+
+      if (actionKey === 'get_candidate') {
+        const candidate = await this.service.getCandidateDetail(scope, requireScreeningId(request),
+          requireStringInput(request.input, 'candidateId', 'Candidate id is required.'))
+        return { ...success('Resume loaded', '简历已加载'), data: { candidate } }
+      }
+      if (actionKey === 'update_candidate') {
+        const candidate = await this.service.updateCandidate(scope, {
+          screeningId: requireScreeningId(request),
+          candidateId: requireStringInput(request.input, 'candidateId', 'Candidate id is required.'),
+          baseRevision: requireNumberInput(request.input, 'baseRevision', 'Resume version is required.'),
+          name: requireStringInput(request.input, 'name', 'Candidate name is required.'),
+          yearsOfExperience: requireNumberInput(request.input, 'yearsOfExperience', 'Years is required.'),
+          degree: requireDegreeInput(request.input, 'degree'),
+          skills: requireStringArrayInput(request.input, 'skills'),
+          resumeText: requireStringInput(request.input, 'resumeText', 'Resume evidence is required.')
+        })
+        return { ...success('Resume updated', '简历已更新'), data: { candidate } }
+      }
+      if (actionKey === 'prepare_scoring') {
+        const task = await this.service.prepareScoring(scope, {
+          screeningId: requireScreeningId(request),
+          requestId: requireStringInput(request.input, 'requestId', 'Request id is required.'),
+          candidateIds: requireStringArrayInput(request.input, 'candidateIds'),
+          replaceReviewed: request.input?.['replaceReviewed'] === true
+        })
+        return { ...success('Scoring selection saved', '评分范围已保存'), data: task }
+      }
 
       if (actionKey === 'create_screening') {
         const result = await this.service.createScreening(scope, {
+          requestId: getStringInput(request.input, 'requestId'),
           title: requireStringInput(request.input, 'title', 'Screening title is required.'),
           jobTitle: requireStringInput(request.input, 'jobTitle', 'Job title is required.'),
           jdText: requireStringInput(request.input, 'jdText', 'JD text is required.'),
@@ -247,8 +301,24 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
         }
       }
 
+      if (actionKey === 'update_screening') {
+        const result = await this.service.updateScreening(scope, {
+          screeningId: requireScreeningId(request),
+          baseVersion: requireStringInput(request.input, 'baseVersion', 'Screening edit version is required.'),
+          title: requireStringInput(request.input, 'title', 'Screening title is required.'),
+          jobTitle: requireStringInput(request.input, 'jobTitle', 'Job title is required.'),
+          jdText: requireStringInput(request.input, 'jdText', 'JD text is required.'),
+          minYears: requireNumberInput(request.input, 'minYears', 'Minimum years is required.'),
+          minDegree: requireDegreeInput(request.input, 'minDegree'),
+          requiredSkills: requireStringArrayInput(request.input, 'requiredSkills')
+        })
+        return { ...success('Screening updated', '筛查单已更新'),
+          data: { screeningId: result.id, title: result.title } }
+      }
+
       if (actionKey === 'add_candidate') {
         const result = await this.service.addCandidate(scope, {
+          requestId: getStringInput(request.input, 'requestId'),
           screeningId: requireScreeningId(request),
           name: requireStringInput(request.input, 'name', 'Candidate name is required.'),
           yearsOfExperience: requireNumberInput(request.input, 'yearsOfExperience', 'Years of experience is required.'),
@@ -271,8 +341,8 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
           screeningId: requireScreeningId(request),
           candidateId: requireStringInput(request.input, 'candidateId', 'Candidate id is required.'),
           decision,
-          adjustedTotal: getNumberInput(request.input, 'adjustedTotal'),
-          note: getStringInput(request.input, 'note'),
+          adjustedTotal: getAdjustmentInput(request.input),
+          note: typeof request.input?.['note'] === 'string' ? request.input['note'].trim() : undefined,
           baseRevision: getNumberInput(request.input, 'baseRevision')
         })
         return {
@@ -286,7 +356,10 @@ export class ResumeScreeningViewProvider implements IXpertViewExtensionProvider 
       const message = getActionErrorMessage(error, 'Action failed')
       return {
         success: false,
-        message: text(message, message)
+        message: text(message, message),
+        ...(error instanceof ResumeRevisionConflictError || error instanceof ResumeCriteriaLockedError
+          ? { failure: { kind: 'business' as const, code: error.errorCode } }
+          : {})
       }
     }
   }
@@ -315,6 +388,7 @@ function scopeFromContext(context: XpertResolvedViewHostContext): ResumeScope {
     organizationId: context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,
     projectId: context.hostType === 'project' ? context.hostId : null,
+    assistantId: context.hostType === 'agent' ? context.hostId : null,
     userId: context.userId
   }
 }
@@ -374,6 +448,16 @@ function requireNumberInput(input: XpertViewActionRequest['input'], key: string,
 function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
   const value = input?.[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function getAdjustmentInput(input: XpertViewActionRequest['input']): number | null | undefined {
+  const value = input?.['adjustedTotal']
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error('Adjusted score must be a number, or null to restore the AI score.')
+  }
+  return value
 }
 
 function requireDegreeInput(input: XpertViewActionRequest['input'], key: string): ResumeDegreeLevel {

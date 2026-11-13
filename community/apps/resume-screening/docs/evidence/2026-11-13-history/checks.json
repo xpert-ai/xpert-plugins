@@ -1,0 +1,73 @@
+{
+  "recordedOn": "2026-11-13",
+  "scope": "Score labels and historical scoring timestamps",
+  "defaultTests": {
+    "passed": 63,
+    "skip": "PostgreSQL opt-in",
+    "skipped": 1,
+    "failed": 0,
+    "total": 64
+  },
+  "postgresSeparate": {
+    "passed": 1,
+    "failed": 0,
+    "randomSchemaCleaned": true
+  },
+  "lintTypecheck": "passed",
+  "build": "passed",
+  "lifecycle": "passed; mocked infrastructure",
+  "metadata": "passed",
+  "generatedAssets": "freshness checked",
+  "preview": {
+    "horizontalOverflow": false,
+    "currentAi": 19,
+    "currentHuman": 30,
+    "dateFormatted": true,
+    "pageErrors": 0,
+    "productionAssets": true,
+    "readLeavesDataUnchanged": true,
+    "narrowViewportWidth": 390,
+    "fictionalInMemoryData": true,
+    "historicalAi": 22
+  },
+  "legacyTime": "unknown; not inferred from createdAt/updatedAt",
+  "scoreTime": "set on actual AI write; retained through human review and duplicate requests",
+  "schemaChange": "ResumeScore.scoredAt nullable timestamptz; synchronize through platform entity schema workflow on deployment",
+  "deployed": true,
+  "platformRestarted": true,
+  "installedPlatformValidation": "passed: existing records read through the actual Xpert workbench after full page reload; no fresh model call",
+  "sourceAndAssetsSha256": {
+    "src/lib/remote-components/resume_screening__remote/app.js": "fbd5c11ad8d18247d7488d17ddc9efcb8eca7aa0d3b08837dee081369b778d7f",
+    "src/lib/types.ts": "cab968448d2dd50762936a68489af8f90f698a0b8cabfc0baf7ab0c279b6c420",
+    "src/lib/remote-components/resume_screening__remote/src/score-details-dialog.tsx": "6bc7ce5234ee3956e74740945caa92561fe4543fac930e789da4e99afd99f39f",
+    "src/lib/resume-screening.service.ts": "a6132d5efd382c0bca281cf7a7487e8f3e2ff1e1f4098b4fa97d3751cc68c7a2",
+    "src/lib/candidate-evidence.ts": "480ed3290c397fcb653b959a552f745b2a5397b4b664b844989e58193ab4edff",
+    "src/lib/remote-components/resume_screening__remote/app.css": "87927af9af531f82fda8c16d1cabc3cf8b271c7244a935556ce8709199a3a2a5",
+    "src/lib/entities/resume-score.entity.ts": "b54b23e79dfc7f3fdf563ea2e79b84ff5bc0fc7a8da851eb520fee1e6e3be04b",
+    "src/lib/remote-components/resume_screening__remote/src/candidate-panel.tsx": "8490afb5c7a5c5a3bc4438a15c13820e7d34186ca34b3f46854518363f630583"
+  },
+  "installedPlatform": {
+    "earliestHistoryAiScore": 22,
+    "existingBusinessRecordsUnchanged": true,
+    "screenshots": [
+      "01-current-score.jpg",
+      "02-score-history.jpg"
+    ],
+    "currentHumanAdjustment": null,
+    "pluginLoadStatus": "loaded",
+    "standardApiStartup": "build, apply database changes, verify structure, serve",
+    "currentAiScore": 19,
+    "officialDeploymentAction": "refreshed",
+    "priorHumanAdjustedScore": 30,
+    "preservedCounts": {
+      "tasks": 13,
+      "scores": 8,
+      "candidates": 10,
+      "screenings": 6
+    },
+    "scoreTimeColumnReadable": true,
+    "firstCandidateRead": "transient failure; explicit retry succeeded",
+    "legacyTimeLabel": "未记录",
+    "freshModelCall": false
+  }
+}

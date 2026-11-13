@@ -40,12 +40,6 @@ body,
   color: var(--foreground);
 }
 
-button,
-input,
-textarea {
-  font: inherit;
-}
-
 /* Radix ScrollArea needs every flex ancestor to preserve a bounded height. */
 [data-valve-scroll] > [data-slot='scroll-area-viewport'] {
   min-height: 0;

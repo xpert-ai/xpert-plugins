@@ -98,6 +98,7 @@ export interface ResumeScope {
 }
 
 export interface CreateScreeningInput {
+  requestId?: string
   title: string
   jobTitle: string
   jdText: string
@@ -109,12 +110,74 @@ export interface CreateScreeningInput {
 }
 
 export interface AddCandidateInput {
+  requestId?: string
   screeningId: string
   name: string
   yearsOfExperience: number
   degree: ResumeDegreeLevel
   skills: string[]
   resumeText: string
+}
+
+/** Shared edit contract; the version represents the saved editable fields. */
+export interface ScreeningEditFields {
+  title: string
+  jobTitle: string
+  jdText: string
+  minYears: number
+  minDegree: ResumeDegreeLevel
+  requiredSkills: string[]
+}
+
+export interface ScreeningEditState extends ScreeningEditFields {
+  version: string
+  criteriaLocked: boolean
+}
+
+export interface UpdateScreeningInput extends ScreeningEditFields {
+  screeningId: string
+  baseVersion: string
+}
+
+export interface CandidateFields {
+  name: string
+  yearsOfExperience: number
+  degree: ResumeDegreeLevel
+  skills: string[]
+  resumeText: string
+}
+
+export interface ResumeEvidence extends CandidateFields {
+  candidateRevision: number
+  jobTitle: string
+  jdText: string
+  minYears: number
+  minDegree: ResumeDegreeLevel
+  requiredSkills: string[]
+  version: string
+}
+
+export type ScoreState = 'unscored' | 'current' | 'stale' | 'unverified'
+
+export interface ScoreHistoryEntry {
+  /** Actual AI score save time. Absent for legacy history that did not record it. */
+  scoredAt?: string | null
+  dimensions: ScoreDimensionInput[]
+  totalScore: number
+  adjustedTotal?: number | null
+  decision?: ResumeDecision | null
+  note?: string | null
+  revision: number
+  evidence?: ResumeEvidence | null
+}
+
+export interface CandidateDetail extends CandidateFields {
+  candidateId: string
+  screeningId: string
+  revision: number
+  scoreState: ScoreState
+  evidence?: ResumeEvidence | null
+  history: ScoreHistoryEntry[]
 }
 
 export interface PrescreenResumeInput {
@@ -134,8 +197,8 @@ export interface ConfirmScreeningInput {
   screeningId: string
   candidateId: string
   decision: ResumeDecision
-  /** Optional human-adjusted total score. When omitted the stored AI total stands. */
-  adjustedTotal?: number
+  /** undefined preserves the current adjustment; null restores the AI total. */
+  adjustedTotal?: number | null
   note?: string
   /** Compare-and-swap token from the last read. Mismatch returns a revision conflict. */
   baseRevision?: number
@@ -168,11 +231,34 @@ export interface CandidateRow {
   skills: string[]
   prescreen: PrescreenFinding[]
   totalScore: number | null
+  adjustedTotal?: number | null
   decision: ResumeDecision | null
   /** System-suggested outcome from the total and prescreen findings. A suggestion only; a human can override it. Null when unscored. */
   suggestedDecision: ResumeDecision | null
   note: string | null
   revision: number
+  dimensions: ScoreDimensionInput[]
+  aiTotalScore: number | null
+  scoreState?: ScoreState
+  candidateRevision?: number
+}
+
+export interface ScreeningOption {
+  id: string
+  title: string
+  jobTitle: string
+}
+
+export interface ScreeningListItem extends ScreeningOption {
+  status: ResumeScreeningStatus
+  candidateCount: number
+  updatedAt: string | null
+}
+
+export interface ScreeningListSummary {
+  kind: 'screening_list'
+  page: number
+  pageSize: number
 }
 
 export interface ResumeWorkbenchSummary {
@@ -182,6 +268,9 @@ export interface ResumeWorkbenchSummary {
   status: ResumeScreeningStatus | null
   page: number
   pageSize: number
+  jdText?: string
+  screenings?: ScreeningOption[]
+  edit?: ScreeningEditState
 }
 
 /** Paged Workbench read in the platform's flat XpertViewDataResult shape. */

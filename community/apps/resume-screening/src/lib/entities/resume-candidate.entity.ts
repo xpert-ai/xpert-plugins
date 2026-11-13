@@ -39,6 +39,9 @@ export class ResumeCandidate {
   @Column({ type: 'json', nullable: true })
   prescreenFindings?: PrescreenFinding[]
 
+  @Column({ type: 'int', default: 1 })
+  revision?: number
+
   @CreateDateColumn()
   createdAt?: Date
 

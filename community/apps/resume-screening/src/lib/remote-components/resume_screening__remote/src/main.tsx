@@ -5,6 +5,7 @@ import { i18n, RemoteI18nProvider } from './i18n'
 import type { HostContext } from './types'
 import { React, ReactDOM } from './vendor'
 import { ResumeWorkbench } from './workbench'
+import { LoadingState } from './loading-state'
 
 const { useEffect, useState } = React
 
@@ -23,8 +24,8 @@ function App() {
   }, [])
   if (!context) {
     return (
-      <main className="grid h-full w-full place-items-center bg-background text-sm text-muted-foreground">
-        {i18n.t('loading')}
+      <main className="flex h-full w-full bg-background">
+        <LoadingState />
       </main>
     )
   }

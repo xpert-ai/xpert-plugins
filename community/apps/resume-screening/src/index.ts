@@ -6,14 +6,10 @@ import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { ResumeScreeningPlugin } from './lib/resume-screening.plugin.js'
 import {
   PLUGIN_ARTIFACT_NAMESPACE,
-  RESUME_SCREENING_FEATURE,
-  RESUME_SCREENING_ICON,
-  RESUME_SCREENING_MIDDLEWARE_NAME,
-  RESUME_SCREENING_PROVIDER_KEY,
-  RESUME_SCREENING_TEMPLATE_PROVIDER_KEY,
-  RESUME_SCREENING_VIEW_KEY
+  RESUME_SCREENING_ICON
 } from './lib/constants.js'
 import { resumeScreeningTemplates } from './lib/resume-screening.templates.js'
+import { RESUME_SCREENING_TARGET_APPS, resumeScreeningTargetAppMeta } from './lib/resume-screening.target-app.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -33,85 +29,17 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     level: packageJson.xpert.plugin.level,
     artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
-    targetApps: ['data-xpert'],
-    targetAppMeta: {
-      'data-xpert': {
-        types: ['workbench-view', 'assistant-tool', 'business-app'],
-        capabilities: [
-          RESUME_SCREENING_FEATURE,
-          'resume-screening-workbench',
-          'resume-screening-assistant-template'
-        ],
-        marketplace: {
-          contents: [
-            {
-              type: 'app',
-              name: 'resume-screening',
-              displayName: 'Resume Screening',
-              description:
-                'Create a screening case from a job description, score candidates with AI, and confirm interview decisions in a workbench.',
-              icon: {
-                type: 'svg',
-                value: RESUME_SCREENING_ICON,
-                color: '#0f766e'
-              },
-              operations: [
-                {
-                  name: 'create-resume-screenings',
-                  displayName: 'Create resume screenings',
-                  description: 'Create a screening case from a job title and JD text.',
-                  access: 'write'
-                },
-                {
-                  name: 'score-resumes',
-                  displayName: 'Score resumes',
-                  description: 'Prescreen resumes against the JD and save AI dimension scores.',
-                  access: 'write'
-                },
-                {
-                  name: 'confirm-screening-decisions',
-                  displayName: 'Confirm screening decisions',
-                  description: 'Review ranked candidates and confirm interview, pending, or rejected.',
-                  access: 'read'
-                }
-              ]
-            },
-            {
-              type: 'view',
-              name: RESUME_SCREENING_VIEW_KEY,
-              displayName: 'Resume Screening Workbench',
-              description: 'Workbench view for ranked candidates, scores, and human confirmations.'
-            },
-            {
-              type: 'tool',
-              name: RESUME_SCREENING_MIDDLEWARE_NAME,
-              displayName: 'Resume Screening Tools',
-              description: 'Assistant middleware tools for prescreening, scoring, and confirming resumes.'
-            },
-            {
-              type: 'assistant-template',
-              name: 'resume-screening-assistant',
-              displayName: 'Resume Screening Assistant Template',
-              description: 'Prebuilt assistant workflow template for JD-based resume screening and review.'
-            }
-          ]
-        },
-        runtime: {
-          middlewareProviders: [RESUME_SCREENING_MIDDLEWARE_NAME],
-          viewProviders: [RESUME_SCREENING_PROVIDER_KEY],
-          templateProviders: [RESUME_SCREENING_TEMPLATE_PROVIDER_KEY]
-        }
-      }
-    },
+    targetApps: RESUME_SCREENING_TARGET_APPS,
+    targetAppMeta: resumeScreeningTargetAppMeta,
     category: 'middleware',
     icon: {
       type: 'svg',
       value: RESUME_SCREENING_ICON,
       color: '#0f766e'
     },
-    displayName: 'Resume Screening',
+    displayName: '简历初筛',
     description:
-      'Screen resumes against a job description with an Xpert assistant, and expose a workbench view for human confirmation.',
+      '根据岗位要求管理简历，由 AI 辅助预筛与评分，在工作台查看依据并完成人工复核。',
     keywords: ['resume-screening', 'recruitment', 'middleware', 'view-extension', 'remote-component', 'assistant-template'],
     author: 'XpertAI Team'
   },

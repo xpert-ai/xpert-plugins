@@ -8,7 +8,7 @@ import { CANDIDATES, DIMENSIONS, JD, SCOPE, createFakeRepository } from './fake-
 
 test('same operationId retried returns the stored receipt and creates no second row', async () => {
   const scores = createFakeRepository()
-  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository(), scores)
+  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository([], { scores }), scores)
   const screening = await service.createScreening(SCOPE, JD)
   const senior = await service.addCandidate(SCOPE, { screeningId: screening.id, ...CANDIDATES.senior })
 
@@ -33,7 +33,7 @@ test('same operationId retried returns the stored receipt and creates no second 
 
 test('same (screeningId, candidateId) saved again updates in place instead of duplicating', async () => {
   const scores = createFakeRepository()
-  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository(), scores)
+  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository([], { scores }), scores)
   const screening = await service.createScreening(SCOPE, JD)
   const senior = await service.addCandidate(SCOPE, { screeningId: screening.id, ...CANDIDATES.senior })
 
@@ -66,7 +66,7 @@ test('a save that fails once succeeds on retry with the same operationId and lea
     }
     return realSave(entity)
   }
-  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository(), scores)
+  const service = new ResumeScreeningService(createFakeRepository(), createFakeRepository([], { scores }), scores)
   const screening = await service.createScreening(SCOPE, JD)
   const senior = await service.addCandidate(SCOPE, { screeningId: screening.id, ...CANDIDATES.senior })
 

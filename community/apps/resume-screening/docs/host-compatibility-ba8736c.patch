@@ -1,0 +1,639 @@
+diff --git a/apps/cloud/src/app/@core/auth/auth-strategy.service.ts b/apps/cloud/src/app/@core/auth/auth-strategy.service.ts
+index 8c03f37b5..4514ff94d 100644
+--- a/apps/cloud/src/app/@core/auth/auth-strategy.service.ts
++++ b/apps/cloud/src/app/@core/auth/auth-strategy.service.ts
+@@ -1,7 +1,9 @@
+ import { HttpClient, HttpContext } from '@angular/common/http'
+ import { Injectable, signal } from '@angular/core'
+ import { ActivatedRoute } from '@angular/router'
+-import { XpAuthResult, XpAuthStrategy, XpAuthStrategyClass } from '@cloud/app/auth'
++import { XpAuthResult } from '@cloud/app/auth/services/auth-result'
++import { XpAuthStrategy } from '@cloud/app/auth/strategies/auth-strategy'
++import type { XpAuthStrategyClass } from '@cloud/app/auth/auth.options'
+ import { AuthService } from '@cloud/app/@core/state'
+ import { IAuthResponse, ITag, ITenant, IUser, IUserLoginInput } from '@xpert-ai/contracts'
+ import { CookieService } from 'ngx-cookie-service'
+diff --git a/apps/cloud/src/app/@core/auth/auth.module.ts b/apps/cloud/src/app/@core/auth/auth.module.ts
+index 73131e1d7..911a29058 100644
+--- a/apps/cloud/src/app/@core/auth/auth.module.ts
++++ b/apps/cloud/src/app/@core/auth/auth.module.ts
+@@ -1,6 +1,6 @@
+ import { CommonModule } from '@angular/common'
+ import { NgModule } from '@angular/core'
+-import { XpAuthModule } from '@cloud/app/auth'
++import { provideXpAuthOptions } from '@cloud/app/auth/auth.providers'
+ import { AuthService } from '@cloud/app/@core/state'
+ import { environment } from 'apps/cloud/src/environments/environment'
+ import { AuthStrategy } from './auth-strategy.service'
+@@ -45,13 +45,13 @@ const enablePublicSignup = environment.deploymentTarget !== 'customer-onprem'
+   imports: [CommonModule],
+   exports: [SignInSuccessComponent],
+   providers: [
+-    ...XpAuthModule.forRoot({
++    ...provideXpAuthOptions({
+       strategies: [AuthStrategy.setup({ name: 'email' })],
+       forms: {
+         login: { socialLinks },
+         register: { socialLinks, enablePublicSignup }
+       }
+-    }).providers,
++    }),
+     NoAuthGuard,
+     AuthStrategy,
+     AuthService
+diff --git a/apps/cloud/src/app/auth/auth.module.ts b/apps/cloud/src/app/auth/auth.module.ts
+index e40c8935e..5bf68211c 100644
+--- a/apps/cloud/src/app/auth/auth.module.ts
++++ b/apps/cloud/src/app/auth/auth.module.ts
+@@ -1,5 +1,5 @@
+ import { CommonModule } from '@angular/common'
+-import { Injector, ModuleWithProviders, NgModule } from '@angular/core'
++import { ModuleWithProviders, NgModule } from '@angular/core'
+ import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+ import { RouterModule } from '@angular/router'
+ import { TranslateModule } from '@ngx-translate/core'
+@@ -14,19 +14,15 @@ import {
+ import { XpAuthRoutingModule } from './auth-routing.module'
+ import { OidcConsentComponent } from './consent/consent.component'
+ import {
+-  defaultAuthOptions,
+   XpAuthOptions,
+-  XpAuthStrategyClass,
+   XP_AUTH_INTERCEPTOR_HEADER,
+-  XP_AUTH_OPTIONS,
+   XP_AUTH_STRATEGIES,
+   XP_AUTH_TOKENS,
+-  XP_AUTH_TOKEN_INTERCEPTOR_FILTER,
+-  XP_AUTH_USER_OPTIONS
++  XP_AUTH_TOKEN_INTERCEPTOR_FILTER
+ } from './auth.options'
+ import { ForgotPasswordComponent } from './forgot-password/forgot-password.component'
+ import { NoAuthGuard } from './guards/no-auth.guard'
+-import { deepExtend } from './helpers'
++import { provideXpAuthOptions } from './auth.providers'
+ import { UserLoginComponent } from './login/login.component'
+ import { XpLogoutComponent } from './logout/logout.component'
+ import { UserRegisterResultComponent } from './register-result/register-result.component'
+@@ -39,24 +35,9 @@ import { NbAuthSimpleToken } from './services/token/token'
+ import { XpAuthTokenParceler, XP_AUTH_FALLBACK_TOKEN } from './services/token/token-parceler'
+ import { XpTokenLocalStorage, XpTokenStorage } from './services/token/token-storage'
+ import { XpAuthTokenService } from './services/token/token.service'
+-import { XpAuthStrategy } from './strategies/auth-strategy'
+-import { XpAuthStrategyOptions } from './strategies/auth-strategy-options'
+ import { VarifyEmailComponent } from './verify-email/verify-email.component'
+ 
+-export function nbStrategiesFactory(options: XpAuthOptions, injector: Injector): XpAuthStrategy[] {
+-  const strategies = []
+-  options.strategies.forEach(([strategyClass, strategyOptions]: [XpAuthStrategyClass, XpAuthStrategyOptions]) => {
+-    const strategy: XpAuthStrategy = injector.get(strategyClass)
+-    strategy.setOptions(strategyOptions)
+-
+-    strategies.push(strategy)
+-  })
+-  return strategies
+-}
+-
+-export function nbOptionsFactory(options) {
+-  return deepExtend(defaultAuthOptions, options)
+-}
++export { nbOptionsFactory, nbStrategiesFactory } from './auth.providers'
+ 
+ @NgModule({
+   declarations: [
+@@ -112,19 +93,7 @@ export class XpAuthModule {
+   static forRoot(xpAuthOptions?: XpAuthOptions): ModuleWithProviders<XpAuthModule> {
+     return {
+       ngModule: XpAuthModule,
+-      providers: [
+-        { provide: XP_AUTH_USER_OPTIONS, useValue: xpAuthOptions },
+-        {
+-          provide: XP_AUTH_OPTIONS,
+-          useFactory: nbOptionsFactory,
+-          deps: [XP_AUTH_USER_OPTIONS]
+-        },
+-        {
+-          provide: XP_AUTH_STRATEGIES,
+-          useFactory: nbStrategiesFactory,
+-          deps: [XP_AUTH_OPTIONS, Injector]
+-        }
+-      ]
++      providers: provideXpAuthOptions(xpAuthOptions)
+     }
+   }
+ }
+diff --git a/apps/cloud/src/app/features/setting/copilot/basic/basic.component.ts b/apps/cloud/src/app/features/setting/copilot/basic/basic.component.ts
+index e327e4dce..e672fd017 100644
+--- a/apps/cloud/src/app/features/setting/copilot/basic/basic.component.ts
++++ b/apps/cloud/src/app/features/setting/copilot/basic/basic.component.ts
+@@ -69,7 +69,9 @@ export class CopilotBasicComponent {
+   readonly filters = ['all', 'configured', 'pending', 'error'] as const
+   readonly groups = computed<ProviderGroup[]>(() =>
+     this.schemas().map((schema) => {
+-      const connections = this.connections().filter((item) => item.modelProvider?.providerName === schema.provider)
++      const connections = this.connections().filter(
++        (item) => !!item.modelProvider?.id && item.modelProvider.providerName === schema.provider
++      )
+       return {
+         id: schema.provider,
+         schema,
+@@ -240,6 +242,10 @@ export class CopilotBasicComponent {
+     if (result) await this.refresh()
+   }
+   async editConnection(provider: IAiProviderEntity, copilot: ICopilot) {
++    if (!copilot.modelProvider?.id) {
++      await this.addProvider(provider)
++      return
++    }
+     const result = await firstValueFrom(
+       this.dialog.open(CopilotAiProviderAuthComponent, {
+         backdropClass: 'backdrop-blur-xs-black',
+diff --git a/packages/plugin-sdk/src/lib/ai-model/abstract-provider.ts b/packages/plugin-sdk/src/lib/ai-model/abstract-provider.ts
+index eafc55f55..4759bff57 100644
+--- a/packages/plugin-sdk/src/lib/ai-model/abstract-provider.ts
++++ b/packages/plugin-sdk/src/lib/ai-model/abstract-provider.ts
+@@ -66,14 +66,11 @@ export abstract class ModelProvider implements IAIModelProviderStrategy {
+ 
+     const yamlPath = join(this.getProviderServerPath(), `${this._name}.yaml`)
+ 
+-    const yamlData = loadYamlFile(yamlPath, this.logger) as Record<string, any>
+-
+-    try {
+-      this._meta = yamlData as IAiProviderEntity
+-    } catch (e: any) {
+-      throw new Error(`Invalid provider schema for ${this.name}: ${e.message}`)
++    const yamlData = loadYamlFile<IAiProviderEntity>(yamlPath, this.logger, false)
++    if (typeof yamlData?.provider !== 'string' || !yamlData.provider.trim()) {
++      throw new Error(`Invalid provider schema at ${yamlPath}: missing provider identifier`)
+     }
+-
++    this._meta = yamlData
+     return this._meta
+   }
+ 
+diff --git a/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts b/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
+index 022b3a9a5..f978752d3 100644
+--- a/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
++++ b/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
+@@ -1,10 +1,27 @@
+ import { SetMetadata } from '@nestjs/common'
+ import path from 'path'
++import { fileURLToPath } from 'node:url'
+ import { STRATEGY_META_KEY } from '../types'
+ 
+ 
+ export const AI_MODEL_PROVIDER = 'AI_MODEL_PROVIDER'
+ 
++export function resolveModelProviderSourceDirectory(
++  callerLine: string | undefined,
++  platform: NodeJS.Platform = process.platform
++): string | undefined {
++  const location =
++    callerLine?.match(/\((.+):\d+:\d+\)\s*$/)?.[1] ?? callerLine?.match(/^\s*at (.+):\d+:\d+\s*$/)?.[1]
++  if (!location) return undefined
++  try {
++    const file = location.startsWith('file:') ? fileURLToPath(location, { windows: platform === 'win32' }) : location
++    const paths = platform === 'win32' ? path.win32 : path.posix
++    return paths.isAbsolute(file) ? paths.dirname(file) : undefined
++  } catch {
++    return undefined
++  }
++}
++
+ export function AIModelProviderStrategy(provider: string) {
+   const err = new Error()
+   const stack = err.stack?.split('\n') ?? []
+@@ -17,35 +34,7 @@ export function AIModelProviderStrategy(provider: string) {
+   // The line that calls the decorator (the next line)
+   const callerLine = stack[decoratorIndex + 1]
+ 
+-  // Extract the file path
+-  const match =
+-    callerLine?.match(/\((file:\/\/\/[^\s)]+)\)/) || // case 1: file:///path...
+-    callerLine?.match(/\((\/[^\s)]+)\)/) || // case 2: (/Users/xxx)
+-    callerLine?.match(/at (file:\/\/\/[^\s]+)/) || // case 3: at file:///...
+-    callerLine?.match(/at (\/[^\s]+)/) // case 4: at /Users/xxx
+-
+-  let file = match?.[1]
+-
+-  // remove the file:/// prefix
+-  if (file?.startsWith('file:///')) {
+-    file = file.replace('file://', '')
+-  }
+-
+-  // Strip :line:col suffix (e.g. "/path/file.js:37:5" -> "/path/file.js")
+-  if (file) {
+-    file = file.replace(/:\d+:\d+$/, '')
+-  }
+-
+-  // Decode URL-encoded paths (e.g. Chinese characters: %E9%A1%B9%E7%9B%AE -> 项目)
+-  if (file) {
+-    try {
+-      file = decodeURIComponent(file)
+-    } catch {
+-      // keep as-is if decode fails
+-    }
+-  }
+-
+-  const dir = file ? path.dirname(file) : process.cwd()
++  const dir = resolveModelProviderSourceDirectory(callerLine) ?? process.cwd()
+ 
+   return function (target: any) {
+     SetMetadata(STRATEGY_META_KEY, AI_MODEL_PROVIDER)(target)
+@@ -54,4 +43,4 @@ export function AIModelProviderStrategy(provider: string) {
+     // Write custom path (does not affect Discovery)
+     Reflect.defineMetadata(`${AI_MODEL_PROVIDER}_DIR`, dir, target)
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/packages/server-ai/scripts/build-remote-react.mjs b/packages/server-ai/scripts/build-remote-react.mjs
+index fc6d3b3ac..3463861ad 100644
+--- a/packages/server-ai/scripts/build-remote-react.mjs
++++ b/packages/server-ai/scripts/build-remote-react.mjs
+@@ -41,8 +41,8 @@ export async function buildRemoteReactComponent(root, outputDir = root) {
+     prependBrandIconLicense(result.metafile, scriptTargetPath, workspaceRoot)
+ 
+     execFileSync(
+-        resolveLocalBin(workspaceRoot, 'tailwindcss'),
+-        ['-i', cssSourcePath, '-o', cssTargetPath, '--minify'],
++        process.execPath,
++        [join(dirname(createRequire(import.meta.url).resolve('@tailwindcss/cli/package.json')), 'dist/index.mjs'), '-i', cssSourcePath, '-o', cssTargetPath, '--minify'],
+         {
+             cwd: workspaceRoot,
+             stdio: 'inherit'
+@@ -64,16 +64,6 @@ export async function buildRemoteReactComponent(root, outputDir = root) {
+         return resolve(startDir)
+     }
+ 
+-    function resolveLocalBin(workspaceRoot, name) {
+-        // Use the already-installed binary directly; pnpm exec can trigger install-time side effects in this repo.
+-        const executable = process.platform === 'win32' ? `${name}.cmd` : name
+-        const binPath = join(workspaceRoot, 'node_modules', '.bin', executable)
+-        if (!existsSync(binPath)) {
+-            throw new Error(`Missing local binary '${name}'. Run pnpm install before building remote components.`)
+-        }
+-        return binPath
+-    }
+-
+     function xpertRemoteComponentPlugin() {
+         const reactShimPath = 'xpert-react-shim'
+         const jsxRuntimeShimPath = 'xpert-react-jsx-runtime-shim'
+diff --git a/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs b/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
+index 71bc46203..742e23460 100644
+--- a/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
++++ b/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
+@@ -2,7 +2,9 @@ import { build } from 'esbuild'
+ import { dirname, join } from 'node:path'
+ import { fileURLToPath } from 'node:url'
+ import { execFileSync } from 'node:child_process'
++import { createRequire } from 'node:module'
+ const root = dirname(fileURLToPath(import.meta.url))
++const require = createRequire(import.meta.url)
+ await build({
+     entryPoints: [join(root, 'src/main.ts')],
+     outfile: join(root, 'app.js'),
+@@ -16,7 +18,7 @@ await build({
+     legalComments: 'none'
+ })
+ execFileSync(
+-    join(process.cwd(), 'node_modules/.bin/tailwindcss'),
+-    ['-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
++    process.execPath,
++    [join(dirname(require.resolve('@tailwindcss/cli/package.json')), 'dist/index.mjs'), '-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
+     { stdio: 'inherit' }
+ )
+diff --git a/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs b/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
+index 077defa68..7d8fafc9b 100644
+--- a/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
++++ b/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
+@@ -28,7 +28,7 @@ const result = await build({
+ })
+ prependBrandIconLicense(result.metafile, join(root, 'app.js'), process.cwd())
+ execFileSync(
+-    join(process.cwd(), 'node_modules/.bin/tailwindcss'),
+-    ['-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
++    process.execPath,
++    [join(dirname(require.resolve('@tailwindcss/cli/package.json')), 'dist/index.mjs'), '-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
+     { stdio: 'inherit' }
+ )
+diff --git a/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs b/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
+index 0143433d1..33741c7db 100644
+--- a/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
++++ b/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
+@@ -1,4 +1,5 @@
+ import { execFileSync } from 'node:child_process'
++import { createRequire } from 'node:module'
+ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+ import { dirname, join, resolve } from 'node:path'
+ import { fileURLToPath } from 'node:url'
+@@ -6,6 +7,7 @@ import { build } from 'esbuild'
+ 
+ const root = dirname(fileURLToPath(import.meta.url))
+ const workspaceRoot = findWorkspaceRoot(root)
++const require = createRequire(import.meta.url)
+ const sourcePath = join(root, 'src', 'main.tsx')
+ const scriptTargetPath = join(root, 'app.js')
+ const cssSourcePath = join(root, 'tailwind.css')
+@@ -30,7 +32,7 @@ await build({
+     plugins: [xpertRemoteComponentPlugin()]
+ })
+ 
+-execFileSync(resolveLocalBin(workspaceRoot, 'tailwindcss'), ['-i', cssSourcePath, '-o', cssTargetPath, '--minify'], {
++execFileSync(process.execPath, [join(dirname(require.resolve('@tailwindcss/cli/package.json')), 'dist/index.mjs'), '-i', cssSourcePath, '-o', cssTargetPath, '--minify'], {
+     cwd: workspaceRoot,
+     stdio: 'inherit'
+ })
+@@ -50,16 +52,6 @@ function findWorkspaceRoot(startDir) {
+     return resolve(startDir)
+ }
+ 
+-function resolveLocalBin(workspaceRoot, name) {
+-    // Use the already-installed binary directly; pnpm exec can trigger install-time side effects in this repo.
+-    const executable = process.platform === 'win32' ? `${name}.cmd` : name
+-    const binPath = join(workspaceRoot, 'node_modules', '.bin', executable)
+-    if (!existsSync(binPath)) {
+-        throw new Error(`Missing local binary '${name}'. Run pnpm install before building remote components.`)
+-    }
+-    return binPath
+-}
+-
+ function xpertRemoteComponentPlugin() {
+     const reactShimPath = 'xpert-react-shim'
+     const jsxRuntimeShimPath = 'xpert-react-jsx-runtime-shim'
+diff --git a/packages/server-ai/src/xpert-template/sync/template-sync-state.ts b/packages/server-ai/src/xpert-template/sync/template-sync-state.ts
+index 47c067747..4915f7097 100644
+--- a/packages/server-ai/src/xpert-template/sync/template-sync-state.ts
++++ b/packages/server-ai/src/xpert-template/sync/template-sync-state.ts
+@@ -94,11 +94,14 @@ export async function atomicTemplateWrite(
+         }
+         await assertWorkspaceLeases()
+         await fs.rename(temporary, file)
+-        const directory = await fs.open(dirname(file), 'r')
+-        try {
+-            await directory.sync()
+-        } finally {
+-            await directory.close()
++        // Windows cannot fsync a directory; the file was flushed before the atomic rename.
++        if (process.platform !== 'win32') {
++            const directory = await fs.open(dirname(file), 'r')
++            try {
++                await directory.sync()
++            } finally {
++                await directory.close()
++            }
+         }
+     } finally {
+         await fs.rm(temporary, { force: true })
+diff --git a/packages/server/src/managed-queue/testing/control-rollout.fixture.ts b/packages/server/src/managed-queue/testing/control-rollout.fixture.ts
+index 68f91a527..3de41852f 100644
+--- a/packages/server/src/managed-queue/testing/control-rollout.fixture.ts
++++ b/packages/server/src/managed-queue/testing/control-rollout.fixture.ts
+@@ -15,7 +15,27 @@ import { AdmittedManagedQueueProcessor } from '../admitted-queue.processor'
+ import { UserService } from '../../user/user.service'
+ import type { ManagedQueueEnvelope } from '../constants'
+ 
+-export async function controlRolloutFixture(url: string, redisUrl: string) {
++interface ControlRolloutFixture {
++	database: DataSource
++	schema: string
++	redis: ReturnType<typeof createClient>
++	instances: InstanceRegistryService
++	admission: ControlRuntimeAdmissionService
++	handlers: ManagedQueueHandlerRegistryService
++	controls: TaskControlStore
++	runner: TaskControlRunner
++	queues: Queue<ManagedQueueEnvelope>[]
++	legacy: Queue<ManagedQueueEnvelope>
++	admitted: Queue<ManagedQueueEnvelope>
++	service: ManagedQueueService
++	scope: { tenantId: string; organizationId: string }
++	identity: { pluginName: string; queueName: string; jobName: string; controlContract: string }
++	ready(): Promise<void>
++	worker(): Promise<Worker>
++	close(): Promise<void>
++}
++
++export async function controlRolloutFixture(url: string, redisUrl: string): Promise<ControlRolloutFixture> {
+ 	if (!new URL(url).pathname.endsWith('_test') || new URL(redisUrl).hostname !== '127.0.0.1')
+ 		throw new Error('Disposable local infrastructure required')
+ 	const schema = `control_worker_${randomUUID().replace(/-/g, '')}`
+@@ -30,7 +50,7 @@ export async function controlRolloutFixture(url: string, redisUrl: string) {
+ 	await database.query(`CREATE SCHEMA "${schema}"`)
+ 	await database.synchronize()
+ 	await database.query('CREATE TABLE phase2_tool_receipt (job varchar NOT NULL, event varchar NOT NULL)')
+-	const redis = createClient({ url: redisUrl })
++	const redis: ReturnType<typeof createClient> = createClient({ url: redisUrl })
+ 	await redis.connect()
+ 	const instances = new InstanceRegistryService(redis)
+ 	await instances.onModuleInit()
+diff --git a/packages/server/src/plugin/installation/install-process.ts b/packages/server/src/plugin/installation/install-process.ts
+index 5549b765e..a57dc101d 100644
+--- a/packages/server/src/plugin/installation/install-process.ts
++++ b/packages/server/src/plugin/installation/install-process.ts
+@@ -2,6 +2,7 @@
+ // before callers remove staging files; never publish a timed-out installation.
+ import { spawn } from 'node:child_process'
+ import { t } from 'i18next'
++import { resolveNpmCommand } from './npm-command'
+ 
+ // This watchdog survives an abruptly killed API parent. Its whole process group
+ // (including npm lifecycle children) has a finite lifetime even without the API timer.
+@@ -22,8 +23,9 @@ export async function runInstallProcess(
+ 	options: { cwd: string; timeoutMs: number; signal: AbortSignal }
+ ): Promise<void> {
+ 	options.signal.throwIfAborted()
++	const invocation = command === 'npm' ? resolveNpmCommand(args) : { command, args }
+ 	await new Promise<void>((resolve, reject) => {
+-		const child = spawn(process.execPath, ['-e', INSTALL_WATCHDOG, command, String(options.timeoutMs), ...args], {
++		const child = spawn(process.execPath, ['-e', INSTALL_WATCHDOG, invocation.command, String(options.timeoutMs), ...invocation.args], {
+ 			cwd: options.cwd,
+ 			detached: process.platform !== 'win32',
+ 			stdio: ['ignore', 'pipe', 'pipe'],
+diff --git a/packages/server/src/plugin/organization-plugin.store.ts b/packages/server/src/plugin/organization-plugin.store.ts
+index 569f07a4f..966f726f8 100644
+--- a/packages/server/src/plugin/organization-plugin.store.ts
++++ b/packages/server/src/plugin/organization-plugin.store.ts
+@@ -13,6 +13,7 @@ import { promisify } from 'node:util'
+ import chalk from 'chalk'
+ import { withPluginStoreLock } from './installation/plugin-store-lock'
+ import { installRegistryArtifact } from './installation/registry-artifact'
++import { resolveNpmCommand } from './installation/npm-command'
+ import { updatePluginManifest } from './installation/plugin-manifest'
+ import { normalizePluginName } from './types'
+ import { getPluginScopeLogLabel, resolvePluginScope, safePluginScopePathSegment } from './plugin-scope'
+@@ -188,9 +189,7 @@ async function installStagedWorkspaceRuntimeDependencies(
+ 		fs.writeFileSync(packageJsonPath, JSON.stringify(runtimePackageJson, null, 2))
+ 		// Startup staging is not an update workflow: avoid audit/funding network work while
+ 		// allowing npm to validate cached registry metadata before dependency resolution.
+-		await execFile(
+-			'npm',
+-			[
++		const npm = resolveNpmCommand([
+ 				'install',
+ 				'--omit=dev',
+ 				'--omit=peer',
+@@ -199,7 +198,10 @@ async function installStagedWorkspaceRuntimeDependencies(
+ 				'--legacy-peer-deps',
+ 				'--no-audit',
+ 				'--no-fund'
+-			],
++			])
++		await execFile(
++			npm.command,
++			npm.args,
+ 			{
+ 				cwd: targetPackageDir,
+ 				env: {
+diff --git a/packages/server/src/plugin/plugin-sdk-versioning.ts b/packages/server/src/plugin/plugin-sdk-versioning.ts
+index e1fd2e753..4de0365d8 100644
+--- a/packages/server/src/plugin/plugin-sdk-versioning.ts
++++ b/packages/server/src/plugin/plugin-sdk-versioning.ts
+@@ -14,6 +14,7 @@ import { major, satisfies, validRange } from 'semver'
+ import { PluginSdkValidationError } from './errors'
+ import { getCodeWorkspacePath } from './source-config'
+ import { normalizePluginName } from './types'
++import { resolveNpmCommand } from './installation/npm-command'
+ 
+ const HOSTED_PLUGIN_SDK_PACKAGE = '@xpert-ai/plugin-sdk'
+ const HOSTED_CONTRACTS_PACKAGE = '@xpert-ai/contracts'
+@@ -627,7 +628,8 @@ async function fetchRegistryPluginManifest(
+ 		args.push('--registry', effectiveRegistry)
+ 	}
+ 
+-	const output = await execFileUtf8('npm', args)
++	const npm = resolveNpmCommand(args)
++	const output = await execFileUtf8(npm.command, npm.args)
+ 	return parseRegistryManifest(output, normalizedPluginName)
+ }
+ 
+diff --git a/packages/ui/src/lib/components/dialog/dialog.component.ts b/packages/ui/src/lib/components/dialog/dialog.component.ts
+index c422bc4bf..893df2d90 100644
+--- a/packages/ui/src/lib/components/dialog/dialog.component.ts
++++ b/packages/ui/src/lib/components/dialog/dialog.component.ts
+@@ -34,11 +34,8 @@ import type { ZardIcon } from '../icon/icons'
+ import { UiDialogCloseDirective } from './dialog-close.directive'
+ import { XpDialogActionsDirective, XpDialogContentDirective, XpDialogTitleDirective } from './dialog-layout.directive'
+ import type { ZardDialogRef } from './dialog-ref'
+-import { ZardDialogService } from './dialog.service'
+ import { dialogVariants } from './dialog.variants'
+ 
+-// Used by the NgModule provider definition
+-
+ export type OnClickCallback<T> = (instance: T) => false | void | object
+ export class ZardDialogOptions<T, U> {
+   /** Content supplied through open() owns its shared frame. */
+@@ -252,7 +249,6 @@ export class ZardDialogComponent<T, U> extends BasePortalOutlet {
+     OverlayModule,
+     PortalModule
+   ],
+-  exports: [UiDialogCloseDirective, XpDialogActionsDirective, XpDialogContentDirective, XpDialogTitleDirective],
+-  providers: [ZardDialogService]
++  exports: [UiDialogCloseDirective, XpDialogActionsDirective, XpDialogContentDirective, XpDialogTitleDirective]
+ })
+ export class ZardDialogModule {}
+diff --git a/tools/scripts/deploy-local-plugin.mjs b/tools/scripts/deploy-local-plugin.mjs
+index 11a4c722a..68f6522b2 100644
+--- a/tools/scripts/deploy-local-plugin.mjs
++++ b/tools/scripts/deploy-local-plugin.mjs
+@@ -21,6 +21,7 @@ import {
+   requireAuthentication,
+   resolvePluginEndpoint,
+   resolvePluginInput,
++  resolveLocalPluginCommand,
+   summarizePluginResponse
+ } from './local-plugin-cli.mjs'
+ 
+@@ -149,10 +150,11 @@ function runCommandPlan(label, plan, dryRun) {
+     return 'planned'
+   }
+ 
+-  const result = spawnSync(plan.command, plan.args ?? [], {
++  const executable = resolveLocalPluginCommand(plan)
++  const result = spawnSync(executable.command, executable.args ?? [], {
+     cwd: plan.cwd,
+     stdio: 'inherit',
+-    shell: plan.shell
++    shell: executable.shell
+   })
+   if (result.status !== 0) {
+     throw new LocalPluginCliError(`${label} failed with exit code ${result.status ?? 'unknown'}.`)
+diff --git a/tools/scripts/local-plugin-cli.mjs b/tools/scripts/local-plugin-cli.mjs
+index 005f1bfbb..96a11cb59 100644
+--- a/tools/scripts/local-plugin-cli.mjs
++++ b/tools/scripts/local-plugin-cli.mjs
+@@ -11,6 +11,19 @@ export const DEFAULT_PASSWORD_KEYCHAIN_SERVICE = 'xpert-local-plugin-password'
+ export const ORGANIZATION_SCOPE = 'organization'
+ export const TENANT_SCOPE = 'tenant'
+ 
++/** Windows cannot spawn corepack.cmd directly; run the installed JS entry with Node. */
++export function resolveLocalPluginCommand(plan, options = {}) {
++  const platform = options.platform ?? process.platform
++  const nodePath = options.nodePath ?? process.execPath
++  const pathValue = options.pathValue ?? process.env.PATH ?? process.env.Path ?? ''
++  const exists = options.exists ?? fs.existsSync
++  if (platform !== 'win32' || plan.shell || plan.command !== 'corepack') return plan
++  const roots = [path.win32.dirname(nodePath), ...pathValue.split(';').filter(Boolean).map((value) => value.replace(/^"|"$/g, ''))]
++  const entry = roots.map((root) => path.win32.join(root, 'node_modules', 'corepack', 'dist', 'corepack.js')).find(exists)
++  if (!entry) throw new LocalPluginCliError('Cannot locate the installed Corepack JS entry. Add the Node installation directory to PATH.')
++  return { ...plan, command: nodePath, args: [entry, ...(plan.args ?? [])], shell: false }
++}
++
+ export class LocalPluginCliError extends Error {
+   constructor(message, exitCode = 1) {
+     super(message)
+diff --git a/apps/cloud/src/app/auth/auth.providers.ts b/apps/cloud/src/app/auth/auth.providers.ts
+new file mode 100644
+--- /dev/null
++++ b/apps/cloud/src/app/auth/auth.providers.ts
+@@ -0,0 +1,31 @@
++import { Injector, Provider } from '@angular/core'
++import {
++  defaultAuthOptions,
++  XpAuthOptions,
++  XP_AUTH_OPTIONS,
++  XP_AUTH_STRATEGIES,
++  XP_AUTH_USER_OPTIONS
++} from './auth.options'
++import { deepExtend } from './helpers'
++import { XpAuthStrategy } from './strategies/auth-strategy'
++
++export function nbOptionsFactory(options?: XpAuthOptions): XpAuthOptions {
++  return deepExtend(defaultAuthOptions, options)
++}
++
++export function nbStrategiesFactory(options: XpAuthOptions, injector: Injector): XpAuthStrategy[] {
++  return (options.strategies ?? []).map(([strategyClass, strategyOptions]) => {
++    const strategy = injector.get(strategyClass)
++    strategy.setOptions(strategyOptions)
++    return strategy
++  })
++}
++
++// Core needs the providers without eagerly loading the routed authentication UI.
++export function provideXpAuthOptions(options?: XpAuthOptions): Provider[] {
++  return [
++    { provide: XP_AUTH_USER_OPTIONS, useValue: options },
++    { provide: XP_AUTH_OPTIONS, useFactory: nbOptionsFactory, deps: [XP_AUTH_USER_OPTIONS] },
++    { provide: XP_AUTH_STRATEGIES, useFactory: nbStrategiesFactory, deps: [XP_AUTH_OPTIONS, Injector] }
++  ]
++}
+diff --git a/packages/server/src/plugin/installation/npm-command.ts b/packages/server/src/plugin/installation/npm-command.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/server/src/plugin/installation/npm-command.ts
+@@ -0,0 +1,15 @@
++// Windows npm shims are scripts, not native executables. Run the CLI with Node
++// so child_process can pass arguments directly without a command shell.
++import { win32 } from 'node:path'
++
++export function resolveNpmCommand(
++	args: readonly string[],
++	runtime: { platform: NodeJS.Platform; executablePath: string } = {
++		platform: process.platform,
++		executablePath: process.execPath
++	}
++): { command: string; args: string[] } {
++	if (runtime.platform !== 'win32') return { command: 'npm', args: [...args] }
++	const cli = win32.join(win32.dirname(runtime.executablePath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
++	return { command: runtime.executablePath, args: [cli, ...args] }
++}

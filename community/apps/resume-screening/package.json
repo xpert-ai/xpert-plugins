@@ -1,1 +1,87 @@
-{"author":{"name":"XpertAI","url":"https://xpertai.cn"},"bugs":{"url":"https://github.com/xpert-ai/xpert-plugins/issues"},"dependencies":{"tslib":"^2.3.0"},"description":"Resume screening app plugin for creating screening cases from a job description, scoring candidates with AI, and reviewing results in a workbench.","devDependencies":{"@langchain/core":"0.3.72","@nestjs/common":"^11.1.6","@nestjs/core":"^11.1.6","@nestjs/typeorm":"^11.0.0","@types/jest":"^29.5.14","@types/node":"^20.19.9","@types/react":"^18.3.18","@types/react-dom":"^18.3.5","@xpert-ai/contracts":"^3.10.1","@xpert-ai/plugin-sdk":"^3.10.1","@xpert-ai/plugin-shadcn-ui":"workspace:*","esbuild":"^0.28.1","react":"^18.3.1","react-dom":"^18.3.1","reflect-metadata":"^0.2.2","typeorm":"^0.3.24","typescript":"^5.9.2","zod":"3.25.67"},"exports":{".":{"@xpert-plugins-starter/source":"./src/index.ts","default":"./dist/index.js","import":"./dist/index.js","types":"./dist/index.d.ts"},"./package.json":"./package.json"},"files":["dist","!**/*.tsbuildinfo"],"license":"AGPL-3.0","main":"./dist/index.js","module":"./dist/index.js","name":"@xpert-ai/plugin-resume-screening","peerDependencies":{"@langchain/core":">=0.3.0","@nestjs/common":"^11.1.6","@nestjs/core":"^11.1.6","@nestjs/typeorm":"^11.0.0","@xpert-ai/contracts":"^3.10.1","@xpert-ai/plugin-sdk":"^3.10.1","react":">=18","react-dom":">=18","typeorm":"^0.3.24","zod":"3.25.67"},"publishConfig":{"access":"public"},"repository":{"directory":"community/apps/resume-screening","type":"git","url":"https://github.com/xpert-ai/xpert-plugins.git"},"scripts":{"build":"pnpm run build:ui && pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs","build:ui":"pnpm --filter @xpert-ai/plugin-shadcn-ui build","lint":"tsc -p tsconfig.spec.json --noEmit && pnpm run remote:typecheck","remote:typecheck":"tsc -p tsconfig.remote.json --noEmit","test":"pnpm run build && node --test tests/*.test.mjs","verify:dist":"node scripts/build-remote-components.mjs --check"},"type":"module","types":"./dist/index.d.ts","version":"0.1.0","xpert":{"plugin":{"artifactNamespace":"resume_screening","level":"system"}}}
+{
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "description": "简历初筛应用插件：根据岗位要求创建筛查单，由 AI 辅助预筛与评分，并在工作台查看依据、完成人工复核。",
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "^0.28.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "license": "AGPL-3.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "name": "@xpert-ai/plugin-resume-screening",
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "directory": "community/apps/resume-screening",
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "scripts": {
+    "build": "pnpm run build:ui && pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "lint": "tsc -p tsconfig.spec.json --noEmit && pnpm run remote:typecheck",
+    "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
+    "test": "pnpm run build && node --test tests/*.test.mjs",
+    "verify:dist": "node scripts/build-remote-components.mjs --check"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0",
+  "xpert": {
+    "plugin": {
+      "artifactNamespace": "resume_screening",
+      "level": "system"
+    }
+  }
+}
