@@ -1,0 +1,317 @@
+{
+  "deltaId": "seed-ontoagent-demo@1",
+  "ops": [
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-customer-isa",
+        "s": "c:Customer",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-customer-defined",
+        "s": "c:Customer",
+        "p": "r:defined_as",
+        "o": "与组织存在交易关系的客户主体；以 CustomerID 唯一标识，归属 Sales.Customers。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-customer-label",
+        "s": "c:Customer",
+        "p": "label",
+        "o": "客户 Customer",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-invoice-isa",
+        "s": "c:Invoice",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-invoice-defined",
+        "s": "c:Invoice",
+        "p": "r:defined_as",
+        "o": "一次开票形成的应收凭证；开票日期 InvoiceDate 决定收入确认期间，金额为含税总额。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-invoice-label",
+        "s": "c:Invoice",
+        "p": "label",
+        "o": "发票 Invoice",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-orderline-isa",
+        "s": "c:OrderLine",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-orderline-defined",
+        "s": "c:OrderLine",
+        "p": "r:defined_as",
+        "o": "发票下的一行商品明细；Quantity 为数量，UnitPrice 为单价，TaxRate 为税率，行金额 = 数量 × 单价 × (1 + 税率)。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-orderline-label",
+        "s": "c:OrderLine",
+        "p": "label",
+        "o": "订单行 Order Line",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-product-isa",
+        "s": "c:Product",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-product-defined",
+        "s": "c:Product",
+        "p": "r:defined_as",
+        "o": "可售商品或服务；StockItemID 唯一标识，归属 Warehouse.StockItems，与订单行按 StockItemID 连接。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-product-label",
+        "s": "c:Product",
+        "p": "label",
+        "o": "产品 Product",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-revenue-isa",
+        "s": "c:Revenue",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-revenue-defined",
+        "s": "c:Revenue",
+        "p": "r:defined_as",
+        "o": "收入 = Σ(订单行金额) − 折扣，按发票开票日期所在期间确认；退款冲减当期收入。口径以已认证术语为准，不接受按付款日期确认。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-revenue-label",
+        "s": "c:Revenue",
+        "p": "label",
+        "o": "收入 Revenue",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-ar-isa",
+        "s": "c:AccountsReceivable",
+        "p": "r:is_a",
+        "o": "c:Concept",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-ar-defined",
+        "s": "c:AccountsReceivable",
+        "p": "r:defined_as",
+        "o": "应收账款 = 已开票未收款金额；账龄从发票到期日 DueDate 起算，超过 90 天进入逾期口径。",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-ar-label",
+        "s": "c:AccountsReceivable",
+        "p": "label",
+        "o": "应收账款 Accounts Receivable",
+        "q": {},
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-invoice-customer",
+        "s": "c:Invoice",
+        "p": "r:hasCustomer",
+        "o": "c:Customer",
+        "q": { "join": "Sales.Invoices.CustomerID = Sales.Customers.CustomerID" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-invoice-line",
+        "s": "c:Invoice",
+        "p": "r:hasLine",
+        "o": "c:OrderLine",
+        "q": { "join": "Sales.InvoiceLines.InvoiceID = Sales.Invoices.InvoiceID" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-line-product",
+        "s": "c:OrderLine",
+        "p": "r:ofProduct",
+        "o": "c:Product",
+        "q": { "join": "Sales.InvoiceLines.StockItemID = Warehouse.StockItems.StockItemID" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-invoice-revenue",
+        "s": "c:Invoice",
+        "p": "r:recognizes",
+        "o": "c:Revenue",
+        "q": { "join": "按 Sales.Invoices.InvoiceDate 归期" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-invoice-ar",
+        "s": "c:Invoice",
+        "p": "r:createsReceivable",
+        "o": "c:AccountsReceivable",
+        "q": { "join": "按 DueDate 计算账龄" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    },
+    {
+      "op": "assert",
+      "assertion": {
+        "id": "a:seed-rel-customer-revenue",
+        "s": "c:Customer",
+        "p": "r:contributesRevenue",
+        "o": "c:Revenue",
+        "q": { "join": "经 Sales.Invoices.CustomerID 汇总" },
+        "scope": "gov:seed",
+        "status": "candidate",
+        "evidence": [{ "kind": "file", "locator": "seed:ontoagent-demo@1" }]
+      }
+    }
+  ]
+}

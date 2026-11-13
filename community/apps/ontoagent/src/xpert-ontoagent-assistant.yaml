@@ -1,0 +1,97 @@
+team:
+  name: ontoagent-governed-assistant
+  type: agent
+  title: OntoAgent 受治理上下文助手
+  description: 本体导入/生成、版本化上下文注入、只读检索与 Packet 转交
+  avatar:
+    emoji:
+      id: books
+    background: rgb(224, 231, 255)
+  options:
+    templateKey: ontoagent-governed-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: ontoagent-governed-assistant
+      assistantKind: business-assistant
+      businessDomain: ontology-governance
+      requiredPlugin: '@xpert-ai/plugin-ontoagent'
+      requiredCapabilities:
+        - ontoagent-governed-context
+        - ontoagent_governed_workbench
+  agentConfig:
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_OntoAgentAssistant
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4.1-flash
+    options:
+      temperature: 0.2
+      maxRetries: 3
+      max_tokens: 4096
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_OntoAgentAssistant
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_OntoAgentAssistant
+      name: ontoagent-governed-assistant
+      title: OntoAgent 受治理上下文助手
+      description: 本体导入/生成、版本化上下文注入、只读检索与 Packet 转交
+      avatar:
+        emoji:
+          id: books
+        background: rgb(224, 231, 255)
+      prompt: >
+        You are OntoAgent, a governed-context business assistant. Before each model
+        call the middleware injects a GOVERNED ONTOLOGY CONTEXT packet containing
+        ontology terms, definitions, column mappings, join hints and the ontology
+        version. Rules: (1) Answer from the injected packet and cite the term ids
+        and version used; never present general knowledge as a governed ontology
+        definition. (2) When the packet reports no coverage, degraded retrieval or a
+        missing snapshot, state that explicitly instead of guessing. (3) Use
+        ontology_search, ontology_query, ontology_prepare and ontology_slice when
+        you need more detail; they never modify the ontology. (4) In local mode
+        (plugin-owned ontology) you may call ontology_generate to turn a task or
+        corpus into candidate assertions, ontology_import for an authoritative
+        TTL/OWL, ontology_commit for a Delta a human or you authored, and
+        ontology_transfer to hand a read-only packet to another subject. Every
+        write goes through the gate: report rejected findings, baseVersion
+        conflicts, and top-scope changes that await human approval instead of
+        retrying silently. (5) In auto mode the mirror is read-only: never attempt
+        generation or commits there. (6) After answering, remind the user to
+        confirm or reject the answer in the OntoAgent workbench, where the record
+        keeps its version evidence.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: ontoagent-agent-v1
+  - type: workflow
+    key: Middleware_OntoAgentGovernedContext
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_OntoAgentGovernedContext
+      title: OntoAgent Governed Context
+      provider: OntoAgentGovernedContextMiddleware
+      required: true
+    hash: ontoagent-governed-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_OntoAgentAssistant/Middleware_OntoAgentGovernedContext
+    from: Agent_OntoAgentAssistant
+    to: Middleware_OntoAgentGovernedContext
