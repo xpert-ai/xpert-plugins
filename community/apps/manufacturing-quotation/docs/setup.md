@@ -106,7 +106,7 @@ docker compose up -d --no-deps --force-recreate api
 
 README 中的历史截图使用独立的 Xpert Web 补丁让已个人绑定的默认助手继续显示，该补丁不在插件 PR 中。
 
-2026-11-13，已在上述基线的官方 API 和 Web 镜像上完成无宿主补丁实测：未绑定的临时助手可从原生侧栏进入工作台；已绑定助手可通过无参数直达地址打开、刷新并新建询价。真实 DeepSeek 文字识别和合成 PNG OCR（保留转录原文）后的商品识别均通过，人工确认后分别报价 `15.51 CNY` 和 `14.64 CNY`，刷新及 API 回读一致；0 箱输入被拦截。原有 25 条询价详情保持一致，新增 2 条合成报价，临时助手已清理，原助手与个人绑定未变。
+2026-11-13，已在上述基线的官方 API 和 Web 镜像上完成无宿主补丁复验。未绑定的临时助手可从原生侧栏进入工作台，已绑定助手可通过无参数直达地址打开、刷新并进入新建询价表单。完整报价用例使用原生直达路由并显式指定工作台视图和分栏布局。真实 DeepSeek 文字识别和合成 PNG OCR（保留转录原文）后的商品识别均通过，人工确认后分别报价 `15.51 CNY` 和 `14.64 CNY`，刷新及 API 回读一致，0 箱输入被拦截。原有 25 条询价详情保持一致，新增 2 条合成报价，临时助手已清理，原助手与个人绑定未变。
 
 此次复验复用既有隔离数据库和模型配置，未重新验证全新数据库安装，也不代表 Cloud 托管环境或生产验收。
 
@@ -122,7 +122,7 @@ npm install --prefix "$manufacturing_browser_deps" --no-save --ignore-scripts pl
 export MANUFACTURING_PLAYWRIGHT_MODULE="$manufacturing_browser_deps/node_modules/playwright-core"
 ```
 
-在同一终端隐藏输入管理员密码，按顺序运行验收。
+在同一终端隐藏输入管理员密码，按顺序运行验收。`entry-browser.mjs` 通过侧栏查找助手。使用原生宿主时，确保 `MANUFACTURING_ASSISTANT_ID` 对应的测试助手尚未被该测试账号设为个人默认绑定。已绑定助手的直达入口可按第 3 节手动复验。
 
 ```bash
 read -rsp 'Xpert test administrator password: ' XPERT_TEST_ADMIN_PASSWORD

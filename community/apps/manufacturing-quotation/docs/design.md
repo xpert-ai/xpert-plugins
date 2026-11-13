@@ -34,12 +34,25 @@ OCR 和候选使用 Xpert 原生 `deepseek` 提供商的 `deepseek-flash`，配�
 
 助手图 v2 仅连接 `ManufacturingQuotationMiddleware`，每次处理一单，正文限 8,000 字符。服务端按草稿、尝试编号及修订预读原文和目录。核对、计价和恢复依据持久化状态，省略待办和上下文压缩中间件以节省调用。[环境与安装](setup.md)
 
-## 开发与复用
+## AI 协作案例
 
-Codex 辅助实现、测试和文档，GPT-6.1 Sol 子代理承担限定范围的实现与核查。联调后统一 React/ReactDOM 构建解析路径，避免重复实例。后端拒绝模型误判的黑袋等级，工具说明补充映射。DeepSeek 输出受限时曾缺少有效工具调用，增加响应校验后实测原单重试。[验证记录](verification.md)
+1. **提出需求**。我把原 CRP 的逐项核价流程和等级规则交给 Codex，要求在 Xpert 内跑通文字和图片询价、人工核对、目录计价与历史恢复，演示使用合成数据并保留原 CRP。
+2. **决定方案**。我选择把独立计价进程合入 NestJS 插件，用同进程 TypeScript 实现，并恢复 `a/A/b` 等级。模型整理候选，报价员确认，后端根据目录计算金额。Codex 辅助实现、测试和文档，GPT-6.1 Sol 子代理承担限定范围的实现和核查。
+3. **定位与验证**。用真实模型处理合成 PNG 时，曾出现原文为「黑袋」而候选给出 `b` 的情况。通过比对 OCR 原文、工具候选和 `invalid_grade` 拒绝结果，定位到候选的等级映射。随后补充工具说明并保留后端校验，用等级回归测试和 DeepSeek 实测覆盖。保留 OCR 原文的黑袋示例得到 `a/b`，人工确认后报价 `14.64 CNY`，刷新后可恢复。
+4. **收获**。OCR 原文、模型候选和报价快照分开保存，便于追查错误发生在哪一步。等级规则由服务端检验，发布前用原始输入、工具结果和最终报价一起核对。[验证记录](verification.md)
 
-参考既有 CRP 的业务规则，以 TypeScript 独立实现计价和合成目录。既有 CRP 许可未核实。复用 Xpert SDK、Contracts 和共享 UI 控件、主题及 i18n，参考 Xpert 官方环境、Agentic App、插件开发、Assistant DSL 指南及采购比价插件结构。报价提示词、工作台布局和业务交互在本插件实现，助手 YAML 由 TypeScript 生成。[采购比价插件](../../procurement-quote-comparison/src) · [共享 UI](../../../../packages/shadcn-ui) · [助手 YAML](../templates/manufacturing-assistant.yaml)
+联调还统一了 React 与 ReactDOM 的构建解析路径，以避免重复实例。针对 DeepSeek 输出受限时缺少有效工具调用的情况，增加了响应校验并实测原单重试。
 
-本版把识别交给模型，把计价留在后端，并用服务端校验和人工审核拦截字段错误。企业试用前，优先用脱敏历史询价核验真实目录的等级、包装和价格。
+## 复用来源与本人改动
 
-插件许可及打包依赖见 [LICENSE](../LICENSE) 和 [THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt)。
+| 来源 | 许可 | 使用范围 |
+| --- | --- | --- |
+| [Xpert Plugin SDK](https://github.com/xpert-ai/xpert/blob/ba8736c897474f7db9a261aa5f64d95860bb9f60/packages/plugin-sdk/package.json) 与 [Contracts](https://github.com/xpert-ai/xpert/blob/ba8736c897474f7db9a261aa5f64d95860bb9f60/packages/contracts/package.json) | AGPL-3.0 | 依赖公开接口注册插件、助手模板、工作台视图及中间件。 |
+| [插件共享 UI](../../../../packages/shadcn-ui/package.json) | AGPL-3.0 | 使用已有控件、宿主主题与 i18n 适配器，按报价场景编写工作台布局和业务交互。 |
+| [Xpert Skills](https://github.com/xpert-ai/xpert-skills/blob/4ad12dcc9292d9b05021d4f5b93f24865c99e811/LICENSE) | Apache-2.0 | 参考本地环境、Agentic App、插件开发与 Assistant DSL 指南。 |
+| [采购比价插件](../../procurement-quote-comparison/src) | [AGPL-3.0](../../procurement-quote-comparison/package.json) | 参考同仓业务插件的目录与工作台集成结构。 |
+| 既有 CRP | 许可未核实 | 参考业务规则。本插件用 TypeScript 独立实现计价，并重新编制合成目录。 |
+
+我确认了询价字段、等级规则、人工确认边界和验收场景。本次新增报价提示词、候选校验、计价服务、工作台和复验脚本，助手 YAML 从 TypeScript 生成。[助手 YAML](../templates/manufacturing-assistant.yaml) · [插件许可](../LICENSE) · [打包依赖声明](../THIRD_PARTY_NOTICES.txt)
+
+企业试用前，优先用脱敏历史询价核验真实目录的等级、包装和价格。
