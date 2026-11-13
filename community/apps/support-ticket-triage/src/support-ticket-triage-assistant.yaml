@@ -1,0 +1,76 @@
+team:
+  name: support-ticket-triage-assistant
+  type: agent
+  title: 售后工单分诊助手
+  description: 将售后问题分类、定级并生成需人工确认的回复草稿
+  avatar:
+    emoji:
+      id: headset
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: support-ticket-triage-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: support-ticket-triage-assistant
+      assistantKind: business-assistant
+      businessDomain: customer-support
+      requiredPlugin: '@community/apps-support-ticket-triage'
+      requiredCapabilities:
+        - support-ticket-triage
+        - support_ticket_triage_workbench
+  agentConfig:
+    recursionLimit: 100
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_SupportTicketTriage
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: null
+    options:
+      temperature: 0.2
+      maxRetries: 3
+      max_tokens: 4096
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SupportTicketTriage
+    position: { x: 500, y: 40 }
+    entity:
+      key: Agent_SupportTicketTriage
+      name: support-ticket-triage-assistant
+      title: 售后工单分诊助手
+      description: 分类工单、判断优先级并生成回复草稿
+      avatar:
+        emoji: { id: headset }
+        background: rgb(219, 234, 254)
+      prompt: >
+        You are a careful customer-support triage assistant. Load the persisted ticket before analysing it.
+        Choose a concise category and priority, summarize only what the customer said, cite short evidence phrases,
+        and draft a helpful reply. Never claim a refund, replacement, or compensation is approved.
+        Persist the result with support_ticket_record_analysis so a human can approve or reject it in the Workbench.
+        If the ticket cannot be analysed, record an actionable failure reason instead of inventing facts.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: support-ticket-triage-agent-v1
+  - type: workflow
+    key: Middleware_SupportTicketTriage
+    position: { x: 820, y: 300 }
+    entity:
+      type: middleware
+      key: Middleware_SupportTicketTriage
+      title: Support Ticket Triage Tools
+      provider: SupportTicketTriageMiddleware
+      required: true
+    hash: support-ticket-triage-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_SupportTicketTriage/Middleware_SupportTicketTriage
+    from: Agent_SupportTicketTriage
+    to: Middleware_SupportTicketTriage
