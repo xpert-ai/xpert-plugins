@@ -1,0 +1,17 @@
+{
+  "simulatedHost": true,
+  "simulatedModel": true,
+  "calls": 3,
+  "samples": 1,
+  "evaluations": 1,
+  "cases": [
+    "upload",
+    "locale preservation",
+    "failure",
+    "review",
+    "retry history",
+    "decision",
+    "reload",
+    "narrow dark theme"
+  ]
+}

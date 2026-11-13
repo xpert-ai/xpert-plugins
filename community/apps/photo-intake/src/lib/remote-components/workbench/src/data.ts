@@ -1,6 +1,9 @@
 import { CASE_STATUSES, FAILURE_CODES } from '../../../domain/case'
 import type { CaseDetail, CaseStatus, CaseSummary, CategorySuggestion, FailureCode } from '../../../domain/case'
 import { isRecord } from './bridge'
+import { z } from 'zod/v3'
+import { runDetailSchema, runSummarySchema } from '../../../domain/evaluation'
+import type { EvaluationRunDetail, EvaluationRunSummary } from '../../../domain/evaluation'
 
 export interface CategoryView {
   id: string
@@ -12,6 +15,8 @@ export interface WorkbenchData {
   cases: CaseSummary[]
   categories: CategoryView[]
   selected: CaseDetail | null
+  runs: { items: EvaluationRunSummary[]; total: number; page: number }
+  run: EvaluationRunDetail | null
 }
 
 function isCaseStatus(value: unknown): value is CaseStatus {
@@ -44,6 +49,7 @@ function parseSummary(entry: unknown): CaseSummary {
     revision: entry.revision,
     canAnalyze: entry.canAnalyze,
     confirmedCategoryId: typeof entry.confirmedCategoryId === 'string' ? entry.confirmedCategoryId : null,
+    referenceCategoryId: typeof entry.referenceCategoryId === 'string' ? entry.referenceCategoryId : null,
     failureCode: isFailureCode(entry.failureCode) ? entry.failureCode : null,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt
@@ -81,7 +87,9 @@ export function parseWorkbenchData(item: unknown): WorkbenchData {
   return {
     cases: item.cases.map(parseSummary),
     categories: item.categories.map(parseCategory),
-    selected: parseDetail(item.selected)
+    selected: parseDetail(item.selected),
+    runs: z.object({ items: z.array(runSummarySchema), total: z.number(), page: z.number() }).parse(item.runs),
+    run: item.run ? runDetailSchema.parse(item.run) : null
   }
 }
 

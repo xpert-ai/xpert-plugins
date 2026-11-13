@@ -584,6 +584,9 @@ importers:
       esbuild:
         specifier: 0.25.10
         version: 0.25.10
+      playwright-core:
+        specifier: 1.61.0
+        version: 1.61.0
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2

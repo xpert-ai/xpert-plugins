@@ -1,264 +1,139 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Badge,
-  Button,
-  Input,
-  Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  Badge, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Tabs, TabsContent, TabsList, TabsTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@xpert-ai/plugin-shadcn-ui'
 import { RemoteI18nProvider, useLocalizedMessage, useRemoteLocale } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
-import { ASK_ASSISTANT_COMMAND } from '../../../domain/case'
-import type { CaseDetail } from '../../../domain/case'
-import { executeAction, invokeClientCommand, requestData, startBridge } from './bridge'
-import { parseCreatedCase, parseWorkbenchData } from './data'
+import { executeAction, requestData, startBridge } from './bridge'
+import { parseWorkbenchData } from './data'
 import type { WorkbenchData } from './data'
-import { CaseDetailView } from './detail'
+import type { CaseDetail } from '../../../domain/case'
+import { Choice } from './choices'
 import { i18n } from './i18n'
-import { downscalePhoto } from './photo'
-import { STATUS_KEYS, STATUS_VARIANTS } from './status'
+import { ComparisonSetup, SampleLibrary } from './setup'
+import { RunResults } from './results'
 import './styles.css'
 
-type LoadState = 'loading' | 'ready' | 'failed'
-const ANALYZING_POLL_MS = 4000
-type PhotoState = 'empty' | 'reading' | 'ready' | 'invalid'
+const empty: WorkbenchData = { cases: [], categories: [], selected: null, runs: { items: [], total: 0, page: 1 }, run: null }
 
 function Workbench() {
   useRemoteLocale(i18n)
-  const [state, setState] = useState<LoadState>('loading')
-  const [data, setData] = useState<WorkbenchData>({ cases: [], categories: [], selected: null })
+  const [data, setData] = useState(empty)
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [tab, setTab] = useState('samples')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Host events arrive through a listener registered once; it must read the current selection.
-  const selectedIdRef = useRef<string | null>(null)
-
-  const [title, setTitle] = useState('')
-  const [photo, setPhoto] = useState<string | null>(null)
-  const [photoState, setPhotoState] = useState<PhotoState>('empty')
-  const [submitting, setSubmitting] = useState(false)
-  const [createError, setCreateError] = useLocalizedMessage(i18n)
-  // One key per case being created, reused on retry so a repeated request cannot create a duplicate.
-  const requestKey = useRef<string | null>(null)
-
-  const [sending, setSending] = useState(false)
+  const query = useRef<{ runId?: string; page: string }>({ page: '1' })
+  const sequence = useRef(0)
+  const initialized = useRef(false)
+  const [hostReady, setHostReady] = useState(false)
+  const [photo, setPhoto] = useState<CaseDetail | null>(null)
+  const [reference, setReference] = useState('unclear')
+  const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useLocalizedMessage(i18n)
-  // The "sent" notice belongs to the revision it was sent for; any later change supersedes it.
-  const [noticeRevision, setNoticeRevision] = useState<number | null>(null)
-
   const load = useCallback(async () => {
-    const caseId = selectedIdRef.current
+    const current = ++sequence.current
     try {
-      setData(parseWorkbenchData(await requestData(caseId ? { caseId } : {})))
-      setState('ready')
-    } catch {
-      setState('failed')
-    }
+      const loaded = parseWorkbenchData(await requestData(query.current))
+      if (current === sequence.current) { setData(loaded); setState('ready') }
+    } catch { if (current === sequence.current) setState('failed') }
   }, [])
-
-  const select = useCallback((caseId: string | null) => {
-    selectedIdRef.current = caseId
-    setSelectedId(caseId)
-    setNotice('')
+  useEffect(() => startBridge(init => {
+    i18n.setLocale(init.locale)
+    if (!initialized.current) { initialized.current = true; setHostReady(true); void load() }
+  }, () => void load()), [load])
+  const selectRun = (id: string | null) => {
+    query.current = { page: query.current.page, ...(id ? { runId: id } : {}) }
+    setSelectedId(id)
+    setTab('runs')
+    setState('loading')
     void load()
-  }, [load, setNotice])
-
-  useEffect(() => startBridge(
-    init => {
-      i18n.setLocale(init.locale)
-      void load()
-    },
-    () => void load()
-  ), [load])
-
-  // A run can fail after its last tool call, which sends no host event; poll while analysing.
-  const analyzing = data.selected?.status === 'analyzing'
+  }
+  const active = data.run?.status === 'running' || data.run?.status === 'ready'
   useEffect(() => {
-    if (!analyzing) return
-    const timer = setInterval(() => void load(), ANALYZING_POLL_MS)
+    if (!selectedId || !active) return
+    const timer = setInterval(() => void load(), 4000)
     return () => clearInterval(timer)
-  }, [analyzing, load])
-
-  const pickPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    requestKey.current = null
-    setCreateError('')
-    if (!file) {
-      setPhoto(null)
-      setPhotoState('empty')
-      return
-    }
-    setPhotoState('reading')
-    try {
-      setPhoto(await downscalePhoto(file))
-      setPhotoState('ready')
-    } catch {
-      setPhoto(null)
-      setPhotoState('invalid')
-    }
-  }
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const trimmed = title.trim()
-    if (!trimmed || !photo || submitting) return
-    requestKey.current ??= crypto.randomUUID()
-    setSubmitting(true)
-    setCreateError('')
-    try {
-      const created = parseCreatedCase(
-        await executeAction('create_case', { requestKey: requestKey.current, title: trimmed, photo: { dataUrl: photo } })
-      )
-      requestKey.current = null
-      setTitle('')
-      setPhoto(null)
-      setPhotoState('empty')
-      select(created.id)
-    } catch {
-      setCreateError(i18n.message('create.failed'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const analyze = async (detail: CaseDetail) => {
-    setSending(true)
+  }, [active, selectedId, load])
+  const inspect = async (id: string) => {
     setNotice('')
-    setNoticeRevision(detail.revision)
     try {
-      await invokeClientCommand(ASK_ASSISTANT_COMMAND, {
-        text: i18n.t('analyze.message', { title: detail.title, id: detail.id })
-      })
-      setNotice(i18n.message('analyze.sent'))
-    } catch {
-      setNotice(i18n.message('analyze.sendFailed', { id: detail.id }))
-    } finally {
-      setSending(false)
-    }
+      const selected = parseWorkbenchData(await requestData({ caseId: id })).selected
+      setPhoto(selected)
+      setReference(selected?.referenceCategoryId ?? 'unclear')
+    } catch { setNotice(i18n.message('view.loadFailed')) }
   }
-
-  const selected = selectedId && data.selected?.id === selectedId ? data.selected : null
-
+  const saveReference = async () => {
+    if (!photo) return
+    setSaving(true); setNotice('')
+    try {
+      await executeAction('set_reference', { caseId: photo.id, revision: photo.revision, categoryId: reference })
+      setPhoto(null)
+      await load()
+    } catch { setNotice(i18n.message('common.actionFailed')) } finally { setSaving(false) }
+  }
   return (
-    <main className="photo-intake mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold">{i18n.t('view.title')}</h1>
-          <p className="text-sm text-muted-foreground">{i18n.t('view.subtitle')}</p>
-        </div>
+    <main className="photo-intake">
+      <header className="flex flex-wrap items-start justify-between gap-3 p-4">
+        <div><h1>{i18n.t('view.title')}</h1><p>{i18n.t('view.subtitle')}</p></div>
         <Button variant="outline" size="sm" onClick={() => void load()}>{i18n.t('view.refresh')}</Button>
       </header>
-
-      {state === 'loading' ? <p className="text-sm text-muted-foreground">{i18n.t('view.loading')}</p> : null}
-      {state === 'failed' ? (
-        <div role="alert" className="flex items-center gap-3">
-          <p className="text-sm text-destructive">{i18n.t('view.loadFailed')}</p>
-          <Button variant="outline" size="sm" onClick={() => void load()}>{i18n.t('view.retry')}</Button>
-        </div>
-      ) : null}
-
-      {state === 'ready' && selectedId ? (
-        selected ? (
-          <CaseDetailView
-            detail={selected}
-            categories={data.categories}
-            sending={sending}
-            notice={selected.revision === noticeRevision ? notice : ''}
-            onBack={() => select(null)}
-            onAnalyze={() => void analyze(selected)}
-          />
-        ) : (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted-foreground">{i18n.t('detail.notFound')}</p>
-            <div><Button variant="ghost" size="sm" onClick={() => select(null)}>{i18n.t('detail.back')}</Button></div>
-          </div>
-        )
-      ) : null}
-
-      {state === 'ready' && !selectedId ? (
-        <>
-          <form className="flex flex-col gap-3" onSubmit={event => void submit(event)} aria-labelledby="create-heading">
-            <h2 id="create-heading" className="text-base font-semibold">{i18n.t('create.heading')}</h2>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="case-photo">{i18n.t('create.photoLabel')}</Label>
-              <Input
-                id="case-photo"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                aria-describedby="case-photo-hint"
-                onChange={event => void pickPhoto(event)}
-              />
-              <p id="case-photo-hint" className="text-xs text-muted-foreground">{i18n.t('create.photoHint')}</p>
-              {photoState === 'reading' ? <p role="status" className="text-sm text-muted-foreground">{i18n.t('create.photoReading')}</p> : null}
-              {photoState === 'invalid' ? <p role="alert" className="text-sm text-destructive">{i18n.t('create.photoInvalid')}</p> : null}
-              {photo ? <img src={photo} alt={i18n.t('create.photoPreview')} className="max-h-48 w-fit rounded-md border object-contain" /> : null}
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="case-title">{i18n.t('create.label')}</Label>
-              <Input
-                id="case-title"
-                value={title}
-                maxLength={120}
-                placeholder={i18n.t('create.placeholder')}
-                onChange={event => setTitle(event.target.value)}
-              />
-            </div>
-            <div>
-              <Button type="submit" disabled={submitting || !title.trim() || !photo}>
-                {i18n.t(submitting ? 'create.submitting' : 'create.submit')}
-              </Button>
-            </div>
-            {createError ? <p role="alert" className="text-sm text-destructive">{createError}</p> : null}
-          </form>
-
-          <section className="flex flex-col gap-2" aria-labelledby="cases-heading" aria-live="polite">
-            <h2 id="cases-heading" className="text-base font-semibold">{i18n.t('cases.heading')}</h2>
-            {data.cases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{i18n.t('cases.empty')}</p>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">{i18n.t('cases.count', { count: data.cases.length })}</p>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{i18n.t('cases.column.title')}</TableHead>
-                      <TableHead>{i18n.t('cases.column.status')}</TableHead>
-                      <TableHead>{i18n.t('cases.column.updated')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.cases.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <Button variant="link" className="h-auto p-0 text-left" onClick={() => select(item.id)}>
-                            {item.title}
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={STATUS_VARIANTS[item.status]}>{i18n.t(STATUS_KEYS[item.status])}</Badge>
-                        </TableCell>
-                        <TableCell>{i18n.date(item.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </>
+      <hr />
+      {state === 'loading' ? <p className="p-4" role="status">{i18n.t('view.loading')}</p> : null}
+      {state === 'failed' ? <p className="p-4" role="alert">{i18n.t('view.loadFailed')}</p> : null}
+      {notice ? <p className="p-4" role="status">{notice}</p> : null}
+      {hostReady ? <Tabs value={tab} onValueChange={setTab} className="workbench-tabs">
+        <TabsList className="tab-navigation">
+          <TabsTrigger value="samples">{i18n.t('nav.samples')}</TabsTrigger>
+          <TabsTrigger value="compare">{i18n.t('nav.compare')}</TabsTrigger>
+          <TabsTrigger value="runs">{i18n.t('nav.runs')}</TabsTrigger>
+        </TabsList>
+        <div className="workbench-content">
+          <TabsContent value="samples" forceMount hidden={tab !== 'samples'}>
+            <SampleLibrary data={data} refresh={load} inspect={id => void inspect(id)} />
+          </TabsContent>
+          <TabsContent value="compare" forceMount hidden={tab !== 'compare'}>
+            <ComparisonSetup data={data} created={selectRun} />
+          </TabsContent>
+          <TabsContent value="runs" forceMount hidden={tab !== 'runs'}>
+            {selectedId ? data.run?.id === selectedId ? (
+              <RunResults key={data.run.id} run={data.run} categories={data.categories} refresh={load} back={() => selectRun(null)} />
+            ) : <div><p>{i18n.t(state === 'loading' ? 'run.loading' : 'run.unavailable')}</p>
+              <Button variant="ghost" onClick={() => selectRun(null)}>{i18n.t('run.back')}</Button></div> : (
+              <section className="flex flex-col gap-3">
+                <h2>{i18n.t('nav.runs')}</h2><hr />
+                {data.runs.items.length === 0 ? <p>{i18n.t('run.empty')}</p> : <Table>
+                  <TableHeader><TableRow><TableHead>{i18n.t('setup.title')}</TableHead><TableHead>{i18n.t('run.status')}</TableHead><TableHead>{i18n.t('run.created')}</TableHead></TableRow></TableHeader>
+                  <TableBody>{data.runs.items.map(run => <TableRow key={run.id}>
+                    <TableCell><Button variant="link" onClick={() => selectRun(run.id)}>{run.title}</Button></TableCell>
+                    <TableCell><Badge variant="secondary">{i18n.t(`runStatus.${run.status}`)}</Badge></TableCell>
+                    <TableCell>{i18n.date(run.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+                  </TableRow>)}</TableBody>
+                </Table>}
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" disabled={data.runs.page <= 1} onClick={() => { query.current = { page: String(data.runs.page - 1) }; void load() }}>{i18n.t('common.previous')}</Button>
+                  <span>{i18n.t('common.page', { page: data.runs.page })}</span>
+                  <Button variant="outline" disabled={data.runs.page * 20 >= data.runs.total} onClick={() => { query.current = { page: String(data.runs.page + 1) }; void load() }}>{i18n.t('common.next')}</Button>
+                </div>
+              </section>
             )}
-          </section>
-        </>
-      ) : null}
+          </TabsContent>
+        </div>
+      </Tabs> : null}
+      <Dialog open={photo !== null} onOpenChange={open => { if (!open) setPhoto(null) }}>
+        <DialogContent className="evidence-dialog">
+          <DialogHeader><DialogTitle>{photo?.title}</DialogTitle><DialogDescription>{i18n.t('samples.editHint')}</DialogDescription></DialogHeader>
+          {photo?.photoDataUrl ? <img className="evidence-photo" src={photo.photoDataUrl} alt={photo.title} /> : <p>{i18n.t('detail.noPhoto')}</p>}
+          <Choice label={i18n.t('samples.reference')} value={reference} disabled={saving}
+            onChange={setReference} options={data.categories.map(category => ({ value: category.id, label: i18n.label(category.label, category.id) }))} />
+          <Button disabled={saving} onClick={() => void saveReference()}>{i18n.t('samples.saveReference')}</Button>
+          {notice ? <p role="alert">{notice}</p> : null}
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
 
 const container = document.getElementById('root') ?? document.body.appendChild(document.createElement('div'))
-createRoot(container).render(
-  <RemoteI18nProvider i18n={i18n}>
-    <Workbench />
-  </RemoteI18nProvider>
-)
+createRoot(container).render(<RemoteI18nProvider i18n={i18n}><Workbench /></RemoteI18nProvider>)

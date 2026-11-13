@@ -5,9 +5,9 @@ import { FEATURE, PLUGIN_NAME, PROVIDER_KEY, TEMPLATE_KEY, TEMPLATE_PROVIDER } f
 
 export const templates: XpertTemplateContribution[] = [{
   key: TEMPLATE_KEY,
-  name: 'Photo Intake Assistant',
-  title: '拍照受理助手',
-  description: '看上报的照片，从固定类别表里给出建议，由人确认后保存。',
+  name: 'Image Evaluation Assistant',
+  title: '图片分类验收助手',
+  description: '运行固定样本的提示词 A/B 评测，由人查看差异并保存验收结论。',
   category: 'Workspace',
   type: XpertTypeEnum.Agent,
   targetApps: ['xpert'],
@@ -20,8 +20,8 @@ export const templates: XpertTemplateContribution[] = [{
     }
   },
   dslContent: readFileSync(new URL('../photo-intake-assistant.yaml', import.meta.url), 'utf8'),
-  startPrompts: ['有哪些可选的问题类别？', '识别最新的一条受理单'],
-  releaseNotes: '0.2.0：上传照片，由助手查看照片并保存一到三个类别建议；识别失败可重试。',
+  startPrompts: ['查看已有验收记录', '解释最近一次验收的实测结果'],
+  releaseNotes: '0.3.0：固定样本、提示词 A/B 独立评测、逐项保存、人工评审与失败重试。',
   providerKey: TEMPLATE_PROVIDER,
   order: 30,
   default: false

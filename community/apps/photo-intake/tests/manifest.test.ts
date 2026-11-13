@@ -10,15 +10,15 @@ import { PhotoIntakeMiddleware } from '../dist/lib/intake.middleware.js'
 import { PhotoIntakeViewProvider } from '../dist/lib/intake-view.provider.js'
 import {
   ACTION_KEYS,
-  ANALYZE_CASE_TOOL,
   FEATURE,
-  LIST_CATEGORIES_TOOL,
+  LIST_RUNS_TOOL,
+  GET_RUN_TOOL,
+  EVALUATE_NEXT_TOOL,
   MIDDLEWARE_NAME,
   MUTATING_TOOLS,
   PLUGIN_NAME,
   PLUGIN_ARTIFACT_NAMESPACE,
   REMOTE_ENTRY,
-  SUBMIT_SUGGESTIONS_TOOL,
   TEMPLATE_KEY,
   VIEW_KEY
 } from '../src/lib/constants.js'
@@ -51,9 +51,9 @@ test('runtime metadata matches package.json and links one template to the app', 
 })
 
 test('the view provider declares the workbench view, serves its bundle and rejects unknown keys', async () => {
-  const { db, service } = await createService()
+  const { db, service, evaluations } = await createService()
   try {
-    const provider = new PhotoIntakeViewProvider(service)
+    const provider = new PhotoIntakeViewProvider(service, evaluations)
     const manifest = provider.getViewManifests(context, 'agent.workbench.fixed')[0]
     assert.equal(manifest.key, VIEW_KEY)
     assert.deepEqual(manifest.activation?.requiredFeatures, [FEATURE])
@@ -83,13 +83,13 @@ test('the view provider declares the workbench view, serves its bundle and rejec
   }
 })
 
-test('the middleware exposes the three intake tools and every category id is unique', async () => {
-  const { db, service } = await createService()
+test('the middleware exposes only evaluation tools, never human review or fabricated result submission', async () => {
+  const { db, evaluations, runner } = await createService()
   try {
-    const middleware = new PhotoIntakeMiddleware(service)
+    const middleware = new PhotoIntakeMiddleware(evaluations, runner)
     assert.equal(middleware.meta.name, MIDDLEWARE_NAME)
     assert.deepEqual(middleware.meta.features, [FEATURE])
-    assert.deepEqual(middleware.getToolNames(), [LIST_CATEGORIES_TOOL, ANALYZE_CASE_TOOL, SUBMIT_SUGGESTIONS_TOOL])
+    assert.deepEqual(middleware.getToolNames(), [LIST_RUNS_TOOL, GET_RUN_TOOL, EVALUATE_NEXT_TOOL])
     assert.equal(new Set(CATEGORY_IDS).size, CATEGORY_IDS.length)
     assert.ok(CATEGORY_IDS.includes('unclear'), 'the model always has a way to decline')
   } finally {

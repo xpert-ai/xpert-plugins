@@ -5,6 +5,9 @@ import type { IntakeScope } from '../src/lib/domain/contracts.js'
 import { IntakeCase } from '../dist/lib/intake-case.entity.js'
 import { IntakePhoto } from '../dist/lib/intake-photo.entity.js'
 import { IntakeService } from '../dist/lib/intake.service.js'
+import { EvaluationRun } from '../dist/lib/evaluation-run.entity.js'
+import { EvaluationService } from '../dist/lib/evaluation.service.js'
+import { EvaluationRunner } from '../dist/lib/evaluation.runner.js'
 
 export const scope: IntakeScope = {
   tenantId: 'tenant-1',
@@ -20,12 +23,15 @@ export const JPEG_DATA_URL = `data:image/jpeg;base64,${JPEG_BYTES.toString('base
 export const PNG_DATA_URL = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64')}`
 
 /** Real TypeORM repositories on an in-memory SQLite database, so indexes and queries are exercised. */
-export async function createService() {
-  const db = new DataSource({ type: 'sqljs', entities: [IntakeCase, IntakePhoto], synchronize: true })
+export async function createService(database?: Uint8Array) {
+  const db = new DataSource({ type: 'sqljs', database, entities: [IntakeCase, IntakePhoto, EvaluationRun], synchronize: true })
   await db.initialize()
   const cases = db.getRepository(IntakeCase)
   const photos = db.getRepository(IntakePhoto)
-  return { db, cases, photos, service: new IntakeService(cases, photos) }
+  const service = new IntakeService(cases, photos)
+  const evaluations = new EvaluationService(db.getRepository(EvaluationRun), service)
+  const runner = new EvaluationRunner(evaluations, service)
+  return { db, cases, photos, service, evaluations, runner }
 }
 
 export function newCase(title = 'Water dripping in room 3') {

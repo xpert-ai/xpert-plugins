@@ -23,6 +23,8 @@ import type {
 import { decodePhotoDataUrl, toDataUrl } from './domain/photo.js'
 import { IntakeCase } from './intake-case.entity.js'
 import { IntakePhoto } from './intake-photo.entity.js'
+import { setReferenceSchema } from './domain/evaluation.js'
+import { z } from 'zod/v3'
 
 const LIST_LIMIT = 50
 /** Statuses from which a new analysis may start. `analyzing` qualifies only once stale. */
@@ -67,6 +69,7 @@ export class IntakeService {
       revision: record.revision,
       canAnalyze: this.canAnalyze(record),
       confirmedCategoryId: record.confirmedCategoryId,
+      referenceCategoryId: record.referenceCategoryId,
       failureCode: record.failureCode,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt
@@ -139,6 +142,7 @@ export class IntakeService {
       revision: 1,
       suggestionsJson: null,
       confirmedCategoryId: null,
+      referenceCategoryId: parsed.referenceCategoryId ?? null,
       failureCode: null,
       createdAt: now,
       updatedAt: now
@@ -233,5 +237,27 @@ export class IntakeService {
       failureCode: code
     })
     return updated !== null
+  }
+
+  async setReference(scope: IntakeScope, input: z.infer<typeof setReferenceSchema>) {
+    const parsed = setReferenceSchema.parse(input)
+    await this.findOwned(scope, parsed.caseId)
+    const updated = await this.cases.update(
+      { ...scopeSchema.parse(scope), id: parsed.caseId, revision: parsed.revision },
+      { referenceCategoryId: parsed.categoryId, revision: parsed.revision + 1, updatedAt: this.now().toISOString() }
+    )
+    if (updated.affected !== 1) throw new IntakeError('conflict')
+    return this.getCase(scope, parsed.caseId)
+  }
+
+  async evaluationSample(scope: IntakeScope, id: string) {
+    const record = await this.findOwned(scope, id)
+    if (!record.referenceCategoryId) throw new IntakeError('invalid_input', 'Add a human reference label first.')
+    const photo = await this.photos.findOneBy({ ...scopeSchema.parse(scope), caseId: id })
+    if (!photo) throw new IntakeError('photo_missing')
+    return {
+      sample: { id, title: record.title, referenceCategoryId: record.referenceCategoryId, sha256: photo.sha256 },
+      photoDataUrl: toDataUrl(photo.mimeType, photo.base64)
+    }
   }
 }

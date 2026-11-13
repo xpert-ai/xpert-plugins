@@ -7,7 +7,7 @@ export interface CategoryDefinition {
 
 /**
  * Self-authored category table for a facility issue-report desk.
- * Draft scenario: the table is plain data and can be replaced without touching the flow.
+ * Evaluation fixture taxonomy. Each run freezes these definitions alongside its prompts.
  */
 export const CATEGORIES: readonly CategoryDefinition[] = [
   { id: 'plumbing', label: { en_US: 'Plumbing and leaks', zh_Hans: '给排水与漏水' }, definition: 'Leaking pipes, taps, toilets, drains, water stains caused by an active leak.' },

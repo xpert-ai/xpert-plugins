@@ -21,6 +21,7 @@ export class IntakeCase {
   /** JSON array of CategorySuggestion for the latest completed analysis. */
   @Column({ type: 'text', nullable: true }) suggestionsJson!: string | null
   @Column({ type: 'varchar', length: 64, nullable: true }) confirmedCategoryId!: string | null
+  @Column({ type: 'varchar', length: 64, nullable: true }) referenceCategoryId!: string | null
   @Column({ type: 'varchar', length: 64, nullable: true }) failureCode!: FailureCode | null
   @Column({ type: 'varchar' }) createdAt!: string
   @Column({ type: 'varchar' }) updatedAt!: string

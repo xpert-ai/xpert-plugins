@@ -18,10 +18,10 @@ import { templates } from './lib/templates.js'
 const app = {
   type: 'app',
   name: 'photo-intake',
-  displayName: { en_US: 'Photo Intake', zh_Hans: '拍照受理' },
+  displayName: { en_US: 'Image Version Acceptance', zh_Hans: '图片分类版本验收' },
   description: {
-    en_US: 'Report an issue with a photo, review the suggested category, confirm and save.',
-    zh_Hans: '拍照上报问题，查看建议的类别，确认后保存。'
+    en_US: 'Compare two prompts on fixed labelled images, review measured results and save an adoption decision.',
+    zh_Hans: '在带标签的固定图片上比较两版提示词，查看实测结果并保存采用决定。'
   },
   icon: { type: 'font', value: 'ri-camera-lens-line' },
   appConfig: {
@@ -29,39 +29,39 @@ const app = {
     assistantTemplateKey: TEMPLATE_KEY,
     workspace: {
       mode: 'dedicated',
-      name: { en_US: 'Photo Intake', zh_Hans: '拍照受理工作空间' },
+      name: { en_US: 'Image Version Acceptance', zh_Hans: '图片分类版本验收工作空间' },
       sharing: 'organization'
     },
     knowledgebases: [],
     modelRequirements: { primary: true },
     presentation: {
-      tagline: { en_US: 'From a photo to a confirmed category.', zh_Hans: '从一张照片到确认后的类别。' },
+      tagline: { en_US: 'Evidence for your next prompt release.', zh_Hans: '为下一版提示词提供可回查的验收依据。' },
       developer: 'Fairchild2333',
       features: [
         {
           key: 'cases',
-          title: { en_US: 'Intake cases', zh_Hans: '受理单' },
+          title: { en_US: 'Fixed evaluation samples', zh_Hans: '固定评测样本' },
           description: {
-            en_US: 'Every reported issue is saved and can be reopened later.',
-            zh_Hans: '每条上报都会保存，之后可以重新打开。'
+            en_US: 'Images and reference labels are preserved with each comparison.',
+            zh_Hans: '每次验收保留图片引用与参考标签快照。'
           }
         },
         {
           key: 'categories',
-          title: { en_US: 'Fixed category list', zh_Hans: '固定类别表' },
+          title: { en_US: 'Independent A/B calls', zh_Hans: '独立 A/B 调用' },
           description: {
-            en_US: 'Suggestions come only from a reviewed list of categories.',
-            zh_Hans: '建议只会来自一份经过审阅的类别表。'
+            en_US: 'Original outputs, failures, retry history and human decisions remain reviewable.',
+            zh_Hans: '可查看原始输出、失败、重试历史与人工结论。'
           }
         }
       ],
       dataScope: {
-        en_US: 'Cases are private to each user and Assistant in the current workspace.',
-        zh_Hans: '受理单按当前工作空间中的用户和助手隔离。'
+        en_US: 'Samples and evaluations are private to each user and Assistant in the current workspace.',
+        zh_Hans: '样本与验收记录按当前工作空间中的用户和助手隔离。'
       },
       initializationSummary: {
-        en_US: 'Xpert prepares a dedicated workspace and the intake Assistant.',
-        zh_Hans: 'Xpert 创建专用工作空间并初始化受理助手。'
+        en_US: 'Xpert prepares a dedicated workspace and the evaluation Assistant.',
+        zh_Hans: 'Xpert 创建专用工作空间并初始化验收助手。'
       }
     },
     entry: { type: 'assistant-chat' }
@@ -76,8 +76,8 @@ const plugin: XpertPlugin<z.infer<typeof configSchema>> = {
     version: PACKAGE_METADATA.version,
     level: PACKAGE_METADATA.xpert.plugin.level,
     artifactNamespace: PACKAGE_METADATA.xpert.plugin.artifactNamespace,
-    displayName: 'Photo Intake',
-    description: 'Photo intake workbench with AI category suggestions and human confirmation.',
+    displayName: 'Image Version Acceptance',
+    description: 'Prompt A/B evaluation with fixed image samples, measured results and human adoption decisions.',
     author: 'Fairchild2333',
     category: 'middleware',
     targetApps: ['xpert'],
@@ -91,13 +91,13 @@ const plugin: XpertPlugin<z.infer<typeof configSchema>> = {
             {
               type: 'assistant-template',
               name: TEMPLATE_KEY,
-              displayName: { en_US: 'Photo Intake Assistant', zh_Hans: '拍照受理助手' },
+              displayName: { en_US: 'Image Evaluation Assistant', zh_Hans: '图片分类验收助手' },
               description: {
-                en_US: 'Suggests a category for a reported issue from a fixed list.',
-                zh_Hans: '从固定类别表里为上报的问题建议类别。'
+                en_US: 'Runs saved A/B image evaluations and reports measured results.',
+                zh_Hans: '运行已保存的 A/B 图片验收，报告实测结果。'
               }
             },
-            { type: 'view', name: VIEW_KEY, displayName: 'Photo Intake' }
+            { type: 'view', name: VIEW_KEY, displayName: 'Image Version Acceptance' }
           ]
         },
         runtime: {

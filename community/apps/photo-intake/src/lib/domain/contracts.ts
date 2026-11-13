@@ -1,5 +1,6 @@
 import { z } from 'zod/v3'
 import { CASE_STATUSES, MAX_SUGGESTIONS } from './case.js'
+import { categoryIdSchema } from './evaluation.js'
 
 export { ANALYSIS_STALE_MS, CASE_STATUSES, FAILURE_CODES, MAX_SUGGESTIONS } from './case.js'
 export type { CaseDetail, CaseStatus, CaseSummary, CategorySuggestion, FailureCode } from './case.js'
@@ -28,6 +29,7 @@ export const createCaseSchema = z.object({
   /** Client-generated key; repeating a request with the same key returns the same case. */
   requestKey: z.string().uuid(),
   title: z.string().trim().min(1).max(120),
+  referenceCategoryId: categoryIdSchema.optional(),
   photo: z.object({
     // A loose prefix check only; the service decodes and verifies the bytes.
     dataUrl: z.string().max(Math.ceil(MAX_PHOTO_BYTES * 1.4)).regex(/^data:image\/[a-z]+;base64,/)

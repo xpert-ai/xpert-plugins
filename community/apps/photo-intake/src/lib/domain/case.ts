@@ -39,6 +39,7 @@ export interface CaseSummary {
   /** True when the Assistant may start (or restart) an analysis now. */
   canAnalyze: boolean
   confirmedCategoryId: string | null
+  referenceCategoryId: string | null
   failureCode: FailureCode | null
   createdAt: string
   updatedAt: string
