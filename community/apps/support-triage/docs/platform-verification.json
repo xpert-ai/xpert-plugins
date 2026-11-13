@@ -1,0 +1,21 @@
+{
+  "testedAt": "2026-10-30T10:41:57.520Z",
+  "pluginVersion": "0.1.0",
+  "platformBaseline": "ef5125f1f73f6f30b1ca1e5d90e062c65aa4537e",
+  "pluginsBaseline": "60794aa72edb1fddffebd5e5d071619b8c29014b",
+  "platformChanges": "platform-windows.patch",
+  "database": "PostgreSQL",
+  "model": "Ollama deepseek-r1:14b",
+  "remoteHtmlSha256": "f7227da35b584e897513b29298175ad4016885748e8fc25315e49341a6b4703d",
+  "checks": [
+    "Published Assistant activates the fixed Workbench View through the middleware feature",
+    "Original, real AI suggestion and edited human result survive API restart in PostgreSQL",
+    "The same ticket has two attempts: simulated failure followed by real Ollama analysis",
+    "A stale human confirmation is rejected with conflict",
+    "A second published Assistant with the same plugin sees an empty ticket list"
+  ],
+  "limitations": [
+    "Single local administrator account; production role and SSO combinations not exercised",
+    "UI transport recovery change typechecked; awaiting browser control reconnection for final repeat"
+  ]
+}

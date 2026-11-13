@@ -1,0 +1,78 @@
+diff --git a/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts b/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
+index 022b3a9..44d94e9 100644
+--- a/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
++++ b/packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts
+@@ -2,0 +3 @@ import path from 'path'
++import { fileURLToPath } from 'node:url'
+@@ -29,5 +29,0 @@ export function AIModelProviderStrategy(provider: string) {
+-  // remove the file:/// prefix
+-  if (file?.startsWith('file:///')) {
+-    file = file.replace('file://', '')
+-  }
+-
+@@ -38,0 +35,4 @@ export function AIModelProviderStrategy(provider: string) {
++  if (file?.startsWith('file:///')) {
++    file = fileURLToPath(file)
++  }
++
+@@ -57 +57 @@ export function AIModelProviderStrategy(provider: string) {
+-}
+\ No newline at end of file
++}
+diff --git a/packages/server-ai/scripts/build-remote-react.mjs b/packages/server-ai/scripts/build-remote-react.mjs
+index fc6d3b3..78a8e02 100644
+--- a/packages/server-ai/scripts/build-remote-react.mjs
++++ b/packages/server-ai/scripts/build-remote-react.mjs
+@@ -44,2 +44,2 @@ export async function buildRemoteReactComponent(root, outputDir = root) {
+-        resolveLocalBin(workspaceRoot, 'tailwindcss'),
+-        ['-i', cssSourcePath, '-o', cssTargetPath, '--minify'],
++        process.execPath,
++        [join(workspaceRoot, 'node_modules/@tailwindcss/cli/dist/index.mjs'), '-i', cssSourcePath, '-o', cssTargetPath, '--minify'],
+diff --git a/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs b/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
+index 71bc462..d94cb3f 100644
+--- a/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
++++ b/packages/server-ai/src/agent-invocation/remote-components/agent-results/build.mjs
+@@ -19,2 +19,2 @@ execFileSync(
+-    join(process.cwd(), 'node_modules/.bin/tailwindcss'),
+-    ['-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
++    process.execPath,
++    [join(process.cwd(), 'node_modules/@tailwindcss/cli/dist/index.mjs'), '-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
+diff --git a/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs b/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
+index 077defa..9eea969 100644
+--- a/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
++++ b/packages/server-ai/src/agent-invocation/remote-components/coding-execution/build.mjs
+@@ -31,2 +31,2 @@ execFileSync(
+-    join(process.cwd(), 'node_modules/.bin/tailwindcss'),
+-    ['-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
++    process.execPath,
++    [join(process.cwd(), 'node_modules/@tailwindcss/cli/dist/index.mjs'), '-i', join(root, 'tailwind.css'), '-o', join(root, 'app.css'), '--minify'],
+diff --git a/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs b/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
+index 0143433..12670f7 100644
+--- a/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
++++ b/packages/server-ai/src/knowledgebase/plugins/knowledge-workbench/remote-components/knowledge-workbench/build.mjs
+@@ -33 +33 @@ await build({
+-execFileSync(resolveLocalBin(workspaceRoot, 'tailwindcss'), ['-i', cssSourcePath, '-o', cssTargetPath, '--minify'], {
++execFileSync(process.execPath, [join(workspaceRoot, 'node_modules/@tailwindcss/cli/dist/index.mjs'), '-i', cssSourcePath, '-o', cssTargetPath, '--minify'], {
+diff --git a/packages/server/tsconfig.lib.json b/packages/server/tsconfig.lib.json
+index 7dbbdba..437ee44 100644
+--- a/packages/server/tsconfig.lib.json
++++ b/packages/server/tsconfig.lib.json
+@@ -10 +10 @@
+-	"exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.test-fixture.ts"]
++	"exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.test-fixture.ts", "**/testing/**"]
+diff --git a/packages/ui/src/lib/components/dialog/dialog.component.ts b/packages/ui/src/lib/components/dialog/dialog.component.ts
+index c422bc4..7e0fc5b 100644
+--- a/packages/ui/src/lib/components/dialog/dialog.component.ts
++++ b/packages/ui/src/lib/components/dialog/dialog.component.ts
+@@ -16,0 +17 @@ import {
++  forwardRef,
+@@ -256 +257 @@ export class ZardDialogComponent<T, U> extends BasePortalOutlet {
+-  providers: [ZardDialogService]
++  providers: [{ provide: forwardRef(() => ZardDialogService), useClass: forwardRef(() => ZardDialogService) }]
+diff --git a/tools/scripts/deploy-local-plugin.mjs b/tools/scripts/deploy-local-plugin.mjs
+index 11a4c72..5f0f93f 100644
+--- a/tools/scripts/deploy-local-plugin.mjs
++++ b/tools/scripts/deploy-local-plugin.mjs
+@@ -155 +155 @@ function runCommandPlan(label, plan, dryRun) {
+-    shell: plan.shell
++    shell: plan.shell || (process.platform === 'win32' && plan.command === 'corepack')
