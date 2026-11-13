@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "resolveJsonModule": true,
+    "types": ["node", "react", "react-dom"],
+    "rootDir": "../../../"
+  },
+  "include": ["src/lib/remote-components/**/*.tsx", "src/lib/remote-components/**/*.ts"],
+  "exclude": []
+}
