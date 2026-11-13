@@ -1,0 +1,9 @@
+{
+  "name": "lead-parser-workbench-remote",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Remote component (iframe React app) for the lead-parser workbench view. Built by scripts/build-remote-components.mjs into app.js.",
+  "scripts": {
+    "build": "node ../../../scripts/build-remote-components.mjs"
+  }
+}
