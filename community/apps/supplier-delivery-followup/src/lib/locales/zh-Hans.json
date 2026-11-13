@@ -1,0 +1,3 @@
+{
+  "chat.parseCommand": "解析供应商回复（{{receivedAt}} 收到，第 {{attempt}} 次）"
+}

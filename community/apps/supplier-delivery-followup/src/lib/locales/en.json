@@ -1,0 +1,3 @@
+{
+  "chat.parseCommand": "Parse supplier reply (received {{receivedAt}}, attempt {{attempt}})"
+}
