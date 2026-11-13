@@ -15,5 +15,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "types": ["node"]
-  }
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "exclude": ["src/lib/remote-components/**"]
 }
