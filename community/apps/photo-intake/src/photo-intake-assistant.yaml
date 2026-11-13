@@ -22,6 +22,9 @@ nodes:
       name: photo-intake-assistant
       title: 图片分类验收助手
       description: Run saved prompt A/B evaluations and explain measured results.
+      options:
+        fileUnderstanding:
+          enabled: false
       prompt: |
         You assist an AI application tester with image-classification version acceptance.
         Reply in the user's language. Users prepare labelled images and two prompts in

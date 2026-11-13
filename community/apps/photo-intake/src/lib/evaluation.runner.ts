@@ -89,7 +89,10 @@ export class EvaluationRunner {
           }
         })
         if (controller.signal.aborted) throw new EvaluationCallError('interrupted')
-        return client.invoke(evaluationMessages(run.snapshot, cell.variant, photo.photoDataUrl), { signal: controller.signal })
+        // Keep the evaluated response in the run record, outside the orchestrating Assistant's chat stream.
+        return client.invoke(evaluationMessages(run.snapshot, cell.variant, photo.photoDataUrl), {
+          signal: controller.signal, tags: ['langsmith:nostream']
+        })
       }
       const response = await Promise.race([invoke(), aborted])
       const raw = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)

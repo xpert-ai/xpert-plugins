@@ -1,0 +1,147 @@
+{
+  "tested_at": "2026-11-14T00:39:54.158542+11:00",
+  "timezone": "Australia/Sydney",
+  "plugin_version": "0.3.0",
+  "plugin_base_commit": "485caded38e0183d6d02bbb7132c6ad2f5a78dc3",
+  "source_state": "At the time of the live test: base commit plus the two uncommitted fixes hashed below. The hashes identify the tested source independently of a later commit.",
+  "source_sha256": {
+    "src/lib/evaluation.runner.ts": "fab96454df0899b5c2b8582f1c3ab211ea7ee8d89897d2e95a677820b561827f",
+    "src/photo-intake-assistant.yaml": "041aaa3e7ca6539a31578b63062c2e3a9ade2a448e3b1e890532cbf6f23dcb79"
+  },
+  "platform_commit": "ba8736c897474f7db9a261aa5f64d95860bb9f60",
+  "installed_artifacts": [
+    {
+      "file": "lib/evaluation.runner.js",
+      "matches_build": true,
+      "sha256": "f575318d7888a4124af6ddef3a4893d6bbd2214d32b3a3620794a9e756ecf404"
+    },
+    {
+      "file": "photo-intake-assistant.yaml",
+      "matches_build": true,
+      "sha256": "041aaa3e7ca6539a31578b63062c2e3a9ade2a448e3b1e890532cbf6f23dcb79"
+    },
+    {
+      "file": "remote/app.js",
+      "matches_build": true,
+      "sha256": "6a5b0b83bf1b73d3802b4e9ea022244465eabf70cddf6154ec7481a17bc72486"
+    }
+  ],
+  "live_host": true,
+  "persistence": "local Xpert PostgreSQL",
+  "model": "gpt-6-luna",
+  "assistant_published_version": "v2",
+  "fixture": "synthetic geometry; deliberately malformed PNG for failure-path testing",
+  "checks": {
+    "plugin_loaded_0_3_0": true,
+    "template_updated_and_published": true,
+    "built_in_file_vector_search_disabled": true,
+    "create_comparison_in_actual_ui": true,
+    "assistant_orchestrated_independent_image_calls": true,
+    "raw_output_and_usage_persisted": true,
+    "sample_review_and_decision_saved_in_ui": true,
+    "browser_reload_and_reopen": true,
+    "failure_recorded_and_explicit_retry_appended": true,
+    "failed_version_adoption_rejected_without_mutation": true,
+    "nested_classifier_tokens_excluded_from_chat_after_fix": true,
+    "actual_host_file_picker_upload": false
+  },
+  "normal_run": {
+    "status": "reviewed",
+    "decision": "tie",
+    "variants": [
+      {
+        "variant": "a",
+        "latency_ms": 2587,
+        "output": {
+          "categoryId": "unclear",
+          "reason": "The image shows colored geometric shapes, with no visible facility issue."
+        },
+        "usage": {
+          "inputTokens": 3918,
+          "outputTokens": 27,
+          "totalTokens": 3945,
+          "source": "provider"
+        }
+      },
+      {
+        "variant": "b",
+        "latency_ms": 2908,
+        "output": {
+          "categoryId": "unclear",
+          "reason": "The image shows colored geometric shapes, with no visible maintenance issue."
+        },
+        "usage": {
+          "inputTokens": 3947,
+          "outputTokens": 27,
+          "totalTokens": 3974,
+          "source": "provider"
+        }
+      }
+    ]
+  },
+  "overlong_prompt_probe": {
+    "outcome": "both variants succeeded; no failure reproduced; used to verify stream isolation after fix",
+    "counted_as_failure_coverage": false
+  },
+  "failure_run": {
+    "status": "reviewed",
+    "decision": "neither",
+    "variants": [
+      {
+        "variant": "a",
+        "attempts": [
+          {
+            "status": "failed",
+            "failure_code": "model_call_failed",
+            "latency_ms": 1244
+          },
+          {
+            "status": "failed",
+            "failure_code": "model_call_failed",
+            "latency_ms": 1429
+          }
+        ]
+      },
+      {
+        "variant": "b",
+        "attempts": [
+          {
+            "status": "failed",
+            "failure_code": "model_call_failed",
+            "latency_ms": 1299
+          },
+          {
+            "status": "failed",
+            "failure_code": "model_call_failed",
+            "latency_ms": 1176
+          }
+        ]
+      }
+    ],
+    "retry_recovered_successfully": false
+  },
+  "image_evaluation_attempts": {
+    "total": 8,
+    "succeeded": 4,
+    "failed": 4
+  },
+  "reported_image_usage": {
+    "input_tokens": 16440,
+    "output_tokens": 127,
+    "total_tokens": 16567,
+    "scope": "four successful image calls only; excludes Assistant orchestration and four failed calls without returned usage",
+    "cost_usd": null
+  },
+  "validation": {
+    "unit_and_orm_tests": "27/27 passed",
+    "typecheck": "passed",
+    "production_build": "passed",
+    "plugin_dev_harness": "passed"
+  },
+  "limitations": [
+    "Sample upload used the real View action API because the IAB file chooser did not trigger; actual UI file selection and compression remain unverified on the installed host.",
+    "Successful retries after a provider recovery are covered by earlier simulation tests, not this live malformed-image test.",
+    "Synthetic fixtures do not establish real-photo accuracy.",
+    "Haiku/Gemini were verified separately through the gateway and installed adapter; this platform workflow used the already configured gpt-6-luna."
+  ]
+}
