@@ -5,16 +5,18 @@ import { ContentResourceProvider, ContentEditorProvider, ArtifactsRuntimeCapabil
   type ContentCatalogProvider, type ContentDocumentScope, type ContentSourceInput, type ContentResourceRequest, type IContentResourceProvider } from '@xpert-ai/plugin-sdk'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { dashboardSearchProjection } from './dashboard-search'
+import { DASHBOARD_CONTENT_TYPE } from './content-type'
+import { dashboardIcon } from './dashboard-icon'
 
 export const DASHBOARD_CONTENT_PROVIDER = 'live-dashboard.content'
-const MODEL = { typeId: 'xpert.live-dashboard', modelId: 'live-dashboard.manifest', schemaVersion: '1', editProtocol: { id: 'artifact-draft.cas', version: '1' } }
+const MODEL = { typeId: DASHBOARD_CONTENT_TYPE, modelId: 'live-dashboard.manifest', schemaVersion: '1', editProtocol: { id: 'artifact-draft.cas', version: '1' } }
 const EDITOR = 'live-dashboard.editor'
 const context = (scope: ContentDocumentScope): XpertResolvedViewHostContext => ({ ...scope.actor, hostType: 'project', hostId: scope.projectId, slots: [] })
 @Injectable()
 @ContentEditorProvider(EDITOR)
 export class DashboardContentEditor {
   readonly descriptor: ResourceContentEditorRegistration = { kind: 'resource', protocolVersion: 2, key: EDITOR, title: 'Live Dashboard',
-    view: { providerKey: 'live-dashboard', viewKey: 'live-dashboard', entry: 'live-dashboard' }, supports: [{ ...MODEL, access: ['view', 'edit'] }] }
+    view: { providerKey: 'live-dashboard', viewKey: 'dashboard', entry: 'dashboard' }, supports: [{ ...MODEL, access: ['view', 'edit'] }] }
 }
 @Injectable()
 @ContentResourceProvider(DASHBOARD_CONTENT_PROVIDER)
@@ -22,7 +24,7 @@ export class DashboardContentProvider implements IContentResourceProvider {
   readonly title = 'Live Dashboard'
   constructor(private readonly service: DashboardService, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   readonly catalog: ContentCatalogProvider = {
-    types: [{ ...MODEL, title: { en_US: 'Live dashboards', zh_Hans: '实时看板' }, implementationKey: 'live-dashboard',
+    types: [{ ...MODEL, icon: dashboardIcon, title: { en_US: 'Live dashboards', zh_Hans: '实时看板' }, implementationKey: 'live-dashboard',
       implementationTitle: { en_US: 'Live Dashboard', zh_Hans: '实时看板' }, defaultEditorKey: EDITOR }],
     discover: async scope => {
       await this.service.authorizeProject(context(scope))

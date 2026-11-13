@@ -1,7 +1,8 @@
 import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
-import { outputDelivery, taskResult } from './task-result.js'
+import { withProjectWorkspaceContext } from './project-workspace.js'
+import { outputDelivery, resolveTaskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -119,7 +120,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       'POST',
       {
         messageID: handle.runId,
-        parts: [{ type: 'text', text: agentPrompt(request.input) }]
+        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner),
+          Boolean(runner && context.capabilities.require(AgentExecutionRunnerCapability).readTaskResultFile)) }]
       },
       context,
       handle
@@ -142,6 +144,15 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         }
       }
       const process = await runner.inspect(handle.runner)
+      if (process.state === 'exited') {
+        const controlEvidence = runnerCompletion(context, handle, 'failed', process.completion)
+        return {
+          status: controlEvidence ? 'failed' : 'unknown',
+          handle,
+          error: 'The OpenCode runner exited before a verifiable task result was recorded.',
+          controlEvidence
+        }
+      }
       if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
     }
     let messages: z.infer<typeof Message>[]
@@ -258,13 +269,13 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       message.info.parentID === handle.runId &&
       message.info.time?.completed !== undefined
     ) {
-      if (message.info.error) return this.result(handle, message)
+      if (message.info.error) return this.result(handle, message, context)
       if (
         message.info.finish &&
         !['tool-calls', 'unknown'].includes(message.info.finish) &&
         !message.parts.some((part) => part.type === 'tool' && !part.metadata?.providerExecuted)
       ) {
-        return this.result(handle, message)
+        return this.result(handle, message, context)
       }
     }
     return { status: 'unknown', handle }
@@ -325,24 +336,37 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     return profile
   }
 
-  private result(handle: AgentRuntimeHandle, message: z.infer<typeof Message>): AgentRuntimeObservation {
-    return message.info.error
-      ? { status: 'failed', handle, error: 'OpenCode execution failed' }
-      : {
-          status: 'succeeded',
-          handle,
-          result: {
-            ...taskResult(
-              message.parts
-                .filter((part) => part.type === 'text')
-                .map((part) => part.text ?? '')
-                .join('')
-                .slice(-2 * 1024 * 1024),
-              outputDelivery(handle.metadata?.delivery)
-            ),
-            ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
-          }
+  private async result(
+    handle: AgentRuntimeHandle,
+    message: z.infer<typeof Message>,
+    context?: AgentRuntimeContext
+  ): Promise<AgentRuntimeObservation> {
+    if (message.info.error) return { status: 'failed', handle, error: 'OpenCode execution failed' }
+    const receipt = handle.runner
+    const runner = receipt && context?.capabilities.require(AgentExecutionRunnerCapability)
+    try {
+      return {
+        status: 'succeeded',
+        handle,
+        result: {
+          ...(await resolveTaskResult(
+            message.parts
+              .filter((part) => part.type === 'text')
+              .map((part) => part.text ?? '')
+              .join(''),
+            outputDelivery(handle.metadata?.delivery),
+            runner?.readTaskResultFile ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined,
+            2 * 1024 * 1024
+          )),
+          ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
         }
+      }
+    } catch {
+      return {
+        status: 'failed', handle,
+        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
+      }
+    }
   }
 
   private async http(

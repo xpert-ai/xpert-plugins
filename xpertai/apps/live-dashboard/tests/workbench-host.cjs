@@ -13,7 +13,8 @@ const hostType = process.env.DASHBOARD_HOST_TYPE ?? 'agent'
 if (!['agent', 'project'].includes(hostType)) throw Error('Unsupported fixture host')
 const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType, hostId: randomUUID(), slots: [] }
 const projects = Array.from({ length: 25 }, (_, index) => ({ projectId: randomUUID(), name: `项目 ${String(index + 1).padStart(2, '0')} · 项目名称很长时也应保持完整的布局与清晰的选择`, role: 'owner', canManage: true, archived: false }))
-scope.runtimeScope = { projectId: projects[0].projectId }
+scope.runtimeScope = { projectId: projects[0].projectId, ...(process.env.DASHBOARD_FIXTURE_SHARED === 'true' ? { conversationId: randomUUID() } : {}) }
+const shared = { resource: { kind: 'group-reference', id: randomUUID() }, title: '库存透视 · 授权共享看板', typeId: 'xpert.live-dashboard', projectId: projects[0].projectId, publication: { versionId: randomUUID(), versionNumber: 1, expiresAt: '2099-01-01T00:00:00Z' }, access: { canOpen: true, canEdit: false, analysis: 'none' } }
 function projectAccess({ actor, projectId }) {
   const project = projects.find(item => item.projectId === projectId)
   if (!project || actor.tenantId !== scope.tenantId || actor.organizationId !== scope.organizationId || actor.userId !== scope.userId) throw Error('PROJECT_ACCESS_DENIED')
@@ -26,6 +27,20 @@ const manifest = require('../examples/postgres-sales.json')
 const source = { source: manifest.bindings[0].source, name: 'Acceptance sales', providers: [{ id: manifest.bindings[0].providerId, operations: [{ name: manifest.bindings[0].operation, contractVersion: 1 }] },
   { id: 'private-provider', operations: [], sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
+  'platform.content.resources': { discovery: { async list(input, query) {
+    const items = []
+    if (query.origin !== 'shared') {
+      const context = { ...scope, hostType: 'project', hostId: input.projectId, runtimeScope: undefined }
+      const page = await service.listPage(context, 1, 100)
+      items.push(...page.items.map(dashboard => ({ resource: { kind: 'project-content', id: dashboard.artifactId }, title: dashboard.title,
+        projectId: input.projectId, typeId: 'xpert.live-dashboard', contentSource: { providerKey: 'live-dashboard.content', resourceId: dashboard.artifactId }, access: { canOpen: true, canEdit: true, analysis: 'none' } })))
+    }
+    const sharedAvailable = !!input.conversationId && input.projectId === shared.projectId
+    if (sharedAvailable && query.origin !== 'project') items.push(shared)
+    const filtered = items.filter(item => !query.search || item.title.includes(query.search))
+    const offset = Number(query.cursor ?? 0), end = offset + query.limit
+    return { items: filtered.slice(offset, end), nextCursor: filtered.length > end ? String(end) : null, sharedAvailable }
+  } } },
   'platform.project.access': {
     async listReadable({ projectIds }) { return projects.filter(item => !projectIds || projectIds.includes(item.projectId)) },
     async assertAssistant(input) { if (input.assistantId !== scope.hostId) throw Error('ASSISTANT_DENIED'); return projectAccess(input) },
@@ -117,7 +132,7 @@ function send(message){frame.contentWindow.postMessage({channel:'xpertai.remote_
 window.addEventListener('message',async event=>{if(event.source!==frame.contentWindow||event.origin!=='null'||event.data.channel!=='xpertai.remote_component')return;const message=event.data;
 if(message.type==='ready'){send({type:'init',locale:'zh-Hans',theme:{mode:'light',density:'default',tokens:{}},manifest:{},payload:{}});return}
 if(message.instanceId!==instanceId||!['requestData','executeAction','invokeClientCommand','executeFileAction','requestFileAccess'].includes(message.type))return;
-try{if(message.file?.buffer)message.file.bytes=Array.from(new Uint8Array(message.file.buffer));const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(message.commandKey==='workbench.navigation.open')send({type:'init',locale:'zh-Hans',initialQuery:{selectionId:message.payload.selectionId,parameters:message.payload.parameters}});if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
+try{if(message.file?.buffer)message.file.bytes=Array.from(new Uint8Array(message.file.buffer));const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(message.commandKey==='workbench.navigation.open' && (message.payload.target==='assistant.project' || message.payload.viewKey==='live-dashboard__live-dashboard'))send({type:'init',locale:'zh-Hans',initialQuery:{selectionId:message.payload.selectionId,parameters:message.payload.parameters}});if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
 </script></body></html>`
 const server = http.createServer(async (request, response) => {
   try {
@@ -133,6 +148,14 @@ const server = http.createServer(async (request, response) => {
       for await (const chunk of request) { size += chunk.length; if (size > 20_000_000) throw new Error('Too large'); chunks.push(chunk) }
       const message = JSON.parse(Buffer.concat(chunks).toString())
       if (message.type === 'invokeClientCommand') {
+        if (message.commandKey === 'workbench.content.resolve') {
+          if (!artifacts.has(message.payload.resourceId)) throw Error('Unknown content')
+          response.end(JSON.stringify({ success: true, navigation: { target: 'workbench.view', viewKey: 'live-dashboard__dashboard', selectionId: message.payload.resourceId, parameters: { contentId: message.payload.resourceId } } })); return
+        }
+        if (message.commandKey === 'workbench.resource.open') {
+          if (message.payload.kind !== 'group-reference' || message.payload.id !== shared.resource.id || scope.runtimeScope.projectId !== shared.projectId) throw Error('Unknown group reference')
+          receipts.navigation.push(message.payload); response.end(JSON.stringify({ success: true })); return
+        }
         if (message.commandKey === 'workbench.navigation.open') {
           const target = message.payload
           if (target.target === 'assistant.project' && projects.some(item => item.projectId === target.projectId)) scope.runtimeScope.projectId = target.projectId

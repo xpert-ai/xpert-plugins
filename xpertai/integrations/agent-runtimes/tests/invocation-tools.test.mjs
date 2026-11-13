@@ -38,11 +38,11 @@ test('automatic delegation exposes lifecycle tools without leaking ownership or 
   const started = JSON.parse(await f.tools[0].invoke({ prompt: 'work' }, config))
   assert.equal(started.invocationId, id)
   assert.equal(f.calls.length, 1)
-  const status = JSON.parse(await f.tools[1].invoke({ taskIds: [id], timeoutMs: 0 }, config)).tasks[0]
+  const status = JSON.parse(await f.tools[1].invoke({ taskIds: [started.invocationId], timeoutMs: 0 }, config)).tasks[0]
   assert.equal(status.taskId, id)
   assert.equal(status.scope, undefined)
   assert.equal(status.request, undefined)
-  const cancellation = JSON.parse(await f.tools[2].invoke({ taskId: id }))
+  const cancellation = JSON.parse(await f.tools[2].invoke({ taskId: started.invocationId }))
   assert.equal(cancellation.status, 'cancelling')
 })
 test('auto forwards the chosen duration and task_status injects host identity and a bounded default', async () => {
@@ -126,6 +126,8 @@ test('launch, status and cancel receipts expose typed results without adapter da
     JSON.parse(await f.tools[2].invoke({ taskId: id }, config))
   ]
   for (const receipt of receipts) {
+    assert.equal(receipt.invocationId, id)
+    assert.equal(receipt.taskId, id)
     assert.deepEqual(receipt.result, publicResult)
     assert.equal(receipt.scope, undefined)
     assert.equal(receipt.request, undefined)

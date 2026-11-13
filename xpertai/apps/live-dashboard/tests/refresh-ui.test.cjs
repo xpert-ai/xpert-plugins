@@ -84,6 +84,8 @@ async function setup(t, stage = 'edited', html = false) {
         if (key === '@xpert-ai/plugin-shadcn-ui/i18n') return i18nUi
         if (key === '@xpert-ai/plugin-sdk/artifact-document') return { installArtifactDocumentFramePolicy() {} }
         if (key === 'react-dom/client') return { createRoot: element => { root = uiRequire('react-dom/client').createRoot(element); return root } }
+        if (key === './open-dashboard-tab') return load('open-dashboard-tab.ts')
+        if (key === './library-app') return { LibraryApp: () => null }
         if (key === './bridge') return load('bridge.ts')
         if (key === '@xpert-ai/plugin-shadcn-ui/theme') return { installShadcnThemeVars() {} }
         if (key.endsWith('.css')) return {}

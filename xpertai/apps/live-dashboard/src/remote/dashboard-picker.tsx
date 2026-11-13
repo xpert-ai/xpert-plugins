@@ -1,11 +1,13 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
-import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, Check, Plus, Trash2, Badge, Button, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@xpert-ai/plugin-shadcn-ui'
+import { buttonVariants, cn, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger, ChevronDown, ChevronRight, Check, Plus, Trash2, Button, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardProjectSchema, dashboardProjectsSchema } from '../lib/projects.schema'
 import { dashboardPickerPageSchema } from '../lib/dashboard-view.schema'
 import type { DashboardMode } from '../lib/project'
 import { usePickerItems } from './picker-data'
 import { i18n, type messages } from './i18n'
+import { DashboardStatusBadge } from './dashboard-status-badge'
+import { DiscoveredDashboardColumn } from './discovered-dashboard-column'
 
 type Project = z.infer<typeof dashboardProjectSchema>
 type Messages = ReturnType<typeof messages>
@@ -62,7 +64,7 @@ function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, 
               <CommandItem value={item.artifactId} data-current={item.artifactId === value}
                 className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
                 <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>
-                <Badge variant={item.isDraft || item.isEmpty ? 'outline' : 'secondary'}>{item.isEmpty ? t.unsaved : item.isDraft ? t.draft : item.versionNumber != null ? i18n.t('publishedVersion', { version: item.versionNumber }) : t.published}</Badge>
+                <DashboardStatusBadge item={item} t={t}/>
                 {item.artifactId === value && <Check aria-hidden="true"/>}
               </CommandItem>
               {onDelete && item.canDelete && !!item.draftRevision && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
@@ -84,9 +86,10 @@ function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, 
   </section>
 }
 
-function PickerColumns({ project, value, disabled, onChange, onNew, onDelete, t }: {
+function PickerColumns({ project, value, disabled, onChange, onShared, onNew, onDelete, t }: {
   project: Project | null; value: string; disabled: boolean; onChange: (id: string, projectId?: string, mode?: DashboardMode) => void;
   onNew?: (projectId?: string) => void; onDelete?: (dashboard: Dashboard, projectId?: string) => void; t: Messages
+  onShared: (referenceId: string) => void
 }) {
   const [preview, setPreview] = React.useState(project)
   const [tab, setTab] = React.useState(project ? 'dashboards' : 'projects')
@@ -98,17 +101,20 @@ function PickerColumns({ project, value, disabled, onChange, onNew, onDelete, t 
       <ProjectColumn project={project} preview={preview} disabled={disabled} onPreview={setPreview} onSelect={item => { setPreview(item); setTab('dashboards') }} t={t}/>
     </TabsContent>
     <TabsContent value="dashboards" forceMount className="picker-pane">
-      <DashboardColumn key={preview?.id ?? 'personal'} project={preview} value={preview?.id === project?.id ? value : ''} disabled={disabled}
-        onChange={(id, mode) => onChange(id, preview?.id, mode)} onNew={onNew ? () => onNew(preview?.id) : undefined}
-        onDelete={onDelete ? item => onDelete(item, preview?.id) : undefined} t={t}/>
+      {preview ? <DiscoveredDashboardColumn key={preview.id} projectId={preview.id} value={preview.id === project?.id ? value : ''} disabled={disabled}
+        onChange={(id, mode) => onChange(id, preview.id, mode)} onShared={onShared} onNew={onNew ? () => onNew(preview.id) : undefined}
+        onDelete={onDelete ? item => onDelete(item, preview.id) : undefined} t={t}/> : <DashboardColumn project={preview} value={value} disabled={disabled}
+        onChange={(id, mode) => onChange(id, undefined, mode)} onNew={onNew ? () => onNew() : undefined}
+        onDelete={onDelete ? item => onDelete(item) : undefined} t={t}/>}
     </TabsContent>
   </Tabs></TooltipProvider>
 }
 
-export function DashboardPicker({ value, selectedTitle, project, disabled, open, onOpenChange, onChange, onNew, onDelete, t }: {
+export function DashboardPicker({ value, selectedTitle, project, disabled, open, onOpenChange, onChange, onShared, onNew, onDelete, t }: {
   value: string; selectedTitle?: string | null; project: Project | null; disabled: boolean; open: boolean;
   onOpenChange: (open: boolean) => void; onChange: (id: string, projectId?: string, mode?: DashboardMode) => void;
   onNew?: (projectId?: string) => void; onDelete?: (dashboard: Dashboard, projectId?: string) => void; t: Messages
+  onShared: (referenceId: string) => void
 }) {
   const contentId = React.useId()
   const title = selectedTitle ?? (value || t.select)
@@ -119,7 +125,7 @@ export function DashboardPicker({ value, selectedTitle, project, disabled, open,
       <span className="picker-dashboard truncate font-medium">{title}</span><ChevronDown className="shrink-0 opacity-50" aria-hidden="true"/>
     </PopoverTrigger>
     <PopoverContent id={contentId} aria-label={t.selectProjectDashboard} align="start" collisionPadding={12} className="dashboard-picker-menu p-0">
-      <PickerColumns key={project?.id ?? 'personal'} project={project} value={value} disabled={disabled} onChange={onChange} onNew={onNew} onDelete={onDelete} t={t}/>
+      <PickerColumns key={project?.id ?? 'personal'} project={project} value={value} disabled={disabled} onChange={onChange} onShared={onShared} onNew={onNew} onDelete={onDelete} t={t}/>
     </PopoverContent>
   </Popover>
 }

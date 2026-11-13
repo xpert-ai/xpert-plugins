@@ -47,6 +47,7 @@ async function setup(t) {
         if (id === 'react') return React
         if (id === '@xpert-ai/plugin-shadcn-ui') return ui
         if (id === '@xpert-ai/plugin-shadcn-ui/i18n') return i18nUi
+        if (id === './group-grant-panel') return { GroupGrantPanel: () => null }
         if (id === './i18n') return load('i18n.ts')
         if (id.startsWith('./locales/')) return require(`../src/remote/${id}`)
         if (id === './bridge') return { requestHost: async (kind, request) => {

@@ -5,6 +5,8 @@ import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, Dialog
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@xpert-ai/plugin-shadcn-ui'
 import { requestHost } from './bridge'
 import { messages } from './i18n'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@xpert-ai/plugin-shadcn-ui'
+import { GroupGrantPanel } from './group-grant-panel'
 
 const stateSchema = z.object({ published: z.object({ versionId: z.string(), versionNumber: z.number(), title: z.string().nullish() }).nullable(),
   issues: z.array(z.object({ code: z.string(), bindingId: z.string().optional() })),
@@ -13,6 +15,7 @@ const responseSchema = z.object({ success: z.literal(true), data: stateSchema })
 type Props = { artifactId: string; versionId?: string; versions: Array<{ versionId?: string | null; versionNumber?: number }>; t: ReturnType<typeof messages>; onClose(): void }
 
 export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Props) {
+  const [tab, setTab] = React.useState('link')
   const [state, setState] = React.useState<z.infer<typeof stateSchema> | null>(null)
   const [mode, setMode] = React.useState<'latest' | 'version'>('latest')
   const [selected, setSelected] = React.useState(versionId ?? versions[0]?.versionId ?? '')
@@ -62,7 +65,10 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
     code === 'ANALYTICS_DEFINITION_PRIVATE' ? t.publishDefinitionAudience :
     code === 'DASHBOARD_PRIVATE_DEPENDENCY' ? t.privateDependencies : t.sourceUnavailable
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
-    <DialogContent><DialogHeader><DialogTitle>{t.share}</DialogTitle><DialogDescription>{t.shareHint}</DialogDescription></DialogHeader>
+    <DialogContent className="w-[min(42rem,calc(100%-2rem))] max-h-[85dvh] overflow-y-auto sm:max-w-[42rem]"><DialogHeader><DialogTitle>{t.share}</DialogTitle><DialogDescription>{t.shareHint}</DialogDescription></DialogHeader>
+      <Tabs value={tab} onValueChange={setTab}><TabsList><TabsTrigger value="group">{t.groupGrantTitle}</TabsTrigger><TabsTrigger value="link">{t.shareLink}</TabsTrigger></TabsList>
+      <TabsContent value="group"><GroupGrantPanel artifactId={artifactId} versionId={versionId} versions={versions} t={t}/></TabsContent>
+      <TabsContent value="link">
       <div className="grid gap-4 py-2">
         <label className="grid gap-2 text-sm">{t.shareVersion}
           <Select value={mode} disabled={busy} onValueChange={value => setMode(value === 'version' ? 'version' : 'latest')}>
@@ -98,6 +104,7 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
         <Button variant="outline" disabled={busy} onClick={onClose}>{t.cancel}</Button>
         <Button disabled={busy || !state || !!state.issues.length || !!matches} onClick={() => void request('share')}>{link ? t.updateShare : t.enableShare}</Button>
       </DialogFooter>
+      </TabsContent></Tabs>
     </DialogContent>
   </Dialog>
 }

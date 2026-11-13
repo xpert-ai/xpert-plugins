@@ -27,8 +27,9 @@ async function setup(t) {
   let root, ready, created, scopeReset, rejectDelete = false, releaseDelete, holdOpen = false, releaseOpen
   const calls = [], navigation = [], selections = [], assistantRequests = [], viewRequests = []
   const projects = [{ id: randomUUID(), name: 'Project A' }, { id: randomUUID(), name: 'Project B' }]
-  let currentProject = projects[0], navigationSuccess = true
+  let currentProject = projects[0], navigationSuccess = true, projectContextVisible = true
   const projectNavigation = []
+  let surface = 'legacy'
   let viewMode = 'draft'; const versionId = randomUUID()
   const items = [1, 2].map(n => ({ artifactId: randomUUID(), title: `Dashboard ${n}`, draftRevision: n,
     canDelete: true, isDraft: true, updatedAt: `2026-10-2${n}T01:00:00Z`,
@@ -37,7 +38,7 @@ async function setup(t) {
   const pickerRequests = []
   const bridge = {
     startBridge: (callback, onCreated, onReset) => { ready = callback; created = onCreated; scopeReset = onReset; return () => {} },
-    onPrepareClose: () => () => {}, isViewVisible: () => true,
+    onPrepareClose: () => () => {}, isViewVisible: () => true, isWorkbenchPresentation: () => surface === 'shared', captureViewScope: () => () => {},
     selectDashboard: async target => { selections.push(target) },
     navigateDashboard: async (_target, id) => { navigation.push(id) },
     requestHost: async (kind, request) => {
@@ -46,7 +47,7 @@ async function setup(t) {
         const id = request.query.parameters.artifactId
         const mode = request.query.parameters.mode ?? viewMode
         const saved = dashboards.find(item => item.artifactId === id) ?? dashboards[0]
-        const response = { meta: { currentProject, dashboards: excludeSelected ? dashboards.filter(item => item.artifactId !== id) : dashboards, selectedDashboard: id ? saved : undefined, sources: [], access: { project: false, canEdit: true, canManage: true, canReadDraft: true, archived: false }, mode, navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
+        const response = { meta: { currentProject: projectContextVisible ? currentProject : undefined, dashboards: excludeSelected ? dashboards.filter(item => item.artifactId !== id) : dashboards, selectedDashboard: id ? saved : undefined, sources: [], access: { project: surface !== 'legacy', canEdit: true, canManage: true, canReadDraft: true, archived: false }, mode, navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
           ...(id || dom.window.__DASHBOARD_READ_ONLY__ ? { saved: mode === 'published' ? { ...saved, isDraft: false, versionId, versionNumber: 1, draftRevision: undefined } : saved, versions: [] } : {}) } }
         if (holdOpen) {
           holdOpen = false
@@ -54,19 +55,26 @@ async function setup(t) {
         }
         return response
       }
+      if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.content.resolve') return { success: true, navigation: { target: 'workbench.view', viewKey: 'live-dashboard__dashboard', selectionId: request.payload.resourceId, parameters: { contentId: request.payload.resourceId } } }
       if (kind === 'invokeClientCommand' && request.commandKey === 'workbench.navigation.open') { projectNavigation.push(request.payload); return { success: navigationSuccess } }
-      if (kind === 'invokeClientCommand' && request.commandKey === 'assistant.chat.send_message') { assistantRequests.push({ ...request.payload, selection: selections.at(-1), projectId: currentProject.id }); return { success: true } }
-      if (kind === 'executeAction' && ['projects', 'dashboards'].includes(request.actionKey)) {
+      if (kind === 'invokeClientCommand' && request.commandKey === 'assistant.chat.send_message') { assistantRequests.push({ ...request.payload, selection: selections.at(-1), projectId: projectContextVisible ? currentProject.id : undefined }); return { success: true } }
+      if (kind === 'executeAction' && ['projects', 'dashboards', 'available-dashboards'].includes(request.actionKey)) {
         pickerRequests.push(request)
-        const {search, page} = request.input
+        const { search } = request.input
+        const page = request.input.page ?? (Number(request.input.cursor ?? 0) / 20 + 1)
         const source = request.actionKey === 'projects' ? pickerProjects ?? projects : pickerDashboards ?? dashboards
         const matches = source.filter(item => `${item.name ?? item.title ?? ''}`.toLowerCase().includes(search.toLowerCase()))
-        if (request.actionKey === 'dashboards' && page === failedPage) { failedPage = undefined; throw Error('OFFLINE') }
+        if (request.actionKey !== 'projects' && page === failedPage) { failedPage = undefined; throw Error('OFFLINE') }
         const result = { success: true, data: { items: matches.slice((page - 1) * 20, page * 20), page, hasMore: matches.length > page * 20, canEdit: true, mode: 'draft' } }
-        if (request.actionKey === 'dashboards' && search === heldSearch) {
+        if (request.actionKey !== 'projects' && search === heldSearch) {
           heldSearch = undefined
           await new Promise(resolve => { releasePicker = resolve })
         }
+        if (request.actionKey === 'available-dashboards') return { success: true, data: {
+          ...result.data, sharedAvailable: true, nextCursor: result.data.hasMore ? String(page * 20) : null,
+          items: result.data.items.map(dashboard => ({ resource: { kind: 'project-content', id: dashboard.artifactId }, title: dashboard.title,
+            projectId: request.input.projectId, access: { canOpen: true, canEdit: true, analysis: 'none' }, dashboard }))
+        } }
         return result
       }
       if (kind === 'executeAction') {
@@ -97,14 +105,20 @@ async function setup(t) {
         if (id === '@xpert-ai/plugin-sdk/artifact-document') return { installArtifactDocumentFramePolicy() {} }
         if (id === 'react-dom/client') return { createRoot: element => { root = createRoot(element); return root } }
         if (id === './bridge') return bridge
+        if (id === './open-dashboard-tab') return load('open-dashboard-tab.ts')
         if (id.endsWith('.css')) return {}
         if (id === './html-dashboard') return { HtmlDashboard: React.forwardRef(() => null) }
         if (id === './standard-dashboard') return { StandardDashboard: () => null }
         if (['./sources-panel', './import-dialog', './import-targets'].includes(id)) return load(id.slice(2) + '.tsx')
+        if (id === './library-app') return { LibraryApp: () => null }
+        if (id === './library-gateway') return load('library-gateway.ts')
         if (id === './share-dialog') return { ShareDialog: () => null }
         if (id === './viewer-controls') return { ViewerControls: ({ children }) => children }
         if (id === './i18n') return load('i18n.ts')
         if (id === './toolbar-menu') return load('toolbar-menu.tsx')
+        if (id === './discovered-dashboard-column') return load('discovered-dashboard-column.tsx')
+        if (id === './dashboard-discovery-data') return load('dashboard-discovery-data.ts')
+        if (id === './dashboard-status-badge') return load('dashboard-status-badge.tsx')
         if (id === './dashboard-picker') return load('dashboard-picker.tsx')
         if (id === './save-progress') return load('save-progress.ts')
         if (id === './picker-data') return load('picker-data.ts')
@@ -125,17 +139,20 @@ async function setup(t) {
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }
     delete globalThis.ResizeObserver; delete globalThis.IS_REACT_ACT_ENVIRONMENT
   })
-  async function reset(readOnly = false, mode = 'draft', outsideFirstPage = false) {
+  async function reset(readOnly = false, mode = 'draft', outsideFirstPage = false, requestedSurface = 'legacy', personalScope = false) {
+    surface = requestedSurface
+    projectContextVisible = !personalScope
+    dom.window.__DASHBOARD_SINGLE__ = surface === 'document'
     excludeSelected = outsideFirstPage
     viewMode = mode
     await act(async () => root?.unmount())
-    modules.clear(); dashboards = [...items]; calls.length = 0; navigation.length = 0; selections.length = 0
+    modules.clear(); dashboards = [...items]; calls.length = 0; navigation.length = 0; selections.length = 0; assistantRequests.length = 0
     pickerProjects = undefined; pickerDashboards = undefined; pickerRequests.length = 0; heldSearch = undefined; failedPage = undefined
     rejectDelete = false; holdOpen = false; releaseOpen = undefined; currentProject = projects[0]; projectNavigation.length = 0; navigationSuccess = true; viewRequests.length = 0
     dom.window.__DASHBOARD_READ_ONLY__ = readOnly
     document.body.innerHTML = '<div id="root"></div>'
     await act(async () => load('main.tsx'))
-    await act(async () => ready('en-US', readOnly ? {} : { selectionId: items[0].artifactId }))
+    await act(async () => ready('en-US', readOnly || personalScope ? {} : { selectionId: items[0].artifactId }))
     await flush()
   }
   return { reset, projects, projectNavigation, pickerRequests, assistantRequests,
@@ -176,7 +193,7 @@ test('dashboard deletion UI', async t => {
       { artifactId: randomUUID(), title: 'Published only', isDraft: false, versionNumber: 2 }
     ])
     await harness.click(harness.picker())
-    const rows = [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')]
+    const rows = [...document.querySelectorAll('section[aria-label="Available dashboards"] [role=option]')]
     assert.deepEqual(rows.map(row => row.querySelector('[data-slot=badge]').textContent),
       ['Working draft', 'Published v3', 'Working draft', 'Published v2'])
     assert.equal(rows[0].getAttribute('aria-current'), 'true')
@@ -207,20 +224,35 @@ test('dashboard deletion UI', async t => {
     assert.equal(harness.selections.at(-1).versionId, harness.versionId)
     assert.doesNotMatch(document.querySelector('header').textContent, /Updated r6/)
   })
-  await t.test('new-dashboard examples clear the previous edit target and send a request in the current project', async () => {
+  await t.test('new-dashboard Assistant action clears the previous edit target and retains the current project', async () => {
     await harness.reset()
     await harness.click(harness.picker())
     await harness.click(harness.button('New dashboard'))
-    assert.deepEqual([...document.querySelectorAll('button[aria-label^="Try demo:"]')].map(button => button.getAttribute('aria-label')), [
-      'Try demo: Regional sales · Beginner', 'Try demo: Sales overview · Beginner',
-      'Try demo: Production quality · Beginner', 'Try demo: Superstore enterprise BI · Advanced'
-    ])
-    await harness.click(harness.button('Try demo: Sales overview · Beginner'))
+    assert.match(document.body.textContent, /Choose data to start your dashboard/)
+    assert.match(document.body.textContent, /Template library/)
+    await harness.click(harness.button('Analyze with Assistant'))
     assert.equal(harness.assistantRequests.at(-1).selection, null)
     assert.equal(harness.assistantRequests.at(-1).projectId, harness.projects[0].id)
-    assert.match(harness.assistantRequests.at(-1).text, /sales-overview.*bundled demo file/)
-    assert.match(harness.assistantRequests.at(-1).text, /two filter checks.*without publishing/)
-    assert.equal(harness.calls.length, 0, 'starting an example does not save or publish a dashboard directly')
+    assert.match(harness.assistantRequests.at(-1).text, /data/)
+    assert.equal(harness.calls.length, 0, 'starting analysis does not save or publish a dashboard directly')
+  })
+  await t.test('personal-scope starter opens each library without sending and reports navigation failures', async () => {
+    await harness.reset(false, 'draft', false, 'legacy', true)
+    assert.match(document.body.textContent, /Choose data to start your dashboard/)
+    const buttons = [...document.querySelectorAll('[data-slot=card] button')]
+    assert.equal(buttons.length, 3)
+    for (const [index, page] of ['data', 'templates', 'explore'].entries()) {
+      await harness.click(buttons[index])
+      assert.deepEqual(JSON.parse(JSON.stringify(harness.projectNavigation.at(-1))), {
+        target: 'workbench.view', viewKey: `live-dashboard-library__${page}`, parameters: {}
+      })
+    }
+    assert.equal(harness.assistantRequests.length, 0)
+    assert.equal(harness.calls.length, 0)
+    harness.failNavigation()
+    await harness.click(buttons[0])
+    assert.match(document.querySelector('[role=alert]').textContent, /DASHBOARD_NAVIGATION_FAILED/)
+    assert.ok(buttons.every(button => !button.disabled))
   })
   await t.test('project preview loads its dashboards and commits navigation only after choosing a dashboard', async () => {
     await harness.reset()
@@ -231,7 +263,7 @@ test('dashboard deletion UI', async t => {
     await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Project B'))
     assert.equal(harness.projectNavigation.length, 0)
     assert.equal(harness.pickerRequests.at(-1).input.projectId, harness.projects[1].id)
-    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
+    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 2'))
     assert.equal(harness.projectNavigation.at(-1).projectId, harness.projects[1].id)
     assert.equal(harness.projectNavigation.at(-1).target, 'assistant.project')
     assert.equal(harness.projectNavigation.at(-1).selectionId, harness.items[1].artifactId)
@@ -247,7 +279,7 @@ test('dashboard deletion UI', async t => {
     await harness.reset(); harness.failNavigation()
     await harness.click(harness.picker())
     await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.textContent === 'Project B'))
-    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
+    await harness.click([...document.querySelectorAll('[role="option"]')].find(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 2'))
     assert.match(document.querySelector('[role="alert"]').textContent, /Could not switch project/)
     assert.match(harness.picker().textContent, /Dashboard 1/)
     assert.match(harness.picker().textContent, /Project A/)
@@ -273,7 +305,7 @@ test('dashboard deletion UI', async t => {
     assert.doesNotMatch(document.querySelector('header').textContent, /Editing Dashboard/)
     assert.match(document.querySelector('header').textContent, /Draft r1/)
     await harness.click(harness.picker())
-    assert.ok(document.querySelector('input[placeholder="Search dashboards…"]'))
+    assert.ok(document.querySelector('input[placeholder="Search available dashboards…"]'))
     assert.ok(harness.button('New dashboard'))
     await harness.click(harness.button('New dashboard'))
     assert.match(harness.picker().textContent, /Project A/)
@@ -290,30 +322,30 @@ test('dashboard deletion UI', async t => {
     harness.setPickerFixtures(projects, dashboards)
     await harness.click(harness.picker())
     assert.ok(document.querySelector('section[aria-label="Project"] input[aria-label="Search projects"]'))
-    assert.ok(document.querySelector('section[aria-label="Dashboards"] input[aria-label="Search dashboards…"]'))
+    assert.ok(document.querySelector('section[aria-label="Available dashboards"] input[aria-label="Search available dashboards…"]'))
     assert.match(document.querySelector('[data-current=true]').textContent, /Project A/)
     assert.equal(document.querySelector('[data-current=true]').getAttribute('aria-current'), 'true')
     assert.match(document.querySelector('section[aria-label=Project] [aria-selected=true]').textContent, /Project A/)
     const count = label => document.querySelectorAll(`section[aria-label="${label}"] [role=option]`).length
-    assert.equal(count('Project'), 20); assert.equal(count('Dashboards'), 20)
+    assert.equal(count('Project'), 20); assert.equal(count('Available dashboards'), 20)
     assert.equal(harness.button('Next page'), undefined)
-    await harness.fill('Search dashboards…', 'Board 22')
-    assert.equal(count('Dashboards'), 1, 'search finds an item from a page that has never been loaded')
-    await harness.fill('Search dashboards…', '')
+    await harness.fill('Search available dashboards…', 'Board 22')
+    assert.equal(count('Available dashboards'), 1, 'search finds an item from a page that has never been loaded')
+    await harness.fill('Search available dashboards…', '')
     await harness.scrollBottom('Project')
-    assert.equal(count('Project'), 22); assert.equal(count('Dashboards'), 20)
-    await harness.scrollBottom('Dashboards')
-    assert.equal(count('Dashboards'), 23)
+    assert.equal(count('Project'), 22); assert.equal(count('Available dashboards'), 20)
+    await harness.scrollBottom('Available dashboards')
+    assert.equal(count('Available dashboards'), 23)
     const before = harness.pickerRequests.length
-    await harness.scrollBottom('Dashboards')
+    await harness.scrollBottom('Available dashboards')
     assert.equal(harness.pickerRequests.length, before, 'the final page never refetches')
-    await harness.fill('Search dashboards…', 'Board 22')
-    assert.equal(count('Dashboards'), 1); assert.equal(count('Project'), 22)
-    assert.equal(harness.pickerRequests.at(-1).input.page, 1)
-    assert.equal(document.querySelector('section[aria-label="Dashboards"] [role=option] .truncate').textContent, 'Board 22')
+    await harness.fill('Search available dashboards…', 'Board 22')
+    assert.equal(count('Available dashboards'), 1); assert.equal(count('Project'), 22)
+    assert.equal(harness.pickerRequests.at(-1).input.cursor, undefined)
+    assert.equal(document.querySelector('section[aria-label="Available dashboards"] [role=option] p').textContent, 'Board 22')
     await harness.fill('Search projects', 'Project B')
     assert.equal(count('Project'), 1)
-    assert.equal(document.querySelector('input[aria-label="Search dashboards…"]').value, 'Board 22')
+    assert.equal(document.querySelector('input[aria-label="Search available dashboards…"]').value, 'Board 22')
     assert.equal(harness.projectNavigation.length, 0, 'search and scrolling never switch scope')
   })
   await t.test('late search results cannot replace a newer query, and append failure can retry without losing rows', async () => {
@@ -322,15 +354,15 @@ test('dashboard deletion UI', async t => {
     harness.setPickerFixtures(harness.projects, dashboards)
     await harness.click(harness.picker())
     harness.failPage(2)
-    await harness.scrollBottom('Dashboards')
-    assert.equal(document.querySelectorAll('section[aria-label="Dashboards"] [role=option]').length, 20)
-    assert.match(document.querySelector('section[aria-label="Dashboards"] [role=alert]').textContent, /Could not load dashboards/)
-    await harness.click(document.querySelector('section[aria-label="Dashboards"] [role=alert]').parentElement.querySelector('button'))
-    assert.equal(document.querySelectorAll('section[aria-label="Dashboards"] [role=option]').length, 23)
+    await harness.scrollBottom('Available dashboards')
+    assert.equal(document.querySelectorAll('section[aria-label="Available dashboards"] [role=option]').length, 20)
+    assert.match(document.querySelector('section[aria-label="Available dashboards"] [role=alert]').textContent, /Could not load dashboards/)
+    await harness.click(document.querySelector('section[aria-label="Available dashboards"] [role=alert]').parentElement.querySelector('button'))
+    assert.equal(document.querySelectorAll('section[aria-label="Available dashboards"] [role=option]').length, 23)
     harness.holdSearch('Board 1')
-    await harness.fill('Search dashboards…', 'Board 1')
-    await harness.fill('Search dashboards…', 'Board 2')
-    const titles = () => [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option] .truncate')].map(item => item.textContent)
+    await harness.fill('Search available dashboards…', 'Board 1')
+    await harness.fill('Search available dashboards…', 'Board 2')
+    const titles = () => [...document.querySelectorAll('section[aria-label="Available dashboards"] [role=option]')].map(item => item.querySelector('p')?.textContent ?? item.textContent)
     assert.deepEqual(titles(), ['Board 2', 'Board 20', 'Board 21', 'Board 22'])
     await harness.finishPicker()
     assert.deepEqual(titles(), ['Board 2', 'Board 20', 'Board 21', 'Board 22'])
@@ -357,8 +389,8 @@ test('dashboard deletion UI', async t => {
     assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).input)), { artifactId: items[0].artifactId, expectedRevision: 1, confirmed: true })
     assert.equal(remaining().length, 1)
     await click(picker())
-    assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
-    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
+    assert.ok(![...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 1'))
+    assert.ok([...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 2'))
   })
   await t.test('a published dashboard outside the first list page can be deleted with its current draft revision', async () => {
     await harness.reset(false, 'published', true)
@@ -397,8 +429,7 @@ test('dashboard deletion UI', async t => {
       harness.items[0], { ...harness.items[1], isEmpty: true, isDraft: false, canDelete: false, draftRevision: undefined }
     ])
     await harness.click(harness.picker())
-    const row = [...document.querySelectorAll('section[aria-label="Dashboards"] [role=option]')]
-      .find(element => element.textContent.includes('Dashboard 2'))
+    const row = document.querySelector('section[aria-label="Available dashboards"] [role=option][aria-label="Dashboard 2"]')
     assert.equal(row.querySelector('[data-slot=badge]').textContent, 'Not saved')
     assert.equal(harness.button('Delete dashboard “Dashboard 2”'), undefined)
   })
@@ -421,8 +452,8 @@ test('dashboard deletion UI', async t => {
       assert.equal(selections.at(-1), null)
       assert.equal(navigation.at(-1), undefined)
       await click(picker())
-      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
-      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
+      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 1'))
+      assert.ok([...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 2'))
     })
 
     await t.test(`deletion does not select another dashboard on a late Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
@@ -436,8 +467,8 @@ test('dashboard deletion UI', async t => {
       assert.equal(selections.at(-1), null)
       assert.equal(navigation.at(-1), undefined)
       await click(picker())
-      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'), 'an older open response must not restore the deleted list entry')
-      assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 2'))
+      assert.ok(![...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 1'), 'an older open response must not restore the deleted list entry')
+      assert.ok([...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 2'))
     })
   }
 
@@ -453,6 +484,29 @@ test('dashboard deletion UI', async t => {
     assert.match(picker().textContent, /Dashboard 1/)
     assert.equal(selections.at(-1).artifactId, items[0].artifactId)
     await click(picker())
-    assert.ok([...document.querySelectorAll('[role=option]')].some(item => item.querySelector('.truncate')?.textContent === 'Dashboard 1'))
+    assert.ok([...document.querySelectorAll('[role=option]')].some(item => (item.querySelector('p')?.textContent ?? item.textContent) === 'Dashboard 1'))
+  })
+})
+
+
+test('dashboard workbench surfaces', async t => {
+  const h = await setup(t)
+  await t.test('project collection opens the resolved document tab, without embedding another editor', async () => {
+    await h.reset(false, 'draft', false, 'collection')
+    assert.deepEqual(JSON.parse(JSON.stringify(h.projectNavigation[0])), { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard', parameters: {} }, 'consume legacy selection so reopening the same card routes again')
+    assert.equal(h.projectNavigation.at(-1).viewKey, 'live-dashboard__dashboard')
+    assert.equal(h.projectNavigation.at(-1).parameters.contentId, h.items[0].artifactId)
+    assert.equal(h.selections.length, 0)
+  })
+  await t.test('single document owns its toolbar and ignores another dashboard receipt', async () => {
+    await h.reset(false, 'draft', false, 'document')
+    assert.equal(h.picker(), null)
+    assert.match(document.querySelector('header').textContent, /Dashboard 1/)
+    h.revise(h.items[1].artifactId, 9)
+    await h.notify(h.items[1].artifactId)
+    assert.equal(h.selections.at(-1).artifactId, h.items[0].artifactId)
+    h.revise(h.items[0].artifactId, 3)
+    await h.notify(h.items[0].artifactId)
+    assert.match(document.querySelector('header').textContent, /Updated r3/)
   })
 })

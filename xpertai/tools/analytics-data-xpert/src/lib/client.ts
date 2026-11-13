@@ -36,6 +36,18 @@ const responseSchema = z.object({
 @Injectable()
 export class DataXpertAnalyticsClient {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+  /**
+   * Ask Data Xpert to validate disclosure authority using the current human's scoped token.
+   * This metadata-only check neither executes the binding nor grants future query access.
+   */
+  async authorizeGroupSharing(binding: AnalyticsBinding, context: DataXpertClientContext) {
+    const payload = dataXpertPayloadSchema.parse(binding.payload)
+    const response = await this.request('authorize-group-sharing', context, {
+      binding: { id: binding.id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode,
+        target: payload.target, params: payload.params }, maxRows: 1
+    })
+    z.object({ authorized: z.literal(true) }).strict().parse(await boundedJson(response))
+  }
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
     const importing = importTargetRequest.safeParse(request)
     if (importing.success) return discoverImportTargets(importing.data, browse => this.discover(browse, context))
@@ -45,7 +57,7 @@ export class DataXpertAnalyticsClient {
       const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
       return analyticsDiscoveryResultSchema.parse({
         items: [{ id: datasetId, name: datasetId, kind: 'dataset',
-          metadata: { output: createDataXpertOutput(datasetId, result.effect.columns) } }],
+          metadata: { payload: parsed.payload, output: createDataXpertOutput(datasetId, result.effect.columns) } }],
         queryContract: dataXpertQueryContract
       })
     }
@@ -56,7 +68,7 @@ export class DataXpertAnalyticsClient {
       nextRequest: json.optional() }).strict().parse(await boundedJson(response))
     return analyticsDiscoveryResultSchema.parse({ ...result,  queryContract: dataXpertQueryContract })
   }
-  private async request(endpoint: 'query' | 'discover', context: DataXpertClientContext, body: Record<string, JSONValue>) {
+  private async request(endpoint: 'query' | 'discover' | 'authorize-group-sharing', context: DataXpertClientContext, body: Record<string, JSONValue>) {
     context.signal.throwIfAborted()
     const options = optionsSchema.parse(context.options)
     const base = new URL(options.baseUrl)

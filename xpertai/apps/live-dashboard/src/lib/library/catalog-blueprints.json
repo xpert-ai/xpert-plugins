@@ -1,0 +1,3225 @@
+[
+  {
+    "key": "analysis-template-growth-attribution",
+    "kind": "analysis-template",
+    "logicalId": "d68ad569-6c1f-57d6-8f63-865618321dc3",
+    "state": "planned",
+    "categories": [
+      "growth",
+      "channels"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-growth-attribution.svg",
+    "translations": {
+      "en": {
+        "title": "Growth attribution",
+        "description": "Explain growth changes and compare channel contributions.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "增长归因分析",
+        "description": "拆解增长变化，比较各渠道的贡献。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "增長歸因分析",
+        "description": "拆解增長變化，比較各渠道的貢獻。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "analysis-template-conversion-diagnosis",
+    "kind": "analysis-template",
+    "logicalId": "4294f2bb-dec5-51a1-912a-a82247eaaef2",
+    "state": "planned",
+    "categories": [
+      "conversion",
+      "growth"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-conversion-diagnosis.svg",
+    "translations": {
+      "en": {
+        "title": "Conversion funnel diagnosis",
+        "description": "Compare conversion stages and identify drop-off opportunities.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "转化漏斗诊断",
+        "description": "比较各环节转化率，定位流失与改善机会。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "轉化漏斗診斷",
+        "description": "比較各環節轉化率，定位流失與改善機會。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "analysis-template-risk-monitoring",
+    "kind": "analysis-template",
+    "logicalId": "594fe9e3-a2fe-5ee3-9406-ae6d31f1b094",
+    "state": "planned",
+    "categories": [
+      "risk"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-risk-monitoring.svg",
+    "translations": {
+      "en": {
+        "title": "Risk and anomaly monitoring",
+        "description": "Monitor unusual metrics, risk distribution and changes.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "风险与异常监控",
+        "description": "汇总异常指标，观察风险分布与变化。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "風險與異常監控",
+        "description": "匯總異常指標，觀察風險分布與變化。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "analysis-template-customer-lifecycle",
+    "kind": "analysis-template",
+    "logicalId": "7686c5dd-84f9-5d7e-9e7b-6c2ce301d520",
+    "state": "planned",
+    "categories": [
+      "customers",
+      "growth"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-customer-lifecycle.svg",
+    "translations": {
+      "en": {
+        "title": "Customer segments and lifecycle",
+        "description": "Compare customer segments, value and lifecycle performance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "用户分群与生命周期",
+        "description": "比较用户分群、价值与生命周期表现。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "用戶分群與生命週期",
+        "description": "比較用戶分群、價值與生命週期表現。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "analysis-template-regional-flow",
+    "kind": "analysis-template",
+    "logicalId": "593b42f3-a54e-54d6-b5c5-cbbcff612c6b",
+    "state": "planned",
+    "categories": [
+      "regions",
+      "operations"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-regional-flow.svg",
+    "translations": {
+      "en": {
+        "title": "Geography and regional flows",
+        "description": "Explore regional distribution, scale and flows.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "地理分布与区域流动",
+        "description": "观察区域分布、规模差异与流向。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "地理分布與區域流動",
+        "description": "觀察區域分布、規模差異與流向。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "analysis-template-multi-criteria",
+    "kind": "analysis-template",
+    "logicalId": "0bf10bae-f4c8-5701-b7e7-df5036982ce8",
+    "state": "planned",
+    "categories": [
+      "decisions",
+      "operations"
+    ],
+    "appearance": "light",
+    "coverKey": "analysis-template-multi-criteria.svg",
+    "translations": {
+      "en": {
+        "title": "Multi-criteria decisions",
+        "description": "Compare alternatives and trade-offs across evaluation criteria.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "多准则决策",
+        "description": "从多个评价维度比较方案与权衡。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "多准則決策",
+        "description": "從多個評價維度比較方案與權衡。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-clarity-blue",
+    "kind": "visual-theme",
+    "logicalId": "f64e20ed-8bb4-5382-999e-0534afe45dd7",
+    "state": "planned",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-clarity-blue.svg",
+    "translations": {
+      "en": {
+        "title": "Clarity Blue",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "清澈蓝",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "清澈藍",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-tdesign-enterprise",
+    "kind": "visual-theme",
+    "logicalId": "d1303809-c7a5-5dc3-95c8-4357f41e30b9",
+    "state": "planned",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-tdesign-enterprise.svg",
+    "translations": {
+      "en": {
+        "title": "Enterprise Clarity",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "企业清晰",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "企業清晰",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-minimal-modern",
+    "kind": "visual-theme",
+    "logicalId": "e62f05d1-43f6-59b2-8849-597b5252431d",
+    "state": "planned",
+    "categories": [
+      "minimal",
+      "light"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-minimal-modern.svg",
+    "translations": {
+      "en": {
+        "title": "Minimal modern",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "极简现代",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "極簡現代",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-dark-tech",
+    "kind": "visual-theme",
+    "logicalId": "e370dd2f-1781-51d9-b40e-7eb8b53d974d",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "dark"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-dark-tech.svg",
+    "translations": {
+      "en": {
+        "title": "Dark technology",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "暗色科技",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "暗色科技",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-cyberpunk",
+    "kind": "visual-theme",
+    "logicalId": "49596d47-1008-59ed-9f34-c06df02b1f5c",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "creative"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-cyberpunk.svg",
+    "translations": {
+      "en": {
+        "title": "Cyberpunk",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "赛博朋克",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "賽博朋克",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-frosted-tech",
+    "kind": "visual-theme",
+    "logicalId": "2b4584cc-2541-5e17-b591-7cf9b2ab19ef",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "creative"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-frosted-tech.svg",
+    "translations": {
+      "en": {
+        "title": "Frosted technology",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "毛玻璃科技",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "毛玻璃科技",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-bauhaus",
+    "kind": "visual-theme",
+    "logicalId": "f2a27a4a-efc6-54bf-be39-156b67cb58c7",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-bauhaus.svg",
+    "translations": {
+      "en": {
+        "title": "Bauhaus",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "包豪斯",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "包豪斯",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-financial-trading",
+    "kind": "visual-theme",
+    "logicalId": "82601861-525a-5842-bfc4-6f6b0af37951",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-financial-trading.svg",
+    "translations": {
+      "en": {
+        "title": "Financial trading",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "金融交易",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "金融交易",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-premium-business",
+    "kind": "visual-theme",
+    "logicalId": "777e2f58-8239-5b9c-b8b8-c8ac65f10563",
+    "state": "planned",
+    "categories": [
+      "business",
+      "editorial"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-premium-business.svg",
+    "translations": {
+      "en": {
+        "title": "Premium business",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "高端商务",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "高端商務",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-terminal-green",
+    "kind": "visual-theme",
+    "logicalId": "a9786cb1-9f7d-597b-aa5f-6cc1f6fcc082",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-terminal-green.svg",
+    "translations": {
+      "en": {
+        "title": "Terminal green",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "终端绿",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "終端綠",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-art-deco",
+    "kind": "visual-theme",
+    "logicalId": "9a49122e-37bc-5729-8b08-810b0119ed93",
+    "state": "planned",
+    "categories": [
+      "business",
+      "retro"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-art-deco.svg",
+    "translations": {
+      "en": {
+        "title": "Art deco",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "装饰艺术",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "裝飾藝術",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-material",
+    "kind": "visual-theme",
+    "logicalId": "26a90ae8-2672-5ac2-9b7a-bdc1a6695800",
+    "state": "planned",
+    "categories": [
+      "business",
+      "light"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-material.svg",
+    "translations": {
+      "en": {
+        "title": "Material design",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "质感设计",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "質感設計",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-newsprint",
+    "kind": "visual-theme",
+    "logicalId": "73f2bbb8-44a3-54a9-bb02-adf576efdd29",
+    "state": "planned",
+    "categories": [
+      "editorial",
+      "retro"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-newsprint.svg",
+    "translations": {
+      "en": {
+        "title": "Newsprint",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "新闻印刷",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "新聞印刷",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-industrial",
+    "kind": "visual-theme",
+    "logicalId": "cb12a122-a971-529c-8a37-7770b3b73271",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-industrial.svg",
+    "translations": {
+      "en": {
+        "title": "Industrial skeuomorphism",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "工业拟物",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "工業擬物",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-flat",
+    "kind": "visual-theme",
+    "logicalId": "0772bbb7-8672-5324-9419-fc26a3d91916",
+    "state": "planned",
+    "categories": [
+      "minimal",
+      "light"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-flat.svg",
+    "translations": {
+      "en": {
+        "title": "Flat design",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "扁平设计",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "扁平設計",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-clay",
+    "kind": "visual-theme",
+    "logicalId": "869f814e-dd8a-530b-a287-72863876a1ef",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "light"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-clay.svg",
+    "translations": {
+      "en": {
+        "title": "Clay design",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "黏土拟态",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "黏土擬態",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-hand-drawn",
+    "kind": "visual-theme",
+    "logicalId": "df65292f-ad29-5728-a595-15f5849a8e42",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "editorial"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-hand-drawn.svg",
+    "translations": {
+      "en": {
+        "title": "Hand-drawn sketch",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "手绘草稿",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "手繪草稿",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-neo-brutalism",
+    "kind": "visual-theme",
+    "logicalId": "0c6096d6-d6e0-50b5-b59a-6b7a24654c49",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "light"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-neo-brutalism.svg",
+    "translations": {
+      "en": {
+        "title": "Neo-brutalism",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "新粗野主义",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "新粗野主義",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-maximalism",
+    "kind": "visual-theme",
+    "logicalId": "a2f86696-fb95-5b73-8135-4d3bbd0877d3",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "dark"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-maximalism.svg",
+    "translations": {
+      "en": {
+        "title": "Maximalism",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "极繁主义",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "極繁主義",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-golden-eye",
+    "kind": "visual-theme",
+    "logicalId": "d3199658-0268-5725-8095-63bf9687424c",
+    "state": "planned",
+    "categories": [
+      "business",
+      "tech"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-golden-eye.svg",
+    "translations": {
+      "en": {
+        "title": "Golden eye",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "黄金眼",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "黃金眼",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-deep-sea-mist",
+    "kind": "visual-theme",
+    "logicalId": "ed844052-e526-543b-9315-84450c6b93f1",
+    "state": "planned",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-deep-sea-mist.svg",
+    "translations": {
+      "en": {
+        "title": "Deep sea mist",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "深海青雾",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "深海青霧",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-sage",
+    "kind": "visual-theme",
+    "logicalId": "88dacbf3-29c0-541a-aa5b-5074a9b2bf8f",
+    "state": "planned",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-sage.svg",
+    "translations": {
+      "en": {
+        "title": "Sage",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "鼠尾草",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "鼠尾草",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-deep-sea-blue",
+    "kind": "visual-theme",
+    "logicalId": "806c0d8f-deb9-5590-ac08-3551b00d1830",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "business"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-deep-sea-blue.svg",
+    "translations": {
+      "en": {
+        "title": "Deep sea blue",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "深海蓝光",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "深海藍光",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-crimson-black",
+    "kind": "visual-theme",
+    "logicalId": "3902df13-eb31-5054-9d36-135d5e47084e",
+    "state": "planned",
+    "categories": [
+      "business",
+      "creative"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-crimson-black.svg",
+    "translations": {
+      "en": {
+        "title": "Crimson black",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "绯红黑",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "緋紅黑",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-redline-brief",
+    "kind": "visual-theme",
+    "logicalId": "2ac7b372-741d-50a9-ac4b-43b3e0b4be66",
+    "state": "planned",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-redline-brief.svg",
+    "translations": {
+      "en": {
+        "title": "Redline brief",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "红线简报",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "紅線簡報",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-coral-cream",
+    "kind": "visual-theme",
+    "logicalId": "50545f40-00e9-5a43-9162-45b52be9d544",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-coral-cream.svg",
+    "translations": {
+      "en": {
+        "title": "Coral cream",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "珊瑚奶油",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "珊瑚奶油",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-amber-sunset",
+    "kind": "visual-theme",
+    "logicalId": "060e14fc-a368-54a3-a8c1-ea4a8073cab9",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-amber-sunset.svg",
+    "translations": {
+      "en": {
+        "title": "Amber sunset",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "琥珀日落",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "琥珀日落",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-midnight-emerald",
+    "kind": "visual-theme",
+    "logicalId": "b8305df5-231b-5af8-8179-51b76cb8ebf1",
+    "state": "planned",
+    "categories": [
+      "tech",
+      "business"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-midnight-emerald.svg",
+    "translations": {
+      "en": {
+        "title": "Midnight emerald",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "午夜翡翠",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "午夜翡翠",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-misty-rose",
+    "kind": "visual-theme",
+    "logicalId": "25c9174c-5255-573f-82ee-c840e0334ab2",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-misty-rose.svg",
+    "translations": {
+      "en": {
+        "title": "Misty rose",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "雾玫瑰",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "霧玫瑰",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-cobalt-diagonal",
+    "kind": "visual-theme",
+    "logicalId": "db9fb5bb-50d0-5537-b366-89649e166b51",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "tech"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-cobalt-diagonal.svg",
+    "translations": {
+      "en": {
+        "title": "Cobalt diagonal",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "钴蓝斜纹",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "鈷藍斜紋",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-olive-terracotta",
+    "kind": "visual-theme",
+    "logicalId": "caf4edd2-24fd-5993-9362-4fde73a13c3b",
+    "state": "planned",
+    "categories": [
+      "retro",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-olive-terracotta.svg",
+    "translations": {
+      "en": {
+        "title": "Olive terracotta",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "橄榄陶土",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "橄欖陶土",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-burgundy-night",
+    "kind": "visual-theme",
+    "logicalId": "8488f444-cd95-573c-8e45-75051a4c200b",
+    "state": "planned",
+    "categories": [
+      "business",
+      "creative"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-burgundy-night.svg",
+    "translations": {
+      "en": {
+        "title": "Burgundy night",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "酒红夜",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "酒紅夜",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-warm-sand",
+    "kind": "visual-theme",
+    "logicalId": "f5776657-85fc-5249-b2cf-9d61252584fd",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-warm-sand.svg",
+    "translations": {
+      "en": {
+        "title": "Warm sand modules",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "暖砂模块",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "暖砂模塊",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-paper-journal",
+    "kind": "visual-theme",
+    "logicalId": "af7a73bc-2637-5fc6-84dd-f23b1561233e",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-paper-journal.svg",
+    "translations": {
+      "en": {
+        "title": "Color paper journal",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "色纸手账",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "色紙手賬",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-soft-porcelain",
+    "kind": "visual-theme",
+    "logicalId": "10a4168b-ea37-57c1-94a1-5fbfc0718e47",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-soft-porcelain.svg",
+    "translations": {
+      "en": {
+        "title": "Soft porcelain",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "柔光瓷白",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "柔光瓷白",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-misty-green",
+    "kind": "visual-theme",
+    "logicalId": "262ee9ab-29b5-5e13-b501-cb8f0902bd95",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-misty-green.svg",
+    "translations": {
+      "en": {
+        "title": "Misty green signals",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "雾绿信号",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "霧綠信號",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-dark-olive",
+    "kind": "visual-theme",
+    "logicalId": "de0e391d-174c-54bc-8bef-ca6b96f2f44b",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-dark-olive.svg",
+    "translations": {
+      "en": {
+        "title": "Dark olive salon",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "暗橄榄沙龙",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "暗橄欖沙龍",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-cinematic",
+    "kind": "visual-theme",
+    "logicalId": "ef2064d3-eb57-5efc-a512-e07dccce5944",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-cinematic.svg",
+    "translations": {
+      "en": {
+        "title": "Cinematic immersion",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "电影沉浸",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "電影沈浸",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-natural-terrain",
+    "kind": "visual-theme",
+    "logicalId": "445c3cf9-2651-5457-8f84-26aa85deb769",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-natural-terrain.svg",
+    "translations": {
+      "en": {
+        "title": "Natural terrain",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "自然地形",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "自然地形",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-pastel-matrix",
+    "kind": "visual-theme",
+    "logicalId": "4d8ad7ca-520e-535a-b3ba-8376e3daee5a",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-pastel-matrix.svg",
+    "translations": {
+      "en": {
+        "title": "Pastel matrix",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "粉彩矩阵",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "粉彩矩陣",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-layered-paper",
+    "kind": "visual-theme",
+    "logicalId": "c13f4afd-176f-52ee-b5c0-57c39455fbb4",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-layered-paper.svg",
+    "translations": {
+      "en": {
+        "title": "Layered paper workbench",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "纸层工作台",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "紙層工作台",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-swiss-grid",
+    "kind": "visual-theme",
+    "logicalId": "938bdc7e-f23e-578e-bc93-3ff6d7caacc7",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "appearance": "light",
+    "coverKey": "visual-theme-swiss-grid.svg",
+    "translations": {
+      "en": {
+        "title": "Swiss grid",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "瑞士网格",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "瑞士網格",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "visual-theme-pixel-dashboard",
+    "kind": "visual-theme",
+    "logicalId": "697067c7-c7ec-5e59-9c03-8f1c0548c0f8",
+    "state": "planned",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "appearance": "dark",
+    "coverKey": "visual-theme-pixel-dashboard.svg",
+    "translations": {
+      "en": {
+        "title": "Pixel dashboard",
+        "description": "Preview the theme’s palette, typography and dashboard appearance.",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "像素仪表",
+        "description": "预览此主题的配色、排版与看板外观。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "像素儀表",
+        "description": "預覽此主題的配色、排版與看板外觀。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "component-detail-table",
+    "kind": "component",
+    "logicalId": "a1978d85-dc74-5102-95b8-a72f0f7ee0e2",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-detail-table.svg",
+    "translations": {
+      "en": {
+        "title": "Detail table",
+        "description": "Filter, sort and inspect detailed records.",
+        "features": [
+          "Column filters",
+          "Freeze columns",
+          "Pagination",
+          "CSV export"
+        ]
+      },
+      "zh-Hans": {
+        "title": "明细表格",
+        "description": "筛选、排序和查看业务明细。",
+        "features": [
+          "按列筛选",
+          "列冻结",
+          "分页",
+          "CSV 导出"
+        ]
+      },
+      "zh-Hant": {
+        "title": "明細表格",
+        "description": "篩選、排序和查看業務明細。",
+        "features": [
+          "按列篩選",
+          "列凍結",
+          "分頁",
+          "CSV 導出"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-date-range",
+    "kind": "component",
+    "logicalId": "79d0949b-0d5b-5b57-9ede-b9028686bf85",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-date-range.svg",
+    "translations": {
+      "en": {
+        "title": "Date range",
+        "description": "Choose a preset or a custom date range.",
+        "features": [
+          "Quick ranges",
+          "Custom dates",
+          "Apply and clear"
+        ]
+      },
+      "zh-Hans": {
+        "title": "日期范围",
+        "description": "通过快捷选项或起止日期限定时间范围。",
+        "features": [
+          "快捷范围",
+          "自定义日期",
+          "确认与清空"
+        ]
+      },
+      "zh-Hant": {
+        "title": "日期範圍",
+        "description": "通過快捷選項或起止日期限定時間範圍。",
+        "features": [
+          "快捷範圍",
+          "自定義日期",
+          "確認與清空"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-metric-card",
+    "kind": "component",
+    "logicalId": "a5449bc4-ca62-5e37-af8b-8a9135c12bc2",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-metric-card.svg",
+    "translations": {
+      "en": {
+        "title": "Metric card",
+        "description": "Highlight a key metric and its change.",
+        "features": [
+          "Number formats",
+          "Period change",
+          "Status feedback"
+        ]
+      },
+      "zh-Hans": {
+        "title": "指标卡片",
+        "description": "突出关键指标及其环比变化。",
+        "features": [
+          "数值格式",
+          "环比变化",
+          "状态反馈"
+        ]
+      },
+      "zh-Hant": {
+        "title": "指標卡片",
+        "description": "突出關鍵指標及其環比變化。",
+        "features": [
+          "數值格式",
+          "環比變化",
+          "狀態反饋"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-option-filter",
+    "kind": "component",
+    "logicalId": "fac75a5b-9604-5119-b118-752aa57011ee",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-option-filter.svg",
+    "translations": {
+      "en": {
+        "title": "Option filter",
+        "description": "Select dimension values to filter the analysis.",
+        "features": [
+          "Single and multiple selection",
+          "Search options",
+          "Linked filters"
+        ]
+      },
+      "zh-Hans": {
+        "title": "选项筛选",
+        "description": "选择业务维度条件，联动分析结果。",
+        "features": [
+          "单选与多选",
+          "搜索选项",
+          "筛选联动"
+        ]
+      },
+      "zh-Hant": {
+        "title": "選項篩選",
+        "description": "選擇業務維度條件，聯動分析結果。",
+        "features": [
+          "單選與多選",
+          "搜索選項",
+          "篩選聯動"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-trend-comparison",
+    "kind": "component",
+    "logicalId": "8c08cc3c-011a-503a-9f98-a95e01402751",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-trend-comparison.svg",
+    "translations": {
+      "en": {
+        "title": "Trend and comparison chart",
+        "description": "Compare trends and differences with lines and bars.",
+        "features": [
+          "Lines and bars",
+          "Legend",
+          "Tooltips"
+        ]
+      },
+      "zh-Hans": {
+        "title": "趋势与对比图",
+        "description": "通过折线与柱状观察趋势和差异。",
+        "features": [
+          "折线与柱状",
+          "图例",
+          "悬浮明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "趨勢與對比圖",
+        "description": "通過折線與柱狀觀察趨勢和差異。",
+        "features": [
+          "折線與柱狀",
+          "圖例",
+          "懸浮明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-content-panel",
+    "kind": "component",
+    "logicalId": "4443ca96-20a9-5061-9d4f-5f7fce725cf1",
+    "state": "planned",
+    "categories": [
+      "layout"
+    ],
+    "appearance": "light",
+    "coverKey": "component-content-panel.svg",
+    "translations": {
+      "en": {
+        "title": "Content panel",
+        "description": "Group related analysis into a titled section.",
+        "features": [
+          "Title and description",
+          "Content slots",
+          "Theme support"
+        ]
+      },
+      "zh-Hans": {
+        "title": "内容面板",
+        "description": "把相关分析组织到同一内容区块。",
+        "features": [
+          "标题与说明",
+          "内容插槽",
+          "主题跟随"
+        ]
+      },
+      "zh-Hant": {
+        "title": "內容面板",
+        "description": "把相關分析組織到同一內容區塊。",
+        "features": [
+          "標題與說明",
+          "內容插槽",
+          "主題跟隨"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-combo-chart",
+    "kind": "component",
+    "logicalId": "7be0ea9e-63c2-5f14-98bf-9a484e8ed610",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-combo-chart.svg",
+    "translations": {
+      "en": {
+        "title": "Line and bar chart",
+        "description": "Compare scale and trends with independently labeled axes.",
+        "features": [
+          "Line and bar",
+          "Dual axes",
+          "Legend toggles",
+          "Details"
+        ]
+      },
+      "zh-Hans": {
+        "title": "线柱组合图",
+        "description": "同时比较规模与趋势，分别呈现两侧单位。",
+        "features": [
+          "线柱组合",
+          "独立双轴",
+          "图例切换",
+          "数据明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "線柱組合圖",
+        "description": "同時比較規模與趨勢，分別呈現兩側單位。",
+        "features": [
+          "線柱組合",
+          "獨立雙軸",
+          "圖例切換",
+          "數據明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-percent-stacked",
+    "kind": "component",
+    "logicalId": "69439a4e-1ede-5801-a18f-f5e8fa757e26",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-percent-stacked.svg",
+    "translations": {
+      "en": {
+        "title": "Percentage stacked chart",
+        "description": "Compare category composition using consistent totals.",
+        "features": [
+          "Percentage stacks",
+          "Values and shares",
+          "Stable totals",
+          "Details"
+        ]
+      },
+      "zh-Hans": {
+        "title": "百分比堆叠图",
+        "description": "以统一分母比较不同类别的构成比例。",
+        "features": [
+          "百分比堆叠",
+          "原值与占比",
+          "固定分母",
+          "数据明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "百分比堆疊圖",
+        "description": "以統一分母比較不同類別的構成比例。",
+        "features": [
+          "百分比堆疊",
+          "原值與佔比",
+          "固定分母",
+          "數據明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-waterfall",
+    "kind": "component",
+    "logicalId": "efde0cd2-7418-5d96-9074-29ee71d769f4",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-waterfall.svg",
+    "translations": {
+      "en": {
+        "title": "Contribution waterfall",
+        "description": "Show positive and negative contributions and cumulative change.",
+        "features": [
+          "Change breakdown",
+          "Positive and negative",
+          "Start and total"
+        ]
+      },
+      "zh-Hans": {
+        "title": "增减贡献瀑布图",
+        "description": "按顺序展示正负贡献与累计变化。",
+        "features": [
+          "增减拆解",
+          "正负贡献",
+          "起点与合计"
+        ]
+      },
+      "zh-Hant": {
+        "title": "增減貢獻瀑布圖",
+        "description": "按順序展示正負貢獻與累計變化。",
+        "features": [
+          "增減拆解",
+          "正負貢獻",
+          "起點與合計"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-pareto",
+    "kind": "component",
+    "logicalId": "11b7e457-a055-5c66-ade7-606121abec61",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-pareto.svg",
+    "translations": {
+      "en": {
+        "title": "Pareto contribution chart",
+        "description": "Rank contributors and show cumulative share.",
+        "features": [
+          "Contribution ranking",
+          "Cumulative share",
+          "80% reference"
+        ]
+      },
+      "zh-Hans": {
+        "title": "帕累托贡献图",
+        "description": "排列主要贡献对象并展示累计占比。",
+        "features": [
+          "贡献排序",
+          "累计占比",
+          "80% 参考线"
+        ]
+      },
+      "zh-Hant": {
+        "title": "帕累托貢獻圖",
+        "description": "排列主要貢獻對象並展示累計佔比。",
+        "features": [
+          "貢獻排序",
+          "累計佔比",
+          "80% 參考線"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-histogram",
+    "kind": "component",
+    "logicalId": "3499d1a8-61b9-5f62-a625-a0f3e9d17912",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-histogram.svg",
+    "translations": {
+      "en": {
+        "title": "Histogram",
+        "description": "Bin raw values to explore sample distributions.",
+        "features": [
+          "Equal-width bins",
+          "Sample counts",
+          "Interval details"
+        ]
+      },
+      "zh-Hans": {
+        "title": "数值分布直方图",
+        "description": "对原始数值分箱，观察样本分布。",
+        "features": [
+          "等宽分箱",
+          "样本计数",
+          "区间明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "數值分布直方圖",
+        "description": "對原始數值分箱，觀察樣本分布。",
+        "features": [
+          "等寬分箱",
+          "樣本計數",
+          "區間明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-box-plot",
+    "kind": "component",
+    "logicalId": "009987bf-79cf-5e12-ab9c-e8b6e54c1eb1",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-box-plot.svg",
+    "translations": {
+      "en": {
+        "title": "Grouped box plot",
+        "description": "Compare group medians, quartiles and outliers.",
+        "features": [
+          "Group distribution",
+          "Quartiles",
+          "Outliers",
+          "Sample details"
+        ]
+      },
+      "zh-Hans": {
+        "title": "分组箱线图",
+        "description": "比较分组中位数、四分位数和离群点。",
+        "features": [
+          "分组分布",
+          "四分位数",
+          "离群值",
+          "样本明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "分組箱線圖",
+        "description": "比較分組中位數、四分位數和離群點。",
+        "features": [
+          "分組分布",
+          "四分位數",
+          "離群值",
+          "樣本明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-small-multiples",
+    "kind": "component",
+    "logicalId": "25e6fa72-35eb-513d-9506-b96b201fcfa8",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-small-multiples.svg",
+    "translations": {
+      "en": {
+        "title": "Small multiples",
+        "description": "Compare faceted trends on shared scales.",
+        "features": [
+          "Dimension facets",
+          "Shared scales",
+          "Responsive layout"
+        ]
+      },
+      "zh-Hans": {
+        "title": "分面小多图",
+        "description": "在相同刻度下并列比较多个维度的趋势。",
+        "features": [
+          "维度分面",
+          "共享刻度",
+          "响应式排列"
+        ]
+      },
+      "zh-Hant": {
+        "title": "分面小多圖",
+        "description": "在相同刻度下並列比較多個維度的趨勢。",
+        "features": [
+          "維度分面",
+          "共享刻度",
+          "響應式排列"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-treemap",
+    "kind": "component",
+    "logicalId": "693984e6-802a-5bdd-b1b8-0c8455511222",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-treemap.svg",
+    "translations": {
+      "en": {
+        "title": "Hierarchical treemap",
+        "description": "Compare hierarchical composition by area and drill down.",
+        "features": [
+          "Hierarchy",
+          "Area share",
+          "Drill-down"
+        ]
+      },
+      "zh-Hans": {
+        "title": "层级矩形树图",
+        "description": "按面积展示层级构成并逐层探索。",
+        "features": [
+          "多级构成",
+          "面积占比",
+          "点击下钻"
+        ]
+      },
+      "zh-Hant": {
+        "title": "層級矩形樹圖",
+        "description": "按面積展示層級構成並逐層探索。",
+        "features": [
+          "多級構成",
+          "面積佔比",
+          "點擊下鑽"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-sunburst",
+    "kind": "component",
+    "logicalId": "ea359d32-bc79-5ba9-ad50-a9d50e8953ce",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-sunburst.svg",
+    "translations": {
+      "en": {
+        "title": "Hierarchical sunburst",
+        "description": "Show hierarchical relationships and scale in concentric rings.",
+        "features": [
+          "Radial hierarchy",
+          "Parent-child shares",
+          "Path navigation"
+        ]
+      },
+      "zh-Hans": {
+        "title": "层级旭日图",
+        "description": "从内到外呈现层级关系与规模。",
+        "features": [
+          "环形层级",
+          "父子占比",
+          "路径导航"
+        ]
+      },
+      "zh-Hant": {
+        "title": "層級旭日圖",
+        "description": "從內到外呈現層級關係與規模。",
+        "features": [
+          "環形層級",
+          "父子佔比",
+          "路徑導航"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-sankey",
+    "kind": "component",
+    "logicalId": "1c286cc7-787b-5c76-9c64-d45ca08c0832",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-sankey.svg",
+    "translations": {
+      "en": {
+        "title": "Sankey flow chart",
+        "description": "Show sources, destinations and volume through link width.",
+        "features": [
+          "Sources and destinations",
+          "Flow comparison",
+          "Linked highlighting"
+        ]
+      },
+      "zh-Hans": {
+        "title": "流向桑基图",
+        "description": "以连线宽度表现来源、去向和流量。",
+        "features": [
+          "来源与去向",
+          "流量对比",
+          "关联高亮"
+        ]
+      },
+      "zh-Hant": {
+        "title": "流向桑基圖",
+        "description": "以連線寬度表現來源、去向和流量。",
+        "features": [
+          "來源與去向",
+          "流量對比",
+          "關聯高亮"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-calendar-heatmap",
+    "kind": "component",
+    "logicalId": "743f907d-15f3-56ba-aa3c-c0a465b84a02",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-calendar-heatmap.svg",
+    "translations": {
+      "en": {
+        "title": "Calendar heatmap",
+        "description": "Explore daily intensity on a calendar grid.",
+        "features": [
+          "Daily intensity",
+          "Missing and zero values",
+          "Color filters"
+        ]
+      },
+      "zh-Hans": {
+        "title": "日历热力图",
+        "description": "以日期网格观察每日指标强度。",
+        "features": [
+          "每日密度",
+          "缺失与零值",
+          "颜色筛选"
+        ]
+      },
+      "zh-Hant": {
+        "title": "日曆熱力圖",
+        "description": "以日期網格觀察每日指標強度。",
+        "features": [
+          "每日密度",
+          "缺失與零值",
+          "顏色篩選"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-bullet",
+    "kind": "component",
+    "logicalId": "e5abb835-6bda-5774-97b4-77502be8f5c1",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-bullet.svg",
+    "translations": {
+      "en": {
+        "title": "Target bullet chart",
+        "description": "Compare actuals with targets and show overachievement.",
+        "features": [
+          "Actual and target",
+          "Achievement rate",
+          "Overachievement"
+        ]
+      },
+      "zh-Hans": {
+        "title": "目标对比子弹图",
+        "description": "对照实际值和目标，呈现达成与超额情况。",
+        "features": [
+          "实际与目标",
+          "达成率",
+          "超额保留"
+        ]
+      },
+      "zh-Hant": {
+        "title": "目標對比子彈圖",
+        "description": "對照實際值和目標，呈現達成與超額情況。",
+        "features": [
+          "實際與目標",
+          "達成率",
+          "超額保留"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-dumbbell",
+    "kind": "component",
+    "logicalId": "95cf34e0-5354-57a6-9c81-bcac703ecac0",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-dumbbell.svg",
+    "translations": {
+      "en": {
+        "title": "Before-and-after dumbbell",
+        "description": "Connect paired values to reveal change direction.",
+        "features": [
+          "Paired comparison",
+          "Change direction",
+          "Positive and negative"
+        ]
+      },
+      "zh-Hans": {
+        "title": "前后对比哑铃图",
+        "description": "连接同一对象的两期数值，观察变化方向。",
+        "features": [
+          "成对比较",
+          "变化方向",
+          "正负数值"
+        ]
+      },
+      "zh-Hant": {
+        "title": "前後對比啞鈴圖",
+        "description": "連接同一對象的兩期數值，觀察變化方向。",
+        "features": [
+          "成對比較",
+          "變化方向",
+          "正負數值"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-multi-series",
+    "kind": "component",
+    "logicalId": "06a481ee-8540-5dd9-a65e-192f343f00fc",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-multi-series.svg",
+    "translations": {
+      "en": {
+        "title": "Multi-series and stacked chart",
+        "description": "Compare series with compatible units, toggles and stacking.",
+        "features": [
+          "Multiple metrics",
+          "Stacking",
+          "Legend toggles",
+          "Zoom"
+        ]
+      },
+      "zh-Hans": {
+        "title": "多系列与堆叠图",
+        "description": "比较多个同单位指标，可切换系列与堆叠。",
+        "features": [
+          "多指标",
+          "堆叠",
+          "图例切换",
+          "数据缩放"
+        ]
+      },
+      "zh-Hant": {
+        "title": "多系列與堆疊圖",
+        "description": "比較多個同單位指標，可切換系列與堆疊。",
+        "features": [
+          "多指標",
+          "堆疊",
+          "圖例切換",
+          "數據縮放"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-donut",
+    "kind": "component",
+    "logicalId": "0d7ac6f1-c214-50e6-a3f2-b84469fb14b2",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-donut.svg",
+    "translations": {
+      "en": {
+        "title": "Donut chart",
+        "description": "Show category shares and composition.",
+        "features": [
+          "Share tooltips",
+          "Legend toggles",
+          "Segment selection"
+        ]
+      },
+      "zh-Hans": {
+        "title": "占比环形图",
+        "description": "展示各类别占比与结构。",
+        "features": [
+          "占比提示",
+          "图例切换",
+          "扇区选择"
+        ]
+      },
+      "zh-Hant": {
+        "title": "佔比環形圖",
+        "description": "展示各類別佔比與結構。",
+        "features": [
+          "佔比提示",
+          "圖例切換",
+          "扇區選擇"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-scatter-bubble",
+    "kind": "component",
+    "logicalId": "c043de26-e082-5057-8314-178e2b999901",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-scatter-bubble.svg",
+    "translations": {
+      "en": {
+        "title": "Scatter and bubble chart",
+        "description": "Compare two numeric axes and encode a third metric with bubble size.",
+        "features": [
+          "Numeric axes",
+          "Bubble size",
+          "Brush selection",
+          "Zoom"
+        ]
+      },
+      "zh-Hans": {
+        "title": "散点气泡图",
+        "description": "比较两个数值维度，以气泡表示第三个指标。",
+        "features": [
+          "数值双轴",
+          "气泡大小",
+          "框选",
+          "缩放"
+        ]
+      },
+      "zh-Hant": {
+        "title": "散點氣泡圖",
+        "description": "比較兩個數值維度，以氣泡表示第三個指標。",
+        "features": [
+          "數值雙軸",
+          "氣泡大小",
+          "框選",
+          "縮放"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-matrix-heatmap",
+    "kind": "component",
+    "logicalId": "e1aad5bc-7c70-5f6a-baa0-f6432954a28b",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-matrix-heatmap.svg",
+    "translations": {
+      "en": {
+        "title": "Matrix heatmap",
+        "description": "Compare values across two categorical dimensions using color.",
+        "features": [
+          "Two dimensions",
+          "Color range",
+          "Tooltips"
+        ]
+      },
+      "zh-Hans": {
+        "title": "二维热力图",
+        "description": "用颜色比较两个分类维度交叉后的指标。",
+        "features": [
+          "双维度",
+          "颜色范围",
+          "悬浮明细"
+        ]
+      },
+      "zh-Hant": {
+        "title": "二維熱力圖",
+        "description": "用顏色比較兩個分類維度交叉後的指標。",
+        "features": [
+          "雙維度",
+          "顏色範圍",
+          "懸浮明細"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-funnel",
+    "kind": "component",
+    "logicalId": "72cc4e6f-d68d-5a10-b3e5-0ca877369d01",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-funnel.svg",
+    "translations": {
+      "en": {
+        "title": "Conversion funnel",
+        "description": "Compare stage volumes and drop-off.",
+        "features": [
+          "Stage order",
+          "Conversion rates",
+          "Legend filters"
+        ]
+      },
+      "zh-Hans": {
+        "title": "转化漏斗图",
+        "description": "比较各阶段规模与流失情况。",
+        "features": [
+          "阶段顺序",
+          "转化比例",
+          "图例筛选"
+        ]
+      },
+      "zh-Hant": {
+        "title": "轉化漏斗圖",
+        "description": "比較各階段規模與流失情況。",
+        "features": [
+          "階段順序",
+          "轉化比例",
+          "圖例篩選"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-radar",
+    "kind": "component",
+    "logicalId": "fa263fa0-41a4-59de-8c2c-d186130770d3",
+    "state": "planned",
+    "categories": [
+      "charts"
+    ],
+    "appearance": "light",
+    "coverKey": "component-radar.svg",
+    "translations": {
+      "en": {
+        "title": "Multi-dimensional radar",
+        "description": "Compare objects across multiple metrics.",
+        "features": [
+          "Multiple dimensions",
+          "Legend toggles",
+          "Value tooltips"
+        ]
+      },
+      "zh-Hans": {
+        "title": "多维雷达图",
+        "description": "比较不同对象在多个指标上的表现。",
+        "features": [
+          "多维比较",
+          "图例切换",
+          "数值提示"
+        ]
+      },
+      "zh-Hant": {
+        "title": "多維雷達圖",
+        "description": "比較不同對象在多個指標上的表現。",
+        "features": [
+          "多維比較",
+          "圖例切換",
+          "數值提示"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-metric-group",
+    "kind": "component",
+    "logicalId": "732f82ab-4aa3-5e18-8cca-7291e7e66c79",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-metric-group.svg",
+    "translations": {
+      "en": {
+        "title": "Metric group",
+        "description": "Present several summary metrics in one section.",
+        "features": [
+          "Multiple metrics",
+          "Consistent formatting",
+          "Copy values",
+          "Status feedback"
+        ]
+      },
+      "zh-Hans": {
+        "title": "指标组",
+        "description": "在同一区块并列呈现多个汇总指标。",
+        "features": [
+          "多指标",
+          "统一格式",
+          "复制数值",
+          "状态反馈"
+        ]
+      },
+      "zh-Hant": {
+        "title": "指標組",
+        "description": "在同一區塊並列呈現多個匯總指標。",
+        "features": [
+          "多指標",
+          "統一格式",
+          "複製數值",
+          "狀態反饋"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-pivot-table",
+    "kind": "component",
+    "logicalId": "ed723539-85d9-5963-b7c8-a5d954faec00",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-pivot-table.svg",
+    "translations": {
+      "en": {
+        "title": "Pivot table",
+        "description": "Cross-tabulate dimensions and metrics with hierarchy and totals.",
+        "features": [
+          "Multi-level rows and columns",
+          "Expand hierarchy",
+          "Conditional colors",
+          "CSV export"
+        ]
+      },
+      "zh-Hans": {
+        "title": "交叉透视表",
+        "description": "交叉汇总维度与指标，支持层级与合计。",
+        "features": [
+          "多级行列",
+          "层级展开",
+          "条件着色",
+          "CSV 导出"
+        ]
+      },
+      "zh-Hant": {
+        "title": "交叉透視表",
+        "description": "交叉匯總維度與指標，支持層級與合計。",
+        "features": [
+          "多級行列",
+          "層級展開",
+          "條件著色",
+          "CSV 導出"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-ranking",
+    "kind": "component",
+    "logicalId": "5f896db3-998d-55a0-b62b-16bc538f254d",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-ranking.svg",
+    "translations": {
+      "en": {
+        "title": "Ranking list",
+        "description": "Rank objects by a metric with search and a result limit.",
+        "features": [
+          "Search objects",
+          "Sort order",
+          "Top N"
+        ]
+      },
+      "zh-Hans": {
+        "title": "排行列表",
+        "description": "按指标对对象排序，支持搜索与数量筛选。",
+        "features": [
+          "搜索对象",
+          "排序切换",
+          "Top N"
+        ]
+      },
+      "zh-Hant": {
+        "title": "排行列表",
+        "description": "按指標對對象排序，支持搜索與數量篩選。",
+        "features": [
+          "搜索對象",
+          "排序切換",
+          "Top N"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-target-progress",
+    "kind": "component",
+    "logicalId": "1934a430-b5c0-5a55-83e4-4bbb29a558f3",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-target-progress.svg",
+    "translations": {
+      "en": {
+        "title": "Target progress",
+        "description": "Show actual values, targets and achievement progress.",
+        "features": [
+          "Target comparison",
+          "Achievement rate",
+          "Overachievement"
+        ]
+      },
+      "zh-Hans": {
+        "title": "目标达成进度",
+        "description": "呈现实际值、目标值及达成进度。",
+        "features": [
+          "目标对比",
+          "达成率",
+          "超额提示"
+        ]
+      },
+      "zh-Hant": {
+        "title": "目標達成進度",
+        "description": "呈現實際值、目標值及達成進度。",
+        "features": [
+          "目標對比",
+          "達成率",
+          "超額提示"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-event-timeline",
+    "kind": "component",
+    "logicalId": "9219ab3b-bf04-5010-8986-c824240f0c58",
+    "state": "planned",
+    "categories": [
+      "data"
+    ],
+    "appearance": "light",
+    "coverKey": "component-event-timeline.svg",
+    "translations": {
+      "en": {
+        "title": "Event timeline",
+        "description": "Arrange events chronologically and inspect their details.",
+        "features": [
+          "Time order",
+          "Search events",
+          "Event details"
+        ]
+      },
+      "zh-Hans": {
+        "title": "事件时间线",
+        "description": "沿时间排列事件，查看事件详情。",
+        "features": [
+          "时间排序",
+          "搜索事件",
+          "事件详情"
+        ]
+      },
+      "zh-Hant": {
+        "title": "事件時間線",
+        "description": "沿時間排列事件，查看事件詳情。",
+        "features": [
+          "時間排序",
+          "搜索事件",
+          "事件詳情"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-keyword-filter",
+    "kind": "component",
+    "logicalId": "7e1da726-0db3-5b7f-888a-fd1bceed5c08",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-keyword-filter.svg",
+    "translations": {
+      "en": {
+        "title": "Keyword filter",
+        "description": "Submit or clear keywords to update query filters.",
+        "features": [
+          "Submit with Enter",
+          "Clear filters",
+          "State feedback"
+        ]
+      },
+      "zh-Hans": {
+        "title": "关键词筛选",
+        "description": "提交或清空关键词以更新查询条件。",
+        "features": [
+          "回车提交",
+          "清空条件",
+          "状态回显"
+        ]
+      },
+      "zh-Hant": {
+        "title": "關鍵詞篩選",
+        "description": "提交或清空關鍵詞以更新查詢條件。",
+        "features": [
+          "回車提交",
+          "清空條件",
+          "狀態回顯"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-number-range",
+    "kind": "component",
+    "logicalId": "864d449e-9a90-5aa6-8803-489ccf694308",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-number-range.svg",
+    "translations": {
+      "en": {
+        "title": "Numeric range filter",
+        "description": "Set and validate minimum and maximum values.",
+        "features": [
+          "Bounds",
+          "Range validation",
+          "Apply and clear"
+        ]
+      },
+      "zh-Hans": {
+        "title": "数值区间筛选",
+        "description": "设置上下界并校验数值区间。",
+        "features": [
+          "上下界",
+          "范围校验",
+          "确认与清空"
+        ]
+      },
+      "zh-Hant": {
+        "title": "數值區間篩選",
+        "description": "設置上下界並校驗數值區間。",
+        "features": [
+          "上下界",
+          "範圍校驗",
+          "確認與清空"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-segmented-filter",
+    "kind": "component",
+    "logicalId": "d36bd557-42f0-52f2-a769-dd0a72ac6ce3",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-segmented-filter.svg",
+    "translations": {
+      "en": {
+        "title": "Segmented option filter",
+        "description": "Switch quickly between a few visible options.",
+        "features": [
+          "Visible options",
+          "Single selection",
+          "Keyboard support"
+        ]
+      },
+      "zh-Hans": {
+        "title": "分段选项筛选",
+        "description": "平铺少量选项，快速切换筛选条件。",
+        "features": [
+          "平铺选项",
+          "单选",
+          "键盘操作"
+        ]
+      },
+      "zh-Hant": {
+        "title": "分段選項篩選",
+        "description": "平鋪少量選項，快速切換篩選條件。",
+        "features": [
+          "平鋪選項",
+          "單選",
+          "鍵盤操作"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-toggle-filter",
+    "kind": "component",
+    "logicalId": "c9063ed7-4172-54e5-b8ae-10bbcab57fec",
+    "state": "planned",
+    "categories": [
+      "filters"
+    ],
+    "appearance": "light",
+    "coverKey": "component-toggle-filter.svg",
+    "translations": {
+      "en": {
+        "title": "Toggle filter",
+        "description": "Switch between two explicit business conditions.",
+        "features": [
+          "Two states",
+          "Custom values",
+          "State feedback"
+        ]
+      },
+      "zh-Hans": {
+        "title": "开关筛选",
+        "description": "在两个明确的业务条件之间切换。",
+        "features": [
+          "双态切换",
+          "自定义值",
+          "状态回显"
+        ]
+      },
+      "zh-Hant": {
+        "title": "開關篩選",
+        "description": "在兩個明確的業務條件之間切換。",
+        "features": [
+          "雙態切換",
+          "自定義值",
+          "狀態回顯"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-tabbed-panel",
+    "kind": "component",
+    "logicalId": "e96430f7-db50-5869-b978-42d1b9d7fbd4",
+    "state": "planned",
+    "categories": [
+      "layout"
+    ],
+    "appearance": "light",
+    "coverKey": "component-tabbed-panel.svg",
+    "translations": {
+      "en": {
+        "title": "Tabbed content panel",
+        "description": "Switch content in one area while retaining inner state.",
+        "features": [
+          "Content slots",
+          "Tab switching",
+          "State preservation"
+        ]
+      },
+      "zh-Hans": {
+        "title": "标签内容面板",
+        "description": "在同一区域切换内容，并保留内部状态。",
+        "features": [
+          "内容插槽",
+          "标签切换",
+          "状态保留"
+        ]
+      },
+      "zh-Hant": {
+        "title": "標籤內容面板",
+        "description": "在同一區域切換內容，並保留內部狀態。",
+        "features": [
+          "內容插槽",
+          "標籤切換",
+          "狀態保留"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-collapsible-panel",
+    "kind": "component",
+    "logicalId": "2a46bd91-be76-52d9-a1b7-ce476e19caf7",
+    "state": "planned",
+    "categories": [
+      "layout"
+    ],
+    "appearance": "light",
+    "coverKey": "component-collapsible-panel.svg",
+    "translations": {
+      "en": {
+        "title": "Collapsible content panel",
+        "description": "Expand or collapse supplementary content.",
+        "features": [
+          "Content slots",
+          "Default expansion",
+          "Keyboard support"
+        ]
+      },
+      "zh-Hans": {
+        "title": "折叠内容面板",
+        "description": "展开或收起补充内容。",
+        "features": [
+          "内容插槽",
+          "默认展开",
+          "键盘操作"
+        ]
+      },
+      "zh-Hant": {
+        "title": "折疊內容面板",
+        "description": "展開或收起補充內容。",
+        "features": [
+          "內容插槽",
+          "默認展開",
+          "鍵盤操作"
+        ]
+      }
+    }
+  },
+  {
+    "key": "component-analysis-note",
+    "kind": "component",
+    "logicalId": "ea40ab38-8f16-5ced-92d0-50b7d31b9d80",
+    "state": "planned",
+    "categories": [
+      "layout"
+    ],
+    "appearance": "light",
+    "coverKey": "component-analysis-note.svg",
+    "translations": {
+      "en": {
+        "title": "Analysis notes and guidance",
+        "description": "Explain findings, risks or metric definitions.",
+        "features": [
+          "Information and risk levels",
+          "Expand details",
+          "Dismiss notes"
+        ]
+      },
+      "zh-Hans": {
+        "title": "分析提示与说明",
+        "description": "展示分析说明、风险提示或指标口径。",
+        "features": [
+          "信息与风险级别",
+          "展开详情",
+          "关闭提示"
+        ]
+      },
+      "zh-Hant": {
+        "title": "分析提示與說明",
+        "description": "展示分析說明、風險提示或指標口徑。",
+        "features": [
+          "信息與風險級別",
+          "展開詳情",
+          "關閉提示"
+        ]
+      }
+    }
+  },
+  {
+    "key": "hotel-operations",
+    "kind": "example-task",
+    "logicalId": "0b7ed312-337b-45a7-9e83-d2295ed6e004",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "hotel-operations",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "酒店经营分析",
+        "description": "基于酒店预订示例数据，分析预订与取消风险、渠道结构和房费估算，给出押金政策、客源及房型调整建议。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "酒店经营分析",
+        "description": "基于酒店预订示例数据，分析预订与取消风险、渠道结构和房费估算，给出押金政策、客源及房型调整建议。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "酒店经营分析",
+        "description": "基于酒店预订示例数据，分析预订与取消风险、渠道结构和房费估算，给出押金政策、客源及房型调整建议。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "outbound-travel",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000002",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "outbound-travel",
+    "dataMode": "web",
+    "requirements": [
+      "联网检索"
+    ],
+    "translations": {
+      "en": {
+        "title": "2026 出境游决策分析看板",
+        "description": "检索出境游公开信息，比较热门目的地、旅行成本、价格趋势与不同预算的出游选择。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "2026 出境游决策分析看板",
+        "description": "检索出境游公开信息，比较热门目的地、旅行成本、价格趋势与不同预算的出游选择。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "2026 出境游决策分析看板",
+        "description": "检索出境游公开信息，比较热门目的地、旅行成本、价格趋势与不同预算的出游选择。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "steam-market",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000003",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "steam-market",
+    "dataMode": "external",
+    "requirements": [
+      "Kaggle MCP"
+    ],
+    "translations": {
+      "en": {
+        "title": "Steam 游戏市场分析",
+        "description": "使用 Kaggle MCP 获取 Steam 游戏公开数据，分析发行趋势、热门类型、价格、玩家评价及开发商表现。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "Steam 游戏市场分析",
+        "description": "使用 Kaggle MCP 获取 Steam 游戏公开数据，分析发行趋势、热门类型、价格、玩家评价及开发商表现。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "Steam 游戏市场分析",
+        "description": "使用 Kaggle MCP 获取 Steam 游戏公开数据，分析发行趋势、热门类型、价格、玩家评价及开发商表现。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "weather-alerts",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000004",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "weather-alerts",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "极端天气预警态势分析看板",
+        "description": "分析预警在时间、地域、灾害类型和级别上的分布，识别高频、高等级及连续预警区域。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "极端天气预警态势分析看板",
+        "description": "分析预警在时间、地域、灾害类型和级别上的分布，识别高频、高等级及连续预警区域。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "极端天气预警态势分析看板",
+        "description": "分析预警在时间、地域、灾害类型和级别上的分布，识别高频、高等级及连续预警区域。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "category-contribution",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000005",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "category-contribution",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "核心品类贡献分析",
+        "description": "用二八法则找到真正决定经营基本盘的核心品类。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "核心品类贡献分析",
+        "description": "用二八法则找到真正决定经营基本盘的核心品类。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "核心品类贡献分析",
+        "description": "用二八法则找到真正决定经营基本盘的核心品类。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "ecommerce-operations",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000006",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "ecommerce-operations",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "电商业务分析看板",
+        "description": "基于电商经营数据生成洞察型看板，所有数字、结论、洞察均由数据聚合得出。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "电商业务分析看板",
+        "description": "基于电商经营数据生成洞察型看板，所有数字、结论、洞察均由数据聚合得出。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "电商业务分析看板",
+        "description": "基于电商经营数据生成洞察型看板，所有数字、结论、洞察均由数据聚合得出。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "global-assets",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000007",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "global-assets",
+    "dataMode": "web",
+    "requirements": [
+      "联网检索"
+    ],
+    "translations": {
+      "en": {
+        "title": "全球资产趋势分析看板",
+        "description": "对比纳斯达克、黄金、上证指数的长期走势、收益、波动和回撤。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "全球资产趋势分析看板",
+        "description": "对比纳斯达克、黄金、上证指数的长期走势、收益、波动和回撤。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "全球资产趋势分析看板",
+        "description": "对比纳斯达克、黄金、上证指数的长期走势、收益、波动和回撤。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "legal-defense",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000008",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "legal-defense",
+    "dataMode": "external",
+    "requirements": [
+      "包拯.SKILL",
+      "联网检索"
+    ],
+    "translations": {
+      "en": {
+        "title": "外部 Skill 实战：包拯法律分析看板",
+        "description": "以“正当防卫怎么判”为例，结合官方案例与包拯.SKILL，核验法律依据、对比处理结果、梳理司法流程。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "外部 Skill 实战：包拯法律分析看板",
+        "description": "以“正当防卫怎么判”为例，结合官方案例与包拯.SKILL，核验法律依据、对比处理结果、梳理司法流程。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "外部 Skill 实战：包拯法律分析看板",
+        "description": "以“正当防卫怎么判”为例，结合官方案例与包拯.SKILL，核验法律依据、对比处理结果、梳理司法流程。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "order-promotion",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000009",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "order-promotion",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "订单结构与促销表现分析",
+        "description": "基于订单明细了解品类、优惠和支付方式结构，并给出可执行的经营建议。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "订单结构与促销表现分析",
+        "description": "基于订单明细了解品类、优惠和支付方式结构，并给出可执行的经营建议。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "订单结构与促销表现分析",
+        "description": "基于订单明细了解品类、优惠和支付方式结构，并给出可执行的经营建议。",
+        "features": []
+      }
+    }
+  },
+  {
+    "key": "hotel-cancellation",
+    "kind": "example-task",
+    "logicalId": "73aca0be-536d-4f4a-8e66-000000000010",
+    "state": "not-installed",
+    "categories": [
+      "insights"
+    ],
+    "coverKey": "hotel-cancellation",
+    "dataMode": "demo",
+    "requirements": [],
+    "translations": {
+      "en": {
+        "title": "酒店取消率归因",
+        "description": "拆解取消率背后的关键因素，找到最值得优先干预的问题。",
+        "features": []
+      },
+      "zh-Hans": {
+        "title": "酒店取消率归因",
+        "description": "拆解取消率背后的关键因素，找到最值得优先干预的问题。",
+        "features": []
+      },
+      "zh-Hant": {
+        "title": "酒店取消率归因",
+        "description": "拆解取消率背后的关键因素，找到最值得优先干预的问题。",
+        "features": []
+      }
+    }
+  }
+]

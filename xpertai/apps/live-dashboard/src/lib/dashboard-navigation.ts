@@ -2,17 +2,18 @@ import { z } from 'zod/v3'
 import type { WorkbenchNavigationOpenPayload, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 
 // The host namespaces provider + local view key; cards use the resolved public key.
+export const DASHBOARD_DOCUMENT_VIEW_KEY = 'live-dashboard__dashboard'
 export const DASHBOARD_VIEW_KEY = 'live-dashboard__live-dashboard'
 export const dashboardNavigationTargetSchema = z.object({
-  target: z.literal('workbench.view'), viewKey: z.literal(DASHBOARD_VIEW_KEY)
+  target: z.literal('workbench.view'), viewKey: z.enum([DASHBOARD_VIEW_KEY, DASHBOARD_DOCUMENT_VIEW_KEY])
 }).strict()
 export type DashboardNavigationTarget = z.infer<typeof dashboardNavigationTargetSchema>
 /** Resolve from the authorized host context, never from the dashboard's business identity. */
-export function dashboardNavigationTarget(context: XpertResolvedViewHostContext): DashboardNavigationTarget {
+export function dashboardNavigationTarget(context: XpertResolvedViewHostContext, document = false): DashboardNavigationTarget {
   if (context.hostType !== 'agent') throw new Error('DASHBOARD_HOST_UNSUPPORTED')
   return {
     target: 'workbench.view',
-    viewKey: DASHBOARD_VIEW_KEY
+    viewKey: document ? DASHBOARD_DOCUMENT_VIEW_KEY : DASHBOARD_VIEW_KEY
   } as const satisfies WorkbenchNavigationOpenPayload
 }
 export const dashboardNavigationSchema = z.object({

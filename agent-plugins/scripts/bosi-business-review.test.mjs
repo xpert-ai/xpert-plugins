@@ -53,7 +53,7 @@ test('every role binds shared source-neutral skills to its connected primary Age
       assert.equal(edge.required, true);
       return dsl.nodes.find(n => n.key === edge.to).entity.provider;
     });
-    assert.deepEqual(connectedProviders.sort(), ['LiveDashboard', 'SandboxFile', 'skillsMiddleware'].sort());
+    assert.deepEqual(connectedProviders.sort(), ['LiveDashboard', 'ResourceAssistant', 'SandboxFile', 'skillsMiddleware'].sort());
     assert(!dsl.template.manifest.routines?.some(r => r.enabled));
     assert.deepEqual(dsl.template.manifest.onboarding.preferences, []);
     assert.match(primary.entity.prompt, /current user's question determines/);

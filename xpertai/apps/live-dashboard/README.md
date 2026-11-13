@@ -10,6 +10,8 @@ Sources, component Inspect and portable dashboard archives are tracked in the
 
 Large dashboards now support 32 Bindings by default (64 protocol ceiling), bounded query scheduling, batch preview/filter validation and durable save progress. See the [feature guide](docs/large-dashboards.mdx) and [acceptance record](docs/large-dashboards-acceptance.mdx). These features require published SDK/contracts 3.33.0 or later; no SDK patch is required.
 
+The beta resource library supports fixed resource versions, ZIP import/export, and template tasks prepared in the conversation composer. Start with the [dashboard starter](docs/dashboard-starter.mdx), [resource directory](docs/library-directory-ui.mdx), and [Agent handoff](docs/template-agent-handoff.mdx). Storage and migration follow the [resource library contract](docs/library-storage.mdx); plugin consumers do not choose a storage provider. This foundation does not install template catalogs or business datasets automatically. These beta contracts may change incompatibly.
+
 ## Ownership and flow
 
 ```text
@@ -210,7 +212,7 @@ The renderer runs in a script-only sandbox with no-network CSP. A small in-memor
 
 ## Build and validation
 
-Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.33.0 and the Data Analytics renderer 0.1.35; no local platform or community links are required. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
+Use the xpertai workspace's declared Corepack/pnpm. Live Dashboard uses published SDK/contracts 3.35.0 for resource discovery, group sharing and inline widget presentation. Development dependencies pin the Data Analytics renderer to 0.1.35. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
 
 ```sh
 corepack pnpm install --frozen-lockfile
@@ -256,3 +258,13 @@ Manual acceptance after installing the updated plugin: cancel a deletion and con
 See [快速开始与样例](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant. Three versioned recipes bundle source, labeled synthetic data, previews and checks in [skills/live-dashboard/examples](skills/live-dashboard/examples/README.md). Existing dashboards remain independent of recipe upgrades.
 
 Superstore 企业 BI 样例的数据准备、三个页面和指标口径见 [Superstore](docs/superstore.mdx)。
+
+十个分析示例、酒店模板、合成数据、原创封面与 86 项目录占位已纳入内容作者工作流。通过独立 ZIP 显式导入；格式处于 Beta，详见[示例内容与模板目录](docs/content-packages.mdx)。
+
+### Inline analysis results
+
+`dashboard_present_analysis` posts a bounded, read-only A2UI Widget from a current-run
+verified preview. It rechecks access and queries the same Binding; it accepts no
+model-provided rows or SQL and saves no dashboard. Supported views: bar, line,
+table and metrics. Group projection uses the platform's generic Widget handling.
+See [inline analysis](docs/inline-analysis.mdx) for scope, limits and verification.

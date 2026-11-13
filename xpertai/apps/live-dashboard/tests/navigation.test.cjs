@@ -28,6 +28,57 @@ function transport() {
   return { api, messages, receive, complete }
 }
 
+test('mounted library re-handshakes after project/conversation changes instead of staying empty', t => {
+  const { api, receive, messages } = transport()
+  let ready = 0, resets = 0
+  t.after(api.startBridge(() => { ready++ }, () => {}, () => { resets++ }))
+  receive({ type: 'init', scopeRevision: 1 })
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  assert.equal(resets, 2)
+  assert.equal(messages.at(-1).type, 'ready')
+  assert.equal(messages.at(-1).scopeRevision, 2)
+  receive({ type: 'init', scopeRevision: 2 })
+  assert.equal(ready, 2)
+  const count = messages.length
+  receive({ type: 'hostEvent', scopeRevision: 1, event: { type: 'view.context.changed', data: { revision: 1 } } })
+  assert.equal(messages.length, count, 'stale scope must not restart the view')
+})
+
+test('a resolved preparation response cannot insert a draft after its conversation changes', async t => {
+  const { api, receive } = transport()
+  t.after(api.startBridge(() => {}, () => {}))
+  receive({ type: 'init', scopeRevision: 1 })
+  const assertCurrent = api.captureViewScope()
+  assert.doesNotThrow(assertCurrent)
+  await Promise.resolve() // preparation resolved, composer insertion has not started
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  receive({ type: 'init', scopeRevision: 2 })
+  assert.throws(assertCurrent, /Context changed/)
+  assert.doesNotThrow(api.captureViewScope())
+})
+
+test('V2 handoff uses composer insert once, never sends, and drops a late preparation after a scope change', { timeout: 5000 }, async t => {
+  const { api, messages, receive } = transport(), gateway = {}
+  t.after(api.startBridge(() => {}, () => {}))
+  vm.runInNewContext(ts.transpileModule(readFileSync(require.resolve('../src/remote/library-gateway.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText, { exports: gateway, require: id => id === './bridge' ? api
+    : require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id) })
+  receive({ type: 'init', scopeRevision: 1 })
+  const draft = { text: 'Generate the selected template', workspaceFiles: [{ path: 'tasks/data.json', name: 'Data', mimeType: 'application/json', size: 2 }], skillNames: ['live-dashboard'] }
+  const handoff = gateway.useResourceTask(randomUUID(), randomUUID())
+  assert.equal(messages.at(-1).actionKey, 'resource-prepare-task')
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, data: draft } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(messages.at(-1).commandKey, 'assistant.composer.insert'); assert.deepEqual(messages.at(-1).payload, draft)
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true } }); await handoff
+  const stale = gateway.useResourceTask(randomUUID(), randomUUID())
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, data: draft } })
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  await assert.rejects(stale, /Context changed/)
+  assert.equal(messages.filter(message => message.type === 'invokeClientCommand').length, 1)
+})
+
 test('refresh visibility follows scoped Workbench visibility, ignoring other frames and stale messages', t => {
   const { api, receive } = transport()
   t.after(api.startBridge(() => {}, () => {}))
@@ -98,4 +149,47 @@ test('deleting the selected dashboard clears Assistant context and stale catalog
   const clearNavigation = api.navigateDashboard({ target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY })
   assert.deepEqual(messages.at(-1).payload, { target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, parameters: { newDashboard: true } })
   complete(); await clearNavigation
+})
+
+test('collection and document register separate views; document reads do not enumerate the project', async () => {
+  const { DOCUMENT_VIEW_KEY } = require('../dist/lib/view.provider')
+  const artifactId = randomUUID(), ctx = { hostType: 'agent', hostId: randomUUID(), slots: [] }
+  let listed = false
+  const service = { access: async () => ({ canReadDraft: true }),
+    listPage: async () => { listed = true; return { items: [] } },
+    selectedSummary: async () => ({ artifactId }), history: async () => [],
+    openDocument: async () => undefined, sources: async () => [] }
+  const provider = new DashboardViewProvider(service, undefined, { current: async () => null })
+  const views = provider.getViewManifests(ctx, 'agent.workbench')
+  assert.equal(views.length, 2)
+  assert.equal(views[1].key, DOCUMENT_VIEW_KEY)
+  assert.equal(views[1].workbench.menu.enabled, false)
+  assert.equal(views[1].workbench.fixed, true, 'Workbench discovers document manifests through the fixed slot; content IDs create instances')
+  await assert.rejects(provider.getViewData(ctx, DOCUMENT_VIEW_KEY, {}), /DASHBOARD_ID_REQUIRED/)
+  const data = await provider.getViewData(ctx, DOCUMENT_VIEW_KEY, { selectionId: artifactId })
+  assert.equal(data.meta.navigationTarget.viewKey, 'live-dashboard__dashboard')
+  assert.equal(listed, false)
+})
+
+test('source tab opening resolves catalog identity and cannot navigate after scope changes', async t => {
+  const { api, messages, receive } = transport(), opener = {}
+  t.after(api.startBridge(() => {}, () => {}))
+  vm.runInNewContext(ts.transpileModule(readFileSync(require.resolve('../src/remote/open-dashboard-tab.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText, { exports: opener, require: id => id === './bridge' ? api
+    : require(id.startsWith('../lib/') ? id.replace('../lib/', '../dist/lib/') : id) })
+  receive({ type: 'init', scopeRevision: 1 })
+  const artifactId = randomUUID(), contentId = randomUUID(), versionId = randomUUID()
+  const opening = opener.openDashboardTab(artifactId, versionId, 'published')
+  assert.equal(messages.at(-1).commandKey, 'workbench.content.resolve')
+  const navigation = { target: 'workbench.view', viewKey: 'live-dashboard__dashboard', selectionId: artifactId, parameters: { contentId } }
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, navigation } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(messages.at(-1).payload, { ...navigation, parameters: { contentId, versionId, mode: 'published' } })
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true } }); await opening
+  const stale = opener.openDashboardTab(artifactId)
+  receive({ type: 'actionResult', requestId: messages.at(-1).requestId, scopeRevision: 1, data: { success: true, navigation } })
+  receive({ type: 'hostEvent', scopeRevision: 2, event: { type: 'view.context.changed', data: { revision: 2 } } })
+  await assert.rejects(stale, /Context changed/)
+  assert.equal(messages.filter(item => item.commandKey === 'workbench.navigation.open').length, 1)
 })
