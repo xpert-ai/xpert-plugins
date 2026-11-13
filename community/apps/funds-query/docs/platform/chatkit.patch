@@ -1,0 +1,666 @@
+diff --git a/packages/chatkit-ui/package.json b/packages/chatkit-ui/package.json
+index 848fe78..0a68c93 100644
+--- a/packages/chatkit-ui/package.json
++++ b/packages/chatkit-ui/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@xpert-ai/chatkit-ui",
+-  "version": "0.21.1",
++  "version": "0.21.1+funds.2",
+   "description": "ChatKit UI.",
+   "type": "module",
+   "sideEffects": false,
+diff --git a/packages/chatkit-ui/src/components/chat/ChatView.tsx b/packages/chatkit-ui/src/components/chat/ChatView.tsx
+index 095a906..83e051b 100644
+--- a/packages/chatkit-ui/src/components/chat/ChatView.tsx
++++ b/packages/chatkit-ui/src/components/chat/ChatView.tsx
+@@ -44,6 +44,11 @@ export function ChatView({
+         {view.composerBefore}
+         <ChatComposerForm
+           {...view.composer}
++          hidden={
++            surface !== 'side' &&
++            workbench?.floating &&
++            workbench.composerOwnedByView
++          }
+           compact={!compact && view.composer.compact}
+         />
+         {view.composerAfter}
+diff --git a/packages/chatkit-ui/src/components/chat/composer/ComposerSurface.tsx b/packages/chatkit-ui/src/components/chat/composer/ComposerSurface.tsx
+index bb16044..8fec7cb 100644
+--- a/packages/chatkit-ui/src/components/chat/composer/ComposerSurface.tsx
++++ b/packages/chatkit-ui/src/components/chat/composer/ComposerSurface.tsx
+@@ -118,16 +118,19 @@ export function ComposerSurface({
+ export function ChatComposerFormFrame({
+   onSubmit,
+   formRef,
++  hidden = false,
+   children,
+   ...surface
+ }: ComponentProps<typeof ComposerSurface> & {
+   onSubmit: ComponentProps<'form'>['onSubmit'];
+   formRef?: Ref<HTMLFormElement>;
++  hidden?: boolean;
+ }) {
+   return (
+     <form
+       ref={formRef}
+-      className="pointer-events-none flex items-end"
++      hidden={hidden}
++      className={cn('pointer-events-none flex items-end', hidden && 'hidden')}
+       onSubmit={onSubmit}
+     >
+       <ComposerSurface {...surface}>{children}</ComposerSurface>
+diff --git a/packages/chatkit-ui/src/workbench/WorkbenchShell.tsx b/packages/chatkit-ui/src/workbench/WorkbenchShell.tsx
+index 1d79e4d..0490a8e 100644
+--- a/packages/chatkit-ui/src/workbench/WorkbenchShell.tsx
++++ b/packages/chatkit-ui/src/workbench/WorkbenchShell.tsx
+@@ -53,6 +53,7 @@ import { useWorkbenchViewTabs } from './useWorkbenchViewTabs';
+ import { MAIN_CHAT_VIEW_KEY, WorkbenchPanel } from './WorkbenchPanel';
+ import { SIDE_CHAT_VIEW_KEY, type SideChatSession } from './side-chat/types';
+ import { WorkbenchChatProvider } from './floating-chat/context';
++import { viewOwnsComposer } from './composer-owner';
+ 
+ import { useWorkbenchClientCommands } from './shell/commands/useWorkbenchClientCommands';
+ import { WorkbenchShellLayout } from './shell/layout/WorkbenchShellLayout';
+@@ -941,6 +942,7 @@ function WorkbenchContent({
+         <WorkbenchChatProvider
+           scope={viewScopeKey}
+           floating={mainChatInWorkbench && activeViewKey !== MAIN_CHAT_VIEW_KEY}
++          composerOwnedByView={viewOwnsComposer(activeView, activeViewKey)}
+         >
+           <WorkbenchShellLayout
+             contextValue={contextValue}
+diff --git a/packages/chatkit-ui/src/workbench/floating-chat/FloatingChat.tsx b/packages/chatkit-ui/src/workbench/floating-chat/FloatingChat.tsx
+index ec5a674..f7a242f 100644
+--- a/packages/chatkit-ui/src/workbench/floating-chat/FloatingChat.tsx
++++ b/packages/chatkit-ui/src/workbench/floating-chat/FloatingChat.tsx
+@@ -24,7 +24,11 @@ export function FloatingChat({
+   const chat = useWorkbenchChat();
+   const { t } = useChatkitTranslation();
+   const { theme } = useTheme();
+-  const mode = chat?.mode ?? 'compact';
++  const preferredMode = chat?.mode ?? 'compact';
++  const mode =
++    chat?.composerOwnedByView && preferredMode === 'compact'
++      ? 'minimized'
++      : preferredMode;
+   const minimized = mode === 'minimized';
+   const position = useFloatingChatPosition(
+     active && !minimized,
+@@ -132,7 +136,9 @@ export function FloatingChat({
+         style={launcherPosition.style}
+         aria-label={`${t('workbench.floatingChat.restore')}: ${title}`}
+         title={`${title} · ${statusLabel}`}
+-        onClick={() => changeMode('compact')}
++        onClick={() =>
++          changeMode(chat?.composerOwnedByView ? 'expanded' : 'compact')
++        }
+       >
+         <StatusIcon
+           className={
+diff --git a/packages/chatkit-ui/src/workbench/floating-chat/context.tsx b/packages/chatkit-ui/src/workbench/floating-chat/context.tsx
+index 385eb82..c9ea983 100644
+--- a/packages/chatkit-ui/src/workbench/floating-chat/context.tsx
++++ b/packages/chatkit-ui/src/workbench/floating-chat/context.tsx
+@@ -11,6 +11,7 @@ export type WorkbenchChatMetadata = {
+ type ChatPresentation = {
+   scope: string;
+   floating: boolean;
++  composerOwnedByView: boolean;
+   mode: FloatingChatMode;
+   setMode: (mode: FloatingChatMode) => void;
+   metadata: WorkbenchChatMetadata | null;
+@@ -30,10 +31,12 @@ export const useWorkbenchChat = () => React.useContext(Context);
+ export function WorkbenchChatProvider({
+   scope,
+   floating,
++  composerOwnedByView = false,
+   children,
+ }: {
+   scope: string;
+   floating: boolean;
++  composerOwnedByView?: boolean;
+   children: React.ReactNode;
+ }) {
+   const [mode, setMode] = React.useState<FloatingChatMode>('compact');
+@@ -78,6 +81,7 @@ export function WorkbenchChatProvider({
+     () => ({
+       scope,
+       floating,
++      composerOwnedByView,
+       mode,
+       setMode,
+       metadata,
+@@ -88,7 +92,7 @@ export function WorkbenchChatProvider({
+       expandedWidth,
+       launcherPosition,
+     }),
+-    [scope, floating, mode, metadata, publish],
++    [scope, floating, composerOwnedByView, mode, metadata, publish],
+   );
+   return <Context.Provider value={value}>{children}</Context.Provider>;
+ }
+diff --git a/packages/chatkit-ui/src/workbench/message-command-payload.ts b/packages/chatkit-ui/src/workbench/message-command-payload.ts
+index d834535..a101a4e 100644
+--- a/packages/chatkit-ui/src/workbench/message-command-payload.ts
++++ b/packages/chatkit-ui/src/workbench/message-command-payload.ts
+@@ -90,6 +90,8 @@ export function parseChatMessagePayload(payload: unknown) {
+     planMode: value ? Reflect.get(value, 'planMode') === true : false,
+     newThread: value ? Reflect.get(value, 'newThread') === true : false,
+     clientMessageId: value ? readString(value, 'clientMessageId') : undefined,
++    conversationId: value ? readString(value, 'conversationId') : undefined,
++    threadId: value ? readString(value, 'threadId') : undefined,
+     runtimeCapabilities: isRuntimeCapabilitiesSelection(
+       runtimeCapabilitiesValue,
+     )
+diff --git a/packages/chatkit-ui/src/workbench/shell/commands/useWorkbenchClientCommands.ts b/packages/chatkit-ui/src/workbench/shell/commands/useWorkbenchClientCommands.ts
+index 0220302..71abee3 100644
+--- a/packages/chatkit-ui/src/workbench/shell/commands/useWorkbenchClientCommands.ts
++++ b/packages/chatkit-ui/src/workbench/shell/commands/useWorkbenchClientCommands.ts
+@@ -1,4 +1,8 @@
+ import { contentTabKey, contentViewKey } from '../../content/tab-identity';
++import {
++  ASSISTANT_CHAT_GET_CONTEXT_COMMAND,
++  readAssistantChatContext,
++} from '../../assistant-chat-context';
+ import {
+   executeContentCommand,
+   isContentCommand,
+@@ -207,8 +211,26 @@ export function useWorkbenchClientCommands({
+         };
+       }
+ 
++      if (commandKey === ASSISTANT_CHAT_GET_CONTEXT_COMMAND) {
++        if (stream.group)
++          return { success: false, code: 'context_unavailable' };
++        return readAssistantChatContext(stream);
++      }
++
+       if (commandKey === ASSISTANT_CHAT_SEND_MESSAGE_COMMAND) {
+         const message = parseChatMessagePayload(payload);
++        if (
++          (message.conversationId &&
++            message.conversationId !== stream.conversationId) ||
++          (message.threadId && message.threadId !== stream.threadId) ||
++          (message.newThread && (message.conversationId || message.threadId))
++        )
++          return { success: false, code: 'stale_context' };
++        if (
++          (message.conversationId || message.threadId) &&
++          !readAssistantChatContext(stream).ready
++        )
++          return { success: false, code: 'context_unavailable' };
+         if (stream.group) {
+           if ((await stream.group.sendMessage(message)) === false)
+             return unsupportedCommand(commandKey);
+diff --git a/packages/chatkit-ui/browser-tests/composer-owner.spec.ts b/packages/chatkit-ui/browser-tests/composer-owner.spec.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/browser-tests/composer-owner.spec.ts
+@@ -0,0 +1,187 @@
++import { readFile } from 'node:fs/promises';
++import { dirname, extname, resolve, sep } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { expect, test } from '@playwright/test';
++
++const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
++const hostOrigin = 'http://localhost';
++const key = 'funds.view-provider__funds-query';
++const manifest = {
++  key,
++  title: 'Funds query',
++  hostType: 'agent',
++  slot: 'agent.workbench.fixed',
++  source: { provider: 'funds' },
++  workbench: { openMode: 'auto', composerOwner: 'view' },
++  clientCommands: [
++    { key: 'assistant.chat.get_context' },
++    { key: 'assistant.chat.send_message' },
++  ],
++  dataSource: { mode: 'platform' },
++  view: {
++    type: 'remote_component',
++    runtime: 'vue',
++    protocolVersion: 1,
++    component: { isolation: 'iframe', entry: 'funds' },
++    dataSource: { mode: 'platform' },
++  },
++};
++const remote = `<!doctype html><html><body>
++<label>Funds question<textarea aria-label="Funds question"></textarea></label>
++<button id="context" disabled>Read context</button><button id="stale" disabled>Stale send</button><output id="result"></output>
++<script>
++let context, readTimer;
++addEventListener('message',event=>{const message=event.data;
++ if(message.type==='init'){context=message;document.querySelector('#context').disabled=false;document.querySelector('#stale').disabled=false;}
++ if(message.type==='hostEvent'&&message.event?.type==='view.context.changed'&&context)context.scopeRevision=message.scopeRevision;
++ if(message.type==='error'&&message.code==='context_changed'&&context){context.scopeRevision=message.scopeRevision;setTimeout(()=>document.querySelector('#context').click(),150);}
++ if(message.type==='clientCommandResult'){if(message.result?.success&&'ready' in message.result)clearTimeout(readTimer);document.querySelector('#result').textContent=JSON.stringify(message.result);}
++});
++function command(key,payload){parent.postMessage({channel:'xpertai.remote_component',protocolVersion:1,instanceId:context.instanceId,scopeRevision:context.scopeRevision,type:'invokeClientCommand',requestId:crypto.randomUUID(),commandKey:key,payload},'*')}
++document.querySelector('#context').onclick=()=>{command('assistant.chat.get_context',{});clearTimeout(readTimer);readTimer=setTimeout(()=>document.querySelector('#context').click(),1500)};
++document.querySelector('#stale').onclick=()=>command('assistant.chat.send_message',{text:'wrong context',conversationId:'another',threadId:'another'});
++parent.postMessage({channel:'xpertai.remote_component',protocolVersion:1,type:'ready'},'*');
++</script></body></html>`;
++
++for (const { width, frameOrigin } of [
++  { width: 1500, frameOrigin: hostOrigin },
++  { width: 760, frameOrigin: hostOrigin },
++  { width: 1500, frameOrigin: 'http://127.0.0.1' },
++]) {
++  test(`view composer is exclusive and native drafts recover at ${width}px from ${frameOrigin}`, async ({
++    page,
++  }, testInfo) => {
++    const errors: string[] = [];
++    page.on('pageerror', (error) => errors.push(error.message));
++    const host = `<!doctype html><html><body style="margin:0;height:100vh">
++<script src="/web-component.js"></script><script>
++const element=document.createElement('xpertai-chatkit');
++element.style.cssText='display:block;width:100vw;height:100vh';
++let view={viewKey:'${key}',layout:'maximized'};
++function apply(){element.setOptions({frameUrl:'${frameOrigin}/index.html',sessionKey:'composer-test',
++api:{apiUrl:'${hostOrigin}/api/ai',xpertId:'assistant',getClientSecret:async()=>({secret:'fixture-secret',organizationId:'fixture-org'})},
++initialThread:null,workbench:{enabled:true,navigation:{projectId:null,view}}});}
++window.showNativeChat=()=>{view=null;apply()};
++window.showFunds=()=>{view={viewKey:'${key}',layout:'maximized'};apply()};
++apply();document.body.append(element);
++</script></body></html>`;
++    await page.route('**/*', async (route) => {
++      const url = new URL(route.request().url());
++      if (![hostOrigin, frameOrigin].includes(url.origin)) return route.abort();
++      if (url.pathname === '/host')
++        return route.fulfill({ contentType: 'text/html', body: host });
++      if (url.pathname === '/web-component.js')
++        return route.fulfill({
++          contentType: 'application/javascript',
++          body: await readFile(
++            resolve(root, '../web-component/dist/xpert-chatkit.js'),
++          ),
++        });
++      const headers = {
++        'access-control-allow-origin': frameOrigin,
++        'access-control-allow-headers': '*',
++        'access-control-allow-methods': 'GET,POST,OPTIONS',
++      };
++      if (route.request().method() === 'OPTIONS')
++        return route.fulfill({ status: 204, headers });
++      if (url.pathname.includes('/api/')) {
++        if (url.pathname.endsWith('/views'))
++          return route.fulfill({ json: [manifest], headers });
++        if (url.pathname.endsWith('/manifest'))
++          return route.fulfill({ json: manifest, headers });
++        if (url.pathname.endsWith('/remote-component/entry'))
++          return route.fulfill({
++            contentType: 'text/html',
++            body: remote,
++            headers,
++          });
++        if (url.pathname.endsWith('/assistants/assistant'))
++          return route.fulfill({
++            json: {
++              assistant_id: 'assistant',
++              name: 'Funds assistant',
++              config: {},
++            },
++            headers,
++          });
++        return route.fulfill({
++          json: { items: [], data: [], total: 0 },
++          headers,
++        });
++      }
++      const file = resolve(
++        root,
++        'dist/app',
++        `.${decodeURIComponent(url.pathname)}`,
++      );
++      if (!file.startsWith(resolve(root, 'dist/app') + sep))
++        return route.abort();
++      try {
++        const types: Record<string, string> = {
++          '.html': 'text/html',
++          '.js': 'application/javascript',
++          '.css': 'text/css',
++          '.woff2': 'font/woff2',
++          '.svg': 'image/svg+xml',
++          '.png': 'image/png',
++        };
++        return route.fulfill({
++          contentType: types[extname(file)] ?? 'application/octet-stream',
++          body: await readFile(file),
++        });
++      } catch {
++        return route.fulfill({ status: 404, body: 'No fixture resource' });
++      }
++    });
++    await page.setViewportSize({ width, height: 950 });
++    await page.goto(`${hostOrigin}/host`);
++    const chatkit = page.frameLocator('xpertai-chatkit iframe');
++    const funds = chatkit.frameLocator('iframe[title="Funds query"]');
++    await expect(
++      funds.getByRole('textbox', { name: 'Funds question' }),
++    ).toBeVisible();
++    await expect(async () => {
++      await funds.getByRole('button', { name: 'Read context' }).click();
++      await expect(funds.locator('#result')).toContainText('"success":true', {timeout: 1000});
++    }).toPass({timeout: 10000, intervals: [150, 300, 500]});
++    await expect(funds.locator('#result')).toContainText(
++      '"conversationId":null',
++    );
++    await funds.getByRole('button', { name: 'Stale send' }).click();
++    await expect(funds.locator('#result')).toContainText('stale_context');
++    const nativeDock = chatkit.locator('[data-slot="chatkit-chat-composer"]');
++    await expect(nativeDock).toHaveCount(1);
++    const nativeInput = nativeDock.getByRole('textbox', {
++      includeHidden: true,
++    });
++    await expect(nativeInput).toHaveCount(1);
++    await expect(nativeInput).not.toBeVisible();
++    await chatkit
++      .getByRole('button', { name: /^Open conversation input:/ })
++      .click();
++    await expect(nativeInput).not.toBeVisible();
++    await page.evaluate(() =>
++      (window as Window & { showNativeChat(): void }).showNativeChat(),
++    );
++    await expect(nativeDock).toBeVisible();
++    await nativeInput.fill('Native draft is preserved');
++    await page.evaluate(() =>
++      (window as Window & { showFunds(): void }).showFunds(),
++    );
++    await expect(
++      funds.getByRole('textbox', { name: 'Funds question' }),
++    ).toBeVisible();
++    await expect(nativeInput).not.toBeVisible();
++    await expect(nativeInput).toHaveText('Native draft is preserved');
++    await page.screenshot({
++      path: testInfo.outputPath('one-composer.png'),
++      fullPage: true,
++    });
++    await page.evaluate(() =>
++      (window as Window & { showNativeChat(): void }).showNativeChat(),
++    );
++    await expect(nativeDock).toBeVisible();
++    await expect(nativeInput).toHaveText('Native draft is preserved');
++    expect(errors).toEqual([]);
++  });
++}
+diff --git a/packages/chatkit-ui/src/workbench/WorkbenchShell.context.test.tsx b/packages/chatkit-ui/src/workbench/WorkbenchShell.context.test.tsx
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/src/workbench/WorkbenchShell.context.test.tsx
+@@ -0,0 +1,74 @@
++import { describe, expect, it } from 'vitest';
++import {
++  fixture as f,
++  setupWorkbenchTests,
++} from './WorkbenchShell.test-fixture';
++
++setupWorkbenchTests();
++
++async function open() {
++  f.mocks.listSlotViews.mockResolvedValue([f.manifest]);
++  f.mocks.submit.mockResolvedValue(undefined);
++  f.render(
++    <f.WorkbenchShell
++      options={{ ...f.baseOptions, workbench: { enabled: true } }}
++      locale="en-US"
++      onRequestContextChange={() => undefined}
++    >
++      <f.WorkbenchToggleButton />
++    </f.WorkbenchShell>,
++  );
++  await f.waitFor(() =>
++    expect(f.screen.getByLabelText('Open views')).toBeEnabled(),
++  );
++  f.fireEvent.click(f.screen.getByLabelText('Open views'));
++  await f.waitFor(() => expect(f.mocks.remoteViewProps).not.toBeNull());
++  return f.mocks.remoteViewProps!.onClientCommand;
++}
++
++describe('targeted assistant messages', () => {
++  it('reads current context without forwarding navigation or submitting a message', async () => {
++    const command = await open();
++    let result;
++    await f.act(async () => {
++      result = await command('assistant.chat.get_context', {}, f.manifest);
++    });
++    expect(result).toEqual({
++      success: true,
++      conversationId: 'conversation-1',
++      threadId: 'thread-1',
++      ready: true,
++    });
++    expect(f.mocks.submit).not.toHaveBeenCalled();
++  });
++  it('rejects a message whose expected conversation is no longer active', async () => {
++    const command = await open();
++    let result;
++    await f.act(async () => {
++      result = await command(
++        'assistant.chat.send_message',
++        { text: 'followup', conversationId: 'other', threadId: 'thread-1' },
++        f.manifest,
++      );
++    });
++    expect(result).toEqual({ success: false, code: 'stale_context' });
++    expect(f.mocks.submit).not.toHaveBeenCalled();
++  });
++  it('submits a message only to its confirmed active conversation', async () => {
++    const command = await open();
++    let result;
++    await f.act(async () => {
++      result = await command(
++        'assistant.chat.send_message',
++        {
++          text: 'followup',
++          conversationId: 'conversation-1',
++          threadId: 'thread-1',
++        },
++        f.manifest,
++      );
++    });
++    expect(result).toMatchObject({ success: true, status: 'sent' });
++    expect(f.mocks.submit).toHaveBeenCalledTimes(1);
++  });
++});
+diff --git a/packages/chatkit-ui/src/workbench/assistant-chat-context.test.ts b/packages/chatkit-ui/src/workbench/assistant-chat-context.test.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/src/workbench/assistant-chat-context.test.ts
+@@ -0,0 +1,36 @@
++import { describe, expect, it } from 'vitest';
++import { readAssistantChatContext } from './assistant-chat-context';
++
++const source = {
++  conversationId: 'conversation',
++  threadId: 'thread',
++  runtimeScopeReady: true,
++  historyLoad: { threadId: 'thread', status: 'loaded' as const },
++};
++
++describe('assistant context receipt', () => {
++  it('confirms the active ready conversation', () => {
++    expect(readAssistantChatContext(source)).toEqual({
++      success: true,
++      conversationId: 'conversation',
++      threadId: 'thread',
++      ready: true,
++    });
++  });
++  it.each(['loading', 'error'] as const)(
++    'waits while history is %s',
++    (status) => {
++      expect(
++        readAssistantChatContext({
++          ...source,
++          historyLoad: { threadId: 'thread', status },
++        }).ready,
++      ).toBe(false);
++    },
++  );
++  it('waits while the authorization scope is changing', () => {
++    expect(
++      readAssistantChatContext({ ...source, runtimeScopeReady: false }).ready,
++    ).toBe(false);
++  });
++});
+diff --git a/packages/chatkit-ui/src/workbench/assistant-chat-context.ts b/packages/chatkit-ui/src/workbench/assistant-chat-context.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/src/workbench/assistant-chat-context.ts
+@@ -0,0 +1,28 @@
++import type { WorkbenchRuntime } from './WorkbenchRuntime';
++
++/** Read-only context receipt. Requested IDs are preconditions, never authorization. */
++export type AssistantChatContextResult = {
++  success: true;
++  conversationId: string | null;
++  threadId: string | null;
++  ready: boolean;
++};
++
++export const ASSISTANT_CHAT_GET_CONTEXT_COMMAND = 'assistant.chat.get_context';
++
++export function readAssistantChatContext(
++  source: Pick<
++    WorkbenchRuntime,
++    'conversationId' | 'threadId' | 'runtimeScopeReady' | 'historyLoad'
++  >,
++): AssistantChatContextResult {
++  return {
++    success: true,
++    conversationId: source.conversationId ?? null,
++    threadId: source.threadId ?? null,
++    ready:
++      source.runtimeScopeReady !== false &&
++      source.historyLoad?.status !== 'loading' &&
++      source.historyLoad?.status !== 'error',
++  };
++}
+diff --git a/packages/chatkit-ui/src/workbench/composer-owner.test.tsx b/packages/chatkit-ui/src/workbench/composer-owner.test.tsx
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/src/workbench/composer-owner.test.tsx
+@@ -0,0 +1,98 @@
++import * as React from 'react';
++import { describe, expect, it } from 'vitest';
++import { ChatComposerFormFrame } from '../components/chat/composer/ComposerSurface';
++import { setupWorkbenchTests, fixture } from './WorkbenchShell.test-fixture';
++import { useWorkbenchChat } from './floating-chat/context';
++import { viewOwnsComposer, type ComposerViewManifest } from './composer-owner';
++
++const {
++  render,
++  screen,
++  fireEvent,
++  waitFor,
++  mocks,
++  WorkbenchShell,
++  WorkbenchToggleButton,
++  baseOptions,
++  manifest,
++  setObservedWidth,
++} = fixture;
++
++function MainChat() {
++  const presentation = useWorkbenchChat();
++  return (
++    <>
++      <WorkbenchToggleButton />
++      <ChatComposerFormFrame
++        actions={null}
++        onSubmit={(event) => event.preventDefault()}
++        hidden={Boolean(
++          presentation?.floating && presentation.composerOwnedByView,
++        )}
++      >
++        <input aria-label="Native input" defaultValue="Saved draft" />
++      </ChatComposerFormFrame>
++    </>
++  );
++}
++
++function tree() {
++  return (
++    <WorkbenchShell
++      options={{ ...baseOptions, workbench: { enabled: true } }}
++      locale="en-US"
++      onRequestContextChange={() => undefined}
++    >
++      <MainChat />
++    </WorkbenchShell>
++  );
++}
++
++async function openView() {
++  setObservedWidth(1200);
++  await waitFor(() =>
++    expect(screen.getByLabelText('Open views')).toBeEnabled(),
++  );
++  fireEvent.click(screen.getByLabelText('Open views'));
++  await screen.findByTestId('remote-view');
++  fireEvent.click(screen.getByLabelText('Expand panel'));
++}
++
++describe('View-owned conversation composer', () => {
++  setupWorkbenchTests();
++
++  it('requires explicit ownership on the exact active view', () => {
++    const view: ComposerViewManifest = {
++      ...manifest,
++      workbench: { ...manifest.workbench, composerOwner: 'view' },
++    };
++    expect(viewOwnsComposer(view, view.key)).toBe(true);
++    expect(viewOwnsComposer(view, 'main-chat')).toBe(false);
++    expect(viewOwnsComposer(manifest, manifest.key)).toBe(false);
++  });
++
++  it('hides the mounted native input and restores its draft in the main conversation', async () => {
++    mocks.listSlotViews.mockResolvedValue([
++      {
++        ...manifest,
++        workbench: { ...manifest.workbench, composerOwner: 'view' },
++      },
++    ]);
++    render(tree());
++    const native = screen.getByLabelText('Native input');
++    fireEvent.change(native, { target: { value: 'Keep this draft' } });
++    await openView();
++    expect(native).not.toBeVisible();
++    expect(native).toBeInTheDocument();
++    fireEvent.click(screen.getByRole('tab', { name: 'Chat' }));
++    expect(native).toBeVisible();
++    expect(native).toHaveValue('Keep this draft');
++  });
++
++  it('keeps the input for ordinary views', async () => {
++    mocks.listSlotViews.mockResolvedValue([manifest]);
++    render(tree());
++    await openView();
++    expect(screen.getByLabelText('Native input')).toBeVisible();
++  });
++});
+diff --git a/packages/chatkit-ui/src/workbench/composer-owner.ts b/packages/chatkit-ui/src/workbench/composer-owner.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/chatkit-ui/src/workbench/composer-owner.ts
+@@ -0,0 +1,17 @@
++import type { XpertExtensionViewManifest } from '@xpert-ai/xpert-sdk';
++
++// This optional presentation field also works with SDK versions that predate it.
++export type ComposerViewManifest = XpertExtensionViewManifest & {
++  workbench?: XpertExtensionViewManifest['workbench'] & {
++    composerOwner?: 'host' | 'view';
++  };
++};
++
++export function viewOwnsComposer(
++  view: ComposerViewManifest | null,
++  activeViewKey: string | null,
++) {
++  return (
++    view?.key === activeViewKey && view?.workbench?.composerOwner === 'view'
++  );
++}

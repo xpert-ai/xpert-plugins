@@ -1,0 +1,68 @@
+{
+  "synthetic": true,
+  "anchorDate": "2026-11-03",
+  "analysisMonth": "2026-10",
+  "account": "6222000000000001",
+  "secondAccount": "6222000000000002",
+  "receipts": {
+    "amount": "90000.13",
+    "count": 4,
+    "transactionIds": [
+      "T002",
+      "T003",
+      "T005",
+      "T009"
+    ],
+    "excelRows": [
+      3,
+      4,
+      6,
+      10
+    ]
+  },
+  "payments": {
+    "amount": "10000.21",
+    "count": 4
+  },
+  "net": {
+    "amount": "79999.92",
+    "count": 8
+  },
+  "selectedTwoAccountNet": {
+    "amount": "83800.72",
+    "count": 9
+  },
+  "receiptAbove50000": {
+    "amount": "60000.00",
+    "count": 1,
+    "transactionIds": [
+      "T005"
+    ]
+  },
+  "receiptRanking": [
+    {
+      "name": "乙公司",
+      "amount": "60000.00",
+      "count": 1
+    },
+    {
+      "name": "王五",
+      "amount": "20000.02",
+      "count": 1
+    },
+    {
+      "name": "甲公司",
+      "amount": "10000.11",
+      "count": 2
+    }
+  ],
+  "errors": {
+    "issueCount": 3,
+    "rows": [
+      3,
+      4,
+      5
+    ]
+  },
+  "note": "所有人员、账户和交易均为合成测试数据。预期值为独立手工核算，不通过查询引擎计算。相对月份问题应在锚定日期所在月验收，其他时间请使用明确日期。"
+}

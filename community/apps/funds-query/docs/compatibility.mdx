@@ -1,0 +1,56 @@
+---
+title: 基线与平台依赖
+---
+
+## 固定版本
+
+| 项目 | 开始开发时的 main 基线或发布基线 |
+| --- | --- |
+| xpert-ai/xpert | 0da9f4fb77bc49959b1ba1bf1df3e1be118f6b5e |
+| xpert-ai/xpert-plugins | 436004139e053269facae440182d11be752de050 |
+| xpert-ai/chatkit-js | a085b17bf8625663911ce279a448186c791dbdc2，ChatKit 0.21.1 发布基线 |
+
+插件版本为 0.2.4。原生 SDK 与 Contracts 均声明为 3.27.0。当前 ChatKit 修复构建标识为 0.21.1+funds.2。
+
+实际平台验证使用上述开源平台工作区及下列本地补丁。当前材料尚未证明在完全未修改的平台基线上走通所有多轮交互。
+
+## 必要的平台接入修改
+
+| 部分 | 修改内容 | 证据与交付 |
+| --- | --- | --- |
+| ChatKit | 显式输入区归属、读取真实会话上下文、发送目标校验 | platform/chatkit.patch |
+| Xpert 契约与依赖 | 对应契约字段及本地前端构建覆盖 | platform/xpert.patch |
+| 本地启动与重启 | 仅接受平台私有进程通道中的明确重启通知，重新经过启动检查 | platform/xpert.patch |
+
+补丁按固定基线准备，排除了 NsJail Dockerfile、其他示例插件和生成文件的改动。补丁属于复现材料，需由测试平台管理员核对并应用。
+
+## 平台故障确认
+
+任务书允许向招聘方提交版本、复现步骤和脱敏证据，由招聘方确认平台问题。候选人需要确认面试方接受的测试基线、是否允许该补丁，以及是否需要单独关联平台修复 PR。
+
+建议反馈的复现步骤如下。
+
+1. 在上述平台和插件基线上安装资金问数，初始化模板并打开工作台。
+2. 完成标准样例十月收款问题，随后在同一会话追问金额筛选。
+3. 核对原生会话恢复回执、平台执行记录与插件已保存问题是否一致。
+4. 对照补丁中的会话确认、发送目标校验和输入区归属修改。
+5. 若核对页面重启，在源码启动方式下检查平台重启请求与子进程退出后的重新加载。
+
+当前平台故障归属及补丁接受方式等待招聘方确认。代码和测试结果如实记录这一依赖。
+
+## 复现准备
+
+平台与插件使用各自 packageManager 和 Node.js 要求。插件工作区采用 Node.js 22.23.4、pnpm 8.15.8，Python 3.12.13。ChatKit 构建采用 Node.js 24.15.0、pnpm 10.11.0。
+
+先应用 [ChatKit 补丁](platform/chatkit.patch)，在该仓库安装固定依赖并构建 chatkit-ui。将该包输出为 chatkit-ui-0.21.1-funds-followup-fix.tgz，置于与平台补丁依赖覆盖对应的 deliverables 目录，再应用 [Xpert 补丁](platform/xpert.patch)。路径应按测试目录布局核对。
+
+```bash
+# 在 ChatKit 仓库中，选择符合该仓库要求的 Node.js。
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @xpert-ai/chatkit-ui build
+corepack pnpm --filter @xpert-ai/chatkit-ui types
+cd packages/chatkit-ui
+corepack pnpm pack --out /absolute/path/to/deliverables/chatkit-ui-0.21.1-funds-followup-fix.tgz
+```
+
+在平台中安装已准备的锁文件并重新启动前后台，然后按安装文档上传插件。插件源码构建和测试步骤见 README。外置平台的归档解析器测试通过 XPERT_PLATFORM_ROOT 指向平台目录。

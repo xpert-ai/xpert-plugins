@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="850" viewBox="0 0 1440 850" role="img" aria-labelledby="title desc">
+<title id="title">资金交易问数工作台交互原型</title><desc id="desc">主工作台包括数据集会话导航、数据摘要、问答结果和输入区，右侧展示交易依据和导入错误两种状态。</desc>
+<defs><style>text{font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;fill:#17212b;font-size:18px} .small{font-size:15px;fill:#526170}.title{font-size:28px;font-weight:700}.heading{font-size:20px;font-weight:700}.line{stroke:#c6d0d9;stroke-width:1.5}.panel{fill:#fff;stroke:#c6d0d9;stroke-width:1.5}.soft{fill:#f2f5f8}.blue{fill:#e7eff8}.warning{fill:#fff3ed;stroke:#db9e7b;stroke-width:1.5}</style></defs>
+<rect width="1440" height="850" fill="#f7f9fb"/>
+<text x="44" y="52" class="title">资金交易问数工作台交互原型</text>
+<text x="44" y="84" class="small">按已实现功能整理的结构示意　·　真实运行截图由候选人另行提供</text>
+<text x="44" y="128" class="heading">A　主工作台</text>
+<rect x="44" y="148" width="834" height="640" rx="14" class="panel"/>
+<path d="M254 148V788" class="line"/>
+<text x="64" y="185" class="heading">数据集与会话</text>
+<rect x="64" y="206" width="170" height="45" rx="7" class="soft"/>
+<text x="76" y="234" class="small">标准样例.xlsx　⌄</text>
+<rect x="64" y="266" width="170" height="42" rx="7" class="panel"/>
+<text x="92" y="293">导入 Excel</text>
+<rect x="64" y="335" width="170" height="42" rx="7" fill="#17212b"/>
+<text x="90" y="362" style="fill:white">＋ 新建会话</text>
+<rect x="64" y="398" width="170" height="59" rx="7" class="blue"/>
+<text x="76" y="424" class="small">张三十月收款</text><text x="76" y="446" class="small">当前会话</text>
+<text x="76" y="494" class="small">其他独立会话…</text>
+<text x="64" y="733" class="small">切换会话保留历史</text><text x="64" y="758" class="small">新建会话重置上下文</text>
+<text x="278" y="184" class="heading">交易明细与分析</text>
+<rect x="278" y="205" width="576" height="75" rx="8" class="soft"/>
+<text x="295" y="233" class="small">数据集交易</text><text x="295" y="263">12 笔</text>
+<text x="450" y="233" class="small">交易总额</text><text x="450" y="263">102,566.91 元</text>
+<text x="670" y="233" class="small">数据覆盖</text><text x="670" y="263" class="small">2026年9月至11月</text>
+<text x="279" y="317">对话　　原始交易</text><path d="M278 332H854" class="line"/>
+<rect x="394" y="351" width="460" height="58" rx="12" class="soft"/>
+<text x="412" y="386">张三在2026年10月一共收了多少钱？</text>
+<text x="280" y="446" class="small">助手核对账号与日期 → 精确计算 → 保存结果</text>
+<rect x="278" y="466" width="576" height="157" rx="10" class="panel"/>
+<text x="298" y="500" class="heading">收款合计　90,000.13 元</text><text x="298" y="532">匹配 4 笔交易</text>
+<text x="298" y="567" class="small">统计范围与口径　⌄</text>
+<rect x="298" y="581" width="151" height="29" rx="5" class="blue"/><text x="309" y="602" class="small">查看交易依据 → B</text>
+<rect x="278" y="658" width="576" height="84" rx="10" class="panel"/>
+<text x="297" y="691" class="small">只看超过5万元的…</text><text x="733" y="722">发送 ↑</text>
+<text x="278" y="770" class="small">同会话延续上下文　·　每条回答独立核对依据</text>
+<text x="918" y="128" class="heading">B　交易依据</text>
+<rect x="918" y="148" width="478" height="281" rx="14" class="panel"/>
+<text x="940" y="187" class="heading">当前答案的原始交易</text>
+<text x="940" y="222" class="small">筛选范围继承对应答案的条件</text>
+<rect x="940" y="244" width="433" height="38" rx="5" class="soft"/>
+<text x="952" y="269" class="small">编号　　　　金额　　　　Excel 行</text>
+<text x="952" y="311">T005　　　60,000.00　　　6</text>
+<path d="M940 331H1373" class="line"/>
+<text x="940" y="363" class="small">可继续查看账号、时间和原始摘要</text>
+<text x="940" y="399" class="small">关闭后回到原来的问答位置</text>
+<text x="918" y="480" class="heading">C　导入错误与恢复</text>
+<rect x="918" y="500" width="478" height="288" rx="14" class="panel"/>
+<rect x="940" y="520" width="433" height="169" rx="8" class="warning"/>
+<text x="957" y="552" class="heading">发现 3 行错误</text>
+<text x="957" y="587" class="small">第 3 行　金额校验错误</text>
+<text x="957" y="620" class="small">第 4 行　账号需使用文本格式</text>
+<text x="957" y="653" class="small">第 5 行　交易编号重复</text>
+<text x="940" y="724" class="small">修正文件 → 重新导入</text>
+<text x="940" y="757" class="small">当前数据集、会话和输入草稿继续保留</text>
+</svg>

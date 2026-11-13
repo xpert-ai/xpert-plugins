@@ -1,0 +1,36 @@
+---
+title: 复用来源与许可
+---
+
+## 自研范围
+
+本项目新增标准交易数据模型、Excel 校验与金额引擎、SQLite 会话和结果持久化、受限查询工具、Vue 业务工作台、Assistant 模板、打包脚本及回归测试。代码由 Codex 根据候选人需求辅助实现，候选人参与方案选择和实际平台验收。
+
+开发前使用 Drawio 示例体验插件安装与工作台流程，并参考 Xpert 仓库已有的 SDK、View Provider 和中间件接入方式。资金问数的业务数据与查询规则在独立插件目录实现。
+
+## 直接复用
+
+| 来源 | 使用范围 | 版本或基线 | 许可 |
+| --- | --- | --- | --- |
+| Xpert Plugin SDK / Contracts | 原生注册、工具、中间件、View 契约 | 3.27.0 | AGPL-3.0 |
+| packages/shadcn-vue | Vue 表单、对话框、选择器、表格等共享组件 | 0.1.0，插件仓库基线 | AGPL-3.0 |
+| Vue | 界面响应式与组件运行时 | 3.5.40 | MIT |
+| LangChain Core | 工具和消息类型 | 0.3.72 | MIT |
+| NestJS Common | 依赖注入与模块声明 | 11.1.6 | MIT |
+| openpyxl | Excel 读取与样例生成 | 3.1.5 | MIT |
+| defusedxml | XML 解析保护 | 0.7.1 | PSFL |
+| et-xmlfile | Excel XML 写入依赖 | 2.0.0 | MIT |
+| ChatKit UI | 宿主工作台和对话容器，另有接入补丁 | a085b17 / 0.21.1+funds.2 | Apache-2.0 |
+
+共享 Vue 组件的源码位于插件仓库根目录 packages/shadcn-vue。Vue 界面由构建过程打包，原生 Node 依赖通过平台 peer 包提供。Python 上传包保留三个依赖的发行元信息和许可证文本。
+
+## 来源链接
+
+- Xpert 插件仓库及共享组件。https://github.com/xpert-ai/xpert-plugins
+- Xpert 开源平台。https://github.com/xpert-ai/xpert
+- ChatKit UI。https://github.com/xpert-ai/chatkit-js
+- openpyxl。https://openpyxl.readthedocs.io/
+- defusedxml。https://github.com/tiran/defusedxml
+- et-xmlfile。https://pypi.org/project/et-xmlfile/
+
+插件遵循仓库 AGPL-3.0，完整文本见插件 LICENSE。第三方依赖继续遵循各自许可，平台补丁保留上游许可。
