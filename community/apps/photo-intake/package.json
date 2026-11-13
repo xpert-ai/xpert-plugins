@@ -1,0 +1,75 @@
+{
+  "name": "@community/apps-photo-intake",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Photo intake workbench: upload a photo, review AI category suggestions, confirm and save.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fairchild2333/xpert-plugins.git",
+    "directory": "community/apps/photo-intake"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "photo_intake"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.lib.json && node scripts/build-remote.mjs",
+    "test": "pnpm run build && tsx --test tests/*.test.ts",
+    "lint": "pnpm run typecheck"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.33.1",
+    "@xpert-ai/plugin-sdk": "^3.33.1",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/typeorm": "11.0.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "22.18.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@xpert-ai/contracts": "3.33.1",
+    "@xpert-ai/plugin-sdk": "3.33.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "0.25.10",
+    "reflect-metadata": "0.2.2",
+    "sql.js": "1.13.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "4.20.5",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "zod": "3.25.67"
+  }
+}

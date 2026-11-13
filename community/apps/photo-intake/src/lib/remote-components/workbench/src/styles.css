@@ -1,0 +1,11 @@
+/* Layout only. Component surfaces, sizes and states come from the shared theme. */
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+.photo-intake {
+  box-sizing: border-box;
+  width: 100%;
+}

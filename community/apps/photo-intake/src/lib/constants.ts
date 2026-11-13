@@ -1,0 +1,21 @@
+import { PACKAGE_METADATA } from './package-metadata.js'
+
+export const PLUGIN_NAME = PACKAGE_METADATA.name
+/**
+ * Root of every process-global identifier this plugin registers. Never rename after release.
+ * A literal so the repository's table-name check can resolve it; a test keeps it equal to package.json.
+ */
+export const PLUGIN_ARTIFACT_NAMESPACE = 'photo_intake'
+export const PROVIDER_KEY = 'photo-intake.workbench'
+export const VIEW_KEY = 'photo-intake.cases'
+export const REMOTE_ENTRY = 'photo-intake.remote'
+export const FEATURE = 'photo-intake.review'
+export const MIDDLEWARE_NAME = 'PhotoIntakeMiddleware'
+export const TEMPLATE_KEY = 'photo-intake-assistant'
+export const TEMPLATE_PROVIDER = 'photo-intake.templates'
+export const ACTION_KEYS = ['create_case'] as const
+export const LIST_CATEGORIES_TOOL = 'photo_intake_list_categories'
+export const ANALYZE_CASE_TOOL = 'photo_intake_analyze_case'
+export const SUBMIT_SUGGESTIONS_TOOL = 'photo_intake_submit_suggestions'
+/** Tools whose completion should refresh the workbench. */
+export const MUTATING_TOOLS = [ANALYZE_CASE_TOOL, SUBMIT_SUGGESTIONS_TOOL] as const
