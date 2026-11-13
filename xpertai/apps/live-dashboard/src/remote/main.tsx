@@ -46,6 +46,9 @@ function App() {
   const [currentProject, setCurrentProject] = React.useState<z.infer<typeof listSchema>['meta']['currentProject']>(null)
   const [mode, setMode] = React.useState<DashboardMode>('published')
   const modeRef = React.useRef<DashboardMode>()
+  const [savedReceipt, setSavedReceipt] = React.useState<string | null>(null)
+  const [openingDocument, setOpeningDocument] = React.useState(false)
+  const documentTransition = React.useRef<number>()
   const [notice, setNotice] = React.useState('')
   const [pagination, setPagination] = React.useState({ page: 1, pageSize: 50, hasMore: false })
   const canEdit = !readOnly && access.canEdit
@@ -110,6 +113,8 @@ function App() {
   React.useEffect(() => { reportDirty(isDirty || busy && editor !== null) }, [isDirty, busy, editor === null, saved?.artifactId, saved?.title])
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
+    documentTransition.current = undefined; setOpeningDocument(false); setSavedReceipt(null)
+    modeRef.current = undefined; setMode('published')
     saveObserver.current?.abort(); setSaveProgress('')
     standardSession.current?.dispose(); standardSession.current = undefined; standardKey.current = ''
     activeArtifactId.current = undefined
@@ -125,8 +130,20 @@ function App() {
     const sequence = requestSequence.current
     const listRequest = ++listSequence.current
     const result = listSchema.parse(await requestHost('requestData', { query: { page, pageSize: 50, parameters: { ...(draftRevision ? { draftRevision } : {}), ...(artifactId ? { artifactId } : {}), ...(versionId ? { versionId } : {}), ...(requestedMode ? { mode: requestedMode } : {}) } } })).meta
-    if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(previous => page === 1 ? result.dashboards : [...previous, ...result.dashboards.filter(item => !previous.some(old => old.artifactId === item.artifactId))]); setSources(result.sources); navigationTarget.current = result.navigationTarget; setCurrentProject(result.currentProject ?? null); if (result.access) setAccess(result.access); if (result.pagination) setPagination(result.pagination); if (result.mode) { modeRef.current = result.mode; setMode(result.mode) } }
+    if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(previous => page === 1 ? result.dashboards : [...previous, ...result.dashboards.filter(item => !previous.some(old => old.artifactId === item.artifactId))]); setSources(result.sources); navigationTarget.current = result.navigationTarget; setCurrentProject(result.currentProject ?? null); if (result.access) setAccess(result.access); if (result.pagination) setPagination(result.pagination) }
     return result
+  }
+  function setSavedDocument(target: Saved, selectedMode: DashboardMode) {
+    // Catalog refreshes must never change the mode of the selected document.
+    modeRef.current = selectedMode; setMode(selectedMode); setSaved(target)
+  }
+  function beginDocumentTransition() {
+    const sequence = ++requestSequence.current
+    documentTransition.current = sequence; setOpeningDocument(true)
+    return sequence
+  }
+  function finishDocumentTransition(sequence: number) {
+    if (documentTransition.current === sequence) { documentTransition.current = undefined; setOpeningDocument(false) }
   }
   async function query(target: Saved, values: Record<string, ControlValue>, force = false, only?: string[]) {
     if (!target.versionId && !target.draftRevision) throw new Error('Missing saved definition')
@@ -157,29 +174,44 @@ function App() {
     else await query(current.saved, appliedControls.current, true, [bindingId])
   }
   async function open(artifactId: string, versionId?: string, reflectNavigation = true, requestedMode = modeRef.current, draftRevision?: number) {
-    const sequence = ++requestSequence.current
     clearDocument()
+    const sequence = beginDocumentTransition()
     activeArtifactId.current = artifactId
-    const result = await load(artifactId, versionId, requestedMode, 1, draftRevision), target = result.saved
-    if (sequence !== requestSequence.current) return
-    setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === artifactId) ?? null)
-    if (result.notice === 'not_published') {
-      setNotice(t.notPublished)
-      if (!readOnly) { await selectEditorTarget(null); if (reflectNavigation) await navigateDashboard(result.navigationTarget, artifactId, undefined, result.mode) }
-      return
-    }
-    if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
-    const defaults = Object.fromEntries(target.manifest.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null]))
-    setSaved(target); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
-    if (!readOnly && reflectNavigation) {
-      navigationKey.current = dashboardNavigationKey({ artifactId, versionId, mode: result.mode })
-      await navigateDashboard(result.navigationTarget, artifactId, versionId, result.mode)
+    try {
+      const result = await load(artifactId, versionId, requestedMode, 1, draftRevision), target = result.saved
       if (sequence !== requestSequence.current) return
-    }
-    if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
-      ...(result.mode === 'published' ? { versionId: target.versionId ?? undefined } : { draftRevision: target.draftRevision }) })
-    if (sequence !== requestSequence.current) return
-    if (!target.manifest.presentation && target.manifest.bindings.length) await query(target, defaults)
+      setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === artifactId) ?? null)
+      if (result.notice === 'not_published') {
+        setNotice(t.notPublished)
+        if (!readOnly) { await selectEditorTarget(null); if (sequence === requestSequence.current && reflectNavigation) await navigateDashboard(result.navigationTarget, artifactId, undefined, result.mode) }
+        return
+      }
+      if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
+      const defaults = Object.fromEntries(target.manifest.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null]))
+      setSavedDocument(target, result.mode ?? 'published'); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
+      if (!readOnly && reflectNavigation) {
+        navigationKey.current = dashboardNavigationKey({ artifactId, versionId, mode: result.mode })
+        await navigateDashboard(result.navigationTarget, artifactId, versionId, result.mode)
+        if (sequence !== requestSequence.current) return
+      }
+      if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
+        ...(result.mode === 'published' ? { versionId: target.versionId ?? undefined } : { draftRevision: target.draftRevision }) })
+      if (sequence !== requestSequence.current) return
+      if (!target.manifest.presentation && target.manifest.bindings.length) await query(target, defaults)
+    } finally { finishDocumentTransition(sequence) }
+  }
+  async function edit() {
+    const target = autoRefresh.current.saved
+    if (!target) return
+    const sequence = beginDocumentTransition()
+    try {
+      const result = await load(target.artifactId, undefined, 'draft')
+      if (sequence !== requestSequence.current) return
+      if (!result.saved) throw new Error(t.error)
+      await selectEditorTarget({ artifactId: result.saved.artifactId, draftRevision: result.saved.draftRevision })
+      if (sequence !== requestSequence.current) return
+      setSavedDocument(result.saved, 'draft'); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
+    } finally { finishDocumentTransition(sequence) }
   }
   async function run(work: () => Promise<void>) {
     const operation = ++operationSequence.current
@@ -189,20 +221,22 @@ function App() {
   const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete })
   autoRefresh.current = { saved, controls, busy, editor, confirmDelete }
   async function refreshSaved() {
+    if (documentTransition.current !== undefined) return
     const current = autoRefresh.current
     if (!current.saved) { await openPicker(); return }
     if (editRef.current.dirty || current.editor !== null) return
     const previous = current.saved, sequence = ++requestSequence.current
-    const result = await load(previous.artifactId, previous.versionId ?? undefined, previous.isDraft ? 'draft' : 'published')
-    if (sequence !== requestSequence.current || activeArtifactId.current !== previous.artifactId || editRef.current.dirty) return
+    const selectedMode = modeRef.current
+    const result = await load(previous.artifactId, selectedMode === 'draft' ? undefined : previous.versionId ?? undefined, selectedMode)
+    if (sequence !== requestSequence.current || activeArtifactId.current !== previous.artifactId || editRef.current.dirty || autoRefresh.current.editor !== null) return
     setSelectedDashboard(result.selectedDashboard ?? result.dashboards.find(item => item.artifactId === previous.artifactId) ?? null)
     const target = result.saved
     if (!target) { clearDocument(); throw new Error('Dashboard is unavailable') }
     if (target.draftRevision !== previous.draftRevision || target.versionId !== previous.versionId) { setExecutions({}); setSourceSelection(null); setInspect(false); setDownload(null) }
-    setSaved(target); setVersions(result.versions ?? [])
+    setSavedDocument(target, result.mode ?? selectedMode ?? 'published'); setVersions(result.versions ?? [])
     if (!readOnly) await selectEditorTarget({ artifactId: target.artifactId,
-      ...(target.isDraft ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
-    if (sequence !== requestSequence.current) return
+      ...(result.mode === 'draft' ? { draftRevision: target.draftRevision } : { versionId: target.versionId ?? undefined }) })
+    if (sequence !== requestSequence.current || editRef.current.dirty || autoRefresh.current.editor !== null) return
     if (!target.manifest.presentation) await query(target, appliedControls.current, true)
     else if (target.draftRevision === previous.draftRevision && target.versionId === previous.versionId) htmlDashboard.current?.refresh()
     // A new HTML revision remounts with its exact bindings and dependency snapshot.
@@ -252,9 +286,17 @@ function App() {
     void run(() => target.artifactId ? open(target.artifactId, target.versionId, false, target.mode, target.draftRevision) : openPicker(target.newDashboard))
   },
     (artifactId) => {
-      if (editRef.current.dirty || activeArtifactId.current !== artifactId || !autoRefresh.current.saved?.isDraft) { void load().catch(() => undefined); return }
-      void run(refreshSaved)
+      if (activeArtifactId.current !== artifactId) { void load().catch(() => undefined); return }
+      setSavedReceipt(artifactId)
     }, () => { ++requestSequence.current; ++operationSequence.current; ++listSequence.current; setBusy(false); setList([]); setCurrentProject(null); modeRef.current = undefined; navigationKey.current = undefined; clearDocument() }), [])
+
+  React.useEffect(() => {
+    // Coalesce receipts until navigation/editing settles, then use the committed selection.
+    if (!savedReceipt || openingDocument || busy || editor !== null || editRef.current.dirty) return
+    setSavedReceipt(null)
+    if (activeArtifactId.current === savedReceipt && saved?.artifactId === savedReceipt && mode === 'draft') void run(refreshSaved)
+    else void load().catch(() => undefined)
+  }, [savedReceipt, openingDocument, busy, editor, saved, mode])
 
   async function exportDashboard() {
     if (!saved) return
@@ -354,14 +396,9 @@ function App() {
           <RefreshCw className={busy ? 'motion-safe:animate-spin' : undefined}/>
         </Button>
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
-          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
+          canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved ? mode === 'draft' ? 'draft' : saved.versionId ?? undefined : undefined}
           onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
-          onEdit={() => void run(async () => {
-            if (!saved) return
-            const result = await load(saved.artifactId, undefined, 'draft')
-            if (!result.saved) throw new Error(t.error)
-            await selectEditorTarget({ artifactId: result.saved.artifactId, draftRevision: result.saved.draftRevision }); setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
-          })}
+          onEdit={() => void run(edit)}
           onImport={() => setImporting(true)} onExport={() => void run(exportDashboard)} onShare={() => setSharing(true)}
           onDelete={() => { if (selectedDashboard) requestDelete(selectedDashboard) }}
           refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}/>
