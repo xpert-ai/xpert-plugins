@@ -30,8 +30,8 @@ describe('plugin metadata', () => {
   })
 
   it('declares the middleware provider that the module registers', () => {
-    const middleware = new ExpediteShortageMiddleware()
-    expect(middleware.meta.name).toBe(MIDDLEWARE_NAME)
+    // 中间件类上的装饰器名与常量一致（meta 的完整断言在 expedite.middleware.spec.ts）
+    expect(ExpediteShortageMiddleware.name).toBe(MIDDLEWARE_NAME)
     for (const app of plugin.meta.targetApps ?? []) {
       expect(plugin.meta.targetAppMeta?.[app]?.runtime?.middlewareProviders).toEqual([MIDDLEWARE_NAME])
     }
