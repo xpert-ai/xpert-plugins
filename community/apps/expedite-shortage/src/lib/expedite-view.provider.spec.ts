@@ -67,8 +67,14 @@ describe('view actions', () => {
     const requestId = list.items[0]!.id
     const started = await provider.executeViewAction(context, VIEW_KEY, 'start_analysis', { input: { requestId } })
     expect(started.success).toBe(true)
-    const payload = started.data as { commandKey: string; commandPayload: { text: string }; created: boolean }
+    const payload = started.data as {
+      commandKey: string
+      commandPayload: { text: string; newThread: boolean; clientMessageId: string }
+      created: boolean
+      jobId: string
+    }
     expect(payload.commandKey).toBe(ASSISTANT_CHAT_SEND_MESSAGE_COMMAND)
+    expect(payload.commandPayload).toMatchObject({ newThread: true, clientMessageId: payload.jobId })
     expect(payload.commandPayload.text).toMatch(/^请为提前交货请求做缺料分析。\nanalysisJobId: [0-9a-f-]{36}/)
     // 选中后返回详情
     const selected = await provider.getViewData(context, VIEW_KEY, { selectionId: requestId })

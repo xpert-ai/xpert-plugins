@@ -219,8 +219,14 @@ export class ExpediteViewProvider implements IXpertViewExtensionProvider {
         return this.service.deleteDraft(scope, requestIdInputSchema.parse(input).requestId)
       case 'start_analysis': {
         const started = await this.service.startAnalysis(scope, requestIdInputSchema.parse(input).requestId, locale)
-        // 返回界面要执行的客户端命令：由 iframe 通过 bridge 把指令发进当前对话
-        return { ...started, commandKey: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, commandPayload: { text: started.message } }
+        // 返回界面要执行的客户端命令：由 iframe 通过 bridge 把指令发进对话。
+        // newThread：每次分析开一个新会话。宿主源码注释说明，往仍在运行或卡住的会话里发消息会被排队，
+        // 重试场景下旧会话可能正是卡住的那个；clientMessageId 用任务 ID，便于把对话消息和任务对应起来。
+        return {
+          ...started,
+          commandKey: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
+          commandPayload: { text: started.message, newThread: true, clientMessageId: started.jobId }
+        }
       }
       case 'set_finding_decision':
         return this.service.setFindingDecision(scope, input)
