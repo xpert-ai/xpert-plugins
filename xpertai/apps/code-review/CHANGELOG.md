@@ -1,5 +1,16 @@
 # @xpert-ai/plugin-code-review
 
+## 0.6.0
+
+### Minor Changes
+
+- a1aa012: Add repository-level PR review publication for the primary Assistant and standard or lightweight project pipelines. Repository managers can save results in Xpert, confirm publication, or automatically post a GitHub review comment.
+- a1aa012: Trace failed workflow steps through repository workflows and scripts at the run commit, and report the affected files and verified repair commands.
+
+### Patch Changes
+
+- a1aa012: Verify workflow diagnosis citations against the full raw job log and commit contents. Display GitHub job step numbers separately from source and log lines.
+
 ## 0.5.3
 
 ### Patch Changes
