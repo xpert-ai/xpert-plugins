@@ -54,6 +54,15 @@ export const rejectAnalysisInputSchema = z
   .strict()
 export type RejectAnalysisInput = z.infer<typeof rejectAnalysisInputSchema>
 
+/** 放弃本次分析：带上界面看到的任务 ID，防止误放弃一个更新的任务 */
+export const abandonAnalysisInputSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    jobId: z.string().uuid()
+  })
+  .strict()
+export type AbandonAnalysisInput = z.infer<typeof abandonAnalysisInputSchema>
+
 export const listRequestsQuerySchema = z.object({
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(50).default(20),

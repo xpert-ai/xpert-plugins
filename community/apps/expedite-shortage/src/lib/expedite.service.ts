@@ -23,6 +23,7 @@ import {
 } from './entities/index.js'
 import { ExpediteError, isUniqueViolation } from './errors.js'
 import {
+  abandonAnalysisInputSchema,
   confirmRequestInputSchema,
   createRequestInputSchema,
   listRequestsQuerySchema,
@@ -377,6 +378,33 @@ export class ExpediteService {
     if (moved.affected !== 1) throw new ExpediteError('CONFLICT', { status: (await this.findRequest(scope, request.id)).status })
     await this.log(scope, request.id, request.currentJobId, 'user', 'analysis_rejected', input.reason)
     return { requestId: request.id, status: 'rejected' as RequestStatus }
+  }
+
+  /**
+   * 放弃本次分析：分析中 → 分析失败（错误码 ANALYSIS_ABANDONED），之后可立即重试。
+   * 场景：智能体中途停了（例如达到递归上限），任务卡在 running，不想干等 3 分钟惰性超时。
+   * 这是界面动作，不是工具，模型调不到；之后智能体的迟到写入会因 JOB_NOT_ACTIVE 被拒绝。
+   */
+  async abandonAnalysis(scope: ExpediteScope, rawInput: unknown) {
+    const input = abandonAnalysisInputSchema.parse(rawInput)
+    let request = await this.findRequest(scope, input.requestId)
+    // 先做一次超时判定：已经超时的任务按超时处理，不再记成“放弃”
+    request = await this.applyTimeout(scope, request)
+    const job =
+      request.currentJobId === input.jobId ? await this.jobs.findOneBy({ ...this.scopeWhere(scope), id: input.jobId }) : null
+    if (request.status !== 'analyzing' || !job || !ACTIVE_JOB_STATUSES.includes(job.status)) {
+      throw new ExpediteError('INVALID_STATE', { status: request.status })
+    }
+    try {
+      await this.failJob(scope, request, job, 'ANALYSIS_ABANDONED', 'The planner abandoned this analysis.', 'user')
+    } catch (error) {
+      // 并发：智能体恰好在这一刻提交了结论或上报失败，按冲突返回，界面刷新后看最新状态
+      if (error instanceof ExpediteError && error.code === 'JOB_NOT_ACTIVE') {
+        throw new ExpediteError('CONFLICT', { status: (await this.findRequest(scope, request.id)).status })
+      }
+      throw error
+    }
+    return { requestId: request.id, jobId: job.id, status: 'failed' as RequestStatus }
   }
 
   // ───────────────────────── 工具侧：分析任务 ─────────────────────────

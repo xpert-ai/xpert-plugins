@@ -46,7 +46,8 @@ export const VIEW_ACTION_KEYS = [
   'start_analysis',
   'set_finding_decision',
   'confirm_request',
-  'reject_analysis'
+  'reject_analysis',
+  'abandon_analysis'
 ] as const
 export type ViewActionKey = (typeof VIEW_ACTION_KEYS)[number]
 
@@ -57,7 +58,8 @@ const ACTION_LABELS: Record<ViewActionKey, { en_US: string; zh_Hans: string }> =
   start_analysis: { en_US: 'AI analysis', zh_Hans: 'AI 分析' },
   set_finding_decision: { en_US: 'Decide finding', zh_Hans: '采纳或驳回' },
   confirm_request: { en_US: 'Confirm conclusion', zh_Hans: '确认结论' },
-  reject_analysis: { en_US: 'Reject analysis', zh_Hans: '驳回本次分析' }
+  reject_analysis: { en_US: 'Reject analysis', zh_Hans: '驳回本次分析' },
+  abandon_analysis: { en_US: 'Abandon analysis', zh_Hans: '放弃本次分析' }
 }
 
 const TITLE = { en_US: 'Expedite shortage analysis', zh_Hans: '提前交货缺料分析' }
@@ -234,6 +236,8 @@ export class ExpediteViewProvider implements IXpertViewExtensionProvider {
         return this.service.confirmRequest(scope, input)
       case 'reject_analysis':
         return this.service.rejectAnalysis(scope, input)
+      case 'abandon_analysis':
+        return this.service.abandonAnalysis(scope, input)
       default:
         throw new ExpediteError('NOT_FOUND', { action: actionKey })
     }

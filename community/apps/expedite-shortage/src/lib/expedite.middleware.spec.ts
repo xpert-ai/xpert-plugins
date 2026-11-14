@@ -49,7 +49,7 @@ describe('middleware metadata', () => {
       expect(metadata?.toolName?.zh_Hans).toBeTruthy()
     }
     // 确认/驳回不是工具
-    expect(EXPEDITE_TOOL_NAMES.some((name) => /confirm|reject|approve|decide/.test(name))).toBe(false)
+    expect(EXPEDITE_TOOL_NAMES.some((name) => /confirm|reject|approve|decide|abandon/.test(name))).toBe(false)
   })
 })
 

@@ -290,4 +290,30 @@ describe('failure, retry and timeout', () => {
     expect(detail.request.status).toBe('analyzing')
     expect(detail.findings).toEqual([])
   })
+  it('lets the planner abandon a stuck analysis and retry immediately', async () => {
+    const request = await seedAndFind('SO-1024')
+    const first = await service.startAnalysis(SCOPE, request.id)
+    await service.getAnalysisContext(SCOPE, first.jobId)
+    clock.advance(40 * 1000)
+    // 任务 ID 对不上（例如界面还停在旧任务）时拒绝
+    await expectCode(service.abandonAnalysis(SCOPE, { requestId: request.id, jobId: request.id }), 'INVALID_STATE')
+    expect(await service.abandonAnalysis(SCOPE, { requestId: request.id, jobId: first.jobId })).toMatchObject({ status: 'failed' })
+    const detail = await service.getRequestDetail(SCOPE, request.id)
+    expect(detail.request.status).toBe('failed')
+    expect(detail.currentJob).toMatchObject({ status: 'failed', errorCode: 'ANALYSIS_ABANDONED' })
+    expect(detail.logs[0]).toMatchObject({ actor: 'user', action: 'analysis_failed' })
+    // 第二次放弃、智能体的迟到写入都被拒绝
+    await expectCode(service.abandonAnalysis(SCOPE, { requestId: request.id, jobId: first.jobId }), 'INVALID_STATE')
+    await expectCode(service.explodeBomForJob(SCOPE, first.jobId), 'JOB_NOT_ACTIVE')
+    // 不用等 3 分钟，立即可以重试
+    expect(await service.startAnalysis(SCOPE, request.id)).toMatchObject({ seq: 2, created: true })
+  })
+
+  it('records a timed-out analysis as timeout rather than abandoned', async () => {
+    const request = await seedAndFind('SO-1024')
+    const { jobId } = await service.startAnalysis(SCOPE, request.id)
+    clock.advance(ANALYSIS_TIMEOUT_MS + 1000)
+    await expectCode(service.abandonAnalysis(SCOPE, { requestId: request.id, jobId }), 'INVALID_STATE')
+    expect((await service.getRequestDetail(SCOPE, request.id)).currentJob).toMatchObject({ errorCode: 'ANALYSIS_TIMEOUT' })
+  })
 })
