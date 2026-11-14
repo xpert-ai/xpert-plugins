@@ -1,5 +1,14 @@
 # @xpert-ai/plugin-agent-runtimes
 
+## 0.3.2
+
+### Patch Changes
+
+- ddbc0d0: Report a confirmed runner exit without a verifiable CLI result as failed, carrying matching descendant-completion evidence so Project tasks can recover. Preserve unknown when process ownership or completion cannot be proven; never infer successful work or replay a task from a missing result.
+- 9d9f194: Expose invocationId consistently in launch, status and cancellation receipts while retaining the existing taskId alias. Clarify that task_status/task_cancel accept invocation identities, not Project task/execution IDs, and describe bounded waiting versus already registered Project result delivery without changing host waiting or cancellation behavior.
+- 47d7ea2: Compose implementation workspace instructions in the Runtime plugin using the host task context and runner receipt, independent of Computer/provider metadata. Preserve review prompts and existing task input. Requires a host/SDK exposing AgentRuntimeContext.projectTask; absence leaves prompts unchanged.
+- a91b69d: Support explicit xpert-task-result-file references after verified CLI completion. Resolve the report through the host runner's optional readTaskResultFile operation, checkpoint before cleanup and fail invalid submissions without exposing rejected contents. Advertise file submission only when the SDK validator and host reader are available; retain the inline protocol without changing artifact export or business acceptance.
+
 ## 0.3.1
 
 ### Patch Changes

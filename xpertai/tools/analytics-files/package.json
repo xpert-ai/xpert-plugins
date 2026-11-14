@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-files",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Declarative CSV, JSON and XLSX analytics over authorized Workspace files",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
