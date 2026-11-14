@@ -2,7 +2,7 @@ import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult } from './task-result.js'
+import { outputDelivery, resolveTaskResult, deliveryPaths } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -120,8 +120,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       'POST',
       {
         messageID: handle.runId,
-        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner),
-          Boolean(runner && context.capabilities.require(AgentExecutionRunnerCapability).readTaskResultFile)) }]
+        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner)) }]
       },
       context,
       handle
@@ -223,9 +222,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         const result = observation.result,
           delivery = outputDelivery(handle.metadata?.delivery)
         if (delivery.mode !== 'none') {
-          // An explicit caller selection is authoritative even when the model omits a file item.
-          const paths =
-            delivery.paths ?? (result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
+          // Only an explicit selection grants file export. Report prose cannot select files.
+          const paths = deliveryPaths(delivery)
           try {
             if (!paths.length) throw new Error('No declared deliverables')
             const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
@@ -236,7 +234,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
             result.export = {
               mode: delivery.mode,
               status: 'failed',
-              error: 'Requested files could not be exported. Task execution has finished; inspect the workspace.'
+              error: paths.length ? 'artifact_collection_failed: recover delivery without rerunning the task.' : 'delivery_selection_required: select the exact file paths to collect.'
             }
           }
         }
@@ -355,8 +353,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
               .map((part) => part.text ?? '')
               .join(''),
             outputDelivery(handle.metadata?.delivery),
-            runner?.readTaskResultFile ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined,
-            2 * 1024 * 1024
+            runner?.readTaskReportFile ? (path) => runner.readTaskReportFile(receipt, path) : undefined
           )),
           ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
         }
@@ -364,7 +361,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     } catch {
       return {
         status: 'failed', handle,
-        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
+        error: 'result_collection_failed: the execution result could not be collected.'
       }
     }
   }
