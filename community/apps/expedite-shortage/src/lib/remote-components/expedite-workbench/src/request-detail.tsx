@@ -10,6 +10,7 @@
  */
 import * as React from 'react'
 import {
+  Badge,
   Button,
   ChevronDown,
   ChevronRight,
@@ -212,6 +213,14 @@ function FindingItem(props: { finding: FindingDto; t: Translate; editable: boole
         </span>
         <p className="text-muted-foreground">{finding.rationale}</p>
       </div>
+      {!editable ? (
+        // 只读（已确认/已驳回）：直接写出最终决定，而不是显示一组变灰的按钮
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs text-muted-foreground">{t('detail.decision')}</span>
+          <Badge variant={finding.decision === 'rejected' ? 'destructive' : 'outline'}>{t(`decision.${finding.decision}`)}</Badge>
+          {finding.decisionNote && <span className="text-muted-foreground">{finding.decisionNote}</span>}
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">{t('detail.decision')}</span>
         <ToggleGroup
@@ -228,23 +237,20 @@ function FindingItem(props: { finding: FindingDto; t: Translate; editable: boole
           <ToggleGroupItem value="accepted">{t('detail.accept')}</ToggleGroupItem>
           <ToggleGroupItem value="rejected">{t('detail.reject')}</ToggleGroupItem>
         </ToggleGroup>
-        {editable ? (
-          <Input
-            aria-label={t('detail.notePlaceholder')}
-            placeholder={t('detail.notePlaceholder')}
-            className="h-7 min-w-32 flex-1"
-            maxLength={300}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            // 已有决定时，离开输入框就把备注一起保存；还没决定时，备注随下一次点采纳/驳回一起提交
-            onBlur={() => {
-              if (decided && note !== (finding.decisionNote ?? '')) void props.onDecide(finding.id, finding.decision as 'accepted' | 'rejected', note)
-            }}
-          />
-        ) : (
-          finding.decisionNote && <span className="text-xs text-muted-foreground">{finding.decisionNote}</span>
-        )}
+        <Input
+          aria-label={t('detail.notePlaceholder')}
+          placeholder={t('detail.notePlaceholder')}
+          className="h-7 min-w-32 flex-1"
+          maxLength={300}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          // 已有决定时，离开输入框就把备注一起保存；还没决定时，备注随下一次点采纳/驳回一起提交
+          onBlur={() => {
+            if (decided && note !== (finding.decisionNote ?? '')) void props.onDecide(finding.id, finding.decision as 'accepted' | 'rejected', note)
+          }}
+        />
       </div>
+      )}
       <Collapsible>
         <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ChevronRight className="size-3 group-data-[state=open]:hidden" />

@@ -20,17 +20,26 @@ import {
 import type { Translate } from './i18n'
 import type { RequestStatus } from './types'
 
-const STATUS_VARIANT: Record<RequestStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'outline',
-  analyzing: 'secondary',
-  failed: 'destructive',
-  pending_review: 'default',
-  confirmed: 'secondary',
-  rejected: 'outline'
+/**
+ * 状态徽标样式。平台暗色主题下 secondary 的底色和页面背景几乎一样（实测“已确认”看不见），
+ * 所以只用 default / outline / destructive 三种变体，再用边框和文字颜色区分（不改组件本身的样式）。
+ */
+const STATUS_STYLE: Record<RequestStatus, { variant: 'default' | 'destructive' | 'outline'; className?: string }> = {
+  draft: { variant: 'outline', className: 'text-muted-foreground' },
+  analyzing: { variant: 'outline', className: 'border-dashed' },
+  failed: { variant: 'destructive' },
+  pending_review: { variant: 'default' },
+  confirmed: { variant: 'outline', className: 'border-primary' },
+  rejected: { variant: 'outline', className: 'border-dashed text-muted-foreground' }
 }
 
 export function StatusBadge({ status, t }: { status: RequestStatus; t: Translate }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{t(`status.${status}`)}</Badge>
+  const style = STATUS_STYLE[status]
+  return (
+    <Badge variant={style.variant} className={style.className}>
+      {t(`status.${status}`)}
+    </Badge>
+  )
 }
 
 /** 提示条：info 用中性色，error 用 destructive 色；role=status 让读屏软件能读到 */
