@@ -68,6 +68,7 @@ const reviewSchema = z.object({
   summary: z.string(),
   findings: z.array(findingSchema),
   reportUnavailable: z.literal(true).optional(),
+  canConfirmPublication: z.boolean().optional(),
   errorCode: z.string().nullable(),
   submissionUrl: z.string().nullable()
 })
@@ -295,7 +296,11 @@ export function ReviewDetail({ host, entry, tab, onTab, onSelect, refresh, onCha
         {pendingApproval && (
           <div className="review-approval mt-4 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
             <AlertCircle className="size-4 shrink-0" />
-            <span>{t(entry.trigger === 'trial' ? 'trialComplete' : 'approvalWaiting')}</span>
+            <span>{entry.trigger === 'trial' ? t('trialComplete') : projectId ? t('approvalWaiting') : eventI18n.t('publication.waiting')}</span>
+            {!projectId && entry.runId && review?.canConfirmPublication && entry.trigger !== 'trial' && (
+              <Button variant="link" size="sm" disabled={busy} onClick={() => void perform(() =>
+                action('run.confirm', { id: entry.runId, confirmed: true }))}>{eventI18n.t('publication.confirmAction')}</Button>
+            )}
             {projectId && entry.trigger !== 'trial' && (
               <Button variant="link" size="sm" disabled={busy} onClick={() => void pipeline()}>
                 {t('goToApproval')}

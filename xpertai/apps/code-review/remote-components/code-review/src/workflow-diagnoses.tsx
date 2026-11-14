@@ -35,6 +35,19 @@ export function WorkflowDiagnoses({ host }: { host: Host | null }) {
           {run.reason && <p>{eventMessage(run.reason) ?? run.reason}</p>}
           {run.result && <><p className="whitespace-pre-wrap">{run.result.summary}</p>{run.result.findings.map((finding, i) => <article key={i} className="space-y-2 border-t pt-3">
             <p><strong>{t('cause')}</strong> · {finding.cause}</p><p className="whitespace-pre-wrap"><strong>{t('evidence')}</strong> · {finding.evidence}</p><p><strong>{t('suggestion')}</strong> · {finding.suggestion}</p>
+            {finding.citations && <div className="space-y-1">
+              {finding.citations.steps.map(step => <p key={step.number}><strong>{t('jobStep')}</strong> · {step.number} · {step.name}</p>)}
+              {finding.citations.source.map((ref, j) => <p key={j}><strong>{t('sourceLine')}</strong> · {ref.path}#L{ref.line} · <code>{ref.quote}</code></p>)}
+              {finding.citations.log.map((ref, j) => <p key={j}><strong>{t('rawLogLine')}</strong> · L{ref.line} · <code>{ref.quote}</code></p>)}
+              {finding.citations.limitation && <p>{finding.citations.limitation}</p>}
+            </div>}
+            {finding.repair && <div className="space-y-1">
+              {finding.repair.files.length > 0 && <p><strong>{t('repairFiles')}</strong> · {finding.repair.files.join(', ')}</p>}
+              <p><strong>{t('workingDirectory')}</strong> · {finding.repair.workingDirectory}</p>
+              {finding.repair.update.length > 0 && <p className="whitespace-pre-wrap"><strong>{t('repairCommands')}</strong> · {finding.repair.update.join('\n')}</p>}
+              {finding.repair.verify.length > 0 && <p className="whitespace-pre-wrap"><strong>{t('verifyCommands')}</strong> · {finding.repair.verify.join('\n')}</p>}
+              <p><strong>{t('sourceBasis')}</strong> · {finding.repair.basis}</p>
+            </div>}
           </article>)}</>}
         </div>}
       </article>)}

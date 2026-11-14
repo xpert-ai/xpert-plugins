@@ -44,7 +44,7 @@ export class GitHub {
         if (next.done) break
         const remaining = 256 * 1024 - size
         chunks.push(next.value.subarray(0, remaining)); size += Math.min(remaining, next.value.length)
-        if (size >= 256 * 1024) { truncated = true; break }
+        if (next.value.length > remaining) { truncated = true; break }
       }
     } finally { await reader.cancel() }
     const content = Buffer.concat(chunks).toString('utf8')
@@ -52,7 +52,7 @@ export class GitHub {
       .replace(/(authorization\s*[:=]\s*(?:bearer|token)\s+)\S+/gi, '$1[REDACTED]')
     return { content, truncated }
   }
-  private path(ref: PullRef) { return `/repos/${encodeURIComponent(ref.owner)}/${encodeURIComponent(ref.repository)}` }
+  private path(ref: Pick<PullRef, 'owner' | 'repository'>) { return `/repos/${encodeURIComponent(ref.owner)}/${encodeURIComponent(ref.repository)}` }
   async inbox(filter: 'requested' | 'authored', page: number) {
     if (!this.token) throw new ReviewError('github_auth_required')
     const user = person.parse(await this.request('/user'))
@@ -87,12 +87,17 @@ export class GitHub {
       base: z.object({ ref: z.string() }), user: z.object({ type: z.string() }) })
       .parse(await this.request(`${this.path(ref)}/pulls/${ref.number}`))
   }
-  async source(ref: PullRef, sha: string, path: string) {
+  async source(ref: Pick<PullRef, 'owner' | 'repository'>, sha: string, path: string, maxBytes = 1024 * 1024) {
     shaSchema.parse(sha)
     if (path.startsWith('/') || path.split('/').some(s => !s || s === '.' || s === '..') || path.includes('\\')) throw new ReviewError('invalid_file')
-    const file = z.object({ type: z.literal('file'), encoding: z.literal('base64'), size: z.number().max(1024 * 1024), content: z.string() })
+    const file = z.object({ type: z.literal('file'), sha: shaSchema.optional(), encoding: z.enum(['base64', 'none']), size: z.number().int().nonnegative(), content: z.string() })
       .parse(await this.request(`${this.path(ref)}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${sha}`))
-    const content = Buffer.from(file.content, 'base64').toString('utf8')
+    if (file.size > maxBytes) throw new ReviewError('source_too_large')
+    // GitHub's Contents API omits the payload of files over 1 MiB. Fetch the immutable blob from the same repository.
+    const blob = file.encoding === 'base64' ? file : z.object({ sha: z.literal(shaSchema.parse(file.sha)),
+      size: z.literal(file.size), encoding: z.literal('base64'), content: z.string() })
+      .parse(await this.request(`${this.path(ref)}/git/blobs/${file.sha}`))
+    const content = Buffer.from(blob.content, 'base64').toString('utf8')
     if (content.includes('\u0000')) throw new ReviewError('binary_file')
     return content
   }
@@ -123,6 +128,18 @@ export class GitHub {
   async submit(ref: PullRef, headSha: string, body: string, event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES', findings: Finding[]) {
     if (!this.token) throw new ReviewError('github_auth_required')
     if (await this.head(ref) !== headSha) throw new ReviewError('stale_revision')
+    return this.postReview(ref, headSha, body, event, findings)
+  }
+
+  /** Check the target before recording a send intent. Only the returned call writes to GitHub. */
+  async prepareComment(ref: PullRef, headSha: string, body: string, findings: Finding[]) {
+    if (!this.token) throw new ReviewError('github_auth_required')
+    const current = await this.state(ref)
+    if (current.head.sha !== headSha || current.state !== 'open' || current.draft) throw new ReviewError('stale_revision')
+    return () => this.postReview(ref, headSha, body, 'COMMENT', findings)
+  }
+
+  private async postReview(ref: PullRef, headSha: string, body: string, event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES', findings: Finding[]) {
     return z.object({ id: z.number(), html_url: z.string(), state: z.string() }).parse(await this.request(`${this.path(ref)}/pulls/${ref.number}/reviews`, {
       commit_id: headSha, body, event, comments: findings.map(f => ({ path: f.path, side: f.side, line: f.line, body: `[${f.priority}] ${f.title}\n\n${f.body}` }))
     }))

@@ -29,8 +29,8 @@
   "setup.account.access": "授权账号需要目标仓库的写入或管理权限，App 也必须安装并获准访问该仓库。账号授权和 App 安装是两项独立授权，仓库自动化需要同时具备。",
   "setup.rules.title": "3. 选择执行方式并开启事件",
   "setup.rules.repository": "在仓库页添加 owner/repository，打开“配置规则”，选择执行方式、事件触发条件、分支与 Workflow 筛选项以及每日上限。",
-  "setup.rules.assistant": "发布代码审查 Assistant，将仓库绑定到它，规则复用 Assistant 的现有账号。启用仓库规则和 GitHub 事件订阅后，有权访问 Assistant 的成员可查看共享结果，历史私有审查保持原访问范围。GitHub 回写仍是独立操作。",
-  "setup.rules.pipeline": "项目流水线：绑定可用的代码审查项目流水线，并开启仓库规则。此模式仅处理 PR 审查事件，审查依据按项目权限可见，发布遵循流水线的人工确认流程。",
+  "setup.rules.assistant": "发布代码审查 Assistant，将仓库绑定到它，规则复用 Assistant 的现有账号。启用仓库规则和 GitHub 事件订阅后，有权访问 Assistant 的成员可查看共享结果，历史私有审查保持原访问范围。在仓库规则中选择 PR 审查结论发布方式。",
+  "setup.rules.pipeline": "项目流水线处理 PR 审查事件。选择模板、智能体和仓库发布方式，审查证据按项目权限可见。流水线读取 CI 需要 Checks: Read。",
   "setup.rules.runtime": "事件在服务端持续运行，无需保持 Bosi 打开。后端、队列、Webhook、已发布的 Assistant 及其账号和模型需保持可用。PR 审查、试运行和工作流诊断共用仓库每日额度（UTC）；暂停会保留历史记录。",
   "setup.verify.title": "4. 分别验收 PR 与 Workflow 事件",
   "setup.verify.trial": "先输入一个已打开且非草稿的 PR 编号，点击“试审（不会发布）”，确认模型与结果正常。试审不会经过 Webhook，不能证明事件投递正常或自动化已开启。",
@@ -145,5 +145,13 @@
   "automation.conflict.unknown_name": "名称未记录（{{id}}）",
   "automation.conflict.not_recorded": "未记录",
   "automation.conflict.contact_maintainer": "如需调整绑定，请联系当前维护人或所属组织管理员。查看归属不会授予接管配置的权限。",
-  "automation.conflict.recorded_names": "名称来自配置记录；如信息缺失或已变更，请由管理员核实。"
+  "automation.conflict.recorded_names": "名称来自配置记录；如信息缺失或已变更，请由管理员核实。",
+  "publication.label": "PR 审查结论发布方式",
+  "publication.store": "仅在 Xpert 保存",
+  "publication.confirm": "人工确认后发布评论",
+  "publication.comment": "自动发布 GitHub PR 评论",
+  "publication.help": "自动发布使用 GitHub COMMENT 提交本次审查的摘要和发现。试审始终仅保存在 Xpert。",
+  "publication.save": "{{repository}} 的 PR 审查结论将采用「{{mode}}」。",
+  "publication.confirmAction": "确认发布 PR 评论",
+  "publication.waiting": "审查已完成，等待确认发布 GitHub 评论。"
 }

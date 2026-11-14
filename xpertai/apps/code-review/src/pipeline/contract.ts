@@ -8,6 +8,7 @@ export const refs = {
   findings: 'code-review.findings@1', checks: 'code-review.checks@1', delivery: 'code-review.delivery@1',
   review: 'code-review.review@1', prepare: 'code-review.prepare@1', correctness: 'code-review.correctness@1', security: 'code-review.security@1',
   verify: 'code-review.verify@1', ci: 'code-review.ci@1', readiness: 'code-review.readiness@1',
+  repositoryComment: 'code-review.repository-comment@1', reportOutcome: 'code-review.report-outcome@1',
   approval: 'code-review.approval@1', publish: 'code-review.publish@1', confirmed: 'code-review.confirmed@1', localSubject: 'code-review.local-git@1',
   archive: 'code-review.archive@1', localDelivery: 'code-review.local-delivery@1'
 } as const
