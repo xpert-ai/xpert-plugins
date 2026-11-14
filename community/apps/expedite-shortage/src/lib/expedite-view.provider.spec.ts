@@ -79,6 +79,13 @@ describe('view actions', () => {
     // 选中后返回详情
     const selected = await provider.getViewData(context, VIEW_KEY, { selectionId: requestId })
     expect((selected.item as { detail: { request: { status: string } } }).detail.request.status).toBe('analyzing')
+    // 新建对话框的选项：产品只来自模拟 BOM，并带基准日
+    expect((selected.item as { form: unknown }).form).toMatchObject({ asOfDate: '2026-11-12', products: [{ code: 'X1' }, { code: 'X2' }] })
+    // 放弃本次分析走视图动作；任务 ID 不对时返回业务错误而不是抛异常
+    const wrong = await provider.executeViewAction(context, VIEW_KEY, 'abandon_analysis', { input: { requestId, jobId: requestId } })
+    expect(wrong).toMatchObject({ success: false, data: { code: 'INVALID_STATE' } })
+    const abandoned = await provider.executeViewAction(context, VIEW_KEY, 'abandon_analysis', { input: { requestId, jobId: payload.jobId } })
+    expect(abandoned).toMatchObject({ success: true, data: { status: 'failed' } })
   })
 
   it('rejects undeclared actions, identity fields in input and other views', async () => {

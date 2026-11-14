@@ -232,6 +232,14 @@ export class ExpediteService {
     }
   }
 
+  /** 新建对话框的产品下拉：只能选模拟数据里有 BOM 的产品；同时给出基准日，界面据此做日期校验 */
+  getFormOptions() {
+    return {
+      asOfDate: this.supply.getAsOfDate(),
+      products: this.supply.listProducts().map((product) => ({ code: product.code, name: product.name }))
+    }
+  }
+
   // ───────────────────────── 视图侧：分析与确认 ─────────────────────────
 
   /**

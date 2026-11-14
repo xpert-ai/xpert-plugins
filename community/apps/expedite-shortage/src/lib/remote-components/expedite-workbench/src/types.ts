@@ -24,9 +24,15 @@ export interface RequestList {
   pageSize: number
 }
 
-/** getViewData 的返回：item 里放列表和（可选的）详情 */
+/** 新建对话框的选项：产品下拉 + 基准日（用于日期校验） */
+export interface FormOptions {
+  asOfDate: string
+  products: { code: string; name: string }[]
+}
+
+/** getViewData 的返回：item 里放列表、（可选的）详情和新建对话框选项 */
 export interface ViewData {
-  item: { list: RequestList; detail: RequestDetail | null }
+  item: { list: RequestList; detail: RequestDetail | null; form: FormOptions }
 }
 
 /** 视图查询：参数只能是标量 */

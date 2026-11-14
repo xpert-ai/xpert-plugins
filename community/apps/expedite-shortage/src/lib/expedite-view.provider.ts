@@ -153,7 +153,7 @@ export class ExpediteViewProvider implements IXpertViewExtensionProvider {
       }
     }
     // items/total 给平台的通用表格能力用；界面实际读取 item 里的列表（含分页信息）和详情
-    return { items: list.items, total: list.total, item: { list, detail } }
+    return { items: list.items, total: list.total, item: { list, detail, form: this.service.getFormOptions() } }
   }
 
   async executeViewAction(

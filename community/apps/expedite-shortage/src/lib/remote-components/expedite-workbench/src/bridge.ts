@@ -108,7 +108,32 @@ export function startBridge(onInit: (init: HostInit) => void, onHostEvent: () =>
   }
 }
 
-function request(type: string, body: Record<string, unknown>) {
+/**
+ * 宿主切换会话（视图上下文）的那一刻，会拒绝 iframe 发来的请求，报错文案是
+ * “View context is changing. Retry in the current context.”。这时请求根本没到达视图提供者，
+ * 重发是安全的：等宿主切换完（新的 init 会更新 instanceId）再自动重试一次，仍失败才交给界面显示。
+ */
+const CONTEXT_CHANGING = /view context is changing/i
+const CONTEXT_RETRY_DELAY_MS = 800
+
+async function request(type: string, body: Record<string, unknown>) {
+  try {
+    return await sendOnce(type, body)
+  } catch (error) {
+    if (!(error instanceof Error) || !CONTEXT_CHANGING.test(error.message)) throw error
+    debug('request.context-changing.retry', { operation: type })
+    await new Promise((resolve) => setTimeout(resolve, CONTEXT_RETRY_DELAY_MS))
+    try {
+      return await sendOnce(type, body)
+    } catch (retryError) {
+      // 第二次仍是上下文切换：换成稳定错误码，界面显示中文提示而不是宿主的英文原文
+      if (retryError instanceof Error && CONTEXT_CHANGING.test(retryError.message)) throw new ActionError('VIEW_CONTEXT_CHANGING', undefined)
+      throw retryError
+    }
+  }
+}
+
+function sendOnce(type: string, body: Record<string, unknown>) {
   const requestId = String(++sequence)
   return new Promise<HostMessage>((resolve, reject) => {
     const timer = setTimeout(() => {
