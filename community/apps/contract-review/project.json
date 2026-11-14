@@ -1,0 +1,54 @@
+{
+  "name": "contract-review",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/contract-review/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "generatorOptions": {
+        "packageRoot": "dist/{projectRoot}",
+        "currentVersionResolver": "git-tag"
+      }
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/apps/contract-review",
+        "main": "apps/contract-review/src/index.ts",
+        "tsConfig": "apps/contract-review/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "apps/contract-review/src/lib/remote-components",
+            "glob": "**/*",
+            "output": "remote-components"
+          }
+        ],
+        "project": "apps/contract-review/package.json",
+        "compiler": "swc",
+        "format": [
+          "cjs",
+          "esm"
+        ],
+        "external": [
+          "@langchain/core",
+          "@nestjs/common",
+          "@nestjs/core",
+          "@nestjs/typeorm",
+          "@xpert-ai/contracts",
+          "@xpert-ai/plugin-sdk",
+          "typeorm",
+          "react",
+          "react-dom",
+          "yaml",
+          "zod"
+        ]
+      }
+    }
+  }
+}
