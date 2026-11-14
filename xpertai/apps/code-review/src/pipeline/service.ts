@@ -6,6 +6,7 @@ import { ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapabilit
   type RuntimeCapabilityRegistry, type ProjectPipelineContext, type ProjectPipelineOperationContext, type ProjectPipelineAssistantContext } from '@xpert-ai/plugin-sdk'
 import type { ProjectPipelineEvidenceRef, ProjectPipelineJsonValue, ProjectPipelineSubjectVersion } from '@xpert-ai/contracts'
 import { projectContext, ReviewPipelineCatalog, reviewTemplateRefs } from './catalog.js'
+import type { PublicationMode } from '../automation-contract.js'
 import { ReviewRun } from '../automation-entities.js'
 import { Review } from '../entity.js'
 import { Reviews } from '../backend.js'
@@ -22,7 +23,7 @@ export class ReviewPipelineService {
     @InjectRepository(Review) private readonly records: Repository<Review>, private readonly reviews: Reviews,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) readonly capabilities: RuntimeCapabilityRegistry) {}
 
-  async attach(scope: Scope, input: z.infer<typeof attachPipelineSchema>, automatic?: { runId: string; repositoryId: string; trial: boolean }, assertOwned: () => Promise<void> = async () => undefined) {
+  async attach(scope: Scope, input: z.infer<typeof attachPipelineSchema>, automatic?: { runId: string; repositoryId: string; trial: boolean; publication?: PublicationMode }, assertOwned: () => Promise<void> = async () => undefined) {
     const value = attachPipelineSchema.parse(input)
     const context: ProjectPipelineContext = { projectId: value.projectId, actor: {
       tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId } }
@@ -31,7 +32,7 @@ export class ReviewPipelineService {
     const configuration = root.ref.provider === 'local_git' ? localReviewPipelineConfiguration : reviewPipelineConfiguration
     let savedBindingId: string | undefined
     if ('bindingId' in value) {
-      await new ReviewPipelineCatalog(this.capabilities).validate(scope, { projectId: value.projectId, bindingId: value.bindingId }, root.ref.provider)
+      await new ReviewPipelineCatalog(this.capabilities).validate(scope, { projectId: value.projectId, bindingId: value.bindingId }, root.ref.provider, automatic?.publication)
       savedBindingId = value.bindingId
     }
     if (root.revision !== value.revision || (automatic && root.automationPolicyId !== automatic.repositoryId) || (root.automationRunId && root.automationRunId !== automatic?.runId) || root.pipelineOperationId || root.status !== 'ready')

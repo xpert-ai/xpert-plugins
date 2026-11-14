@@ -5,6 +5,7 @@ import { AssistantMiddlewareAccessRuntimeCapability, MANAGED_QUEUE_SERVICE_TOKEN
 import { ReviewDelivery, ReviewRepository, ReviewRun } from './automation-entities.js'
 import { QUEUE, type RunStatus } from './automation-domain.js'
 import { FEATURE, MIDDLEWARE, PLUGIN, ReviewError, parsePullUrl, type Scope } from './domain.js'
+import { publicationMode } from './automation-contract.js'
 import { Reviews } from './backend.js'
 import { Repositories } from './repositories.js'
 import { ReviewPipelineAutomation } from './pipeline/automation.js'
@@ -291,7 +292,18 @@ export class Automation {
         await assertOwned()
         await this.events.activity(p, 'run')
       }
-      if (review.status === 'reviewed') return this.finish(manager, run, 'completed')
+      if (review.status === 'reviewed') {
+        const mode = publicationMode(run.settings)
+        if (mode === 'store' || run.trigger === 'trial') return this.finish(manager, run, 'completed')
+        if (mode === 'confirm' && run.status !== 'publishing') {
+          if (run.status !== 'awaiting_confirmation') await manager.update(ReviewRun, { id: run.id }, { status: 'awaiting_confirmation' })
+          return
+        }
+        await assertOwned()
+        await this.reviews.publishAutomatic(p, run)
+        await this.reconcilePublication(manager, p, run, assertOwned)
+        return
+      }
       if (review.status === 'failed' || review.status === 'cancelled') return this.finish(manager, run, 'failed', review.errorCode ?? 'assistant_task_failed')
       if (run.startedAt && Date.now() - run.startedAt.getTime() > 60 * 60 * 1000) return this.stop(manager, p, run, 'failed', 'review_timeout', assertOwned)
       return
@@ -319,7 +331,11 @@ export class Automation {
 
   private async reconcilePublication(manager: EntityManager, p: ReviewRepository, run: ReviewRun, assertOwned: AssertAutomationOwnership) {
     if (!run.reviewId || run.settings.pipeline) return false
-    const review = await this.reviews.get(p, run.reviewId)
+    let review = await this.reviews.get(p, run.reviewId)
+    if ((review.status === 'submitting' || review.status === 'submission_unknown') && run.settings.publication) {
+      const found = await this.reviews.findAutomaticComment(p, run, review).catch(() => null)
+      if (found) review = found
+    }
     await assertOwned()
     if (review.status === 'submitted') {
       await manager.update(ReviewRun, { id: run.id }, { publicationUrl: review.submissionUrl })
@@ -327,17 +343,27 @@ export class Automation {
       return true
     }
     if (review.status === 'submitting' || review.status === 'submission_unknown') {
-      await this.finish(manager, run, 'publication_unknown', 'submission_unknown_check_github')
+      // Allow GitHub time to expose the committed review. Recovery only reads the receipt.
+      if (run.settings.publication && Date.now() - review.updatedAt.getTime() < 60 * 60 * 1000)
+        await manager.update(ReviewRun, { id: run.id }, { status: 'publishing', reason: 'submission_unknown_check_github' })
+      else await this.finish(manager, run, 'publication_unknown', 'submission_unknown_check_github')
       return true
     }
     return false
   }
   async confirm(s: Scope, id: string) {
+    await this.repositories.manage(s)
     const run = await this.runs.findOneBy({ id, tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId })
     if (!run) throw new ReviewError('run_not_found')
-    const p = await this.repositories.get(s, run.repositoryPolicyId)
-    // Historical private drafts stay readable, but new publication requires the Project gate.
-    throw new ReviewError(run.settings.pipeline ? 'pipeline_approval_required' : 'pipeline_binding_required')
+    if (run.settings.pipeline) throw new ReviewError('pipeline_approval_required')
+    if (run.trigger === 'trial' || run.settings.executionMode !== 'assistant' || run.settings.publication !== 'confirm' ||
+        run.status !== 'awaiting_confirmation') throw new ReviewError('review_not_submittable')
+    const p = await this.repositories.execution(await this.repositories.get(s, run.repositoryPolicyId))
+    if (!p.settings.enabled || p.revision !== run.policyRevision || p.settings.publication !== 'confirm') throw new ReviewError('policy_changed')
+    const result = await this.runs.update({ id, status: 'awaiting_confirmation' }, { status: 'publishing' })
+    if (!result.affected) throw new ReviewError('revision_conflict')
+    await this.schedule(p)
+    return { status: 'publishing' }
   }
 }
 

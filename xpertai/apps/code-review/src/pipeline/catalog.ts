@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { z } from 'zod/v3'
-import { ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+import { ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry, type ProjectPipelineContext } from '@xpert-ai/plugin-sdk'
 import { ReviewError, type Scope } from '../domain.js'
-import type { PipelineTarget } from '../automation-contract.js'
-import { digest, pipelineParametersSchema } from './contract.js'
-import { reviewPipelineConfiguration, localReviewPipelineConfiguration, lightweightReviewPipelineConfiguration } from './configuration.js'
+import type { PipelineTarget, PublicationMode } from '../automation-contract.js'
+import { digest, evidenceId, pipelineParametersSchema } from './contract.js'
+import { repositoryPipelineConfiguration, reviewPipelineConfiguration, localReviewPipelineConfiguration, lightweightReviewPipelineConfiguration } from './configuration.js'
 import { reviewPipelineCatalogSchema, reviewPipelineConfigureSchema, reviewTemplateSources, reviewTemplateSource,
   type ReviewSource } from './setup-contract.js'
 
@@ -46,7 +46,14 @@ export class ReviewPipelineCatalog {
     await this.validate(s, target, sourceKind)
     return target
   }
-  async validate(s: Scope, target: PipelineTarget, source: 'github' | 'local_git' = 'github') {
+  async configurePublication(s: Scope, target: PipelineTarget, mode: Exclude<PublicationMode, 'confirm'>) {
+    const saved = await this.validate(s, target)
+    const configuration = repositoryPipelineConfiguration(saved.configuration, mode)
+    const { bindingId } = await this.capabilities.require(ProjectPipelineCommandsRuntimeCapability).configure(
+      projectContext(s, target.projectId), { requestId: evidenceId(target.bindingId, configuration.binding.templateRef), configuration })
+    return bindingId
+  }
+  async validate(s: Scope, target: PipelineTarget, source: 'github' | 'local_git' = 'github', mode: PublicationMode = 'confirm') {
     const context = projectContext(s, target.projectId)
     await this.capabilities.require(ProjectAccessRuntimeCapability).assertEdit(context)
       .catch(() => { throw new ReviewError('pipeline_project_unavailable') })
@@ -55,17 +62,18 @@ export class ReviewPipelineCatalog {
     const binding = saved.configuration.binding
     const parameters = pipelineParametersSchema.parse(binding.parameters)
     let canonical
-    if (source === 'github' && binding.templateRef === 'code-review.pull-request-light@1.0.0') {
+    const suffix = mode === 'confirm' ? '' : '-' + mode
+    if (source === 'github' && binding.templateRef === `code-review.pull-request-light${suffix}@1.0.0`) {
       canonical = lightweightReviewPipelineConfiguration(z.string().uuid().parse(binding.executorBindings?.correctness?.selectionKey), parameters)
     } else {
-      if (binding.templateRef !== (source === 'github' ? 'code-review.pull-request@1.0.0' : 'code-review.local-git@1.0.0'))
+      if (binding.templateRef !== (source === 'github' ? `code-review.pull-request${suffix}@1.0.0` : 'code-review.local-git@1.0.0'))
         throw new ReviewError('pipeline_configuration_mismatch')
       const assistants = z.object({ correctness: z.string().uuid(), security: z.string().uuid(), verifier: z.string().uuid() }).parse({
         correctness: binding.executorBindings?.correctness?.selectionKey, security: binding.executorBindings?.security?.selectionKey,
         verifier: binding.executorBindings?.verifier?.selectionKey })
       canonical = (source === 'github' ? reviewPipelineConfiguration : localReviewPipelineConfiguration)(assistants, parameters)
     }
-    if (digest(saved.configuration) !== digest(canonical)) throw new ReviewError('pipeline_configuration_mismatch')
+    if (digest(saved.configuration) !== digest(repositoryPipelineConfiguration(canonical, mode))) throw new ReviewError('pipeline_configuration_mismatch')
     return saved
   }
 }

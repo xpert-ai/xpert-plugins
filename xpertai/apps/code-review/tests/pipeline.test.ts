@@ -8,7 +8,7 @@ import { checkProjectPipelineConfiguration, configureProjectPipelineFromForm, ty
 import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapability, ProjectPipelinesRuntimeCapability,
   ProjectPipelineEvidenceRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, projectPipelineContributionSchema,
   type ProjectPipelineOperationContext, type ProjectPipelineAssistantContext, type ProjectPipelinesApi, type PluginContext } from '@xpert-ai/plugin-sdk'
-import { ReviewRun } from '../src/automation-entities.js'
+import { ReviewRepository, ReviewRun } from '../src/automation-entities.js'
 import { defaultPolicy } from '../src/automation-contract.js'
 import { Review } from '../src/entity.js'
 import { Reviews } from '../src/backend.js'
@@ -18,7 +18,7 @@ import { parsePullUrl, VIEW, type Snapshot, type Scope } from '../src/domain.js'
 import { ReviewPipelineService } from '../src/pipeline/service.js'
 import { ReviewPipelineOperations } from '../src/pipeline/operations.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from '../src/pipeline/entity.js'
-import { lightweightReviewPipelineConfiguration, reviewPipelineConfiguration, reviewPipelineDescriptors, reviewPipelineConfigurationForm, ReviewPipelineContribution } from '../src/pipeline/configuration.js'
+import { repositoryPipelineConfiguration, lightweightReviewPipelineConfiguration, reviewPipelineConfiguration, reviewPipelineDescriptors, reviewPipelineConfigurationForm, ReviewPipelineContribution } from '../src/pipeline/configuration.js'
 import { digest, refs } from '../src/pipeline/contract.js'
 import { ReviewView } from '../src/view.js'
 
@@ -46,11 +46,25 @@ test('lightweight review is a valid platform pipeline with one Agent and the sam
   assert.equal(c.template.executionAuthority, 'platform')
   assert(c.template.nodes.some(node => node.kind === 'human_gate'))
 })
+test('repository publication policies validate for both PR pipelines and deliver reports before the rework decision', () => {
+  for (const base of [reviewPipelineConfiguration(), lightweightReviewPipelineConfiguration()]) {
+    for (const mode of ['store', 'comment'] as const) {
+      const c = repositoryPipelineConfiguration(base, mode)
+      assert.deepEqual(checkProjectPipelineConfiguration(c, [...reviewPipelineDescriptors,
+        { kind: 'completion', ref: 'platform.output-validated@1' }, { kind: 'schema', ref: 'platform.human-decision@1' }]).issues, [])
+      assert.equal(c.template.nodes.some(node => node.kind === 'human_gate'), false)
+      assert(c.template.edges.some(edge => edge.from === 'route' && edge.to === 'rework'))
+      assert.equal(c.template.nodes.some(node => node.kind === 'work' && node.operationRef === refs.repositoryComment), mode === 'comment')
+      if (mode === 'comment') assert(c.template.edges.some(edge => edge.to === 'publish' && ['correctness', 'verify'].includes(edge.from)))
+    }
+    assert(repositoryPipelineConfiguration(base, 'confirm').template.nodes.some(node => node.kind === 'human_gate'))
+  }
+})
 const url = process.env.XPERT_PIPELINE_TEST_DATABASE_URL
 if (url && !/^\/xpert_pipeline_test_[a-z0-9_]+$/.test(new URL(url).pathname)) throw new Error('Dedicated pipeline test database required')
 for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pipeline persistence and governed plugin operations (${layout})`, { skip: !url }, async t => {
   const schema = `code_review_pipeline_${randomUUID().replaceAll('-', '')}`
-  const db = new DataSource({ type: 'postgres', url, schema, entities: [ReviewRun, Review, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery],
+  const db = new DataSource({ type: 'postgres', url, schema, entities: [ReviewRepository, ReviewRun, Review, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery],
     uuidExtension: 'pgcrypto', extra: { options: `-c search_path=${schema},public` } })
   await db.initialize()
   t.after(async () => { await db.query(`DROP SCHEMA "${schema}" CASCADE`); await db.destroy() })
@@ -58,6 +72,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
   const query = db.createQueryRunner()
   await query.createTable(Table.create(db.getMetadata(Review), db.driver))
   await query.createTable(Table.create(db.getMetadata(ReviewRun), db.driver))
+  await query.createTable(Table.create(db.getMetadata(ReviewRepository), db.driver))
   if (layout === 'orm-precreated') for (const entity of [ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery]) {
     await query.createTable(Table.create(db.getMetadata(entity), db.driver))
   }
@@ -107,6 +122,9 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
       posts++
       const body: unknown = JSON.parse(String(init.body))
       assert.ok(body && typeof body === 'object' && 'body' in body && typeof body.body === 'string')
+      assert.equal(path, '/repos/sample/repository/pulls/1/reviews')
+      assert.equal(JSON.parse(String(init.body)).event, 'COMMENT')
+      assert.equal(JSON.parse(String(init.body)).commit_id, head)
       marker = body.body.split('\n').at(-1)!
       submittedBody = body.body
       throw new Error('Response lost after GitHub accepted review')
@@ -364,6 +382,39 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     assert.equal(result.status, 'succeeded'); if (result.status !== 'succeeded') throw new Error('delivery missing')
     assert.equal((await operations.confirmed(step({ receipt: { kind: 'evidence', value: result.outputs.receipt } }))).status, 'succeeded')
     assert.equal(posts, 1)
+  })
+  await t.test('repository-authorized publication requires the live rule and pinned round, and recovers without another POST', async () => {
+    const source = await service.bindings.findOneByOrFail({ id: root.id })
+    const publicationBindingId = randomUUID()
+    const settings = { ...defaultPolicy, enabled: true, executionMode: 'pipeline' as const, publication: 'comment' as const,
+      pipeline: { projectId, bindingId: randomUUID() }, publicationBindingId }
+    const p = await db.getRepository(ReviewRepository).save({ ...s, executionUserId: s.userId, ownership: 'assistant',
+      owner: 'sample', repository: 'repository', installationId: '1', repositoryId: '2', confirmedAt: new Date(), settings })
+    const run = await db.getRepository(ReviewRun).save({ ...s, repositoryPolicyId: p.id, reviewId: root.id, number: 1,
+      operationKey: randomUUID(), headSha: head, title: 'Automatic', trigger: 'opened', status: 'running', policyRevision: 1,
+      settings, notBefore: new Date(), pipelineInstanceId: work.instanceId, pipelineRoundId: work.roundId })
+    await service.bindings.update(root.id, { savedBindingId: publicationBindingId, currentReviewId: root.id })
+    await db.getRepository(Review).update(root.id, { automationRunId: run.id, automationPolicyId: p.id })
+    const c = step({ findings: { kind: 'evidence', value: verified } })
+    const before = posts
+    const original = reviews.recordGithub
+    reviews.recordGithub = async () => github
+    try {
+      await db.getRepository(ReviewRepository).update(p.id, { settings: { ...settings, publication: 'store' } })
+      await assert.rejects(operations.publish(c, true, 'repository'), /policy_changed/)
+      await db.getRepository(ReviewRepository).update(p.id, { settings })
+      await assert.rejects(operations.publish({ ...c, work: { ...c.work, roundId: randomUUID() } }, true, 'repository'), /pipeline_configuration_mismatch/)
+      await assert.rejects(operations.publish(c, true, 'human'), /approval_required/)
+      assert.equal(posts, before)
+      assert.equal((await operations.publish(c, true, 'repository')).status, 'unknown')
+      assert.match(submittedBody, /Both review passes independently verified/)
+      assert.equal((await operations.publish(c, true, 'repository')).status, 'succeeded')
+      assert.equal(posts, before + 1)
+    } finally {
+      reviews.recordGithub = original
+      await db.getRepository(Review).update(root.id, { automationRunId: null, automationPolicyId: null })
+      await service.bindings.update(root.id, { savedBindingId: source.savedBindingId, currentReviewId: source.currentReviewId })
+    }
   })
   await t.test('new source versions reject old tool completion while preserving immutable historical evidence', async () => {
     const c = assistant(step({ snapshot: { kind: 'evidence', value: snapshotRef } }))

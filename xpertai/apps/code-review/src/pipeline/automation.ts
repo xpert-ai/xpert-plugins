@@ -3,10 +3,12 @@ import { ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapabilit
   XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import type { EntityManager } from 'typeorm'
 import { ReviewRepository, ReviewRun } from '../automation-entities.js'
+import { publicationMode } from '../automation-contract.js'
 import { ReviewError } from '../domain.js'
 import { Reviews } from '../backend.js'
 import { ReviewPipelineService } from './service.js'
 import { ReviewPipelineCatalog, projectContext } from './catalog.js'
+import { refs } from './contract.js'
 import { ReviewPipelineDelivery } from './entity.js'
 import type { AssertAutomationOwnership } from '../automation-lease.js'
 
@@ -17,17 +19,25 @@ export class ReviewPipelineAutomation {
     private readonly catalog: ReviewPipelineCatalog,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry) {}
   async validate(p: ReviewRepository, run: ReviewRun) {
-    if (!run.settings.pipeline) throw new ReviewError('pipeline_binding_required')
-    await this.catalog.validate(p, run.settings.pipeline)
+    const { target, publication } = this.executionTarget(run)
+    await this.catalog.validate(p, target, 'github', publication)
+  }
+  private executionTarget(run: ReviewRun) {
+    const target = run.settings.pipeline
+    if (!target) throw new ReviewError('pipeline_binding_required')
+    const publication = run.trigger === 'trial' ? 'confirm' : publicationMode(run.settings)
+    if (publication === 'confirm') return { target, publication }
+    if (!run.settings.publicationBindingId) throw new ReviewError('pipeline_binding_required')
+    return { target: { projectId: target.projectId, bindingId: run.settings.publicationBindingId }, publication }
   }
   async advance(manager: EntityManager, p: ReviewRepository, run: ReviewRun, assertOwned: AssertAutomationOwnership = async () => undefined) {
-    const target = run.settings.pipeline
-    if (!target || !run.reviewId) throw new ReviewError('pipeline_binding_required')
+    const { target, publication } = this.executionTarget(run)
+    if (!run.reviewId) throw new ReviewError('pipeline_binding_required')
     const context = projectContext(p, target.projectId)
     if (!run.pipelineInstanceId || !run.pipelineRoundId) {
       const r = await this.reviews.get(p, run.reviewId)
       const started = await this.service.attach(p, { id: r.id, revision: r.revision, ...target, requestId: run.id },
-        { runId: run.id, repositoryId: p.id, trial: run.trigger === 'trial' }, assertOwned)
+        { runId: run.id, repositoryId: p.id, trial: run.trigger === 'trial', publication }, assertOwned)
       await assertOwned()
       await manager.update(ReviewRun, { id: run.id }, { pipelineInstanceId: started.instanceId, pipelineRoundId: started.roundId,
         status: 'running', reason: null })
@@ -41,16 +51,17 @@ export class ReviewPipelineAutomation {
       await manager.update(ReviewRun, { id: run.id }, { status: 'superseded', reason: 'new_commit', finishedAt: new Date() }); return
     }
     const attention = graph.attentions.find(item => item.state === 'open')
-    const status = graph.runState === 'completed' ? 'published' : graph.runState === 'cancelled' ? 'cancelled'
+    const status = graph.runState === 'completed' ? (publication === 'store' ? 'completed' : 'published') : graph.runState === 'cancelled' ? 'cancelled'
       : graph.runState === 'failed' ? 'failed' : graph.round.state === 'awaiting_new_subject' ? 'awaiting_revision'
       : attention?.kind === 'human' ? 'awaiting_confirmation' : attention ? 'blocked' : 'running'
-    const receipt = status === 'published' ? await manager.findOne(ReviewPipelineDelivery, { where: {
+    const published = graph.nodes.find(node => node.projection.nodeKey === 'publish')?.projection.evidence
+      .find(ref => ref.schemaRef === refs.delivery)
+    const receipt = published?.producerOperationId ? await manager.findOneBy(ReviewPipelineDelivery, {
       tenantId: p.tenantId, organizationId: p.organizationId, projectId: target.projectId,
-      reviewId: (await this.service.bindings.findOneByOrFail({ tenantId: p.tenantId, organizationId: p.organizationId, projectId: target.projectId, instanceId: run.pipelineInstanceId })).id,
-      headSha: run.headSha, status: 'confirmed' }, order: { createdAt: 'DESC' } }) : null
+      operationId: published.producerOperationId, headSha: run.headSha, status: 'confirmed' }) : null
     await assertOwned()
     await manager.update(ReviewRun, { id: run.id }, { status, reason: attention?.reasonCode ?? null,
-      publicationUrl: receipt?.receipt?.url ?? null, finishedAt: ['published', 'failed', 'cancelled'].includes(status) ? new Date() : null })
+      publicationUrl: receipt?.receipt?.url ?? run.publicationUrl, finishedAt: ['completed', 'published', 'failed', 'cancelled'].includes(status) ? new Date() : null })
   }
   async cancel(p: ReviewRepository, run: ReviewRun) {
     if (!run.settings.pipeline || !run.pipelineInstanceId) return
