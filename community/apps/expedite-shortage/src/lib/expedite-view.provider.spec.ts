@@ -117,6 +117,9 @@ describe('assistant template', () => {
     expect(TEMPLATE_DSL).toContain('provider: todoListMiddleware')
     expect(TEMPLATE_DSL).toContain(`defaultViewKey: ${VIEW_KEY}`)
     expect(TEMPLATE_DSL).toContain('order: [Middleware_ContextCompression, Middleware_Todo, Middleware_Expedite]')
+    // 回归：平台按执行图节点计步（模型、工具、3 个中间件钩子都算），40 步在第 7 次工具调用前耗尽（11-13 实测）
+    const limit = Number(/recursionLimit: (\d+)/.exec(TEMPLATE_DSL)?.[1])
+    expect(limit).toBeGreaterThanOrEqual(100)
     // 模板不写死模型，从模板安装时由用户选择组织已配置的模型
     expect(TEMPLATE_DSL).not.toMatch(/copilotModel|qwen|deepseek/i)
     for (const app of plugin.meta.targetApps ?? []) {

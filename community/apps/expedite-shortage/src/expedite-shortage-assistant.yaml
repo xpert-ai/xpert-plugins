@@ -15,7 +15,7 @@ team:
         - 载入演示请求后，帮我分析 SO-1024 能否提前到 11 月 25 日交货。
         - 缺料分析的结论是怎么算出来的？
   agentConfig:
-    recursionLimit: 40
+    recursionLimit: 100
   version: '1'
   agent:
     key: Agent_Expedite
