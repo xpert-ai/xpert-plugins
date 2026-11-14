@@ -1,0 +1,5 @@
+/*
+ * The workbench injects its own styles from the bundle (src/styles.ts) so the platform iframe
+ * needs no external stylesheet. This file stays intentionally empty because the local preview
+ * host (tools/remote-view-preview) always reads app.css next to app.js.
+ */
