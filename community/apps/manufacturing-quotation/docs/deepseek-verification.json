@@ -1,0 +1,317 @@
+{
+  "verifiedAt": "2026-11-12T15:50:48.951Z",
+  "sourceDigestAlgorithm": "SHA-256 of ordered path + NUL + file SHA-256 + LF",
+  "sourceSha256": "02167fa5bc2adb3d1edff375d5c1470e6e0c7572b2fd7109ac12a1c68f1b3df3",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "846b9ad0f68942776c1d2e3375140014a8641b0e60b7b46313cb4f63efc15bc8"
+    },
+    {
+      "path": "acceptance/api.mjs",
+      "sha256": "950f32cadeaa319d87e16eca89dec64df71f1bb96c25053651b838bfb8acaea2"
+    },
+    {
+      "path": "acceptance/browser-support.mjs",
+      "sha256": "09035995766513a436e66ffff638a5ffe8d045f584ea5b9e954ff24323dae6bf"
+    },
+    {
+      "path": "acceptance/browser.mjs",
+      "sha256": "f9857bc215d32ee52512f2837d0cf8cfc4c5921e510fe946d8cbffb6c499c109"
+    },
+    {
+      "path": "acceptance/entry-browser.mjs",
+      "sha256": "59603249cb5c3db0997226e6507f8f11fcc9d0de7c168b1d7c63c7ffd7afc5f0"
+    },
+    {
+      "path": "acceptance/fixtures/synthetic-inquiry.png",
+      "sha256": "bf687c19683033035a3989f4e38702478e8831dff6f37c0b13be7e1d80927755"
+    },
+    {
+      "path": "acceptance/model-failure.mjs",
+      "sha256": "b81c6ee05ff17cbee16333a772d70674769741ff4587922012c2b7bab979c890"
+    },
+    {
+      "path": "acceptance/mvp-boundaries.mjs",
+      "sha256": "2a2216cd9bddaba1084ab6dff60fe3d487633c827d86c844bb9cabc568d8ab8a"
+    },
+    {
+      "path": "acceptance/mvp-recovery-browser.mjs",
+      "sha256": "d9c8b2e45bf80d98adc23ca6dbdb02c75ac8678f4384cb54a09e0f8fc4e2d0db"
+    },
+    {
+      "path": "package.json",
+      "sha256": "783ce5c3be06488e5b8b55612c666b102462b35c9b4eae8f628044551f7ff1f5"
+    },
+    {
+      "path": "remote/bridge.ts",
+      "sha256": "5141519de03eeb941b2c2ee065bb17429caa93e29196ca9cbd48553c77452f4f"
+    },
+    {
+      "path": "remote/contracts.ts",
+      "sha256": "feb1b0259a653b5da6f4733079fab89cc082b2fcd3476f998274e502421d65d5"
+    },
+    {
+      "path": "remote/debug.ts",
+      "sha256": "2e951a95ddfda4e52a40c73afa863bdbe1f27ea3ecd57a3ab0fb0e459dba8fae"
+    },
+    {
+      "path": "remote/draft-detail.tsx",
+      "sha256": "e95c617d4cec25c1523518d7e45d3dc8e6a67339633dd2a387c33f7fa8731247"
+    },
+    {
+      "path": "remote/i18n.ts",
+      "sha256": "e167c61866a7a56cd132531eb7bca60cd68085287ce218b732122f728f53eacb"
+    },
+    {
+      "path": "remote/locales/en.json",
+      "sha256": "658d7b9a25a8312b4f68b270cd5ffc92f4f6e88c7146a97b09e159e70ddef315"
+    },
+    {
+      "path": "remote/locales/zh-Hans.json",
+      "sha256": "618ee4422f94f8e90c8e6a861a2b392813d388558cb4b2ccd8663e439d4ade78"
+    },
+    {
+      "path": "remote/main.tsx",
+      "sha256": "bf621b54f7c9c5cd87a0835294d63b217099d055f8620284248093abe6e750f7"
+    },
+    {
+      "path": "remote/styles.css",
+      "sha256": "b563e5f871474f1c7ccfdaf9f763e6ddedcaa1a7cb92bdd92617d42eed450484"
+    },
+    {
+      "path": "remote/tsconfig.json",
+      "sha256": "af73fe6b5440404cc315e3bc0a547f149e6d60121fff8128bf57ba60d1929fae"
+    },
+    {
+      "path": "remote/workbench.preview.mjs",
+      "sha256": "1e5dace54c440edf5019a1f431da1f76acd82544ed2cde0309e372950e590fbd"
+    },
+    {
+      "path": "scripts/build-remote.mjs",
+      "sha256": "1921dd03f2f92c2366da98d200ff22cb046b7311c749cb1eb6a42fb71c5043a1"
+    },
+    {
+      "path": "scripts/verify-dist.mjs",
+      "sha256": "24040465a869eb11bf01e58c694ff30188f5d5e2d1227a57adf812ca3551fb05"
+    },
+    {
+      "path": "scripts/write-template.mjs",
+      "sha256": "7f760e9686c1fa7278cfb29c47521319fc57ed8a935baf16261c30b6916621d4"
+    },
+    {
+      "path": "src/business-rules.ts",
+      "sha256": "8759d089bbfa987c221f8ee1d67481a6d4bcf11c145e331f223524b926aa31c7"
+    },
+    {
+      "path": "src/contracts.ts",
+      "sha256": "585c05d93c529a831441d0d5329155efb1319d23c26e0769674386fd1bf7b133"
+    },
+    {
+      "path": "src/demo-catalog.ts",
+      "sha256": "3f93ba811a262c1961ce37afb6857aa7163eb9997849a921bec5f36b528d195d"
+    },
+    {
+      "path": "src/draft.entity.ts",
+      "sha256": "a7a4ef9cd2c8e3f605b87c0616dc3e34d088fc9582b90519539fe3d55197e006"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "bdabe267e3549b747ce7fb4e8fb47f018129f19412ccaeb87b5cda35b17b5854"
+    },
+    {
+      "path": "src/ocr.service.ts",
+      "sha256": "5fa53187f275de17881e6e5c956079904484ef93b01dcfae4098b9c30b2e1d09"
+    },
+    {
+      "path": "src/plugin.module.ts",
+      "sha256": "68aba661a5c9c2556e6acf79fed5a37344414789616b12a6834b3528dea2ced1"
+    },
+    {
+      "path": "src/pricing.service.ts",
+      "sha256": "c092b8d1d8451dd9dfd742f1e33b9291a686d8280e661dc4986e47e85ca82974"
+    },
+    {
+      "path": "src/proposal-validation.ts",
+      "sha256": "14944f8bc052984684f2903d38702f1ede2ad60019955fbddfefb29698695a25"
+    },
+    {
+      "path": "src/quotation.middleware.ts",
+      "sha256": "3dfb0c739e490c9d3821f81e651a82d16a09a3997ccb263fd2d8b3be7c6a5240"
+    },
+    {
+      "path": "src/quotation.service.ts",
+      "sha256": "5fc9a3f3eb149ca004c52a85ca577d33065af9bff8bbb2a937b152f3a4fc0fd9"
+    },
+    {
+      "path": "src/quotation.view.ts",
+      "sha256": "a5379dec83fd1321741f5ddc1df65a3683ea373bc61bf6f71072c3ff64016195"
+    },
+    {
+      "path": "src/template.ts",
+      "sha256": "2ff428a91bfc4658c19eeb701f9ad6da5a2b2f99577d583315c1f6b208e3ce31"
+    },
+    {
+      "path": "templates/manufacturing-assistant.yaml",
+      "sha256": "c2d38cae57675f77b8ab660ece6ff74e2bae9f297067addb277aa1b39ed7d0ad"
+    },
+    {
+      "path": "tests/business-rules.test.ts",
+      "sha256": "306a882147e9649415bf56261a3671b8b705f79300523ea277b3e330ebc90fff"
+    },
+    {
+      "path": "tests/middleware.test.ts",
+      "sha256": "997a72712ad488121441c9b0151f8f9cdfd3ab90d9c7fd0d1fbc9ca8832b5350"
+    },
+    {
+      "path": "tests/ocr.test.ts",
+      "sha256": "2ecafe7d492267310bfbe122f473b5322080bd07527b134db835fecc536e835b"
+    },
+    {
+      "path": "tests/pricing.test.ts",
+      "sha256": "947b6e090aeca0806fe58e4c4548d24a1524f4f73de8f3c74eea2969a760c0ab"
+    },
+    {
+      "path": "tests/proposal-validation.test.ts",
+      "sha256": "8b0c5ea0c0fcae90e0944eccc60f450f7ecb7c9ce5c5c3ff4f585a6c87398044"
+    },
+    {
+      "path": "tests/quotation.test.ts",
+      "sha256": "7d791a7bcff17fa4aa7543abd42a23c345bfc2878ac56d783648946da27401ab"
+    },
+    {
+      "path": "tests/remote-debug.test.ts",
+      "sha256": "688b64cc423057b99335eb77a7a20375ab19435cc608205df5a14f30e6306b89"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "01b655e0bdebad702837d59f00f0f193062b893162366596518100c0279317be"
+    },
+    {
+      "path": "tsconfig.remote.json",
+      "sha256": "0eb17e56336667bbb424a9c549bed1e92afd87bcbd1ae398b9ecab3333a31cdb"
+    }
+  ],
+  "model": {
+    "provider": "deepseek",
+    "name": "deepseek-flash",
+    "protocol": "chat-completions",
+    "thinking": false,
+    "max_tokens": 4096,
+    "maxRetries": 0,
+    "assistantVersion": "6",
+    "fallback": false
+  },
+  "checks": {
+    "tests": {
+      "passed": 193,
+      "files": 7
+    },
+    "typecheck": true,
+    "build": true,
+    "verifyDist": true,
+    "metadata": true,
+    "frozenDependencies": true,
+    "nestLifecycleWithMocks": true,
+    "text": {
+      "verifiedAt": "2026-11-12T15:41:02.789Z",
+      "success": true,
+      "model": "deepseek-flash",
+      "version": "6",
+      "totalCny": "15.51",
+      "invalidQuantityRejected": true,
+      "reloaded": true
+    },
+    "imageOriginal": {
+      "verifiedAt": "2026-11-12T15:42:03.175Z",
+      "success": true,
+      "model": "deepseek-flash",
+      "version": "6",
+      "totalCny": "14.64",
+      "invalidQuantityRejected": true,
+      "reloaded": true
+    },
+    "boundaries": {
+      "verifiedAt": "2026-11-12T15:50:18.153Z",
+      "success": true,
+      "checks": 11,
+      "cleanup": {
+        "temporaryAccounts": 3,
+        "grantsRemoved": true,
+        "usersSoftDeleted": true,
+        "sharingRestored": true
+      }
+    },
+    "modelFailure": {
+      "verifiedAt": "2026-11-12T15:43:07.794Z",
+      "kind": "incomplete-model-output-and-retry",
+      "success": true,
+      "model": "deepseek-flash",
+      "outputLimit": 1,
+      "failed": {
+        "errorCode": "analysis_failed",
+        "quoteAbsent": true,
+        "inquiryPreserved": true
+      },
+      "recovered": {
+        "total": "15.51",
+        "sameRecord": true,
+        "reloaded": true,
+        "duplicateConfirmationUnchanged": true
+      },
+      "temporaryAssistantDeleted": true,
+      "regularAssistantUnchanged": true
+    },
+    "finalRuntime": {
+      "verifiedAt": "2026-11-12T15:47:44.698Z",
+      "assistantVersion": "6",
+      "historyUnchanged": 23,
+      "migratedRows": 162,
+      "newPluginLoaded": true,
+      "oldPluginAbsent": true,
+      "validationBuildSha256": "8f299ee7aa53857fa9a781f7f3cfbc6e2a3a5a5d83b315f23cebc81c9ad6177a",
+      "runtimeBuildMatchesWorkspace": true
+    },
+    "pack": {
+      "files": 43,
+      "credentialsIncluded": false
+    }
+  },
+  "historicalChecks": {
+    "verifiedAt": "2026-11-12T12:00:38.310Z",
+    "sourceSha256": "e70108c433870b420b427774f87ece8cf0748141a6a12e6a7da05df51f0dc957",
+    "imageEdited": {
+      "success": true,
+      "model": "deepseek-flash",
+      "version": "5",
+      "totalCny": "14.64",
+      "reloaded": true
+    },
+    "entry": {
+      "success": true,
+      "directEntryMessageRuns": 0,
+      "legacyMessageAccepted": true,
+      "modelGenerationVerified": false
+    },
+    "dsl": {
+      "version": "2",
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "remote": {
+    "jsSha256": "2a878ba57397d8dafcea35f8d89764c9b93d480621e150879500b7c2c34f75c9",
+    "cssSha256": "99c9a5b80885f14d167ec1701d91ecf52650efabba71d71965c8a5803179cc0b"
+  },
+  "limitations": [
+    "Synthetic local MVP; not production load testing",
+    "Real PNG vision tested; real JPEG/WebP model requests not tested",
+    "No real database/network fault injection",
+    "Host sidebar Jest dependencies unavailable; production build and browser evidence retained"
+  ],
+  "previousVerification": {
+    "verifiedAt": "2026-11-12T14:16:38.452Z",
+    "sourceSha256": "2f35de3a7ab0fe6d1be329887969123bdc7b25401d5b44f174b3d92c86a3594e",
+    "assistantVersion": "5"
+  }
+}
