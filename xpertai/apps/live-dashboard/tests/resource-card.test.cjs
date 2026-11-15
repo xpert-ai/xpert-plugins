@@ -40,6 +40,6 @@ test('view navigation uses exact selection, rejects conflicting/malformed/versio
   }
   assert.equal(calls.length, 0)
   await assert.rejects(provider.getViewData(scope, 'live-dashboard', { selectionId: artifactId, parameters: { versionId } }), /ACCESS_DENIED/)
-  assert.deepEqual(calls, [[scope, artifactId, versionId, undefined, 'draft']])
+  assert.deepEqual(calls, [[scope, artifactId, versionId, undefined, 'published']])
   assert.equal(provider.getViewManifests(scope, 'agent.workbench')[0].dataSource.querySchema.supportsSelection, true)
 })

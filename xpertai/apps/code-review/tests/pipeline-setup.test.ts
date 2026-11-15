@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { randomUUID } from 'node:crypto'
 import { configureProjectPipelineFromForm, type ProjectPipelineSavedConfiguration } from '@xpert-ai/contracts'
-import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, ProjectPipelineCommandsRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { ReviewPipelineCatalog } from '../src/pipeline/catalog.js'
 import { ReviewPipelineContribution } from '../src/pipeline/configuration.js'
 import { reviewPipelineConfigureSchema, reviewPipelineSetupSchema } from '../src/pipeline/setup-contract.js'
@@ -38,6 +38,15 @@ function fixture() {
     async binding(_context, id) { const result = saved.get(id); if (!result) throw new Error('missing'); return result },
     async bindings() { return { items: [...saved.values()], next: null } }
   })
+  capabilities.register(ProjectPipelineCommandsRuntimeCapability, {
+    async configure(context, { requestId, configuration }) {
+      assert.equal(context.projectId, projectId)
+      if (!saved.has(requestId)) saved.set(requestId, { id: requestId, revision: 1, createdAt: new Date().toISOString(), configuration })
+      return { bindingId: requestId, revision: 1, definitionDigest: 'a'.repeat(64) }
+    },
+    async start() { throw new Error('unused') }, async nextRound() { throw new Error('unused') },
+    async cancel() { throw new Error('unused') }, async decide() { throw new Error('unused') }
+  })
   return { catalog: new ReviewPipelineCatalog(capabilities), s, projectId, saved, configured: () => configured,
     revoke: () => { allowed = false } }
 }
@@ -67,6 +76,24 @@ test('inline configuration uses the registered template and returns a reusable b
   assert(config.template.nodes.some(node => node.kind === 'human_gate'))
   assert.equal(config.binding.executorBindings?.security, undefined)
 })
+test('repository publication binds the selected Assistants once per source configuration and publication mode', async () => {
+  const f = fixture()
+  const source = await f.catalog.configure(f.s, f.projectId, { requestId: randomUUID(), sourceKind: 'github', contributionKey: 'code-review',
+    templateRef: 'code-review.pull-request-light@1.0.0', assistants: { correctness: f.s.assistantId },
+    parameters: { requireChecks: true, requiredChecks: ['build'], blockingPriorities: ['P1'] } })
+  for (const mode of ['store', 'comment'] as const) {
+    const bindingId = (await f.catalog.configurePublication(f.s, source, mode))!
+    assert.notEqual(bindingId, source.bindingId)
+    const value = await f.catalog.validate(f.s, { ...source, bindingId }, 'github', mode)
+    assert.equal(value.configuration.binding.executorBindings?.correctness.selectionKey, f.s.assistantId)
+    assert.equal(await f.catalog.configurePublication(f.s, source, mode), bindingId)
+    await assert.rejects(f.catalog.validate(f.s, { ...source, bindingId }), /pipeline_configuration_mismatch/)
+  }
+  assert.equal(f.saved.size, 3)
+  f.revoke()
+  await assert.rejects(f.catalog.configurePublication(f.s, source, 'comment'), /pipeline_project_unavailable/)
+})
+
 test('inline setup rejects source mismatch, unregistered versions, unauthorized Assistants and topology overrides', async () => {
   const f = fixture()
   const input = { requestId: randomUUID(), sourceKind: 'github' as const, contributionKey: 'code-review', templateRef: 'code-review.pull-request-light@1.0.0',

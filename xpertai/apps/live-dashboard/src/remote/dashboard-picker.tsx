@@ -6,6 +6,7 @@ import { dashboardPickerPageSchema } from '../lib/dashboard-view.schema'
 import type { DashboardMode } from '../lib/project'
 import { usePickerItems } from './picker-data'
 import { i18n, type messages } from './i18n'
+import { DashboardStatusBadge } from './dashboard-status-badge'
 import { DiscoveredDashboardColumn } from './discovered-dashboard-column'
 
 type Project = z.infer<typeof dashboardProjectSchema>
@@ -62,7 +63,9 @@ function DashboardColumn({ value, project, disabled, onChange, onNew, onDelete, 
             <TooltipTrigger asChild><div className="picker-dashboard-row">
               <CommandItem value={item.artifactId} data-current={item.artifactId === value}
                 className={item.artifactId === value ? 'bg-secondary font-medium' : undefined} aria-current={item.artifactId === value ? true : undefined} disabled={disabled} onSelect={() => onChange(item.artifactId, result.data?.mode)}>
-                <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>{item.artifactId === value && <Check aria-hidden="true"/>}
+                <span className="min-w-0 flex-1 truncate">{item.title ?? item.artifactId}</span>
+                <DashboardStatusBadge item={item} t={t}/>
+                {item.artifactId === value && <Check aria-hidden="true"/>}
               </CommandItem>
               {onDelete && item.canDelete && !!item.draftRevision && <Button className="picker-delete" variant="ghost" size="icon" disabled={disabled}
                 aria-label={i18n.t('deleteDashboardNamed', { title: item.title ?? item.artifactId })}

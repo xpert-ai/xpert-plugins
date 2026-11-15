@@ -62,6 +62,42 @@ function fixture() {
   return { strategy, context, request, runner, calls, snapshots, setOutput: (value) => (output = value) }
 }
 
+test('JSONL result file is read only after a verified final receipt, then checkpointed before stop', async () => {
+  const f = fixture()
+  const reference = { version: 1, path: 'output/result.json', sha256: 'a'.repeat(64) }
+  const text = '```xpert-task-result-file\n' + JSON.stringify(reference) + '\n```'
+  f.runner.readTaskResultFile = async (_, value) => {
+    assert.deepEqual(value, reference)
+    f.calls.push('result-file')
+    return { version: 1, summary: '{"verdict":"indeterminate"}', items: [] }
+  }
+  const started = await f.strategy.start(f.request, f.context)
+  const events = [{ type: 'result', subtype: 'success', is_error: false, result: text }]
+  f.setOutput({ state: 'running', events })
+  assert.equal((await f.strategy.inspect(started.handle, f.context)).status, 'running')
+  assert.equal(f.calls.includes('result-file'), false)
+  f.setOutput({ state: 'exited', exitCode: 0, events })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, '{"verdict":"indeterminate"}')
+  assert.deepEqual(f.calls.slice(-4), ['result-file', { mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
+  assert.equal(f.snapshots.at(-1).result.text, result.result.text)
+})
+
+test('JSONL invalid file submission fails explicitly without file export or a second launch', async () => {
+  const f = fixture()
+  f.runner.readTaskResultFile = async () => { throw Error('private contents') }
+  const started = await f.strategy.start(f.request, f.context)
+  const text = '```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```'
+  f.setOutput({ state: 'exited', exitCode: 0, events: [{ type: 'result', subtype: 'success', is_error: false, result: text }] })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.match(result.error, /task_result_file_invalid/)
+  assert.equal(result.result, undefined)
+  assert.deepEqual(f.calls.slice(-2), ['checkpoint', 'stop'])
+  assert.equal(f.calls.filter(value => value === 'start').length, 1)
+})
+
 test('Computer Qwen checkpoints before dispatch and exports before cleanup; replay only inspects', async () => {
   const f = fixture()
   const started = await f.strategy.start(f.request, f.context)
@@ -204,6 +240,64 @@ test('Computer Qwen keeps uncertain launches unknown and checks workspace/profil
     f.strategy.inspect({ ...started.handle, metadata: { ...started.handle.metadata, profileVersion: '2' } }, f.context)
   )
   assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+})
+
+test('Qwen returns a recoverable failure when the runner and all descendants have exited without a task result', async () => {
+  for (const exitCode of [0, 137, undefined]) {
+    const f = fixture()
+    const started = await f.strategy.start(f.request, f.context)
+    f.runner.inspect = async () => ({
+      state: 'exited',
+      exitCode,
+      completion: exitEvidence(started.handle.runner)
+    })
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'failed')
+    assert.equal(result.controlEvidence.outcome, 'failed')
+    assert.equal(result.result, undefined)
+    assert.equal(result.handle.metadata.completion.code, 'runner_unavailable')
+    assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+    assert.equal(f.calls.includes('GET'), false)
+    assert.equal(f.calls.includes('stop'), false)
+  }
+})
+
+test('Qwen never settles an unavailable runner without matching descendant completion evidence', async () => {
+  const f = fixture()
+  const started = await f.strategy.start(f.request, f.context)
+  const valid = exitEvidence(started.handle.runner)
+  for (const process of [
+    { state: 'unknown', completion: valid },
+    { state: 'exited' },
+    { state: 'exited', completion: { ...valid, processId: 'different-process' } },
+    { state: 'exited', completion: { ...valid, coverage: 'parent' } },
+    { state: 'exited', completion: { ...valid, environment: { ...valid.environment, instanceId: 'replaced' } } }
+  ]) {
+    f.runner.inspect = async () => process
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'unknown')
+    assert.equal(result.controlEvidence, undefined)
+  }
+  assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+})
+
+test('a truncated Qwen result is persisted as failure and only settles after descendant cleanup', async () => {
+  for (const confirmed of [true, false]) {
+    const f = fixture()
+    const started = await f.strategy.start(f.request, f.context)
+    f.setOutput({ state: 'exited', exitCode: 0, previewTruncated: true, events: [] })
+    f.runner.stop = async () => ({
+      state: 'exited',
+      ...(confirmed ? { completion: exitEvidence(started.handle.runner) } : {})
+    })
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(f.snapshots.at(-1).status, 'failed')
+    assert.equal(f.snapshots.at(-1).handle.metadata.completion.code, 'activity_incomplete')
+    assert.equal(result.status, confirmed ? 'failed' : 'unknown')
+    assert.equal(result.result, undefined)
+    assert.equal(result.controlEvidence?.outcome, confirmed ? 'failed' : undefined)
+    assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+  }
 })
 
 test('Computer Qwen leaves runner available when durable result checkpoint fails', async () => {

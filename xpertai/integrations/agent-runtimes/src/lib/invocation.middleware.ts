@@ -84,17 +84,14 @@ export class AgentInvocationMiddleware implements IAgentMiddlewareStrategy<Optio
             }
             invocation = await api.awaitResult(invocation.id, { signal: config.signal, timeoutMs })
             await emitTaskResults(invocation, config)
-            return JSON.stringify({
-              invocationId: invocation.id,
-              ...taskReceipt(invocation)
-            })
+            return JSON.stringify(taskReceipt(invocation))
           },
           {
             name: 'delegate_task',
             verboseParsingErrors: true,
             metadata: display,
             description:
-              'Delegate a coding task to an authorized Agent runtime. If multiple runtimes are available, omit runtime to discover choices without starting work, then choose a returned runtime. Waits briefly up to timeoutMs and returns the actual task status. If still running, use task_status with the same task ID for 10–60 seconds and repeat as needed, or do independent work. Do not launch the same task again. Give a final result only after confirmed completion.',
+              'Delegate a coding task to an authorized Agent runtime. If multiple runtimes are available, omit runtime to discover choices without starting work, then choose a returned runtime. Waits briefly up to timeoutMs and returns invocationId and the actual task status. If still running, pass the returned invocationId in task_status.taskIds for a bounded wait, or do independent work. Do not launch the same task again. Give a final result only after confirmed completion.',
             schema: z
               .object({
                 prompt: z.string().min(1).max(100000),
@@ -132,14 +129,15 @@ export class AgentInvocationMiddleware implements IAgentMiddlewareStrategy<Optio
             verboseParsingErrors: true,
             metadata: invocationToolDisplay.status,
             description:
-              'Query one or more existing tasks. timeoutMs=0 reads immediately; a positive value waits up to that duration and returns early when any/all complete. Default: 30 seconds. Pending means work continues: query again with the same task IDs (usually 10–60 seconds), or do independent work. Avoid rapid zero-duration polling. No background suspension occurs. Unavailable is uncertain; never relaunch automatically. Completed includes failure/cancellation, so inspect each status. Any-wait leaves other tasks running.',
+              'Query existing Agent invocations using invocationId from delegate_task or project_dispatch_task. Project projectTaskId and taskExecutionId are different identities and are not accepted here. timeoutMs=0 reads immediately; a positive value waits up to that duration and returns early when any/all complete. Default: 30 seconds. Pending means work continues: use the same invocation IDs for another bounded wait or do independent work. Avoid rapid zero-duration polling. No background suspension occurs. When Project dispatch has registered durable result delivery, end the current turn after independent work and let its result event resume coordination. Unavailable is uncertain; never relaunch automatically. Completed includes failure/cancellation, so inspect each status. Any-wait leaves other tasks running.',
             schema: z
               .object({
                 taskIds: z
                   .array(z.string().uuid())
                   .min(1)
                   .max(32)
-                  .refine((ids) => new Set(ids).size === ids.length, 'Task IDs must be unique'),
+                  .refine((ids) => new Set(ids).size === ids.length, 'Task IDs must be unique')
+                  .describe('Agent invocationId values returned by dispatch. Never projectTaskId or taskExecutionId.'),
                 mode: z.enum(['any', 'all']).default('all'),
                 changeSummary,
                 timeoutMs: z.number().int().min(0).max(60_000).default(30_000)
@@ -164,10 +162,10 @@ export class AgentInvocationMiddleware implements IAgentMiddlewareStrategy<Optio
           {
             name: 'task_cancel',
             description:
-              'Request cancellation of an existing task. Cancelling does not mean termination has been confirmed.',
+              'Request cancellation using an existing Agent invocationId from dispatch, never a Project projectTaskId or taskExecutionId. Cancelling does not mean termination has been confirmed.',
             verboseParsingErrors: true,
             metadata: invocationToolDisplay.cancel,
-            schema: z.object({ taskId: z.string().uuid(), changeSummary }).strict()
+            schema: z.object({ taskId: z.string().uuid().describe('Agent invocationId returned by dispatch.'), changeSummary }).strict()
           }
         )
       ]
@@ -181,6 +179,8 @@ function taskReceipt(task: AgentInvocation) {
     ? { text: task.result.text, items: task.result.items, artifacts: task.result.artifacts, export: task.result.export }
     : undefined
   return {
+    // All tools expose the same invocation identity; taskId remains the existing receipt alias.
+    invocationId: task.id,
     taskId: task.id,
     status: task.status,
     result,

@@ -5,6 +5,29 @@ const { DashboardViewProvider } = require('../dist/lib/view.provider')
 const { dashboardViewDataSchema } = require('../dist/lib/dashboard-view.schema')
 const example = require('../examples/postgres-sales.json')
 
+test('resolved View mode agrees with explicit version and draft-revision selection', async () => {
+  const f = require('./service-fixture.cjs').setup()
+  const draft = await f.service.save(f.context, example, null)
+  const published = await f.service.publish(f.context, draft.artifactId, 1, null)
+  await f.service.update(f.context, draft.artifactId, 1, { title: 'New working draft' }, published.versionId)
+  const view = new DashboardViewProvider(f.service, f.sharing, { current: async () => null })
+  for (const [parameters, mode, title] of [
+    [{ versionId: published.versionId }, 'published', example.title],
+    [{ versionId: published.versionId, mode: 'draft' }, 'published', example.title],
+    [{ versionId: published.versionId, draftRevision: 2, mode: 'published' }, 'draft', 'New working draft'],
+    [{ mode: 'draft' }, 'draft', 'New working draft']
+  ]) {
+    const { meta } = await view.getViewData(f.context, 'live-dashboard', { selectionId: draft.artifactId, parameters })
+    assert.equal(meta.mode, mode)
+    assert.equal(meta.saved.manifest.title, title)
+    assert.equal(meta.saved.draftRevision, mode === 'draft' ? 2 : undefined)
+  }
+  f.service.access = async () => ({ project: true, canEdit: false, canManage: false, canReadDraft: false, archived: false })
+  await assert.rejects(view.getViewData(f.context, 'live-dashboard', {
+    selectionId: draft.artifactId, parameters: { versionId: published.versionId, draftRevision: 2, mode: 'published' }
+  }), /DASHBOARD_DRAFT_ACCESS_DENIED/)
+})
+
 for (const kind of ['data-source', 'definition', 'artifact']) {
   for (const isDraft of [true, false]) test(`viewer opens ${isDraft ? 'draft' : 'published'} dashboards with ${kind} sources`, async () => {
     const source = kind === 'data-source' ? { kind, dataSourceId: randomUUID() }

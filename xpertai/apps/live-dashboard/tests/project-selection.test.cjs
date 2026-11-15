@@ -25,6 +25,55 @@ function projectFixture() {
     role: value => { role = value }, revoke: () => { revoked = true }, archive: () => { archived = true } }
 }
 
+test('dashboard picker summaries follow draft publication and preserve member visibility', async () => {
+  const f = projectFixture()
+  const draft = await f.service.save(f.context, example, null)
+  const view = new DashboardViewProvider(f.service, f.sharing, new DashboardProjectsService(f.runtime))
+  async function expectSummary(isDraft, versionNumber, draftRevision, title) {
+    const page = await f.service.listPage(f.context)
+    const selected = await f.service.selectedSummary(f.context, draft.artifactId)
+    const search = await view.executeViewAction(f.context, 'live-dashboard', 'dashboards', { input: { search: title, page: 1 } })
+    assert.equal(page.items.length, 1)
+    assert.equal(search.data.items.length, 1)
+    for (const item of [page.items[0], selected, search.data.items[0]]) {
+      assert.equal(item.isDraft, isDraft)
+      assert.equal(item.versionNumber, versionNumber)
+      assert.equal(item.draftRevision, draftRevision)
+      assert.equal(item.title, title)
+    }
+  }
+  await expectSummary(true, undefined, 1, example.title)
+  const v1 = await f.service.publish(f.context, draft.artifactId, 1, null)
+  await expectSummary(false, 1, 1, example.title)
+  await f.service.update(f.context, draft.artifactId, 1, { title: 'Unpublished change' }, v1.versionId)
+  await expectSummary(true, 1, 2, 'Unpublished change')
+  f.role('member')
+  await expectSummary(false, 1, undefined, example.title)
+  const privateSearch = await f.service.searchPage(f.context, { search: 'Unpublished change', page: 1 })
+  assert.equal(privateSearch.items.length, 0)
+  f.role('manager')
+  await f.service.publish(f.context, draft.artifactId, 2, v1.versionId)
+  await expectSummary(false, 2, 2, 'Unpublished change')
+  f.drafts.delete(draft.artifactId)
+  await expectSummary(false, 2, undefined, 'Unpublished change')
+})
+
+test('unsaved metadata is not presented as a usable draft or a deletable saved dashboard', async () => {
+  const f = projectFixture()
+  f.calls.failUpload = true
+  await assert.rejects(f.service.save(f.context, example, null), /UPLOAD_FAILED/)
+  const page = await f.service.listPage(f.context)
+  assert.equal(page.items.length, 1)
+  const selected = await f.service.selectedSummary(f.context, page.items[0].artifactId)
+  for (const item of [page.items[0], selected]) {
+    assert.equal(item.isEmpty, true)
+    assert.equal(item.isDraft, false)
+    assert.equal(item.canDelete, false)
+    assert.equal(item.draftRevision, undefined)
+    assert.equal(item.versionNumber, undefined)
+  }
+})
+
 test('Project members consume the published version and cannot read/edit the newer draft', async () => {
   const f = projectFixture()
   const first = await f.service.save(f.context, example, null)

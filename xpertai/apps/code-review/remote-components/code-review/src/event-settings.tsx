@@ -1,7 +1,7 @@
 import React from 'react'
 import { Checkbox, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Textarea } from '@xpert-ai/plugin-shadcn-ui'
 import { RemoteI18nProvider } from '@xpert-ai/plugin-shadcn-ui/i18n'
-import type { PolicySettings } from '../../../src/automation-contract'
+import { publicationMode, publicationModes, type PolicySettings } from '../../../src/automation-contract'
 import { eventI18n } from './event-i18n'
 
 export function EventSettings({ settings, onChange, locale }: { settings: PolicySettings; onChange: (patch: Partial<PolicySettings>) => void; locale?: string }) {
@@ -9,7 +9,7 @@ export function EventSettings({ settings, onChange, locale }: { settings: Policy
   return <RemoteI18nProvider i18n={eventI18n}><div className="space-y-4">
     <label className="block space-y-2 text-sm"><span>{t('executionMode')}</span>
       <Select value={settings.executionMode} onValueChange={value => onChange(value === 'assistant'
-        ? { executionMode: 'assistant', pipeline: null, visibility: 'private', delivery: 'draft' }
+        ? { executionMode: 'assistant', pipeline: null, visibility: 'private' }
         : { executionMode: 'pipeline' })}>
         <SelectTrigger><SelectValue/></SelectTrigger><SelectContent>
           <SelectItem value="assistant">{t('assistant')}</SelectItem><SelectItem value="pipeline">{t('pipeline')}</SelectItem>
@@ -17,6 +17,17 @@ export function EventSettings({ settings, onChange, locale }: { settings: Policy
       </Select>
     </label>
     {settings.executionMode === 'assistant' && <p className="text-sm text-muted-foreground">{t('assistantHelp')}</p>}
+    <label className="block space-y-2 text-sm"><span>{t('publication.label')}</span>
+      <Select value={publicationMode(settings)} onValueChange={value => {
+        const publication = publicationModes.find(mode => mode === value)
+        if (publication) onChange({ publication })
+      }}>
+        <SelectTrigger aria-label={t('publication.label')}><SelectValue/></SelectTrigger>
+        <SelectContent>{publicationModes.map(mode =>
+          <SelectItem key={mode} value={mode}>{t(`publication.${mode}`)}</SelectItem>)}</SelectContent>
+      </Select>
+    </label>
+    <p className="text-xs text-muted-foreground">{t('publication.help')}</p>
     <fieldset className="space-y-3">
       <legend className="text-sm font-medium">{t('diagnoses')}</legend>
       <p className="text-sm text-muted-foreground">{t('workflowHelp')}</p>

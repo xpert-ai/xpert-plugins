@@ -3,13 +3,20 @@ import { z } from 'zod/v3'
 export const pipelineTargetSchema = z.object({ projectId: z.string().uuid(), bindingId: z.string().uuid() }).strict()
 export type PipelineTarget = z.infer<typeof pipelineTargetSchema>
 
+export const publicationModes = ['store', 'confirm', 'comment'] as const
+export type PublicationMode = typeof publicationModes[number]
+
 export const policySettingsSchema = z.object({
   enabled: z.boolean(),
   executionMode: z.enum(['assistant', 'pipeline']).default('pipeline'),
   onWorkflowFailure: z.boolean().default(false),
   onWorkflowTimeout: z.boolean().default(false),
   workflows: z.array(z.string().trim().min(1).max(200)).max(30).default([]),
-  delivery: z.enum(['draft', 'automatic']),
+  // Legacy delivery values predate repository-authorized comments.
+  delivery: z.enum(['draft', 'automatic']).default('draft'),
+  publication: z.enum(publicationModes).optional(),
+  // Derived from the selected project binding by the server when saving the rule.
+  publicationBindingId: z.string().uuid().optional(),
   onOpened: z.boolean(), onReady: z.boolean(), onPush: z.boolean(),
   includeBots: z.boolean(),
   branches: z.array(z.string().trim().min(1).max(200)).max(30),
@@ -20,6 +27,9 @@ export const policySettingsSchema = z.object({
   pipeline: pipelineTargetSchema.nullable().default(null)
 }).strict()
 export type PolicySettings = z.infer<typeof policySettingsSchema>
+export function publicationMode(settings: Pick<PolicySettings, 'publication' | 'executionMode'>): PublicationMode {
+  return settings.publication ?? (settings.executionMode === 'assistant' ? 'store' : 'confirm')
+}
 export const defaultPolicy: PolicySettings = {
   executionMode: 'assistant', onWorkflowFailure: false, onWorkflowTimeout: false, workflows: [],
   enabled: false, delivery: 'draft', onOpened: true, onReady: true, onPush: true,

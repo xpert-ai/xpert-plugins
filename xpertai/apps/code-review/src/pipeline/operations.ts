@@ -7,7 +7,8 @@ import { ProjectAccessRuntimeCapability, ProjectPipelineEvidenceRuntimeCapabilit
 import type { ProjectPipelineOperationReceipt, ProjectPipelinePolicyReceipt } from '@xpert-ai/contracts'
 import { ReviewPipelineService } from './service.js'
 import { Reviews } from '../backend.js'
-import { ReviewError } from '../domain.js'
+import { claimRepositoryPublication } from '../publication.js'
+import { ReviewError, validateFindings } from '../domain.js'
 import { ReviewRun } from '../automation-entities.js'
 import { Review } from '../entity.js'
 import { ReviewPipelineEvidence } from './entity.js'
@@ -36,7 +37,7 @@ export class ReviewPipelineOperations {
     return { status: 'succeeded', receiptKey: context.work.operationId, outputs: { checks: await this.pipeline.write(context, 'checks', refs.checks,
       pipelineChecksSchema.parse({ headSha: record.snapshot.headSha, state, checks: relevant, warnings: result.truncated ? ['checks_truncated'] : [] })) } }
   }
-  async readiness(context: ProjectPipelineOperationContext): Promise<ProjectPipelinePolicyReceipt> {
+  async readiness(context: ProjectPipelineOperationContext, readyOutcome: 'human' | 'completed' = 'human'): Promise<ProjectPipelinePolicyReceipt> {
     await this.pipeline.pinned(context)
     const findings = pipelineFindingsSchema.parse(await this.pipeline.input(context, 'findings'))
     const checks = pipelineChecksSchema.parse(await this.pipeline.input(context, 'checks'))
@@ -44,7 +45,7 @@ export class ReviewPipelineOperations {
     if (!['verify', 'review'].includes(findings.pass) || findings.headSha !== checks.headSha || findings.inputDigest !== context.work.inputDigest)
       return { status: 'blocked', code: 'review_evidence_mismatch' }
     return { status: 'decided', outcome: (checks.state !== 'passed' && !(checks.state === 'not_required' && !parameters.requireChecks)) || findings.findings.some(finding => parameters.blockingPriorities.includes(finding.priority))
-      ? 'rework' : 'human', evidence: Object.values(context.inputs).flatMap(input => input.kind === 'evidence' ? [input.value] : []) }
+      ? 'rework' : readyOutcome, evidence: Object.values(context.inputs).flatMap(input => input.kind === 'evidence' ? [input.value] : []) }
   }
   async authorize(context: ProjectPipelineOperationContext, candidate: string, outcome: string) {
     if (candidate !== 'project-managers' || !['accepted', 'rework'].includes(outcome)) return false
@@ -56,7 +57,7 @@ export class ReviewPipelineOperations {
     }
     return true
   }
-  async publish(context: ProjectPipelineOperationContext, execute: boolean): Promise<ProjectPipelineOperationReceipt> {
+  async publish(context: ProjectPipelineOperationContext, execute: boolean, authority: 'human' | 'repository' = 'human'): Promise<ProjectPipelineOperationReceipt> {
     const { record, scope, binding } = await this.pipeline.pinned(context)
     if (record.automationRunId) {
       const run = await this.deliveries.manager.findOneByOrFail(ReviewRun, { id: record.automationRunId })
@@ -65,15 +66,28 @@ export class ReviewPipelineOperations {
     if (record.ref.provider !== 'github') throw new ReviewError('local_review_has_no_remote_delivery')
     const existing = await this.deliveries.findOneBy({ ...pipelineOwner(context), operationId: context.work.operationId })
     if (existing || !execute) return this.inspect(context)
-    const report = await this.approvedReport(context, record.snapshot.headSha)
+    const report = authority === 'repository' ? await this.finalReport(context, record.snapshot.headSha, true) : await this.approvedReport(context, record.snapshot.headSha)
+    validateFindings(record.snapshot, report.findings)
     const marker = `<!-- xpert-code-review-pipeline:${context.work.operationId} -->`
     const github = await this.reviews.recordGithub(scope, record), authorId = await github.identity()
     const body = `${report.summary}\n\n${marker}`
     // Committing the exact operation before POST makes unknown delivery inspect-only, including process loss.
-    await this.deliveries.insert({ id: context.work.operationId, ...pipelineOwner(context), reviewId: binding.id,
-      operationId: context.work.operationId, headSha: report.headSha, marker, authorId, body, status: 'sending', receipt: null })
+    const postComment = await github.prepareComment(record.ref, report.headSha, body, report.findings)
+    await this.deliveries.manager.transaction(async manager => {
+      if (authority === 'repository' || record.automationPolicyId) {
+        const automatic = authority === 'repository'
+        const run = await claimRepositoryPublication(manager, record, automatic ? 'comment' : 'confirm')
+        const savedBindingId = automatic ? run.settings.publicationBindingId : run.settings.pipeline?.bindingId
+        if (run.settings.executionMode !== 'pipeline' || run.settings.pipeline?.projectId !== context.projectId ||
+            savedBindingId !== binding.savedBindingId || binding.currentReviewId !== record.id ||
+            run.pipelineInstanceId !== context.work.instanceId || run.pipelineRoundId !== context.work.roundId)
+          throw new ReviewError('pipeline_configuration_mismatch')
+      }
+      await manager.insert(ReviewPipelineDelivery, { id: context.work.operationId, ...pipelineOwner(context), reviewId: binding.id,
+        operationId: context.work.operationId, headSha: report.headSha, marker, authorId, body, status: 'sending', receipt: null })
+    })
     try {
-      const result = await github.submit(record.ref, report.headSha, body, 'COMMENT', report.findings)
+      const result = await postComment()
       const receipt = pipelineDeliverySchema.parse({ headSha: report.headSha, reviewId: result.id, url: result.html_url, marker, event: 'COMMENT' })
       await this.deliveries.update({ ...pipelineOwner(context), id: context.work.operationId }, { status: 'confirmed', receipt })
       return { status: 'succeeded', receiptKey: context.work.operationId,
@@ -91,8 +105,13 @@ export class ReviewPipelineOperations {
       inputDigest: z.literal(context.work.inputDigest), generation: z.literal(context.work.generation) }).parse(value)
     if (digest(value) !== approval.value.digest) throw new ReviewError('approval_required')
     await this.capabilities.require(ProjectAccessRuntimeCapability).assertManage({ ...context, actor: { ...context.actor, userId: decision.actorId } })
-    const report = pipelineFindingsSchema.parse(await this.pipeline.input(context, 'findings'))
-    if (!['verify', 'review'].includes(report.pass) || report.headSha !== headSha || report.inputDigest !== context.work.inputDigest)
+    return this.finalReport(context, headSha, false)
+  }
+  private async finalReport(context: ProjectPipelineOperationContext, headSha: string, requireProducerId: boolean) {
+    const ref = context.inputs.findings
+    if (ref?.kind !== 'evidence' || ref.value.schemaRef !== refs.findings) throw new ReviewError('pipeline_input_missing')
+    const report = pipelineFindingsSchema.parse(await this.pipeline.read(context, ref.value, context.subjects[0].objectKey))
+    if ((requireProducerId && report.reviewId !== ref.value.producerOperationId) || !['verify', 'review'].includes(report.pass) || report.headSha !== headSha || report.inputDigest !== context.work.inputDigest)
       throw new ReviewError('stale_revision')
     return report
   }

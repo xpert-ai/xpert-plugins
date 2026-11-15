@@ -4,7 +4,7 @@ import { runInNewContext } from 'node:vm'
 import { test } from 'node:test'
 import React from 'react'
 import { transformSync } from 'esbuild'
-import { defaultPolicy, type PolicySettings } from '../src/automation-contract.js'
+import { defaultPolicy, publicationMode, publicationModes, type PolicySettings } from '../src/automation-contract.js'
 
 test('switching PR modes preserves workflow choices and keeps diagnosis controls available', () => {
   const module = { exports: {} as typeof import('../remote-components/code-review/src/event-settings.js') }
@@ -12,6 +12,7 @@ test('switching PR modes preserves workflow choices and keeps diagnosis controls
   runInNewContext(transformSync(source, { loader: 'tsx', format: 'cjs' }).code, {
     module, exports: module.exports,
     require(id: string) {
+      if (id === '../../../src/automation-contract') return { publicationMode, publicationModes }
       if (id === 'react') return React
       if (id === '@xpert-ai/plugin-shadcn-ui') return Object.fromEntries(['Checkbox', 'Select', 'SelectTrigger', 'SelectValue', 'SelectContent', 'SelectItem', 'Textarea'].map(key => [key, key]))
       if (id === '@xpert-ai/plugin-shadcn-ui/i18n') return { RemoteI18nProvider: 'Provider' }
@@ -30,7 +31,12 @@ test('switching PR modes preserves workflow choices and keeps diagnosis controls
     const tree = nodes(module.exports.EventSettings({ settings, onChange: patch => { settings = { ...settings, ...patch } } }))
     assert.equal(tree.filter(node => node.type === 'Checkbox' && node.props.checked).length, 2)
     assert.equal(tree.find(node => node.type === 'Textarea')?.props.value, 'CI')
-    tree.find(node => node.type === 'Select')!.props.onValueChange!(next)
+    const [execution, publication] = tree.filter(node => node.type === 'Select')
+    assert.equal(publication.props.value, settings.publication ?? 'store')
+    assert.deepEqual(nodes(publication).filter(node => node.type === 'SelectItem').map(node => node.props.value), [...publicationModes])
+    publication.props.onValueChange!('comment')
+    execution.props.onValueChange!(next)
+    assert.equal(settings.publication, 'comment')
     assert.equal(settings.executionMode, next)
     assert.equal(settings.onWorkflowFailure, true)
     assert.equal(settings.onWorkflowTimeout, true)

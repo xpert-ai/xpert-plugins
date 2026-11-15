@@ -16,6 +16,7 @@ import {
 import type { z } from 'zod/v3'
 import type { dashboardSummarySchema } from '../lib/dashboard-view.schema'
 import type { DashboardMode } from '../lib/project'
+import { DashboardStatusBadge } from './dashboard-status-badge'
 import { discoveryKey, useDashboardDiscovery, type DiscoveryOrigin } from './dashboard-discovery-data'
 import { i18n, type messages } from './i18n'
 
@@ -107,6 +108,7 @@ export function DiscoveredDashboardColumn({
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{shared ? t.discoveryShared : t.discoveryProject}</span>
+                      {!shared && item.dashboard && <DashboardStatusBadge item={item.dashboard} t={t} />}
                       {item.publication && (
                         <span>· {i18n.t('publishedVersion', { version: item.publication.versionNumber })}</span>
                       )}

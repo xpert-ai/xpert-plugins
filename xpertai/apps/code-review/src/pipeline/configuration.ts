@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { projectPipelineConfigurationSchema, projectPipelineConfigurationFormSchema, type ProjectPipelineExtensionDescriptor } from '@xpert-ai/contracts'
 import { ProjectPipelineContributor } from '@xpert-ai/plugin-sdk'
+import type { PublicationMode } from '../automation-contract.js'
 import { refs } from './contract.js'
 import { REVIEW_PROJECT_TYPE } from '../domain.js'
 
@@ -98,6 +99,52 @@ export function lightweightReviewPipelineConfiguration(reviewer = 'select-review
   delete config.binding.executorBindings?.verifier
   return projectPipelineConfigurationSchema.parse(config)
 }
+// Saved 1.0 definitions are immutable. Each delivery topology has its own template identity.
+export function repositoryPipelineConfiguration(base: ReturnType<typeof reviewPipelineConfiguration>, mode: PublicationMode) {
+  if (mode === 'confirm') return base
+  const config = structuredClone(base)
+  const template = config.template
+  if (template.executionAuthority !== 'platform' || template.subjectResolverRef !== refs.subject)
+    throw new Error('GitHub review template required')
+  template.key += '-' + mode
+  template.title += mode === 'comment' ? ' · 自动评论' : ' · 仅保存'
+  config.binding.templateRef = template.key + '@' + template.version
+  template.roles = template.roles.filter(role => role.key !== 'owner')
+  template.lanes = template.lanes.filter(lane => lane.key !== 'owner')
+  delete config.binding.roleBindings?.owner
+  template.stages = template.stages.filter(stage => mode === 'comment' || stage.key !== 'stage3').map(stage => {
+    if (stage.key === 'stage2') return { ...stage, label: '汇总检查' }
+    if (stage.key === 'stage3') return { ...stage, label: '发布评论' }
+    if (stage.key === 'stage4') return { ...stage, label: '审查结论' }
+    return stage
+  })
+  const omitted = new Set(mode === 'comment' ? ['approve'] : ['approve', 'publish', 'confirmed'])
+  template.nodes = template.nodes.filter(node => !omitted.has(node.key)).map(node => {
+    if (node.key === 'route' && node.kind === 'router')
+      return { ...node, stageKey: 'stage4', policyRef: refs.reportOutcome, outcomes: ['completed', 'rework'] }
+    if (node.key === 'publish' && node.kind === 'work') {
+      const findings = node.inputBindings?.findings
+      if (!findings) throw new Error('Review findings input required')
+      return { ...node, stageKey: 'stage3', operationRef: refs.repositoryComment, inputBindings: { findings } }
+    }
+    if (node.key === 'confirmed') return { ...node, stageKey: 'stage3' }
+    if (node.key === 'join' && base.binding.templateRef === 'code-review.pull-request-light@1.0.0') return { ...node, stageKey: 'stage4' }
+    return node.key === 'rework' ? { ...node, stageKey: 'stage4' } : node
+  })
+  template.edges = template.edges.filter(edge => !omitted.has(edge.from) && !omitted.has(edge.to) && edge.from !== 'route')
+  template.edges.push({ from: 'route', to: 'done', outcome: 'completed' }, { from: 'route', to: 'rework', outcome: 'rework' })
+  if (mode === 'comment') {
+    // Publish the final report before routing on CI or severity, including reports that require rework.
+    // In the single-reviewer graph the CI branch can still be running when the report is ready.
+    const light = base.binding.templateRef === 'code-review.pull-request-light@1.0.0'
+    const producer = light ? 'correctness' : 'verify'
+    const next = light ? 'join' : 'route'
+    template.edges = template.edges.filter(edge => !(edge.from === producer && edge.to === next) && edge.from !== 'confirmed')
+    template.edges.push({ from: producer, to: 'publish' }, { from: 'confirmed', to: next })
+  }
+  return projectPipelineConfigurationSchema.parse(config)
+}
+
 const one = (schemaRef: string) => ({ schemaRef, cardinality: 'one' as const })
 export const reviewPipelineDescriptors: ProjectPipelineExtensionDescriptor[] = [
   ...[refs.snapshot, refs.findings, refs.checks, refs.delivery, refs.localDelivery].map(ref => ({ kind: 'schema' as const, ref })),
@@ -109,6 +156,9 @@ export const reviewPipelineDescriptors: ProjectPipelineExtensionDescriptor[] = [
     idempotency: 'keyed_receipt' as const, retry: 'after_confirmed_failure' as const, requiredCapabilities: [], inputs: { snapshot: one(refs.snapshot) }, outputs: { findings: refs.findings } })),
   { kind: 'operation', ref: refs.verify, effects: 'isolated_write', idempotency: 'keyed_receipt', retry: 'after_confirmed_failure', requiredCapabilities: [], inputs: {
     snapshot: one(refs.snapshot), candidates: { schemaRef: refs.findings, cardinality: 'collection' }, checks: one(refs.checks) }, outputs: { findings: refs.findings } },
+  { kind: 'policy', ref: refs.reportOutcome, outcomes: ['completed', 'rework'] },
+  { kind: 'operation', ref: refs.repositoryComment, effects: 'external_write', idempotency: 'keyed_receipt', requiredCapabilities: [],
+    inputs: { findings: one(refs.findings) }, outputs: { receipt: refs.delivery } },
   { kind: 'operation', ref: refs.publish, effects: 'external_write', idempotency: 'keyed_receipt', requiredCapabilities: [], inputs: {
     approval: one('platform.human-decision@1'), findings: one(refs.findings) }, outputs: { receipt: refs.delivery } },
   { kind: 'subscription', ref: refs.ci, outputs: { checks: refs.checks } }, { kind: 'subscription', ref: refs.confirmed, outputs: { receipt: refs.delivery } },
@@ -116,8 +166,8 @@ export const reviewPipelineDescriptors: ProjectPipelineExtensionDescriptor[] = [
 ]
 export const reviewPipelineConfigurationForm = projectPipelineConfigurationFormSchema.parse({
   templateRef: 'code-review.pull-request@1.0.0',
-  description: { en_US: 'Parallel correctness and security review, independent verification, then human approval before posting a review comment.',
-    zh_Hans: '并行完成正确性与安全审查，由独立智能体复核，再经人工确认发布审查评论。' },
+  description: { en_US: 'Parallel correctness and security reviews followed by independent verification.',
+    zh_Hans: '并行审查正确性和安全性，再独立复核发现。' },
   assistantSlots: [
     { slot: 'correctness', label: { en_US: 'Correctness reviewer', zh_Hans: '正确性审查' } },
     { slot: 'security', label: { en_US: 'Security reviewer', zh_Hans: '安全审查' } },
@@ -141,7 +191,7 @@ export class ReviewPipelineContribution {
   readonly descriptors = reviewPipelineDescriptors
   readonly forms = [reviewPipelineConfigurationForm, projectPipelineConfigurationFormSchema.parse({ ...reviewPipelineConfigurationForm,
     templateRef: 'code-review.pull-request-light@1.0.0', assistantSlots: [reviewPipelineConfigurationForm.assistantSlots[0]],
-    description: { en_US: 'One reviewer and CI, followed by human approval before publishing.', zh_Hans: '单个智能体完成审查，结合 CI 检查，经人工确认后发布。' } }), projectPipelineConfigurationFormSchema.parse({ ...reviewPipelineConfigurationForm,
+    description: { en_US: 'One reviewer evaluates the change alongside CI.', zh_Hans: '单个智能体审查变更，同时收集 CI 检查结果。' } }), projectPipelineConfigurationFormSchema.parse({ ...reviewPipelineConfigurationForm,
     templateRef: 'code-review.local-git@1.0.0', description: { en_US: 'Review an immutable local Git snapshot and retain approved findings in this Project.',
       zh_Hans: '审查固定版本的本地 Git 快照，经人工确认后将结果保存在当前 Project。' } })]
 }

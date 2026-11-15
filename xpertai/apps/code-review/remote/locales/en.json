@@ -29,8 +29,8 @@
   "setup.account.access": "The authorizing account needs write or admin access to the target repository, and the App must be installed with access to it. Account authorization and App installation are separate grants; both are required for repository automation.",
   "setup.rules.title": "3. Choose execution and enable events",
   "setup.rules.repository": "Add owner/repository on Repositories, then open Configure rules. Choose the execution mode, event triggers, branch and Workflow filters, and the daily limit.",
-  "setup.rules.assistant": "Publish a Code Review Assistant and bind the repository to it. Rules reuse the Assistant's existing account. Enable repository rules and the GitHub event subscription. Shared results follow Assistant access; historical private reviews stay private. GitHub publishing remains a separate action.",
-  "setup.rules.pipeline": "Project pipeline: bind an available Code Review Project pipeline and enable the repository rules. This mode handles PR review events only. Evidence follows Project access, and publication follows the pipeline's human approval gate.",
+  "setup.rules.assistant": "Publish a Code Review Assistant and bind the repository to it. Rules reuse the Assistant's existing account. Enable repository rules and the GitHub event subscription. Shared results follow Assistant access; historical private reviews stay private. Choose the PR publication mode in the repository rules.",
+  "setup.rules.pipeline": "Project pipelines handle PR events. Select the template, reviewers and repository publication mode. Evidence follows project access. Reading CI requires Checks: Read.",
   "setup.rules.runtime": "Events run on the server without Bosi staying open. The backend, queue, webhook, published Assistant account and model must remain available. PR reviews, trials and Workflow diagnosis share the repository daily limit (UTC). Pausing retains history.",
   "setup.verify.title": "4. Verify PR and Workflow events separately",
   "setup.verify.trial": "First try an open, non-draft PR number with Try review (no publishing). Confirm the model and result work. A trial does not test webhook delivery or prove that automatic events are enabled.",
@@ -145,5 +145,13 @@
   "automation.conflict.unknown_name": "Name not recorded ({{id}})",
   "automation.conflict.not_recorded": "Not recorded",
   "automation.conflict.contact_maintainer": "Contact the current maintainer or organization administrator to adjust the binding. Viewing ownership does not grant permission to take over this configuration.",
-  "automation.conflict.recorded_names": "Names reflect recorded configuration information. Ask an administrator to verify missing or outdated details."
+  "automation.conflict.recorded_names": "Names reflect recorded configuration information. Ask an administrator to verify missing or outdated details.",
+  "publication.label": "PR review publication",
+  "publication.store": "Save in Xpert only",
+  "publication.confirm": "Publish a comment after confirmation",
+  "publication.comment": "Automatically comment on GitHub PRs",
+  "publication.help": "Automatic publication posts the summary and findings as a GitHub COMMENT. Trial results stay in Xpert.",
+  "publication.save": "PR reviews for {{repository}} will use “{{mode}}”.",
+  "publication.confirmAction": "Confirm and post PR comment",
+  "publication.waiting": "The review is ready for confirmation before posting to GitHub."
 }

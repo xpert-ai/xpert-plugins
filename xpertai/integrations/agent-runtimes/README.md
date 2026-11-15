@@ -66,9 +66,39 @@ checkpointed before guest shutdown; failed persistence keeps the runner availabl
 for reconciliation. No adapter promises rollback or exactly-once remote effects.
 Explicit file inputs remain unsupported and fail before launch.
 
+If a runner exits before a verifiable CLI result is recorded, the adapter reports
+failure only when the existing completion check proves that this invocation's owned
+process and descendants have exited in the original environment instance. Exit code
+0 alone does not prove a task result. Missing or mismatched completion evidence keeps
+`unknown`; the adapter does not launch a replacement or fabricate a success.
+For a truncated final JSONL receipt, it checkpoints the failed result before cleanup
+and reports terminal failure only after matching descendant-exit confirmation.
+These are execution outcomes; the coordinating Agent still decides task recovery
+and business acceptance.
+
+## Project workspace instructions
+
+For an explicit implementation task in `AgentRuntimeContext.projectTask`, the JSONL
+and OpenCode runner adapters supplement CLI input after acquiring the host receipt.
+The receipt supplies the actual working directory; the task context supplies purpose.
+Neither a provider name nor `executionEnvironment.type` determines this instruction.
+The agent is asked to read `project.md` when present, discover relevant installed
+skills under `skills/`, apply project/environment constraints, and report conflicts.
+Requested delivery paths remain relative to that working directory. The original
+prompt, delivery policy and structured input are preserved without mutation.
+
+This requires the matching host/SDK task-context addition. Older hosts, ordinary
+invocations, review tasks and remote OpenCode without a runner receipt keep their
+existing prompt. The host retains mounting, permissions and reply routing. The
+instruction grants no access, does not prove files exist, and adds no new executor.
+
 ## Results and resource cards
 
 The adapters request a versioned `xpert-task-result` final JSON envelope. The shared parser validates it against the SDK schema; ordinary text or an invalid envelope remains text. The host has no provider-specific response parsing. Supported items are `analysis` (findings), `changes` (changed paths), `tests` (actual checks and status), and `file` (an explicitly requested deliverable).
+
+Computer adapters also support explicit result-file submission when the host runner exposes `readTaskResultFile`. Write the same envelope as UTF-8 JSON, calculate SHA-256 over the exact bytes, and finish with a single `xpert-task-result-file` fenced block containing `{"version":1,"path":"output/result-envelope.json","sha256":"<64 lowercase hex characters>"}`. The host checks receipt ownership and the current Computer generation, opens only that relative regular file without following links, caps it at 4 MiB, and validates the digest and existing envelope schema. The adapter checkpoints the resolved result before cleanup. File presence and intermediate tool output do not complete a task; verified CLI completion is still required. Invalid explicit references fail delivery rather than becoming a prose success. File export policy and independent review criteria are unchanged.
+
+This requires the matching host runner and SDK result-file contracts alongside the updated plugin; it is not a registry release. If the SDK lacks the optional file-reference validator or the runner lacks the optional reader, the plugin stays loadable and advertises only the inline protocol. An unexpected explicit file submission fails without reading files; updated runners still support inline results. Build source against the matching SDK before enabling the file protocol. The review skill's `review-result.py --submission file` emits the compact reference so the model need not copy escaped report JSON. Existing installed skill snapshots require their normal update before using this option.
 
 Task-specific evidence requirements apply to the envelope's summary as well: complete source/test code must not be replaced by a claim that files exist. A host-requested JSON-encoded review report stays a JSON string in summary and is validated by the Project Task host. OpenCode progress derives from assistant messages matching the submitted message ID; the earliest such message supplies the actual start time. The adapter reports activity without inventing a completion percentage.
 
@@ -83,8 +113,18 @@ Install matching ChatKit types/UI with resource-card support and the host/SDK re
 ## Tools
 
 `delegate_task` performs a bounded initial wait, then returns the real task status.
-`task_status` accepts unique task IDs, `mode: any | all`, and `timeoutMs` from 0 to
-60,000 (default 30,000). Pending tasks retain their IDs; do not relaunch them.
+Launch, status and cancellation receipts consistently expose `invocationId`; the
+existing `taskId` receipt field is an alias for that same identity. Supply this
+invocation ID in `task_status.taskIds` and `task_cancel.taskId`. Project
+`projectTaskId` and `taskExecutionId` identify different records and are not accepted
+as invocation IDs. The host still validates ownership and access.
+
+`task_status` accepts unique invocation IDs, `mode: any | all`, and `timeoutMs` from
+0 to 60,000 (default 30,000). Pending tasks retain their IDs; do not relaunch them.
+For ordinary invocations, wait with the same IDs or do independent work. When a
+Project dispatch has already registered durable result delivery, finish independent
+work and end the current turn so its result event can resume coordination. This is
+Agent guidance: it does not create a subscription or suspend the execution by itself.
 `task_cancel` requests cancellation; only confirmed process exit means cancelled.
 All three tools carry localized display names/icons and optional `changeSummary`.
 

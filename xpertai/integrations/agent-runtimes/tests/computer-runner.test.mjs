@@ -92,6 +92,7 @@ function setup() {
   }
   return {
     strategy,
+    runner,
     context,
     request,
     events,
@@ -117,6 +118,43 @@ function setup() {
     }
   }
 }
+
+test('Computer OpenCode resolves an explicit final file once idle, checkpoints it before cleanup', async () => {
+  const f = setup()
+  const reference = { version: 1, path: 'output/result.json', sha256: 'b'.repeat(64) }
+  const summary = JSON.stringify({ verdict: 'changes_required', summary: 'Independent finding' })
+  f.runner.readTaskResultFile = async (receipt, value) => {
+    assert.deepEqual(receipt, f.receipt)
+    assert.deepEqual(value, reference)
+    f.events.push('result-file')
+    return { version: 1, summary, items: [] }
+  }
+  const started = await f.strategy.start(f.request, f.context)
+  f.output('```xpert-task-result-file\n' + JSON.stringify(reference) + '\n```')
+  await f.strategy.inspect(started.handle, f.context)
+  assert.equal(f.events.includes('result-file'), false)
+  f.complete()
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, summary)
+  assert.deepEqual(f.events.slice(-3), ['result-file', 'checkpoint', 'stop'])
+  assert.equal(f.snapshots.at(-1).result.text, summary)
+})
+
+test('Computer OpenCode checkpoints a failed result-file handoff and still confirms cleanup', async () => {
+  const f = setup()
+  f.runner.readTaskResultFile = async () => { throw Error('private contents') }
+  const started = await f.strategy.start(f.request, f.context)
+  f.output('```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```')
+  f.complete()
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.match(result.error, /task_result_file_invalid/)
+  assert.doesNotMatch(result.error, /private contents/)
+  assert.equal(result.result, undefined)
+  assert.equal(f.snapshots.at(-1).status, 'failed')
+  assert.equal(f.events.at(-1), 'stop')
+})
 
 test('managed OpenCode checkpoints the runner and session before a single async dispatch', async () => {
   const f = setup()
@@ -152,6 +190,33 @@ test('an incomplete runner checkpoint remains unknown and never re-dispatches', 
   const before = f.events.length
   assert.equal((await f.strategy.start({ ...f.request, previous: pending }, f.context)).status, 'unknown')
   assert.equal(f.events.length, before)
+})
+
+test('OpenCode reports failure after confirmed runner termination without replaying the task', async () => {
+  const f = setup()
+  const started = await f.strategy.start(f.request, f.context)
+  f.runner.inspect = async () => ({ state: 'exited', exitCode: 137, completion: exitEvidence(f.receipt) })
+  const before = f.events.length
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.equal(result.controlEvidence.outcome, 'failed')
+  assert.equal(result.result, undefined)
+  assert.equal(f.events.length, before)
+})
+
+test('OpenCode does not infer termination from an exited parent or unrelated completion receipt', async () => {
+  const f = setup()
+  const started = await f.strategy.start(f.request, f.context)
+  for (const process of [
+    { state: 'unknown', completion: exitEvidence(f.receipt) },
+    { state: 'exited' },
+    { state: 'exited', completion: { ...exitEvidence(f.receipt), invocationId: 'another-invocation' } }
+  ]) {
+    f.runner.inspect = async () => process
+    const result = await f.strategy.inspect(started.handle, f.context)
+    assert.equal(result.status, 'unknown')
+    assert.equal(result.controlEvidence, undefined)
+  }
 })
 
 test('does not stop the guest when terminal result persistence fails', async () => {

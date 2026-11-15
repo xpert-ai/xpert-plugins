@@ -44,6 +44,21 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
   }
   React.useEffect(() => { void request('share-status'); return () => { ++sequence.current } }, [artifactId, mode, selected])
   const link = state?.link?.status === 'active' ? state.link : null
+  function copyLink() {
+    setCopied(false); setError('')
+    let success = false
+    try {
+      const input = linkInput.current
+      if (input && input.value === link?.url) {
+        input.focus(); input.select()
+        // Keep the copy in the sandbox's user gesture, and never copy an unrelated selection.
+        success = input.ownerDocument.activeElement === input && input.selectionStart === 0 &&
+          input.selectionEnd === input.value.length && input.ownerDocument.execCommand('copy')
+      }
+    } catch { /* Leave the URL selectable for manual copying. */ }
+    setCopied(success)
+    if (!success) setError(t.copyLinkFailed)
+  }
   const matches = link && link.versionMode === mode && (mode === 'latest' || link.versionId === selected)
   const issueText = (code: string) => code === 'DASHBOARD_PUBLISH_BEFORE_SHARING' ? t.publishBeforeShare :
     code === 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' ? t.privateScriptPublication :
@@ -71,11 +86,7 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
         <p className="text-xs text-muted-foreground">{t.sharePermissions}</p>
         {link?.url && <div className="grid gap-2"><label htmlFor="dashboard-share-url" className="text-sm">{t.shareLink}</label>
           <Input id="dashboard-share-url" ref={linkInput} readOnly value={link.url} onFocus={event => event.target.select()}/>
-          <div className="flex gap-2"><Button variant="outline" onClick={() => {
-            linkInput.current?.focus(); linkInput.current?.select()
-            // Synchronous user gesture in the sandbox; the URL remains selectable if copying is denied.
-            setCopied(document.execCommand('copy'))
-          }}>{copied ? t.copied : t.copyLink}</Button>
+          <div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={copyLink}>{copied ? t.copied : t.copyLink}</Button>
           <Button variant="outline" onClick={async () => {
             if (!link.url) return
             setError('')
