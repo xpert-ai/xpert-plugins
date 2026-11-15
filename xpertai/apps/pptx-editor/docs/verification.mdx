@@ -1,0 +1,76 @@
+---
+title: Verification
+description: Build and result-based acceptance.
+---
+
+From the plugin directory:
+
+```sh
+corepack pnpm run typecheck
+corepack pnpm run build
+corepack pnpm test
+corepack pnpm run verify:dist
+```
+
+The current source changes require the corresponding Xpert contracts/SDK and Spaces changes.
+During local development, link built packages from the selected Xpert checkout using
+`scripts/link-built-host-sdk.mjs`; a frozen install restores registry dependencies, so reapply
+the local link deliberately after installation. Published packages must use a released compatible SDK.
+
+Automated regression samples cover text and notes, independent duplicate-slide notes,
+blank-slide notes, slide deletion, relationship targets, preserved package parts,
+reused shape identifiers and group-coordinate round trips.
+
+Acceptance requires these user-visible outcomes:
+
+1. Create/import a PPTX in Spaces and reopen the same resource in both frontend hosts.
+2. Edit text, move an image, add notes and save; refreshing and the other host show the result.
+3. A clean collaborator sees the new committed revision; a dirty collaborator retains their draft.
+4. Read-only and revoked users cannot publish changes; stale writes cannot overwrite a newer file.
+5. Navigation, fit, grid and presentation work; notes stay out of the audience canvas.
+6. Download and reopen in a real Office application without a repair prompt, inspecting notes,
+   Chinese text, images, charts and untouched content.
+
+Package parsing alone is not Office acceptance. Record the exact application and tested version.
+
+## Recorded local results — 2026-11-15
+
+- Production build, server/remote TypeScript, metadata validation, lifecycle harness and
+  distribution comparison passed. Regression suite: 3 OOXML tests and 4 server tests.
+- Real Cloud and ChatKit browser acceptance passed the same 20-slide resource in both
+  directions, including text, notes, refresh, stale-write conflict, retained draft,
+  download, slideshow, close autosave and a 900px layout.
+- WPS Office 12.1.29182 opened the saved PPTX without a repair prompt. Cover, logo,
+  edited slide 2, speaker notes, diagram slide 9, native chart slide 11 and slide 13
+  were inspected. No PowerPoint or LibreOffice result is claimed.
+- Open XML validation passed for the normalized source and saved output. No original
+  package parts were removed; 30 media/chart/theme/master/layout parts were byte-identical.
+  The source fixture had six invalid negative chart-axis references; only the disposable
+  acceptance copy was normalized before testing. The original fixture was retained.
+- Access revocation/read-only behavior is covered by automated service tests; a second
+  real member account and archived-project UI workflow remain untested.
+
+The repository-level plan and detailed Chinese acceptance report live in Xpert's
+`docs/development/pptx-editor-plugin-plan.md` and `pptx-editor-plugin-acceptance.md`.
+Local screenshots, validation results and the actual exported file are under
+`outputs/pptx-editor-acceptance-20261115/` in the shared development workspace.
+
+## Batch 3 source review — 2026-11-15
+
+The review suite now has 6 OOXML, 3 editor lifecycle and 4 server tests (13 total).
+It reproduced and fixed two preservation defects: a duplicate could inherit later changes
+to its source slide during save, and editing notes could change an existing notes-master
+relationship. Regressions also cover reused numeric shape IDs, retained conflict drafts,
+read-only editing and close preparation waiting for the in-flight save acknowledgement.
+Nx test targets build the plugin first because the server tests load the distributable.
+
+These source review fixes have not been redeployed or rechecked in a desktop Office
+application. The earlier browser and WPS results above apply to the earlier acceptance build.
+The PPTX lockfile entry is staged independently of unrelated DOCX, tldraw and host backport
+changes. Frozen metadata validation does not prove compatibility with the unchanged
+registry SDK; building this source still requires the coordinated local Xpert SDK/contracts.
+
+Known boundaries: Chinese font substitution, advanced effects/group transforms and
+unusual OOXML namespaces need a broader compatibility corpus. AI authoring, automatic
+object merge, presenter dual windows and migration of legacy global/snapshot previews
+are separate work. Published dependencies must be versioned together with the host changes.

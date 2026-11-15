@@ -33,7 +33,8 @@
       },
       "exclude": [
         "apps/spaces/*",
-        "apps/markdown-editor/*"
+        "apps/markdown-editor/*",
+        "apps/pptx-editor/*"
       ]
     },
     {
@@ -52,7 +53,8 @@
       "plugin": "@nx/js/typescript",
       "include": [
         "apps/spaces/*",
-        "apps/markdown-editor/*"
+        "apps/markdown-editor/*",
+        "apps/pptx-editor/*"
       ],
       "options": {
         "typecheck": {

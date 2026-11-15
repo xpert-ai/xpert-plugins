@@ -1,0 +1,28 @@
+---
+title: PPTX Editor
+description: Native PowerPoint editing in Xpert collaboration spaces.
+---
+
+PPTX Editor provides a file codec and an isolated React editor for native `.pptx` files.
+The editor includes slide thumbnails, text and image editing, shape properties, page operations,
+speaker notes, undo/redo, fit-to-window, grid view, presentation mode and PPTX download.
+
+In Spaces, create or import a PowerPoint file through the registered file editor.
+The file remains a SpaceItem with the same Project permissions, version history and physical path.
+Saving checks the exact revision and file hash. A conflicting save retains the local draft.
+
+The plugin's file-backed model is `pptx_editor.ooxml@1`, using `platform.file.cas@1`.
+It does not edit Presentation Studio's HTML/layout model.
+
+## Current acceptance status
+
+Local acceptance on 2026-11-15 passed installed Xpert Cloud and ChatKit editing of the same
+20-slide PPTX: text, speaker notes, save/refresh, cross-host reopen, stale-save rejection,
+draft retention, download, presentation navigation, close autosave and a 900px viewport.
+The exported file reopened in WPS Office 12.1.29182 without a repair prompt; notes, logo,
+charts and sampled diagrams were inspected. Microsoft PowerPoint has not been tested.
+
+Chinese font substitution differed between browser and WPS. Full Office rendering parity,
+simultaneous object-level merging and a separate presenter-notes window are not implemented.
+
+AI authoring is a separate planned phase; this package currently exposes no AI authoring tools.
