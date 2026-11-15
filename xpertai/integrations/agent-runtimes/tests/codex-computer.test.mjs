@@ -27,7 +27,7 @@ function fixture() {
     exitCode: 0,
     events: [
       { type: 'item.completed', item: { type: 'agent_message', text: 'intermediate' } },
-      { type: 'item.completed', item: { type: 'agent_message', text: '{"version":1,"summary":"done","items":[]}' } },
+      { type: 'item.completed', item: { type: 'agent_message', text: 'done' } },
       { type: 'turn.completed' }
     ]
   }
@@ -95,6 +95,19 @@ test('Computer Codex requires exit code and final protocol receipt, never trusts
     f.setOutput(output)
     assert.equal((await f.strategy.inspect(started.handle, f.context)).status, 'failed')
   }
+})
+
+test('Computer Codex can finish an operation without a report or file export', async () => {
+  const f = fixture()
+  delete f.request.input.delivery
+  const started = await f.strategy.start(f.request, f.context)
+  f.setOutput({ state: 'exited', exitCode: 0, events: [{ type: 'turn.completed' }] })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, '')
+  assert.equal(result.result.report, undefined)
+  assert.deepEqual(result.result.export, { mode: 'none', status: 'not_requested' })
+  assert.ok(f.calls.every(call => typeof call === 'string'))
 })
 
 test('Computer Codex keeps uncertain launches unknown and checks workspace/profile before access', async () => {

@@ -9,7 +9,7 @@ import {
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult } from './task-result.js'
+import { outputDelivery, resolveTaskResult, deliveryPaths } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
@@ -70,7 +70,7 @@ export async function startComputerJsonl(
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
   await runner.request(receipt, {
     method: 'POST', path: '/task',
-    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt), typeof runner.readTaskResultFile === 'function') }
+    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt)) }
   })
   return { status: 'running' as const, handle }
 }
@@ -175,22 +175,14 @@ export async function inspectComputerJsonl(
           }`
         }
   if (observation.status === 'succeeded' && completion.ok) {
-    try {
-      observation.result = {
-        ...(await resolveTaskResult(completion.text, delivery, runner.readTaskResultFile
-          ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined)),
-        data: { workingDirectory: receipt.workingDirectory }
-      }
-    } catch {
-      observation = {
-        status: 'failed', handle, progress,
-        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
-      }
+    observation.result = {
+      ...(await resolveTaskResult(completion.text, delivery, runner.readTaskReportFile
+        ? (path) => runner.readTaskReportFile(receipt, path) : undefined)),
+      data: { workingDirectory: receipt.workingDirectory }
     }
   }
   if (observation.result && delivery.mode !== 'none') {
-    const paths =
-      delivery.paths ?? (observation.result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
+    const paths = deliveryPaths(delivery)
     try {
       if (!paths.length) throw new Error('No declared deliverables')
       const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
@@ -201,7 +193,7 @@ export async function inspectComputerJsonl(
       observation.result.export = {
         mode: delivery.mode,
         status: 'failed',
-        error: 'Requested files could not be exported. Inspect the workspace.'
+        error: paths.length ? 'artifact_collection_failed: recover delivery without rerunning the task.' : 'delivery_selection_required: select the exact file paths to collect.'
       }
     }
   }

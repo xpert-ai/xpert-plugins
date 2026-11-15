@@ -22,7 +22,7 @@ function fixture() {
     exitCode: 0,
     events: [
       { type: 'assistant', message: { content: [{ type: 'text', text: 'intermediate' }] } },
-      { type: 'result', subtype: 'success', is_error: false, result: '{"version":1,"summary":"done","items":[]}' }
+      { type: 'result', subtype: 'success', is_error: false, result: 'done' }
     ]
   }
   const runner = {
@@ -64,12 +64,13 @@ function fixture() {
 
 test('JSONL result file is read only after a verified final receipt, then checkpointed before stop', async () => {
   const f = fixture()
-  const reference = { version: 1, path: 'output/result.json', sha256: 'a'.repeat(64) }
-  const text = '```xpert-task-result-file\n' + JSON.stringify(reference) + '\n```'
-  f.runner.readTaskResultFile = async (_, value) => {
+  const reference = 'output/report.md'
+  f.request.input.delivery.reportPath = reference
+  const text = 'Report written'
+  f.runner.readTaskReportFile = async (_, value) => {
     assert.deepEqual(value, reference)
     f.calls.push('result-file')
-    return { version: 1, summary: '{"verdict":"indeterminate"}', items: [] }
+    return { text: '# Review\nDeployment not verified', sha256: 'a'.repeat(64) }
   }
   const started = await f.strategy.start(f.request, f.context)
   const events = [{ type: 'result', subtype: 'success', is_error: false, result: text }]
@@ -79,21 +80,22 @@ test('JSONL result file is read only after a verified final receipt, then checkp
   f.setOutput({ state: 'exited', exitCode: 0, events })
   const result = await f.strategy.inspect(started.handle, f.context)
   assert.equal(result.status, 'succeeded')
-  assert.equal(result.result.text, '{"verdict":"indeterminate"}')
-  assert.deepEqual(f.calls.slice(-4), ['result-file', { mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
+  assert.equal(result.result.text, '# Review\nDeployment not verified')
+  assert.deepEqual(f.calls.slice(-4), ['result-file', { mode: 'files', paths: ['report.txt', reference] }, 'checkpoint', 'stop'])
   assert.equal(f.snapshots.at(-1).result.text, result.result.text)
 })
 
 test('JSONL invalid file submission fails explicitly without file export or a second launch', async () => {
   const f = fixture()
-  f.runner.readTaskResultFile = async () => { throw Error('private contents') }
+  f.request.input.delivery.reportPath = 'output/report.md'
+  f.runner.readTaskReportFile = async () => { throw Error('private contents') }
   const started = await f.strategy.start(f.request, f.context)
   const text = '```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```'
   f.setOutput({ state: 'exited', exitCode: 0, events: [{ type: 'result', subtype: 'success', is_error: false, result: text }] })
   const result = await f.strategy.inspect(started.handle, f.context)
-  assert.equal(result.status, 'failed')
-  assert.match(result.error, /task_result_file_invalid/)
-  assert.equal(result.result, undefined)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.report.code, 'report_unavailable')
+  assert.equal(result.result.text, '')
   assert.deepEqual(f.calls.slice(-2), ['checkpoint', 'stop'])
   assert.equal(f.calls.filter(value => value === 'start').length, 1)
 })

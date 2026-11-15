@@ -11,13 +11,13 @@ export const ApprovalData = json.refine(
 )
 
 /** Forward explicit portable inputs; do not silently discard structured task context. */
-export function agentPrompt(input: AgentInvocationInput, resultFile = false): string {
+export function agentPrompt(input: AgentInvocationInput): string {
   const text = [
     input.prompt,
     ...(input.parameters ? [`Task parameters (JSON):\n${JSON.stringify(input.parameters)}`] : []),
     ...(input.context ? [`Task context (JSON):\n${JSON.stringify(input.context)}`] : []),
-    resultInstructions(outputDelivery(input.delivery), resultFile)
-  ].join('\n\n')
+    resultInstructions(outputDelivery(input.delivery))
+  ].filter(Boolean).join('\n\n')
   if (Buffer.byteLength(text) > 1024 * 1024) throw new Error('Agent input exceeds the size limit')
   return text
 }
