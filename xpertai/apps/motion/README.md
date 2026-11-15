@@ -65,3 +65,11 @@ pnpm --dir apps/motion test
 - `MotionActionLog`
 
 All records are scoped by tenant and organization. Production exports are written through platform Workspace Files with input checksum, Action/runtime evidence, progress, and failure details. Roll out the platform video runtime and worker pool before enabling server HD render in production.
+
+### Evidence voice-over
+
+Configure an authorized TTS `narrationModel` on the published `MotionMiddleware`. From an unedited evidence video draft, **Create voiced draft** reads the first fixed observation and creates a separate draft. The same exact text and evidence citations become the caption; the timeline uses the duration of the returned audio. The initial implementation accepts at most 600 text characters and 120 seconds of 24 kHz mono PCM. It does not generate new numerical claims or narrate the entire dataset.
+
+A durable model operation is claimed once before calling the platform model runtime, which enforces access, budget and usage reporting. A repeated operation ID returns the same task. An interrupted or failed synthesis is not automatically repeated because provider billing may be uncertain. Saved WAV output is delivered through normal file access sessions; MP4 production uses the same immutable file as a verified Sandbox input. Retrying a render does not call the speech model again. The `motion.hyperframes-render` Action version is now `1.1.0`.
+
+Both the source evidence and Project permissions are checked before synthesis, before delivery and before rendering. Changed source data or revoked access blocks new operations. Editing the generated composition invalidates its bound audio/render checksum; create a fresh evidence voice-over draft to change the narrated observation. A concurrent edit during synthesis is preserved, with the audio retained separately instead of overwriting the draft.

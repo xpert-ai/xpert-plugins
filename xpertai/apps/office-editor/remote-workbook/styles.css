@@ -14,6 +14,9 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .workbook-detail-badges { display: flex; flex-wrap: wrap; gap: var(--spacing); }
 .workbook-empty { display: grid; flex: 1; place-content: center; }
 .workbook-engine { flex: 1; min-height: 0; min-width: 0; overflow: hidden; container-type: inline-size; }
+.workbook-draft-dialog { display: flex; flex-direction: column; width: min(560px, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: 80dvh; }
+.workbook-draft-list { min-height: 0; overflow-y: auto; }
+.workbook-draft-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(2 * var(--spacing)); padding-block: calc(2 * var(--spacing)); }
 
 .workbook-title { grid-area: 1 / 1; }
 .workbook-ribbon-tabs { grid-area: 1 / 2; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-block-end: var(--spacing); }
@@ -28,3 +31,12 @@ body { background: var(--background); color: var(--foreground); font-family: var
   }
   .workbook-status-label { display: none; }
 }
+/* Historical snapshots use the same native engine with editing disabled. */
+.workbook-history { width: min(96vw, 1400px); max-width: 96vw; height: 88vh; display: flex; flex-direction: column; }
+.workbook-history-body { display: flex; min-height: 0; flex: 1; gap: 1rem; }
+.workbook-history-body > aside { width: 240px; flex-shrink: 0; overflow: auto; display: flex; flex-direction: column; gap: .25rem; }
+.workbook-history-body > aside button { height: auto; min-height: 52px; display: flex; flex-direction: column; align-items: start; white-space: normal; text-align: left; }
+.workbook-history-body small { font-size: .7rem; opacity: .7; }
+.workbook-history-preview { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+.workbook-history-preview .workbook-engine { height: 100%; }
+@media (max-width: 700px) { .workbook-history-body { flex-direction: column; } .workbook-history-body > aside { width: 100%; max-height: 140px; } }

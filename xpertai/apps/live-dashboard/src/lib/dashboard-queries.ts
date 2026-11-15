@@ -1,6 +1,6 @@
 import { boundedMap } from './bounded-map'
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
-import type { AnalyticalDataset, AnalyticsValue } from '@xpert-ai/contracts'
+import type { AnalyticalDataset, AnalyticsValue, AnalyticsQueryRequest } from '@xpert-ai/contracts'
 import { AnalyticsRuntimeCapability, type DataSourceActor, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import type { DashboardManifest } from './dashboard.schema'
 
@@ -17,12 +17,12 @@ export function validateControls(manifest: DashboardManifest, input: Record<stri
   return values
 }
 
-export async function queryDashboardBinding(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, bindingId: string, input: Record<string, AnalyticsValue>) {
+export async function queryDashboardBinding(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, bindingId: string, input: Record<string, AnalyticsValue>, cache?: AnalyticsQueryRequest['cache']) {
   const binding = manifest.bindings.find(item => item.id === bindingId)
   if (!binding) throw new ForbiddenException('DASHBOARD_BINDING_DENIED')
   const controls = validateControls(manifest, input)
   const selected = Object.fromEntries(Object.entries(controls).filter(([id]) => binding.parameters.some(parameter => parameter.controlId === id)))
-  return runtime.require(AnalyticsRuntimeCapability).query(actor, { binding, controls: selected })
+  return runtime.require(AnalyticsRuntimeCapability).query(actor, { binding, controls: selected, ...(cache ? { cache } : {}) })
 }
 
 export async function queryDashboard(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, input: Record<string, AnalyticsValue>, progress?: (completed: number) => Promise<void>) {

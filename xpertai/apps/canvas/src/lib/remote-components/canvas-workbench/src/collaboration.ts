@@ -3,6 +3,7 @@ import type { CollaborationSessionDescriptor } from '@xpert-ai/plugin-sdk/collab
 import * as Y from 'yjs'
 import {
   CANVAS_YJS_RECORDS_MAP,
+  CANVAS_YJS_RECORDS_V2_MAP,
   materializeCanvasYDoc,
   patchCanvasYDoc
 } from '../../../canvas-yjs.js'
@@ -47,7 +48,7 @@ export function applyTldrawChangesToYDoc(doc: Y.Doc, changes: CanvasStoreChanges
     .filter((record) => PERSISTENT_RECORD_TYPES.has(record.typeName))
     .map((record) => record.id)
   if (!putRecords.length && !removeRecordIds.length) return false
-  patchCanvasYDoc(doc, { putRecords, removeRecordIds }, LOCAL_TLDRAW_ORIGIN)
+  patchCanvasYDoc(doc, { putRecords, removeRecordIds, previousRecords: Object.fromEntries(Object.values(changes.updated).map(([before]) => [before.id, cloneRecord(before)])) }, LOCAL_TLDRAW_ORIGIN)
   return true
 }
 
@@ -56,7 +57,7 @@ export function readCanvasSnapshotFromYDoc(doc: Y.Doc): CanvasSnapshotData {
 }
 
 export function hasCanvasYjsContent(doc: Y.Doc) {
-  return doc.getMap<CanvasRecord>(CANVAS_YJS_RECORDS_MAP).size > 0
+  return (doc.getMap(CANVAS_YJS_RECORDS_MAP).size + doc.getMap(CANVAS_YJS_RECORDS_V2_MAP).size) > 0
 }
 
 function cloneRecord(record: { id: string; typeName: string }) {

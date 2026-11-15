@@ -1,8 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { createRequire } from 'node:module'
 import ts from 'typescript'
 import { build } from 'esbuild'
 import vm from 'node:vm'
@@ -13,6 +12,12 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import { implementationSchema, useCatalogLabel } from '../remote/catalog'
 import { i18n as catalogI18n } from '../remote/i18n'
 import { artifactTypeName, itemSchema } from '../remote/model'
+
+// The shared UI package lives outside the nested pnpm workspace. Render its
+// hooks with the same React instance, even when both workspaces are installed.
+const sharedRequire = createRequire(import.meta.resolve('@xpert-ai/plugin-shadcn-ui/i18n'))
+const { createElement } = sharedRequire('react') as typeof import('react')
+const { renderToStaticMarkup } = sharedRequire('react-dom/server') as typeof import('react-dom/server')
 
 test('Artifact type metadata survives collection parsing and stays distinct from reference titles', () => {
   const item = itemSchema.parse({ id: 'content', title: 'A user supplied title', version: 1,

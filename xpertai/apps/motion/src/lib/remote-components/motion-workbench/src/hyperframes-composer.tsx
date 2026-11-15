@@ -35,6 +35,7 @@ export function HyperframesComposer(props: {
   latestExport?: ExportSummary | null
   onDraftChange: (value: string) => void
   onSave: () => void
+  onNarrate?: () => void
   onRender: (quality: MotionRenderQuality, fps: 24 | 30 | 60) => void
 }) {
   const [viewMode, setViewMode] = React.useState<'preview' | 'code'>('preview')
@@ -312,6 +313,7 @@ export function HyperframesComposer(props: {
                   <span>{props.t('renderFps')}</span>
                   <MotionSelect value={String(fps)} options={FPS_OPTIONS.map((value) => ({ value: String(value), label: `${value} fps` }))} onValueChange={(value) => setFps(Number(value) as 24 | 30 | 60)} />
                 </label>
+                {props.onNarrate ? <div><p className="muted">{props.t('narrationHelp')}</p><Button disabled={props.saving} onClick={props.onNarrate}>{props.t('narrateEvidence')}</Button></div> : null}
                 <Button onClick={() => props.onRender(quality, fps)} disabled={props.saving || !props.selectedProject || !renderAvailable || Boolean(validationError)}>
                   {props.t('queueProductionRender')}
                 </Button>

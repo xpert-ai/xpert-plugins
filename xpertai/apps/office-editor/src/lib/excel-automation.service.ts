@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 import { createRequire } from 'node:module'
+import { z } from 'zod/v3'
 import type {
   ExcelAutomationOperation,
   OfficeCellValue
@@ -181,21 +182,30 @@ export function applyExcelOperations(buffer: Buffer, operations: ExcelAutomation
   }
 }
 
+const exportStyle = z.object({ n: z.object({ pattern: z.string().optional() }).passthrough().optional() }).passthrough()
+const exportCell = z.object({ v: z.union([z.string(), z.number().finite(), z.boolean(), z.null()]).optional(),
+  f: z.string().nullable().optional(), s: z.union([z.string(), exportStyle, z.null()]).optional() }).passthrough().nullable()
+const exportSnapshot = z.object({ styles: z.record(exportStyle.nullable()).default({}), sheetOrder: z.array(z.string()).optional(),
+  sheets: z.record(z.object({ name: z.string().optional(), hidden: z.number().optional(),
+    cellData: z.record(z.record(exportCell)).default({}), mergeData: z.array(z.object({
+      startRow: z.number().int().nonnegative(), endRow: z.number().int().nonnegative(),
+      startColumn: z.number().int().nonnegative(), endColumn: z.number().int().nonnegative()
+    })).optional() }).passthrough()).default({}) }).passthrough()
+
 export function exportSpreadsheetSnapshotToXlsx(snapshot: unknown, title: string) {
-  const XLSX = requireFromHere('xlsx') as any
+  const XLSX = requireFromHere('xlsx') as typeof import('xlsx')
   const workbook = XLSX.utils.book_new()
-  const source = snapshot && typeof snapshot === 'object' ? snapshot as Record<string, any> : {}
-  const sheets = source.sheets && typeof source.sheets === 'object'
-    ? source.sheets as Record<string, any>
-    : {}
-  const sheetOrder = Array.isArray(source.sheetOrder) ? source.sheetOrder : Object.keys(sheets)
+  const parsed = exportSnapshot.safeParse(snapshot)
+  if (!parsed.success) throw new BadRequestException('office.workbook_invalid')
+  const source = parsed.data, sheets = source.sheets
+  const sheetOrder = source.sheetOrder ?? Object.keys(sheets)
 
   for (const sheetId of sheetOrder) {
     const sheet = sheets[sheetId]
     if (!sheet) {
       continue
     }
-    const worksheet: Record<string, any> = {}
+    const worksheet: import('xlsx').WorkSheet = {}
     let maxRow = 0
     let maxColumn = 0
     let hasCells = false
@@ -204,14 +214,14 @@ export function exportSpreadsheetSnapshotToXlsx(snapshot: unknown, title: string
       if (!Number.isInteger(rowIndex) || rowIndex < 0 || !rowValue || typeof rowValue !== 'object') {
         continue
       }
-      for (const [columnKey, cellValue] of Object.entries(rowValue as Record<string, any>)) {
+      for (const [columnKey, cellValue] of Object.entries(rowValue)) {
         const columnIndex = Number(columnKey)
         if (!Number.isInteger(columnIndex) || columnIndex < 0 || !cellValue || typeof cellValue !== 'object') {
           continue
         }
-        const cell = cellValue as Record<string, any>
+        const cell = cellValue
         const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
-        const converted: Record<string, any> = {}
+        const converted: import('xlsx').CellObject = { t: 'z' }
         if (typeof cell.f === 'string' && cell.f.trim()) {
           converted.f = cell.f.trim().replace(/^=/, '')
         }
@@ -221,11 +231,13 @@ export function exportSpreadsheetSnapshotToXlsx(snapshot: unknown, title: string
         } else if (converted.f) {
           converted.t = 'n'
         }
-        const numberFormat = cell.s?.n?.pattern
+        // Univer may store a style inline or by ID in the workbook style table.
+        const style = typeof cell.s === 'string' ? source.styles[cell.s] : cell.s
+        const numberFormat = style?.n?.pattern
         if (typeof numberFormat === 'string' && numberFormat.trim()) {
           converted.z = numberFormat
         }
-        if (Object.keys(converted).length) {
+        if (converted.v !== undefined || converted.f || converted.z) {
           worksheet[address] = converted
           hasCells = true
           maxRow = Math.max(maxRow, rowIndex)
@@ -238,7 +250,7 @@ export function exportSpreadsheetSnapshotToXlsx(snapshot: unknown, title: string
       e: { r: hasCells ? maxRow : 0, c: hasCells ? maxColumn : 0 }
     })
     if (Array.isArray(sheet.mergeData)) {
-      worksheet['!merges'] = sheet.mergeData.map((merge: any) => ({
+      worksheet['!merges'] = sheet.mergeData.map(merge => ({
         s: { r: merge.startRow, c: merge.startColumn },
         e: { r: merge.endRow, c: merge.endColumn }
       }))
@@ -248,6 +260,7 @@ export function exportSpreadsheetSnapshotToXlsx(snapshot: unknown, title: string
       worksheet,
       validateSheetName(typeof sheet.name === 'string' ? sheet.name : `Sheet${workbook.SheetNames.length + 1}`)
     )
+    XLSX.utils.book_set_sheet_visibility(workbook, workbook.SheetNames.length - 1, sheet.hidden ? 1 : 0)
   }
 
   if (!workbook.SheetNames.length) {

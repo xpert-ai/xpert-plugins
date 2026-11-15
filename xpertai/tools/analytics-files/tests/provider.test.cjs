@@ -248,3 +248,17 @@ test('Agent file registration resolves runtime paths and validates real mappings
   f.state.revokeAfterRead = true
   await assert.rejects(f.provider.authoring.prepare(input, context), /revoked/)
 })
+
+
+test('cache preflight checks actual content bytes and reauthorizes after reading', async () => {
+  const f = fixture()
+  const first = await f.provider.authorizeResultReuse(f.binding, { region: null }, f.context)
+  assert.equal(first.sourceVersion, (await f.provider.execute(f.binding, { region: null }, f.context)).sourceVersion)
+  f.state.buffer = Buffer.from('区域,净额\n华东,999\n')
+  assert.notEqual((await f.provider.authorizeResultReuse(f.binding, {}, f.context)).sourceVersion, first.sourceVersion)
+  f.state.revokeAfterRead = true
+  await assert.rejects(f.provider.authorizeResultReuse(f.binding, {}, f.context), /revoked/)
+  const reads = f.state.reads
+  await assert.rejects(f.provider.authorizeResultReuse(f.binding, {}, f.context), /revoked/)
+  assert.equal(f.state.reads, reads)
+})

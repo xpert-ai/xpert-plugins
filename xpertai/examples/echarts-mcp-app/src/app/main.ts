@@ -1,3 +1,5 @@
+import { createChartViewTools } from './view-tools'
+
 type SalesMetric = 'revenue' | 'margin' | 'orders'
 type SalesGroupBy = 'region' | 'product' | 'month'
 
@@ -185,6 +187,7 @@ let chart: EChartsInstance | null = null
 let rpcId = 1
 let hasAnalysis = false
 let currentAnalysis: SalesAnalysis | null = null
+let viewCaption = ''
 let currentLocale: SupportedLocale = 'en'
 let currentLocaleTag = 'en-US'
 
@@ -389,7 +392,7 @@ function applyLocale(context: HostContext = {}) {
 
   const messages = MESSAGES[currentLocale]
   document.title = messages.documentTitle
-  appTitleEl.textContent = messages.title
+  appTitleEl.textContent = viewCaption || messages.title
   metricLabelEl.textContent = messages.metric
   groupByLabelEl.textContent = messages.groupBy
   yearLabelEl.textContent = messages.year
@@ -481,6 +484,7 @@ function applyAnalysis(analysis: SalesAnalysis | null) {
     return
   }
 
+  const becameReady = !hasAnalysis
   hasAnalysis = true
   currentAnalysis = analysis
   state.metric = analysis.metric
@@ -497,6 +501,7 @@ function applyAnalysis(analysis: SalesAnalysis | null) {
   renderBreadcrumbs()
   renderChart(analysis)
   notifySize()
+  if (becameReady) notify('notifications/tools/list_changed', {})
 }
 
 function renderBreadcrumbs() {
@@ -731,7 +736,15 @@ function handleNotification(message: JsonRpcNotification) {
   }
 }
 
+const handleViewTool = createChartViewTools({
+  post: (message) => window.parent.postMessage(message, '*'),
+  ready: () => hasAnalysis,
+  read: () => ({ synthetic: true, analysis: currentAnalysis, caption: viewCaption }),
+  setCaption: (caption) => { viewCaption = caption; appTitleEl.textContent = caption || MESSAGES[currentLocale].title }
+})
+
 window.addEventListener('message', (event) => {
+  if (event.source !== window.parent) return
   let message = event.data
   if (typeof message === 'string') {
     try {
@@ -741,6 +754,8 @@ window.addEventListener('message', (event) => {
     }
   }
   if (!isRecord(message)) return
+
+  if (handleViewTool(message)) return
 
   if (handleRpcResponse(message)) return
   handleNotification(message)
@@ -781,6 +796,7 @@ request('ui/initialize', {
     version: '0.0.1'
   },
   appCapabilities: {
+    tools: { listChanged: true },
     availableDisplayModes: ['inline']
   }
 })

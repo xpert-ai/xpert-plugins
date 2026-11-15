@@ -67,3 +67,8 @@ Add product screenshots here when they are ready. Suggested paths are only place
 pnpm test
 pnpm build
 ```
+
+### Collaboration lifecycle compatibility
+
+
+Workbench data responses use request sequence checks. Theme updates preserve the active editor; a changed host instance or authorization scope clears the old editor and collaboration session before loading the new resource.

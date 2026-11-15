@@ -60,6 +60,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
         { key: 'delete', label: text('Delete dashboard', '删除看板'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'publish', label: text('Publish draft', '发布草稿'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'save', label: text('Save', '保存'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
+        { key: 'restore-version', label: text('Restore as draft', '恢复为草稿'), actionType: 'invoke' },
         { key: 'query', label: text('Refresh', '刷新'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query-binding', label: text('Query binding', '查询绑定'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } }
       ] }
@@ -138,6 +139,11 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       const input = parsed.data
       return { success: true, data: await this.service.publish(context, input.artifactId, input.expectedRevision, input.expectedCurrentVersionId), refresh: false }
     }
+    if (action === 'restore-version') {
+      const input = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid(),
+        expectedRevision: z.number().int().nonnegative(), expectedCurrentVersionId: z.string().uuid().nullable() }).strict().parse(request.input)
+      return { success: true, data: await this.service.restore(context, input.artifactId, input.versionId, input.expectedRevision, input.expectedCurrentVersionId), refresh: false }
+    }
     if (action === 'save') {
       const input = saveSchema.parse(request.input)
       const data = this.saves && input.manifest.bindings.length > 8
@@ -154,7 +160,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       const parsed = queryBindingSchema.safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_INVALID_QUERY')
       const input = parsed.data
-      return { success: true, data: await this.service.queryBinding(context, input.artifactId, input.versionId, input.bindingId, input.controls, input.draftRevision), refresh: false }
+      return { success: true, data: await this.service.queryBinding(context, input.artifactId, input.versionId, input.bindingId, input.controls, input.draftRevision, input.cache), refresh: false }
     }
     throw new BadRequestException('DASHBOARD_ACTION_UNSUPPORTED')
   }

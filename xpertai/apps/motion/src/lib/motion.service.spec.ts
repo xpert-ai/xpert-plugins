@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import { randomUUID } from 'node:crypto'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   MANAGED_QUEUE_SERVICE_TOKEN: Symbol('managed-queue'),
@@ -36,6 +37,15 @@ function memoryRepository<T extends EntityWithId>(prefix: string) {
     findOne: async (options: { where?: Partial<T> }) => rows.find((row) => matches(row, options.where)) ?? null,
     find: async (options?: { where?: Partial<T>; take?: number }) => rows.filter((row) => matches(row, options?.where)).slice(0, options?.take),
     count: async (options?: { where?: Partial<T> }) => rows.filter((row) => matches(row, options?.where)).length,
+    update: async (id: string, value: Partial<T>) => { Object.assign(rows.find(row => row.id === id)!, value); return { affected: 1 } },
+    manager: { transaction: async (fn: (manager: { getRepository: () => unknown; createQueryBuilder: () => unknown }) => Promise<unknown>) => fn({ getRepository: () => repository, createQueryBuilder: () => repository.createQueryBuilder() }) },
+    createQueryBuilder: () => {
+      let value: T
+      const query = { insert: () => query, into: () => query, values: (input: T) => { value = input; return query },
+        setParameter: (_key: string, json: string) => { Object.assign(value!, { report: JSON.parse(json) }); return query },
+        orIgnore: () => query, execute: async () => { if (!rows.some(row => row.id === value.id)) await repository.save(value); return {} } }
+      return query
+    },
     delete: jest.fn(async () => ({ affected: 0 }))
   }
   return repository as typeof repository & Repository<T>
@@ -73,10 +83,21 @@ function createService(options?: { productionRuntime?: boolean }) {
     enqueue: jest.fn(async (input: { jobId: string }) => ({ jobId: input.jobId }))
   } as unknown as ManagedQueueService
   const service = new MotionService(projects, versions, styles, exports, logs, runtimeCapabilities, options?.productionRuntime ? managedQueue : undefined)
-  return { service, projects, exports, managedQueue }
+  return { service, projects, exports, managedQueue, sandboxJobs }
 }
 
 describe('MotionService video engine policy', () => {
+  it('resolves only succeeded exports in the authorized project and tenant', async () => {
+    const { service, exports } = createService()
+    const project = await service.createProject(scope, { title: 'Download', surface: 'video' })
+    const record = await exports.save({ ...scope, motionProjectId: project.item.id!, kind: 'mp4', status: 'succeeded',
+      mimeType: 'video/mp4', fileReference: { filePath: 'exports/test.mp4', name: 'test.mp4' } })
+    expect((await service.resolveExportFile(scope, project.item.id!, record.id!)).fileName).toBe('test.mp4')
+    await expect(service.resolveExportFile({ ...scope, tenantId: 'other' }, project.item.id!, record.id!)).rejects.toThrow()
+    await expect(service.resolveExportFile(scope, project.item.id!, 'other-export')).rejects.toThrow()
+    record.status = 'failed'
+    await expect(service.resolveExportFile(scope, project.item.id!, record.id!)).rejects.toThrow()
+  })
   it('creates new video projects as native HyperFrames compositions', async () => {
     const { service } = createService()
     const result = await service.createProject(scope, { title: 'Native Launch', surface: 'video' })
@@ -107,6 +128,43 @@ describe('MotionService video engine policy', () => {
     expect(result.workingCopy.videoEngine).toBe('legacy_canvas')
   })
 
+  it('binds render request IDs to immutable inputs and actors, without duplicate queue work', async () => {
+    const { service, exports, managedQueue } = createService({ productionRuntime: true })
+    const created = await service.createProject(scope, { title: 'Deduplicated', surface: 'video' })
+    const input = { projectId: created.item.id!, requestId: randomUUID(), quality: 'standard' as const }
+    const first = await service.requestProductionRender(scope, input)
+    expect((await service.requestProductionRender(scope, input)).export.id).toBe(first.export.id)
+    expect(managedQueue.enqueue).toHaveBeenCalledTimes(1)
+    expect(exports.rows).toHaveLength(1)
+    expect(first.export.report).not.toHaveProperty('compositionHtml')
+    await expect(service.requestProductionRender(scope, { ...input, fps: 60 })).rejects.toThrow('different intent')
+    await expect(service.requestProductionRender({ ...scope, userId: 'different' }, input)).rejects.toThrow('different intent')
+    expect(managedQueue.enqueue).toHaveBeenCalledTimes(1)
+  })
+  it('retains the queued source and requires settled failure before an explicit retry', async () => {
+    const { service, projects, exports, sandboxJobs } = createService({ productionRuntime: true })
+    const created = await service.createProject({ ...scope, assistantId: 'assistant-1' }, { title: 'Frozen render', surface: 'video' })
+    const first = await service.requestProductionRender(scope, { projectId: created.item.id!, requestId: randomUUID() })
+    const savedHtml = exports.rows[0].report!.compositionHtml
+    projects.rows[0].hyperframesHtml = String(savedHtml).replace('Frozen render', 'Later edits')
+    const run = jest.fn(async () => { throw new Error('controlled failure') })
+    const getJob = jest.fn(async () => ({ id: first.export.id!, status: 'failed', controlState: 'pending', generation: randomUUID() }))
+    Object.assign(sandboxJobs, { run, getJob })
+    await expect(service.processProductionRender({ data: { exportId: first.export.id!, tenantId: scope.tenantId, organizationId: scope.organizationId } } as never)).rejects.toThrow('controlled failure')
+    expect(run.mock.calls[0]).toBeDefined()
+    expect((run.mock.calls[0] as unknown as [{ payload: { compositionHtml: string } }])[0].payload.compositionHtml).toBe(savedHtml)
+    expect(exports.rows[0].status).toBe('failed')
+    const retry = { projectId: created.item.id!, requestId: randomUUID(), retryOfExportId: first.export.id! }
+    await expect(service.requestProductionRender(scope, retry)).rejects.toThrow('settlement')
+    getJob.mockImplementation(async () => ({ id: first.export.id!, status: 'failed', controlState: 'settled', generation: '12345678-1234-4234-8234-123456789abc' }))
+    const next = await service.requestProductionRender(scope, retry)
+    expect(next.export.id).not.toBe(first.export.id)
+    expect(exports.rows[1].report!.compositionHtml).toBe(savedHtml)
+    expect(exports.rows[1].report!.retryOf).toEqual({ jobId: first.export.id, generation: '12345678-1234-4234-8234-123456789abc' })
+    expect((await service.requestProductionRender(scope, retry)).export.id).toBe(next.export.id)
+    await expect(service.processProductionRender({ data: { exportId: next.export.id!, tenantId: scope.tenantId, organizationId: scope.organizationId } } as never)).rejects.toThrow('controlled failure')
+    expect((run.mock.calls[1] as unknown as [{ scope: { businessResourceId: string } }])[0].scope.businessResourceId).toBe(first.export.id)
+  })
   it('queues production renders only after the platform runtime is healthy', async () => {
     const { service, exports, managedQueue } = createService({ productionRuntime: true })
     const created = await service.createProject(scope, { title: 'Queued Launch', surface: 'video' })

@@ -143,7 +143,7 @@ export function setRuntimeText(nextText: Partial<typeof runtimeText>) {
   }
 }
 
-export function startRemoteBridge(setContext: (context: any) => void, handleHostEvent: (event: any) => void) {
+export function startRemoteBridge(setContext: (context: any) => void, handleHostEvent: (event: any) => void, handleEditorEvent?: (event: any) => void) {
   let currentContext: any = null
 
   function applyHostTheme(theme: any) {
@@ -159,6 +159,7 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
   }
 
   window.addEventListener('message', (event) => {
+    if (event.source !== window.parent) return
     const message = event.data
     if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) {
       return
@@ -192,6 +193,10 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
 
     if (message.type === 'hostEvent') {
       handleHostEvent(message.event)
+      return
+    }
+    if (message.type === 'editorEvent') {
+      handleEditorEvent?.(message)
       return
     }
 
