@@ -1,0 +1,545 @@
+{
+  "resourceKey": "ev-motor-lifecycle",
+  "semanticVersion": "1.0.0",
+  "name": "驱动电机订单与实物追溯",
+  "draft": {
+    "entityTypes": [
+      {
+        "code": "motor_order",
+        "name": "销售订单",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "order_line",
+        "name": "订单行",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "bom_revision",
+        "name": "技术 BOM 修订",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "work_order",
+        "name": "生产工单",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "seal_lot",
+        "name": "密封件批次",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "motor",
+        "name": "出厂电机",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "test_record",
+        "name": "出厂试验记录",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "delivery",
+        "name": "签收凭证",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "service_case",
+        "name": "售后工单",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "measure",
+        "name": "工程措施",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      },
+      {
+        "code": "rule_revision",
+        "name": "合同提取规则",
+        "attributes": [
+          {
+            "code": "record_ref",
+            "name": "样例记录",
+            "valueType": "string",
+            "required": true,
+            "repeated": false
+          }
+        ]
+      }
+    ],
+    "relationTypes": [
+      {
+        "code": "motor_order_to_order_line",
+        "name": "包含订单行",
+        "sourceEntityTypeCode": "motor_order",
+        "targetEntityTypeCode": "order_line",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "order_line_to_bom_revision",
+        "name": "采用工程修订",
+        "sourceEntityTypeCode": "order_line",
+        "targetEntityTypeCode": "bom_revision",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "order_line_to_work_order",
+        "name": "触发报产",
+        "sourceEntityTypeCode": "order_line",
+        "targetEntityTypeCode": "work_order",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "work_order_to_motor",
+        "name": "产出电机",
+        "sourceEntityTypeCode": "work_order",
+        "targetEntityTypeCode": "motor",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "motor_to_seal_lot",
+        "name": "实装批次",
+        "sourceEntityTypeCode": "motor",
+        "targetEntityTypeCode": "seal_lot",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "motor_to_test_record",
+        "name": "接受出厂试验",
+        "sourceEntityTypeCode": "motor",
+        "targetEntityTypeCode": "test_record",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "motor_to_delivery",
+        "name": "随签收凭证交付",
+        "sourceEntityTypeCode": "motor",
+        "targetEntityTypeCode": "delivery",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "service_case_to_motor",
+        "name": "对应报修序列号",
+        "sourceEntityTypeCode": "service_case",
+        "targetEntityTypeCode": "motor",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "service_case_to_measure",
+        "name": "产生批准措施",
+        "sourceEntityTypeCode": "service_case",
+        "targetEntityTypeCode": "measure",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "order_line_to_rule_revision",
+        "name": "复盘形成规则",
+        "sourceEntityTypeCode": "order_line",
+        "targetEntityTypeCode": "rule_revision",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "next_adopts_measure",
+        "name": "继承装配复核要求",
+        "sourceEntityTypeCode": "motor_order",
+        "targetEntityTypeCode": "measure",
+        "cardinality": "many_to_many",
+        "attributes": []
+      },
+      {
+        "code": "next_adopts_rule_revision",
+        "name": "采用规则版本",
+        "sourceEntityTypeCode": "motor_order",
+        "targetEntityTypeCode": "rule_revision",
+        "cardinality": "many_to_many",
+        "attributes": []
+      }
+    ],
+    "actionTypes": [],
+    "dataBindings": [],
+    "instances": [
+      {
+        "entityTypeCode": "motor_order",
+        "externalKey": "demo_motor_order",
+        "displayName": "EV-DEMO-01",
+        "attributes": {
+          "record_ref": "EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "order_line",
+        "externalKey": "demo_order_line",
+        "displayName": "EV-DEMO-01/10",
+        "attributes": {
+          "record_ref": "EV-DEMO-01/10"
+        }
+      },
+      {
+        "entityTypeCode": "bom_revision",
+        "externalKey": "demo_bom_revision",
+        "displayName": "EM-160/B",
+        "attributes": {
+          "record_ref": "EM-160/B"
+        }
+      },
+      {
+        "entityTypeCode": "work_order",
+        "externalKey": "demo_work_order",
+        "displayName": "WO-EV-DEMO-01",
+        "attributes": {
+          "record_ref": "WO-EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "seal_lot",
+        "externalKey": "demo_seal_lot",
+        "displayName": "SEAL-L07-EV-DEMO-01",
+        "attributes": {
+          "record_ref": "SEAL-L07-EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "motor",
+        "externalKey": "demo_motor",
+        "displayName": "EV-DEMO-01-M001",
+        "attributes": {
+          "record_ref": "EV-DEMO-01-M001"
+        }
+      },
+      {
+        "entityTypeCode": "test_record",
+        "externalKey": "demo_test_record",
+        "displayName": "TEST-EV-DEMO-01",
+        "attributes": {
+          "record_ref": "TEST-EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "delivery",
+        "externalKey": "demo_delivery",
+        "displayName": "POD-EV-DEMO-01",
+        "attributes": {
+          "record_ref": "POD-EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "service_case",
+        "externalKey": "demo_service_case",
+        "displayName": "SR-EV-DEMO-01",
+        "attributes": {
+          "record_ref": "SR-EV-DEMO-01"
+        }
+      },
+      {
+        "entityTypeCode": "measure",
+        "externalKey": "demo_measure",
+        "displayName": "引出口密封圈定位复核",
+        "attributes": {
+          "record_ref": "引出口密封圈定位复核"
+        }
+      },
+      {
+        "entityTypeCode": "rule_revision",
+        "externalKey": "demo_rule_revision",
+        "displayName": "R2",
+        "attributes": {
+          "record_ref": "R2"
+        }
+      },
+      {
+        "entityTypeCode": "motor_order",
+        "externalKey": "demo_followup",
+        "displayName": "EV-DEMO-02",
+        "attributes": {
+          "record_ref": "EV-DEMO-02"
+        }
+      }
+    ],
+    "relations": [
+      {
+        "relationTypeCode": "motor_order_to_order_line",
+        "source": {
+          "entityTypeCode": "motor_order",
+          "externalKey": "demo_motor_order"
+        },
+        "target": {
+          "entityTypeCode": "order_line",
+          "externalKey": "demo_order_line"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "order_line_to_bom_revision",
+        "source": {
+          "entityTypeCode": "order_line",
+          "externalKey": "demo_order_line"
+        },
+        "target": {
+          "entityTypeCode": "bom_revision",
+          "externalKey": "demo_bom_revision"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "order_line_to_work_order",
+        "source": {
+          "entityTypeCode": "order_line",
+          "externalKey": "demo_order_line"
+        },
+        "target": {
+          "entityTypeCode": "work_order",
+          "externalKey": "demo_work_order"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "work_order_to_motor",
+        "source": {
+          "entityTypeCode": "work_order",
+          "externalKey": "demo_work_order"
+        },
+        "target": {
+          "entityTypeCode": "motor",
+          "externalKey": "demo_motor"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "motor_to_seal_lot",
+        "source": {
+          "entityTypeCode": "motor",
+          "externalKey": "demo_motor"
+        },
+        "target": {
+          "entityTypeCode": "seal_lot",
+          "externalKey": "demo_seal_lot"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "motor_to_test_record",
+        "source": {
+          "entityTypeCode": "motor",
+          "externalKey": "demo_motor"
+        },
+        "target": {
+          "entityTypeCode": "test_record",
+          "externalKey": "demo_test_record"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "motor_to_delivery",
+        "source": {
+          "entityTypeCode": "motor",
+          "externalKey": "demo_motor"
+        },
+        "target": {
+          "entityTypeCode": "delivery",
+          "externalKey": "demo_delivery"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "service_case_to_motor",
+        "source": {
+          "entityTypeCode": "service_case",
+          "externalKey": "demo_service_case"
+        },
+        "target": {
+          "entityTypeCode": "motor",
+          "externalKey": "demo_motor"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "service_case_to_measure",
+        "source": {
+          "entityTypeCode": "service_case",
+          "externalKey": "demo_service_case"
+        },
+        "target": {
+          "entityTypeCode": "measure",
+          "externalKey": "demo_measure"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "order_line_to_rule_revision",
+        "source": {
+          "entityTypeCode": "order_line",
+          "externalKey": "demo_order_line"
+        },
+        "target": {
+          "entityTypeCode": "rule_revision",
+          "externalKey": "demo_rule_revision"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "next_adopts_measure",
+        "source": {
+          "entityTypeCode": "motor_order",
+          "externalKey": "demo_followup"
+        },
+        "target": {
+          "entityTypeCode": "measure",
+          "externalKey": "demo_measure"
+        },
+        "attributes": {}
+      },
+      {
+        "relationTypeCode": "next_adopts_rule_revision",
+        "source": {
+          "entityTypeCode": "motor_order",
+          "externalKey": "demo_followup"
+        },
+        "target": {
+          "entityTypeCode": "rule_revision",
+          "externalKey": "demo_rule_revision"
+        },
+        "attributes": {}
+      }
+    ],
+    "layout": {
+      "entityTypePositions": {
+        "motor_order": {
+          "x": 0,
+          "y": 0
+        },
+        "order_line": {
+          "x": 270,
+          "y": 0
+        },
+        "bom_revision": {
+          "x": 540,
+          "y": 0
+        },
+        "work_order": {
+          "x": 810,
+          "y": 0
+        },
+        "seal_lot": {
+          "x": 0,
+          "y": 150
+        },
+        "motor": {
+          "x": 270,
+          "y": 150
+        },
+        "test_record": {
+          "x": 540,
+          "y": 150
+        },
+        "delivery": {
+          "x": 810,
+          "y": 150
+        },
+        "service_case": {
+          "x": 0,
+          "y": 300
+        },
+        "measure": {
+          "x": 270,
+          "y": 300
+        },
+        "rule_revision": {
+          "x": 540,
+          "y": 300
+        }
+      },
+      "instancePositions": {}
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "name": "@xpert-ai/plugin-ev-motor-lifecycle",
+  "version": "0.3.3",
+  "level": "tenant",
+  "artifactNamespace": "ev_motor",
+  "displayName": "驱动电机制造全流程",
+  "description": "样例订单、人机协同与售后经验复用",
+  "category": "middleware",
+  "author": "XpertAI",
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "business-app",
+        "assistant-template",
+        "workbench-view"
+      ],
+      "capabilities": [
+        "ev_motor_workbench",
+        "ev_motor_coordinator",
+        "ev_motor_sales",
+        "ev_motor_engineering",
+        "ev_motor_purchasing",
+        "ev_motor_planner",
+        "ev_motor_production",
+        "ev_motor_quality",
+        "ev_motor_service"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "ev-motor-lifecycle",
+            "displayName": {
+              "en_US": "EV motor lifecycle",
+              "zh_Hans": "驱动电机制造全流程"
+            },
+            "description": {
+              "en_US": "Follow a sample motor from contract to field feedback.",
+              "zh_Hans": "跟随一台驱动电机，从合同原文到实装、返修和下一单规则。"
+            },
+            "color": "#17645E",
+            "tags": [
+              "manufacturing",
+              "electric-vehicle"
+            ],
+            "projectTypes": [
+              {
+                "key": "order",
+                "title": {
+                  "en_US": "Motor order",
+                  "zh_Hans": "驱动电机订单"
+                },
+                "binding": {
+                  "kind": "entity",
+                  "providerKey": "ev_motor_project"
+                }
+              }
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "ev-motor-coordinator",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "EV motor lifecycle",
+                  "zh_Hans": "驱动电机制造演示"
+                },
+                "sharing": "organization"
+              },
+              "assistantSuite": {
+                "version": "1",
+                "coordinatorAgentKey": "Agent_motor_coordinator",
+                "roles": [
+                  {
+                    "key": "sales",
+                    "templateKey": "ev-motor-sales",
+                    "name": "ev-motor-sales",
+                    "title": {
+                      "en_US": "sales",
+                      "zh_Hans": "销售需求助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_sales"
+                  },
+                  {
+                    "key": "engineering",
+                    "templateKey": "ev-motor-engineering",
+                    "name": "ev-motor-engineering",
+                    "title": {
+                      "en_US": "engineering",
+                      "zh_Hans": "BOM 工程助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_engineering"
+                  },
+                  {
+                    "key": "purchasing",
+                    "templateKey": "ev-motor-purchasing",
+                    "name": "ev-motor-purchasing",
+                    "title": {
+                      "en_US": "purchasing",
+                      "zh_Hans": "采购齐套助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_purchasing"
+                  },
+                  {
+                    "key": "planner",
+                    "templateKey": "ev-motor-planner",
+                    "name": "ev-motor-planner",
+                    "title": {
+                      "en_US": "planner",
+                      "zh_Hans": "生产计划助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_planner"
+                  },
+                  {
+                    "key": "production",
+                    "templateKey": "ev-motor-production",
+                    "name": "ev-motor-production",
+                    "title": {
+                      "en_US": "production",
+                      "zh_Hans": "制造交付助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_production"
+                  },
+                  {
+                    "key": "quality",
+                    "templateKey": "ev-motor-quality",
+                    "name": "ev-motor-quality",
+                    "title": {
+                      "en_US": "quality",
+                      "zh_Hans": "质量与验证助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_quality"
+                  },
+                  {
+                    "key": "service",
+                    "templateKey": "ev-motor-service",
+                    "name": "ev-motor-service",
+                    "title": {
+                      "en_US": "service",
+                      "zh_Hans": "售后改进助手"
+                    },
+                    "primaryAgentKey": "Agent_motor_service"
+                  }
+                ]
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          }
+        ]
+      },
+      "runtime": {
+        "middlewareProviders": [
+          "ev_motor_coordinator",
+          "ev_motor_sales",
+          "ev_motor_engineering",
+          "ev_motor_purchasing",
+          "ev_motor_planner",
+          "ev_motor_production",
+          "ev_motor_quality",
+          "ev_motor_service"
+        ],
+        "viewProviders": [
+          "ev_motor_views"
+        ]
+      }
+    }
+  },
+  "license": "AGPL-3.0"
+}
