@@ -33,10 +33,12 @@ describe('OfficeEditorViewProvider', () => {
           provider: OFFICE_EDITOR_PROVIDER_KEY
         }),
         activation: expect.objectContaining({
+          projectResource: true,
           requiredFeatures: [OFFICE_EDITOR_FEATURE]
         })
       })
     )
+    expect(manifests[0].dataSource?.querySchema?.supportsSelection).toBe(true)
     expect(manifests[0].view).toEqual(
       expect.objectContaining({
         type: 'remote_component',

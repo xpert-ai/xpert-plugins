@@ -1,3 +1,4 @@
+import { CanvasContentProvider, CanvasContentEditor } from './canvas-content.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -24,7 +25,9 @@ export const CANVAS_ENTITIES = [CanvasDocument, CanvasDocumentVersion, CanvasAct
     CanvasService,
     CanvasMiddleware,
     CanvasViewProvider,
-    CanvasCollaborationProvider
+    CanvasCollaborationProvider,
+    CanvasContentProvider,
+    CanvasContentEditor
   ],
   exports: [CanvasService, CanvasArtifactExportService]
 })

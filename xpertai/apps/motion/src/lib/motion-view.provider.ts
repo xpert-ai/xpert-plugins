@@ -1,3 +1,4 @@
+import { MotionNarrationService } from './evidence/narration.service.js'
 import { Injectable } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -13,6 +14,7 @@ import type {
   XpertViewActionRequest,
   XpertViewActionResult,
   XpertViewDataResult,
+  XpertViewFileAccessRequest,
   XpertViewQuery
 } from '@xpert-ai/contracts'
 import {
@@ -74,10 +76,17 @@ type ProjectScopedViewHostContext = XpertResolvedViewHostContext & {
 @Injectable()
 @ViewExtensionProvider(MOTION_PROVIDER_KEY)
 export class MotionViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: MotionService) {}
+  constructor(private readonly service: MotionService, private readonly narration: MotionNarrationService) {}
 
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'agent'
+  }
+
+  async resolveViewFile(context: XpertResolvedViewHostContext, viewKey: string, request: XpertViewFileAccessRequest) {
+    if (viewKey !== MOTION_WORKBENCH_VIEW_KEY || request.purpose !== 'download' || !request.targetId) {
+      throw new Error('Invalid Motion export request.')
+    }
+    return this.service.resolveExportFile(scopeFromContext(context), request.targetId, request.fileKey)
   }
 
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
@@ -103,7 +112,9 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
         slot,
         order: 42,
         refreshable: true,
+        fileAccess: { purposes: ['download'] },
         activation: {
+          projectResource: true,
           requiredFeatures: [MOTION_FEATURE]
         },
         ...(fixed
@@ -142,6 +153,7 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
         dataSource: {
           mode: 'platform',
           querySchema: {
+            supportsSelection: true,
             supportsPagination: true,
             supportsSearch: true,
             supportsParameters: true,
@@ -183,6 +195,7 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
           { key: 'save_web_artifact', label: text('Save HTML', '保存 HTML'), icon: 'ri-html5-line', actionType: 'invoke' },
           { key: 'save_video_composition', label: text('Save Video', '保存视频合成'), icon: 'ri-movie-line', actionType: 'invoke' },
           { key: 'save_hyperframes_composition', label: text('Save HyperFrames', '保存 HyperFrames 合成'), icon: 'ri-code-box-line', actionType: 'invoke' },
+          { key: 'narrate_evidence', label: text('Create voiced draft', '生成配音草稿'), icon: 'ri-volume-up-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'render_production', label: text('Production Render', '生产渲染'), icon: 'ri-film-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'finalize_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
@@ -295,7 +308,7 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
             versionLimit: 30,
             logLimit: 20
           })
-          .catch(() => null)
+          .catch(error => { if (requestedProjectId) throw error; return null })
       : null
     const styles = await this.service.listStyles(scope, detail?.item?.id ?? null)
     const table = selectTable(tableKey, projects, recipes, styles)
@@ -370,8 +383,13 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
         })
         return { ...success('HyperFrames composition saved', 'HyperFrames 合成已保存'), refresh: false, data: result }
       }
+      if (actionKey === 'narrate_evidence') {
+        return { ...success('Voice-over draft queued', '配音草稿已排队'), refresh: false, data: await this.narration.request(context, scope, request.input) }
+      }
       if (actionKey === 'render_production') {
         const result = await this.service.requestProductionRender(scope, {
+          requestId: getStringInput(request.input, 'requestId'),
+          retryOfExportId: getStringInput(request.input, 'retryOfExportId'),
           projectId: requireDocumentId(request),
           kind: (getStringInput(request.input, 'kind') as 'mp4' | 'gif' | undefined) ?? 'mp4',
           quality: getStringInput(request.input, 'quality') as MotionRenderQuality | undefined,
@@ -529,7 +547,7 @@ function scopeFromContext(context: XpertResolvedViewHostContext): MotionScope {
 }
 
 function getProjectId(context: XpertResolvedViewHostContext) {
-  return (context as ProjectScopedViewHostContext).projectId ?? null
+  return context.runtimeScope?.projectId ?? (context.hostType === 'project' ? context.hostId : (context as ProjectScopedViewHostContext).projectId) ?? null
 }
 
 function success(en_US: string, zh_Hans: string): XpertViewActionResult {

@@ -100,6 +100,15 @@ function SourceContents({ busy, manifest, selection, executions, onSelect, onClo
           {state?.state === 'failed' && <p role="status" className="text-sm text-destructive">{t.sourceFailureHint}</p>}
           {state?.result ? <>
             {state.state !== 'succeeded' && <p className="text-sm text-muted-foreground">{t.sourcePreviousResult}</p>}
+            {state.result.provenance.certification && <div className="space-y-2 border-b pb-3">
+              <Badge variant="outline">{state.state !== 'succeeded' ? t.certificationHistorical : state.result.provenance.certification.status === 'verified' ? t.certificationVerified : t.certificationLegacy}</Badge>
+              <p className="text-xs text-muted-foreground">{t.certificationHint}</p>
+              {state.result.provenance.certification.status === 'verified' && <dl className="grid gap-1 text-xs">
+                <Pair label={t.certificationSubject} value={state.result.provenance.certification.subjectId}/>
+                <Pair label={t.certificationVersion} value={String(state.result.provenance.certification.dependency.version)}/>
+                <Pair label={t.certificationChecked} value={date(state.result.provenance.certification.verifiedAt)}/>
+              </dl>}
+            </div>}
             <JsonConfig label={t.sourceResultMeta} value={{ completeness: state.result.completeness, freshness: state.result.freshness, provenance: state.result.provenance, controls: state.resultControls }} t={t}/>
             <p className="text-xs text-muted-foreground">{t.sourcePreviewLimit}</p>
             <div className="max-h-72 overflow-auto"><Table><TableHeader><TableRow>{state.result.fields.map(field => <TableHead key={field.id}>{field.label ?? field.id}</TableHead>)}</TableRow></TableHeader>

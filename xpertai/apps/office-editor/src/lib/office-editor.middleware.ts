@@ -244,7 +244,7 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
           },
           {
             name: 'office_excel_edit',
-            description: 'Edit the same Office workbook on the server. Native Project workbooks require expectedVersionNumber and idempotencyKey and preserve Univer JSON, with conflicts rejected. Native AI operations support cell values, formulas, clearing and creating sheets; rename/delete sheets in the editor to preserve references. Existing XLSX documents return an XLSX artifact. Always read the current version first; never blindly retry a stale write.',
+            description: 'Edit the same Office workbook on the server. Native Project workbooks require expectedVersionNumber and idempotencyKey and preserve Univer JSON, with conflicts rejected. Native AI operations support cell values, formulas, clearing, creating sheets and a standalone rename_sheet operation with checked formula-reference rewriting. Unsupported formula dependencies reject the whole rename; delete sheets in the editor. Do not mix rename with other operations. Existing XLSX documents return an XLSX artifact. Always read the current version first; never blindly retry a stale write.',
             schema: excelEditSchema,
             responseFormat: 'content_and_artifact'
           }

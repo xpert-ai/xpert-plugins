@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
-import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { AiModelTypeEnum, ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -201,7 +201,7 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
     features: [MOTION_FEATURE, MOTION_AGENT_CAPABILITY, MOTION_WORKBENCH_CAPABILITY, MOTION_LIBRARY_CAPABILITY],
     configSchema: {
       type: 'object',
-      properties: {},
+      properties: { narrationModel: { type: 'object', title: { en_US: 'Evidence voice-over model', zh_Hans: '证据配音模型' }, 'x-ui': { component: 'ai-model-select', inputs: { modelType: AiModelTypeEnum.TTS, hiddenLabel: true } } } },
       required: []
     }
   }

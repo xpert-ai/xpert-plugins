@@ -1,3 +1,4 @@
+import { EvidenceApp } from './evidence-app'
 import { openDashboardTab } from './open-dashboard-tab'
 import { isWorkbenchPresentation } from './bridge'
 import { LibraryApp } from './library-app'
@@ -31,7 +32,7 @@ import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifac
 
 installArtifactDocumentFramePolicy(document)
 
-declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_SINGLE__?: boolean; __DASHBOARD_PAGE__?: 'explore' | 'templates' | 'data' } }
+declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean; __DASHBOARD_SINGLE__?: boolean; __DASHBOARD_PAGE__?: 'explore' | 'templates' | 'data' | 'evidence' } }
 const singleDashboard = window.__DASHBOARD_SINGLE__ === true
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
@@ -65,11 +66,15 @@ function App() {
   const [error, setError] = React.useState('')
   const [status, setStatus] = React.useState('')
   const [refreshSeconds, setRefreshSeconds] = React.useState('off')
+  const [cacheSeconds, setCacheSeconds] = React.useState('off')
+  const cacheSecondsRef = React.useRef(cacheSeconds)
+  cacheSecondsRef.current = cacheSeconds
   const [editor, setEditor] = React.useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = React.useState<(Summary & { projectId?: string }) | null>(null)
   const [deleteError, setDeleteError] = React.useState('')
   const [deleting, setDeleting] = React.useState(false)
   const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
+  const [confirmRestore, setConfirmRestore] = React.useState<{ artifactId: string; versionId: string; expectedRevision: number; expectedCurrentVersionId: string | null } | null>(null)
   const [partial, setPartial] = React.useState(false)
   const [unavailableDatasets, setUnavailableDatasets] = React.useState<string[]>([])
   const [importing, setImporting] = React.useState(false)
@@ -119,7 +124,7 @@ function App() {
     standardSession.current?.dispose(); standardSession.current = undefined; standardKey.current = ''
     activeArtifactId.current = undefined
     setNotice(''); setHtml(''); setUnavailableDatasets([]); setSaved(null); setSelectedDashboard(null); setEditor(null); setVersions([])
-    setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
+    setSharing(false); setConfirmRestore(null); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
     setControls({}); setStatus(''); setPartial(false)
     setSourceSelection(null); setInspect(false); setExecutions({}); setDownload(null); setImporting(false)
   }
@@ -150,10 +155,10 @@ function App() {
           setHtml(datasets.length ? rendererHtml(toDataAnalyticsPayload(target.manifest, datasets)) : '')
           setPartial(datasets.some(dataset => dataset.completeness.truncated))
           setStatus(datasets.map(dataset => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
-        }, onExecution, setBusy)
+        }, onExecution, setBusy, () => cacheSecondsRef.current === 'off' ? 0 : Number(cacheSecondsRef.current) * 1000)
     }
     if (!only) appliedControls.current = { ...values }
-    await standardSession.current.query(values, initial ? 'initial' : force ? 'refresh' : 'interactive', only)
+    await standardSession.current.query(values, force ? 'refresh' : initial ? 'initial' : 'interactive', only)
   }
   async function retrySource(bindingId: string) {
     const current = autoRefresh.current
@@ -203,8 +208,8 @@ function App() {
     setBusy(true); setError('')
     try { await work() } catch (error) { if (operation === operationSequence.current) setError(error instanceof Error && error.message === 'DASHBOARD_DRAFT_ACCESS_DENIED' ? t.draftAccessDenied : error instanceof Error ? error.message : t.error) } finally { if (operation === operationSequence.current) setBusy(false) }
   }
-  const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete })
-  autoRefresh.current = { saved, controls, busy, editor, confirmDelete }
+  const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete, confirmRestore, confirmPublish })
+  autoRefresh.current = { saved, controls, busy, editor, confirmDelete, confirmRestore, confirmPublish }
   async function refreshSaved() {
     const current = autoRefresh.current
     if (!current.saved) { await openPicker(); return }
@@ -229,7 +234,7 @@ function App() {
     let stopped = false, pending = false
     const refresh = async () => {
       const current = autoRefresh.current
-      if (stopped || !isViewVisible() || pending || current.busy || current.confirmDelete || current.editor !== null || !current.saved?.manifest.bindings.length) return
+      if (stopped || !isViewVisible() || pending || current.busy || current.confirmDelete || current.confirmRestore || current.confirmPublish || current.editor !== null || !current.saved?.manifest.bindings.length) return
       pending = true
       try {
         await refreshSaved()
@@ -297,6 +302,23 @@ function App() {
     setSaveProgress('')
     await open(result.artifactId, undefined, true, 'draft')
   }
+  async function prepareRestore() {
+    if (!saved?.versionId || saved.isDraft) return
+    const current = listSchema.parse(await requestHost('requestData', {
+      query: { parameters: { artifactId: saved.artifactId, mode: 'draft' } }
+    })).meta.saved
+    if (!current) throw new Error(t.error)
+    setConfirmRestore({ artifactId: saved.artifactId, versionId: saved.versionId,
+      expectedRevision: current.draftRevision ?? 0, expectedCurrentVersionId: current.baseVersionId ?? current.versionId ?? null })
+  }
+  async function restoreVersion() {
+    if (!confirmRestore) return
+    const target = confirmRestore
+    actionSchema.parse(await requestHost('executeAction', { actionKey: 'restore-version', input: target }))
+    setConfirmRestore(null)
+    await open(target.artifactId, undefined, true, 'draft')
+    setNotice(t.restoredDraft)
+  }
   async function publish() {
     if (!confirmPublish?.draftRevision) return
     const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'publish', input: {
@@ -361,7 +383,8 @@ function App() {
     }
   }
   const toolbar = <header className="dashboard-toolbar border-b">
-      <h1 className={readOnly || singleDashboard ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly || singleDashboard ? saved?.title ?? t.title : t.title}</h1>
+      <div className="toolbar-heading">
+      <h1 title={readOnly || singleDashboard ? saved?.title ?? t.title : undefined} className={readOnly || singleDashboard ? 'toolbar-title text-base font-semibold' : 'sr-only'}>{readOnly || singleDashboard ? saved?.title ?? t.title : t.title}</h1>
       {!readOnly && !singleDashboard && <DashboardPicker value={saved?.artifactId ?? ''} selectedTitle={saved?.title} project={currentProject ?? null} disabled={busy || deleting || editor !== null}
         open={pickerOpen} onOpenChange={togglePicker} t={t} onDelete={requestDelete}
         onShared={referenceId => { void run(async () => {
@@ -375,7 +398,11 @@ function App() {
           await openPicker(true); navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined, newDashboard: true }); await navigateDashboard(navigationTarget.current)
         }) }}/ >}
       {saved && <Badge variant="secondary" className="toolbar-version" role="status">{saved.isDraft ? i18n.t('draftRevision', { revision: saved.draftRevision ?? '—' }) : i18n.t('publishedVersion', { version: saved.versionNumber ?? '—' })}</Badge>}
+      </div>
       <div className="toolbar-actions">
+        {canEdit && saved?.versionId && !saved.isDraft && <Button variant="outline" disabled={busy || editor !== null} onClick={() => void run(async () => {
+          await requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: { target: 'workbench.view', viewKey: 'live-dashboard-evidence__analysis-evidence', parameters: { artifactId: saved.artifactId, versionId: saved.versionId, controls, title: saved.title } } })
+        })}>{t.evidenceCapture}</Button>}
         {canEdit && saved && editor === null && <>
           <Button variant={inspect ? 'secondary' : 'ghost'} size="icon" aria-label={t.inspect} title={t.inspect} aria-pressed={inspect} onClick={() => setInspect(value => !value)}><MousePointer2/></Button>
           <Button ref={sourcesButton} variant={sourceSelection ? 'secondary' : 'ghost'} aria-label={t.sources} aria-expanded={!!sourceSelection} onClick={() => sourceSelection ? closeSources() : setSourceSelection({})}><Database/><span className="hidden lg:inline">{t.sources}</span><span className="hidden sm:inline">{saved.manifest.bindings.length}</span></Button>
@@ -387,6 +414,7 @@ function App() {
         <ToolbarMenu t={t} disabled={busy || deleting || editor !== null} canEdit={canEdit} hasDashboard={!!saved} canShare={canManage && !!saved}
           canDelete={canManage && !!selectedDashboard?.canDelete && !!selectedDashboard.draftRevision} versions={versions} version={saved?.isDraft ? 'draft' : saved?.versionId ?? undefined}
           onVersion={!readOnly && access.canReadDraft && saved ? id => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id, true, id === 'draft' ? 'draft' : 'published')) : undefined}
+          onRestore={canEdit && saved?.versionId && !saved.isDraft ? () => void run(prepareRestore) : undefined}
           onEdit={() => void run(async () => {
             if (!saved) return
             const result = await load(saved.artifactId, undefined, 'draft')
@@ -395,7 +423,8 @@ function App() {
           })}
           onImport={() => setImporting(true)} onExport={() => void run(exportDashboard)} onShare={() => setSharing(true)}
           onDelete={() => { if (selectedDashboard) requestDelete(selectedDashboard) }}
-          refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}/>
+          refreshSeconds={refreshSeconds} onRefreshSeconds={setRefreshSeconds} updatedAt={status}
+          cacheSeconds={cacheSeconds} onCacheSeconds={saved?.manifest.presentation ? undefined : setCacheSeconds}/>
       </div>
     </header>
   const filters = saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
@@ -414,6 +443,13 @@ function App() {
         {deleteError && <p role="alert" className="text-destructive">{deleteError}</p>}
         <AlertDialogFooter><AlertDialogCancel disabled={busy || deleting}>{t.cancel}</AlertDialogCancel>
           <Button variant="destructive" disabled={busy || deleting} onClick={() => void run(deleteDashboard)}>{deleting ? t.deleting : t.deleteDashboard}</Button></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={!!confirmRestore} onOpenChange={open => { if (!open && !busy) setConfirmRestore(null) }}>
+      <AlertDialogContent><AlertDialogTitle>{t.restoreDraft}</AlertDialogTitle>
+        <AlertDialogDescription>{t.confirmRestoreDraft}</AlertDialogDescription>
+        <AlertDialogFooter><AlertDialogCancel disabled={busy}>{t.cancel}</AlertDialogCancel>
+          <Button disabled={busy} onClick={() => void run(restoreVersion)}>{t.restoreDraft}</Button></AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
     <AlertDialog open={!!confirmPublish} onOpenChange={open => { if (!open && !busy) setConfirmPublish(null) }}>
@@ -471,4 +507,4 @@ function rendererHtml(payload: unknown) {
   window.fetch=async function(input,init){const path=new URL(typeof input==='string'?input:input.url,'https://renderer.invalid').pathname;const payload=window.xpertai.toolOutput;const data={'/api/manifest':payload.manifest,'/api/snapshot':payload.snapshot,'/api/package':{manifestPath:'live dashboard',snapshotPath:'live query'}};const ok=(!init||!init.method||init.method==='GET')&&Object.prototype.hasOwnProperty.call(data,path);return new Response(JSON.stringify(ok?data[path]:{error:'Unavailable in live read-only view'}),{status:ok?200:404,headers:{'Content-Type':'application/json'}})};<\/script>`
   return window.__ANALYTICS_RENDERER_HTML__.replace(/<head(\s[^>]*)?>/i, (head) => `${head}${setup}`)
 }
-createRoot(document.getElementById('root')!).render(<RemoteI18nProvider i18n={i18n}><>{window.__DASHBOARD_PAGE__ ? <LibraryApp page={window.__DASHBOARD_PAGE__}/> : <App/>}</></RemoteI18nProvider>)
+createRoot(document.getElementById('root')!).render(<RemoteI18nProvider i18n={i18n}><>{window.__DASHBOARD_PAGE__ === 'evidence' ? <EvidenceApp/> : window.__DASHBOARD_PAGE__ ? <LibraryApp page={window.__DASHBOARD_PAGE__}/> : <App/>}</></RemoteI18nProvider>)

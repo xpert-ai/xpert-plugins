@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actionRoot = path.join(packageRoot, 'dist', 'sandbox-actions', 'hyperframes-render')
 const manifest = JSON.parse(await readFile(path.join(actionRoot, 'action.json'), 'utf8'))
-if (manifest.name !== 'motion.hyperframes-render' || manifest.version !== '1.0.0') throw new Error('Motion Action identity is invalid.')
+if (manifest.name !== 'motion.hyperframes-render' || manifest.version !== '1.1.0') throw new Error('Motion Action identity is invalid.')
 if (manifest.runtimeProfile !== 'browser/video-playwright-1.61/v1') throw new Error('Motion Action must use the platform Browser Video profile.')
 const bundleRoot = await realpath(path.join(actionRoot, manifest.bundle))
 const files = []

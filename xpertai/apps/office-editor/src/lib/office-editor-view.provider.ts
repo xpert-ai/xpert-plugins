@@ -85,6 +85,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
         order: 42,
         refreshable: true,
         activation: {
+          projectResource: true,
           requiredFeatures: [OFFICE_EDITOR_FEATURE]
         },
         ...(isAgentFixedWorkbench
@@ -119,6 +120,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
         dataSource: {
           mode: 'platform',
           querySchema: {
+            supportsSelection: true,
             supportsPagination: true,
             supportsSearch: true,
             supportsParameters: true,
@@ -151,6 +153,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
           ]
         },
         clientCommands: [
+          { key: 'workbench.content.status', label: text('Editor status', '编辑状态') },
           {
             key: 'assistant.chat.send_message',
             label: text('Send to Assistant Chat', '发送到 Assistant 对话')

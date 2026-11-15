@@ -1,3 +1,5 @@
+import { OfficeWorkbookCollaboration } from './workbooks/collaboration.provider.js'
+import { OfficeDocumentContent, OfficeDocumentEditor } from './documents/content.provider.js'
 import { OfficeWorkbookService } from './workbooks/service.js'
 import { OfficeWorkbookContent, OfficeWorkbookEditor } from './workbooks/content.provider.js'
 import { OfficeWorkbookView } from './workbooks/view.provider.js'
@@ -31,7 +33,8 @@ export const OFFICE_EDITOR_ENTITIES = [
   imports: [TypeOrmModule.forFeature(OFFICE_EDITOR_ENTITIES)],
   entities: OFFICE_EDITOR_ENTITIES,
   providers: [
-    OfficeWorkbookService, OfficeWorkbookContent, OfficeWorkbookEditor, OfficeWorkbookView,
+    OfficeDocumentContent, OfficeDocumentEditor,
+    OfficeWorkbookCollaboration, OfficeWorkbookService, OfficeWorkbookContent, OfficeWorkbookEditor, OfficeWorkbookView,
     OfficeSpreadsheetFormat,
     OfficeFileService,
     OfficeFileView,

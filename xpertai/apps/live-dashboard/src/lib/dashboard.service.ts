@@ -133,7 +133,7 @@ export class DashboardService {
     if (draft?.metadata?.saveRequestId !== requestId || draft.revision !== expectedRevision + 1) return null
     return { artifactId: artifact.id, draftId: draft.id, draftRevision: draft.revision, baseVersionId: draft.baseVersionId, status: 'draft' as const, title: draft.title ?? artifact.title ?? '' }
   }
-  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0, importedDependencies?: ArtifactDocumentDependencyAsset[], task?: SaveOptions) {
+  async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0, importedDependencies?: ArtifactDocumentDependencyAsset[], task?: SaveOptions, restoreVersionId?: string) {
     await task?.progress('authorization', 0, manifest.bindings.length)
     await this.authorizeProject(context, 'write')
     const scopedActor = actor(context)
@@ -147,7 +147,9 @@ export class DashboardService {
     const previous = existing && (existing.currentVersionId || expectedRevision > 0) ? await this.openDocument(context, existing.id) : null
     this.assertCapacity(parsed.bindings.length, previous?.manifest.bindings.length ?? 0)
     if (importedDependencies && existing) throw new BadRequestException('DASHBOARD_IMPORT_NEW_ID_REQUIRED')
+    const restored = restoreVersionId && existing ? await this.openDocument(context, existing.id, restoreVersionId) : undefined
     const dependencies = importedDependencies ? verifyArtifactDocumentDependencies(importedDependencies, parsed.presentation?.dependencies ?? [])
+      : restored ? verifyArtifactDocumentDependencies(restored.dependencies, parsed.presentation?.dependencies ?? [])
       : await resolveLibraryAssets(parsed.presentation?.dependencies ?? [], previous?.dependencies)
     const buffer = encodeDashboardPackage(parsed, dependencies)
     if (buffer.byteLength > MAX_DASHBOARD_PACKAGE_BYTES) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
@@ -223,6 +225,15 @@ export class DashboardService {
     return this.save(context, dashboardSchema.parse({ ...saved.manifest, ...dashboardChangesSchema.parse(changes) }),
       saved.baseVersionId ?? saved.versionId ?? null, expectedRevision)
   }
+  /** Historical bytes become a freshly validated draft; published versions and shares stay unchanged. */
+  async restore(context: XpertResolvedViewHostContext, artifactId: string, versionId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
+    await this.authorizeProject(context, 'write')
+    const current = await this.open(context, artifactId)
+    if ((current.draftRevision ?? 0) !== expectedRevision || (current.baseVersionId ?? current.versionId ?? null) !== expectedCurrentVersionId)
+      throw new ConflictException('DASHBOARD_DRAFT_CONFLICT')
+    const historical = await this.openDocument(context, artifactId, versionId)
+    return this.save(context, historical.manifest, expectedCurrentVersionId, expectedRevision, undefined, undefined, versionId)
+  }
   async publish(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
     await this.authorizeProject(context, 'manage')
     return this.publishDraft(context, artifactId, expectedRevision, expectedCurrentVersionId)
@@ -248,9 +259,11 @@ export class DashboardService {
     const { datasets, failures } = await queryDashboardPartial(this.runtime, actor(context), saved.manifest, controls)
     return { ...saved, datasets, failures, ...(saved.manifest.presentation ? {} : { payload: toDataAnalyticsPayload(saved.manifest, datasets) }) }
   }
-  async queryBinding(context: XpertResolvedViewHostContext, artifactId: string, versionId: string | undefined, bindingId: string, input: Record<string, AnalyticsValue>, draftRevision?: number) {
+  async queryBinding(context: XpertResolvedViewHostContext, artifactId: string, versionId: string | undefined, bindingId: string, input: Record<string, AnalyticsValue>, draftRevision?: number, cache?: AnalyticsQueryRequest['cache']) {
     const saved = await this.open(context, artifactId, versionId, draftRevision)
-    return queryDashboardBinding(this.runtime, actor(context), saved.manifest, bindingId, input)
+    const result = await queryDashboardBinding(this.runtime, actor(context), saved.manifest, bindingId, input, cache)
+    await this.authorizeProject(context)
+    return result
   }
   /** Every operation uses the current human's Project role; data queries still use actor(context). */
   async authorizeProject(context: XpertResolvedViewHostContext, operation: 'read' | 'write' | 'manage' = 'read') {

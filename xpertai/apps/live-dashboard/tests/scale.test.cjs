@@ -100,3 +100,28 @@ test('overlapping identical refreshes retain one Sources execution identity', as
   assert.equal(state.binding0.state, 'succeeded')
   session.dispose()
 })
+
+test('reuse policy preserves query times, expires on demand and force refresh bypasses reuse', async () => {
+  const f = setup(), value = manifest(1), requests = []
+  let maxAge = 30000, old = false
+  const session = createDashboardQuerySession(value, async input => {
+    requests.push(input)
+    const result = await f.capabilities['platform.analytics'].query({}, { binding: value.bindings[0], controls: input.controls })
+    result.freshness.executedAt = new Date(Date.now() - (old ? 60000 : 0)).toISOString()
+    return result
+  }, () => {}, () => {}, () => {}, () => maxAge)
+  await session.query({ region: 'all' }, 'initial')
+  await session.query({ region: 'all' })
+  assert.equal(requests.length, 1)
+  assert.deepEqual(requests[0].cache, { maxAgeMs: 30000, forceRefresh: false })
+  old = true
+  await session.query({ region: 'east' })
+  await session.query({ region: 'east' })
+  assert.equal(requests.length, 3)
+  await session.query({ region: 'east' }, 'refresh')
+  assert.deepEqual(requests.at(-1).cache, { maxAgeMs: 30000, forceRefresh: true })
+  maxAge = 0
+  await session.query({ region: 'west' })
+  assert.equal(requests.at(-1).cache, undefined)
+  session.dispose()
+})

@@ -25,12 +25,25 @@ const optionsSchema = z.object({
   baseUrl: z.string().url(), audience: z.string().min(1),
   assistantCode: z.string().min(1), assistantXpertId: z.string().uuid(), workspaceId: z.string().uuid()
 }).strict()
+
+const certificationSchema = z.discriminatedUnion('status', [
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('legacy_unverified') }).strict(),
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('verified'),
+    definitionHash: z.string().regex(/^[a-f0-9]{64}$/),
+    dependency: z.object({ id: z.string().min(1).max(160), version: z.number().int().nonnegative() }).strict(),
+    certifiedBy: z.string().min(1).max(160), certifiedAt: z.string().datetime() }).strict()
+])
+
 const responseSchema = z.object({
   effect: z.object({ version: z.literal(2), kind: z.enum(['rows', 'series', 'entity']),
     columns: z.array(dataXpertResultColumnSchema),
     rows: z.array(z.record(scalar)),
     summary: z.object({ rowCount: z.number().int().nonnegative(), returnedRowCount: z.number().int().nonnegative(), truncated: z.boolean() }) }),
-  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false)
+  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false),
+  sourceVersion: z.string().min(1).max(256).optional(),
+  certification: certificationSchema.optional()
 })
 
 @Injectable()
@@ -94,7 +107,8 @@ export class DataXpertAnalyticsClient {
       completeness: { returnedRows: result.effect.summary.returnedRowCount, totalRows: result.effect.summary.rowCount,
         totalAccuracy: result.effect.summary.truncated ? 'unknown' : 'exact', scope: result.effect.summary.truncated ? 'page' : 'full_query_result',
         truncated: result.effect.summary.truncated }, sourceFetchedAt: result.fetchedAt,
-      upstreamExecutionId: result.executionId, auditRef: result.auditRef }
+      upstreamExecutionId: result.executionId, auditRef: result.auditRef, sourceVersion: result.sourceVersion,
+      ...(result.certification ? { certification: result.certification } : {}) }
   }
   private async query(id: string, payload: z.output<typeof dataXpertPayloadSchema>, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext) {
     const response = await this.request('query', context, {

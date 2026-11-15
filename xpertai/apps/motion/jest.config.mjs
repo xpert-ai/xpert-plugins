@@ -1,11 +1,12 @@
-/**
- * @jest-config-loader-options {"project":"tsconfig.jest.json"}
- */
 import { readFileSync } from 'fs'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const swcJestConfig = JSON.parse(readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'))
 
 swcJestConfig.swcrc = false
+swcJestConfig.jsc.externalHelpers = false
 
 export default {
   displayName: '@xpert-ai/plugin-motion',

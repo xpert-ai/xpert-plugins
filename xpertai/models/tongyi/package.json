@@ -39,8 +39,8 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@xpert-ai/contracts": "3.30.0",
-    "@xpert-ai/plugin-sdk": "3.30.0"
+    "@xpert-ai/contracts": "3.35.0",
+    "@xpert-ai/plugin-sdk": "3.35.0"
   },
   "peerDependencies": {
     "zod": "3.25.67",

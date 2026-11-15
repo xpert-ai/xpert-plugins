@@ -346,10 +346,12 @@ test('rows, series and entity effects use canonical rows, preserve audit and mar
   const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
   for (const kind of ['rows', 'series', 'entity']) {
     response = effectResponse(kind, true)
+    response.sourceVersion = 'model:3:metrics:approved-definition'
     const result = await provider.execute(simpleBinding, {}, context)
     assert.deepEqual(result.rows, [{ amount: 80 }]); assert.equal(result.sourceFetchedAt, response.fetchedAt)
     assert.deepEqual(result.completeness, { returnedRows: 1, totalRows: 20, totalAccuracy: 'unknown', scope: 'page', truncated: true })
     assert.equal(result.upstreamExecutionId, 'source-execution'); assert.equal(result.auditRef, 'audit')
+    assert.equal(result.sourceVersion, response.sourceVersion)
   }
 })
 test('unsupported effects and cached replies fail; refresh performs another request', async t => {
@@ -411,4 +413,17 @@ test('abort cancels an in-flight response body', async t => {
     setImmediate(() => controller.abort())
   })
   await assert.rejects(provider.discover({}, { ...context, signal: controller.signal }), e => e.name === 'AbortError')
+})
+
+test('only transports valid source-issued certification and preserves absence for ordinary queries', async t => {
+  let response = effectResponse()
+  const { provider, context } = await fixture(t, (_req, res) => res.end(JSON.stringify(response)))
+  assert.equal((await provider.execute(simpleBinding, {}, context)).certification, undefined)
+  response.certification = { kind: 'business_metric', status: 'verified', subjectId: 'metric', definitionHash: 'a'.repeat(64),
+    dependency: { id: 'model', version: 2 }, certifiedBy: 'approver', certifiedAt: '2026-11-12T00:00:00Z', verifiedAt: '2026-11-12T01:00:00Z' }
+  assert.deepEqual((await provider.execute(simpleBinding, {}, context)).certification, response.certification)
+  response.certification.definitionHash = 'not-a-definition'
+  await assert.rejects(provider.execute(simpleBinding, {}, context))
+  response.certification = { kind: 'business_metric', status: 'legacy_unverified', subjectId: 'metric', verifiedAt: '2026-11-12T01:00:00Z' }
+  assert.equal((await provider.execute(simpleBinding, {}, context)).certification.status, 'legacy_unverified')
 })

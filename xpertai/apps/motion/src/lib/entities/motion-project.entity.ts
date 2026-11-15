@@ -1,3 +1,4 @@
+import type { AnalysisEvidenceSnapshot } from '@xpert-ai/contracts'
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type {
   MotionJsonObject,
@@ -38,6 +39,13 @@ export class MotionProject {
 
   @Column({ type: 'varchar', nullable: true })
   conversationId?: string
+
+  /** Only native evidence imports are enrolled in this catalog model. */
+  @Column({ type: 'varchar', nullable: true }) contentModel?: string
+  @Column({ type: 'varchar', nullable: true }) createRequestHash?: string
+  @Column({ type: 'jsonb', nullable: true }) sourceEvidence?: {
+    id: string; sha256: string; initialChecksum: string; source: AnalysisEvidenceSnapshot['source']; narrationExportId?: string
+  }
 
   @Column({ type: 'varchar' })
   title!: string

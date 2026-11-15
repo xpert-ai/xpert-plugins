@@ -5,7 +5,8 @@ jest.mock('fractional-indexing', () => ({
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, key: string) => `plugin_${namespace}_${key}`,
   XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol.for('XPERT_RUNTIME_CAPABILITIES_TOKEN'),
-  CollaborationRuntimeCapability: { id: 'platform.collaboration' }
+  CollaborationRuntimeCapability: { id: 'platform.collaboration' },
+  ProjectAccessRuntimeCapability: { id: 'platform.project.access' }
 }))
 jest.mock('tldraw', () => ({
   createTLStore: () => createMockTlStore()
@@ -18,7 +19,7 @@ import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-
 import type { Repository } from 'typeorm'
 import type { CanvasJsonValue, CanvasRecord, CanvasScope, CanvasSnapshotData, CanvasWorkspaceFileRecord, CanvasWorkspaceFilesApi } from './types.js'
 import { CANVAS_WORKSPACE_FILES_RUNTIME_CAPABILITY } from './types.js'
-import { CollaborationRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { CollaborationRuntimeCapability, ProjectAccessRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { createCanvasYDoc, encodeCanvasYDoc } from './canvas-yjs.js'
 import * as Y from 'yjs'
 
@@ -233,6 +234,8 @@ describe('CanvasService', () => {
     const registry = asRuntimeRegistry({
       get: (capability: unknown) => capability === CollaborationRuntimeCapability
         ? collaboration
+        : capability === ProjectAccessRuntimeCapability
+          ? { assertEdit: async () => ({}), assertManage: async () => ({}), assertAssistant: async () => ({}), listReadable: async () => [{}] }
         : typeof externalGet === 'function'
           ? externalGet.call(runtimeRegistry, capability)
           : undefined
@@ -330,6 +333,7 @@ describe('CanvasService', () => {
       projectId: scope.projectId,
       providerKey: 'canvas.document',
       resourceId: created.item.id,
+      userId: scope.userId,
       operation: 'write' as const
     }
 

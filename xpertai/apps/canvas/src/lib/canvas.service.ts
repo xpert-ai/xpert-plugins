@@ -1,3 +1,4 @@
+import { authorizeCanvasCollaboration } from './canvas-collaboration-access.js'
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
@@ -1022,7 +1023,18 @@ export class CanvasService {
     await this.requireDocument(scope, documentId)
     const document = await this.ensureCollaborationDocument(documentId)
     const session = await this.collaboration().createSession({ documentId: document.id, access: 'write' })
-    return { ...session, canvasDocumentId: documentId }
+    return { ...session, canvasDocumentId: documentId, schemaVersion: document.schemaVersion }
+  }
+
+  /** Explicit upgrade retains identity/history and prevents old browser sessions from writing afterward. */
+  async upgradeCollaborationDocument(scope: CanvasScope, documentId: string, expectedSequence: number) {
+    await this.requireDocument(scope, documentId)
+    const document = await this.ensureCollaborationDocument(documentId)
+    const api = this.collaboration()
+    if (!api.migrateDocument) throw new Error('CANVAS_SCHEMA_MIGRATION_HOST_REQUIRED')
+    await api.migrateDocument({ documentId: document.id, expectedSequence,
+      expectedSchemaVersion: 1, targetSchemaVersion: CANVAS_COLLABORATION_SCHEMA_VERSION })
+    return this.openDocument(scope, documentId)
   }
 
   /** Authorize the exact Canvas business resource within the Provider's platform scope. */
@@ -1030,11 +1042,8 @@ export class CanvasService {
     if (!context.tenantId) return false
     const where = scopedWhere(collaborationScope(context), { id: context.resourceId }) as FindOptionsWhere<CanvasDocument>
     if (context.xpertId) where.assistantId = context.xpertId
-    return Boolean(
-      await this.documentRepository.findOne({
-        where
-      })
-    )
+    const document = await this.documentRepository.findOne({ where })
+    return document ? authorizeCanvasCollaboration(document, context, this.runtimeCapabilities) : false
   }
 
   /** Import the legacy materialized tldraw snapshot when the platform first sees this Canvas. */
@@ -1137,6 +1146,7 @@ export class CanvasService {
     await this.collaboration().applyUpdate({
       documentId: collaborationDocument.id,
       updateBase64: Buffer.from(update).toString('base64'),
+      expectedSchemaVersion: state.document.schemaVersion,
       origin,
       expectedSequence,
       actor: {
@@ -1160,6 +1170,7 @@ export class CanvasService {
     await this.collaboration().applyUpdate({
       documentId: collaborationDocument.id,
       updateBase64: Buffer.from(update).toString('base64'),
+      expectedSchemaVersion: state.document.schemaVersion,
       origin,
       expectedSequence: state.sequenceNumber,
       actor: {
