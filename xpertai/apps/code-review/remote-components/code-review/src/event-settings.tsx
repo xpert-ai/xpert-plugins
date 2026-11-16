@@ -28,6 +28,7 @@ export function EventSettings({ settings, onChange, locale }: { settings: Policy
       </Select>
     </label>
     <p className="text-xs text-muted-foreground">{t('publication.help')}</p>
+    <label className="flex items-center gap-2 text-sm"><Checkbox checked={settings.eventInboxShadow ?? false} onCheckedChange={value => onChange({ eventInboxShadow: value === true })}/>{t('eventInboxShadow')}</label>
     <fieldset className="space-y-3">
       <legend className="text-sm font-medium">{t('diagnoses')}</legend>
       <p className="text-sm text-muted-foreground">{t('workflowHelp')}</p>

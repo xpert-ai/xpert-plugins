@@ -66,6 +66,7 @@ const supplierQuoteItemSchema = z.object({
 })
 
 const saveSupplierQuoteSchema = z.object({
+  quoteSeriesId: z.string().uuid().optional().describe("Confirmed original quote ID for a revision from another document."),
   caseId: z.string().min(1).describe('Procurement comparison case id.'),
   documentId: z.string().optional().describe('Source quote document id.'),
   supplierName: z.string().min(1).describe('Supplier name.'),

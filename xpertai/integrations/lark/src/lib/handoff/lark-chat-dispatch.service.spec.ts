@@ -16,6 +16,7 @@ import {
 	MANAGED_QUEUE_SERVICE_TOKEN,
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
+import { larkEventDispatch } from './lark-event-dispatch-context.js'
 import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
 import type { ChatLarkMessage } from '../message.js'
 
@@ -226,6 +227,20 @@ describe('LarkChatDispatchService', () => {
 		).resolves.toEqual(expect.objectContaining({ payload: expect.any(Object) }))
 		expect(redis.eval).toHaveBeenCalledTimes(2)
 		expect(dispatchLocks.size).toBe(0)
+	})
+
+	it('correlates an Event Inbox dispatch with its original Handoff run and conversation', async () => {
+		mockRequestContext({userId: 'user', tenantId:'tenant', organizationId:'org'})
+		const {service} = createFixture({conversationId:'conversation-1', dispatchContext: {
+			tenantId:'tenant',organizationId:'org',createdById:'user',source:'exact'
+		}})
+		const larkMessage = createLarkMessage()
+		const record = jest.fn(async () => {})
+		const runId = 'lark-chat-event-test'
+		const message = await larkEventDispatch.run({integrationId:larkMessage.integrationId,xpertId:'xpert-1',runId,record},
+			() => service.buildDispatchMessage({xpertId:'xpert-1', input:'hello', larkMessage:larkMessage as any}))
+		expect(message.id).toBe(runId)
+		expect(record).toHaveBeenCalledWith(runId, 'conversation-1')
 	})
 
 	it('buildDispatchMessage uses assistant runtime principal with creator callback context', async () => {

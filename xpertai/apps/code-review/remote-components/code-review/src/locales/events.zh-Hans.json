@@ -1,4 +1,5 @@
 {
+  "eventInboxShadow": "切流前比对本仓库的事件收件箱决定",
   "executionMode": "PR 审查执行方式",
   "assistant": "当前 Assistant",
   "pipeline": "项目流水线",

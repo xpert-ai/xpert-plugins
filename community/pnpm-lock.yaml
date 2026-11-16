@@ -10,6 +10,7 @@ overrides:
   '@xpert-ai/plugin-sdk@3.12.1>@xpert-ai/contracts': 3.12.1
   '@xpert-ai/plugin-sdk@3.15.0>@xpert-ai/contracts': 3.15.1
   '@xpert-ai/plugin-sdk@3.15.4>@xpert-ai/contracts': 3.15.4
+  '@xpert-ai/plugin-sdk@3.36.0-event-inbox.0>@xpert-ai/contracts': file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz
 
 importers:
 
@@ -634,11 +635,11 @@ importers:
         specifier: ^20.19.9
         version: 20.19.43
       '@xpert-ai/contracts':
-        specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+        specifier: file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz
+        version: file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.10.1
-        version: 3.18.4(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+        specifier: file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz
+        version: file:../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -6094,6 +6095,16 @@ packages:
 
   /@xpert-ai/chatkit-types@0.17.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72):
     resolution: {integrity: sha512-AtGQR6CcY5ph9H3sEmq0wFAGO8ohS0DrxajyJqkwjYvoyr46duMg54FJnwa2A1O93SUPMvf1/ngcLXXqc5yRkQ==}
+    peerDependencies:
+      '@a2ui/lit': ^0.8.1
+      '@langchain/core': ^1.0.2
+    dependencies:
+      '@a2ui/lit': 0.8.3(signal-polyfill@0.2.2)
+      '@langchain/core': 0.3.72
+    dev: true
+
+  /@xpert-ai/chatkit-types@0.22.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72):
+    resolution: {integrity: sha512-LBoFVYS4wEWmHzSm3GWDQxRLI8NUI47Jq3D9A/44WLALZnCpyjcB56XSzYAwMn4j2nPa/kv3fioH46TOmccxnQ==}
     peerDependencies:
       '@a2ui/lit': ^0.8.1
       '@langchain/core': ^1.0.2
@@ -12426,3 +12437,66 @@ packages:
     dependencies:
       tslib: 2.3.0
     dev: false
+
+  file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67):
+    resolution: {integrity: sha512-1f80JvM+F+u79v8rLN7oG0o6Seo8naALJrMj/QcD/YO/ybKm46oOCGFjq8Pu06OvqzMcw72U/YhiaMb+6CO2ng==, tarball: file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz}
+    id: file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz
+    name: '@xpert-ai/contracts'
+    version: 3.36.0-event-inbox.0
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@octokit/types': 13.10.0
+      '@types/json-schema': 7.0.15
+      '@xpert-ai/chatkit-types': 0.22.0(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)
+      zod: 3.25.67
+      zod-to-json-schema: 3.25.2(zod@3.25.67)
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - '@langchain/core'
+    dev: true
+
+  file:../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@25.6.0)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67):
+    resolution: {integrity: sha512-8B9jl8sVVvm9Jp6mbtgU0xiY2RMY9nz7A5xd72MlePc4CSv//ay9bwH/S/rDGNEgEA7fO0qzIU64/xPdp4P3jw==, tarball: file:../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz}
+    id: file:../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz
+    name: '@xpert-ai/plugin-sdk'
+    version: 3.36.0-event-inbox.0
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      '@langchain/core': 0.3.72
+      '@langchain/openai': 0.6.9(@langchain/core@0.3.72)
+      '@nestjs/common': 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      ajv: 8.20.0
+      express: 4.22.3
+      i18next: 25.6.0(typescript@5.9.2)
+      i18next-fs-backend: 2.6.8
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.18.1
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
+      yaml: 2.9.0
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - supports-color
+      - ws
+    dev: true

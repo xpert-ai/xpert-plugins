@@ -1,3 +1,5 @@
+import { QuoteEventRoute, QuoteEventFact, QuoteEventParse } from './event-journal.js'
+import { QuoteEvents } from './quote-events.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -17,6 +19,7 @@ import { ProcurementQuoteComparisonService } from './procurement-quote-compariso
 import { ProcurementQuoteComparisonViewProvider } from './procurement-quote-comparison-view.provider.js'
 
 export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
+  QuoteEventRoute, QuoteEventFact, QuoteEventParse,
   ProcurementComparisonCase,
   ProcurementSourceDocument,
   ProcurementParseJob,
@@ -32,6 +35,7 @@ export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
   imports: [TypeOrmModule.forFeature(PROCUREMENT_QUOTE_COMPARISON_ENTITIES)],
   entities: PROCUREMENT_QUOTE_COMPARISON_ENTITIES,
   providers: [
+    QuoteEvents,
     ProcurementQuoteComparisonService,
     ProcurementQuoteComparisonMiddleware,
     ProcurementQuoteComparisonViewProvider

@@ -39,7 +39,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "procurement"
     }
   },
   "dependencies": {
@@ -51,8 +52,8 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.10.1 || 3.36.0-event-inbox.0",
+    "@xpert-ai/plugin-sdk": "^3.10.1 || 3.36.0-event-inbox.0",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -65,8 +66,8 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.0.tgz",
+    "@xpert-ai/plugin-sdk": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-event-inbox.0.tgz",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",

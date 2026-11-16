@@ -19,6 +19,7 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: { plugin: { level: 'system'; artifactNamespace: string } }
 }
 
 const ConfigSchema = z.object({})
@@ -27,7 +28,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    level: 'system',
+    level: packageJson.xpert.plugin.level,
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {
