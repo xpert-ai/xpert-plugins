@@ -1,6 +1,6 @@
 # Event Inbox SDK snapshot
 
-Code Review, Procurement Quote Comparison and Lark build against the platform's Event Inbox API. The npm release of `@xpert-ai/plugin-sdk@3.35.0` predates that API. The two archives here are development dependencies for `3.36.0-event-inbox.1`. The packer pins the source digest of both platform packages, including the follow-up wake contract and branch references. Both pnpm workspaces lock their SHA-512 integrity and resolve the SDK's Contracts dependency to the same archive. The plugins use the host's SDK at runtime.
+Procurement Quote Comparison builds against `3.36.0-event-inbox.1` for the follow-up wake contract and branch references. The packer pins the source digest of both platform packages. The community workspace locks both archives by SHA-512 integrity and resolves the SDK's Contracts dependency to the same archive. Code Review and Lark build against the registry release `3.36.0`. All three plugins use the host's SDK at runtime.
 
 For the event source contract, type declarations, and plugin examples, see the [Event Inbox plugin guide](../../docs/event-inbox.md).
 
@@ -10,4 +10,4 @@ To reproduce the archives, use a source checkout matching the pinned source dige
 node packages/event-inbox-sdk-snapshot/pack.mjs "$XPERT_PLATFORM_ROOT" "$OUTPUT_DIR"
 ```
 
-Switch the three development manifests and both lockfiles to the matching registry releases when the SDK and Contracts with Event Inbox become available. Remove the snapshot-specific overrides and these archives together.
+Switch the procurement development dependencies and community lockfile to registry releases that include the follow-up wake contract and branch references. Remove the snapshot override and these archives together.

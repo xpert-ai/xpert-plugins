@@ -132,7 +132,6 @@
       "@xpert-ai/plugin-view-image",
       "@xpert-ai/plugin-lark-cli",
       "@xpert-ai/plugin-github-connector",
-      "@xpert-ai/plugin-file-memory",
       "@xpert-ai/plugin-cut",
       "@xpert-ai/plugin-motion",
       "@xpert-ai/plugin-story-studio",

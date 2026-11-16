@@ -52,16 +52,16 @@
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@xpert-ai/contracts": "^3.35.0",
-    "@xpert-ai/plugin-sdk": "^3.35.0",
+    "@xpert-ai/contracts": "^3.36.0",
+    "@xpert-ai/plugin-sdk": "^3.36.0",
     "react": ">=18",
     "react-dom": ">=18"
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@xpert-ai/contracts": "3.35.0",
-    "@xpert-ai/plugin-sdk": "3.35.0",
+    "@xpert-ai/contracts": "3.36.0",
+    "@xpert-ai/plugin-sdk": "3.36.0",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "@swc/core": "~1.5.7",
     "@swc/jest": "~0.2.38",
