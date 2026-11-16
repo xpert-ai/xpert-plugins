@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, Optional } from '@nestjs/common'
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { ViewExtensionProvider, renderRemoteReactIframeHtml,
@@ -11,12 +11,14 @@ import { PptxFiles, type PptxFileInput } from './files.js'
 import { PptxTemplates, templateImportSchema, templateListSchema } from './template-service.js'
 import { templateComposeSchema, templateInspectSchema } from './template-schema.js'
 import { PRESENTATION_VIEW_ICON, TEMPLATE_LIBRARY_VIEW_ICON } from './view-icons.js'
+import { PptxPreview } from './preview.js'
 const LIBRARY_VIEW = 'pptx_editor.templates'
 
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const resource = z.object({ resourceId: z.string().uuid(), providerKey: z.string().min(1).max(200).refine(value => value !== 'platform.workspace.file') }).strict()
 const workspace = z.object({ resourceId: z.string().regex(/^[a-f0-9]{64}$/), providerKey: z.literal('platform.workspace.file'), filePath: z.string().min(1).max(2000) }).strict()
 const reference = z.union([workspace, resource])
+const coverReference = z.object({ kind: z.literal('cover'), source: reference, sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 const revision = z.string().min(1).max(300)
 const scopeSchema = z.object({ actor: z.object({ tenantId: z.string().uuid(), organizationId: z.string().uuid(), userId: z.string().uuid() }),
   projectId: z.string().uuid(), assistantId: z.string().uuid().optional() })
@@ -29,7 +31,7 @@ function checked<T, D extends z.ZodTypeDef, I>(schema: z.ZodType<T, D, I>, value
 @Injectable()
 @ViewExtensionProvider(PPTX_VIEW_PROVIDER)
 export class PptxView implements IXpertViewExtensionProvider {
-  constructor(private readonly files: PptxFiles, private readonly templates: PptxTemplates) {}
+  constructor(private readonly files: PptxFiles, private readonly templates: PptxTemplates, @Optional() private readonly previews?: PptxPreview) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' || context.hostType === 'project' }
   private scope(context: XpertResolvedViewHostContext) {
     if (!this.supports(context)) throw new BadRequestException('pptx.view_unavailable')
@@ -53,7 +55,7 @@ export class PptxView implements IXpertViewExtensionProvider {
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: PPTX_ENTRY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsSelection: true, supportsParameters: true } },
-      fileAccess: { purposes: ['download'] },
+      fileAccess: { purposes: ['download', 'preview'] },
       actions: [{ key: 'file.read', label: label('Open presentation', '打开演示文稿'), actionType: 'invoke' },
         { key: 'file.session', label: label('Collaborate', '协作'), actionType: 'invoke' },
         { key: 'templates.list', label: label('Template library', '模板库'), actionType: 'invoke' },
@@ -102,6 +104,11 @@ export class PptxView implements IXpertViewExtensionProvider {
     this.view(key)
     let value: unknown
     try { value = JSON.parse(request.fileKey) } catch { throw new BadRequestException('pptx.invalid_reference') }
+    const cover = coverReference.safeParse(value)
+    if (cover.success) {
+      if (request.purpose !== 'preview' || !this.previews) throw new BadRequestException('pptx.preview_unavailable')
+      return this.previews.resolve(this.input(context, cover.data.source), cover.data.sha256)
+    }
     return this.files.download(this.input(context, value))
   }
 }

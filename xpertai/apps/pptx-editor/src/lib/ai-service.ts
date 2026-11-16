@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common'
 import { AssistantMiddlewareAccessRuntimeCapability, ContentEditorsRuntimeCapability, ProjectAccessRuntimeCapability,
   ProjectFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type ContentDocumentScope, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
@@ -10,6 +10,7 @@ import { generatePresentation } from './ai-generate.js'
 import { digest, matchReceipt, readReceipts, recordReceipt, type Receipt } from './ai-receipts.js'
 import { pptxResourceCard } from './resource-card.js'
 import { presentationSummary } from './presentation-summary.js'
+import { PptxPreview } from './preview.js'
 import { PptxTemplates, templateListSchema } from './template-service.js'
 import { templateComposeSchema, templateInspectSchema } from './template-schema.js'
 
@@ -23,7 +24,8 @@ const conflict = (error: unknown) => error instanceof ConflictException || (!!er
 @Injectable()
 export class PptxAi {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry,
-    private readonly format: PptxFormat, private readonly engine: PptxEngine, private readonly templates: PptxTemplates) {}
+    private readonly format: PptxFormat, private readonly engine: PptxEngine, private readonly templates: PptxTemplates,
+    @Optional() private readonly previews?: PptxPreview) {}
   private editors() { return this.runtime.require(ContentEditorsRuntimeCapability) }
   private files() { return this.runtime.require(ProjectFilesRuntimeCapability) }
   private async authorize(value: ContentDocumentScope, write = false): Promise<PptxAiScope> {
@@ -143,8 +145,11 @@ export class PptxAi {
     const sourcePath = saved.sourceFilePath ?? saved.filePath
     const resolved = await this.editors().resolveFile({ ...scope, path: sourcePath })
     const download = sourcePath === saved.filePath ? resolved : await this.editors().resolveFile({ ...scope, path: saved.filePath })
+    const source = download.resource?.resourceRef
+    const coverHash = await this.previews?.create(source ? { ...scope, source }
+      : { ...scope, path: saved.filePath, editorKey: PPTX_EDITOR }).catch(() => undefined)
     return pptxResourceCard(scope.projectId, sourcePath, saved.title, resolved, {
-      slideCount: saved.slideCount, download: { filePath: saved.filePath, resolved: download }
+      slideCount: saved.slideCount, coverHash, download: { filePath: saved.filePath, resolved: download }
     })
   }
   private expected(actual: string, expected: string) {

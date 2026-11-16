@@ -56,3 +56,4 @@ for (const entry of provenance.files) {
     throw new Error(`Stale packaged template: ${entry.path}`)
 }
 if (!process.argv.includes('--check')) await cp(templatesRoot, join(root, 'dist/assets/templates'), { recursive: true })
+await import('./build-cover-action.mjs')

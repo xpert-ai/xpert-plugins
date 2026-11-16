@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common'
 import { ContentEditorsRuntimeCapability, ProjectAccessRuntimeCapability, ProjectFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN, type ContentDocumentScope, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { createHash } from 'node:crypto'
@@ -11,6 +11,7 @@ import { digest, matchReceipt, readReceipts, recordReceipt } from './ai-receipts
 import { templateCatalogSchema, templateComposeSchema, templateInspectSchema, templateSourceSchema,
   type TemplateCatalog, type TemplateSource, type TemplateEngineInput } from './template-schema.js'
 import { pptxResourceCard } from './resource-card.js'
+import { PptxPreview } from './preview.js'
 
 const scopeSchema = z.object({ actor: z.object({ tenantId: z.string().uuid(), organizationId: z.string().uuid(), userId: z.string().uuid() }).strict(),
   projectId: z.string().uuid(), assistantId: z.string().uuid().optional() }).strict()
@@ -25,7 +26,8 @@ const conflict = (error: unknown) => error instanceof ConflictException || (!!er
 export class PptxTemplates {
   private catalog?: Promise<TemplateCatalog>
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry,
-    private readonly format: PptxFormat, private readonly engine: PptxEngine) {}
+    private readonly format: PptxFormat, private readonly engine: PptxEngine,
+    @Optional() private readonly previews?: PptxPreview) {}
   private editors() { return this.runtime.require(ContentEditorsRuntimeCapability) }
   private files() { return this.runtime.require(ProjectFilesRuntimeCapability) }
   private async authorize(value: ContentDocumentScope, write = false) {
@@ -122,8 +124,11 @@ export class PptxTemplates {
       const { file, resolved } = await this.current(scope, filePath)
       if (!file.canWrite) throw new ForbiddenException('pptx.read_only')
       if (!matchReceipt(await readReceipts(file.buffer), receipt, true)) throw new ConflictException('pptx.creation_conflict')
+      const source = resolved.resource?.resourceRef
+      const coverHash = await this.previews?.create(source ? { ...scope, source }
+        : { ...scope, path: filePath, editorKey: PPTX_EDITOR }).catch(() => undefined)
       return { filePath, title: input.title, revision: file.revision, slideCount: input.slides.length,
-        card: pptxResourceCard(scope.projectId, filePath, input.title, resolved, { slideCount: input.slides.length }), replayed: true }
+        card: pptxResourceCard(scope.projectId, filePath, input.title, resolved, { slideCount: input.slides.length, coverHash }), replayed: true }
     }
     // A replay still requires access to the source; a revoked template cannot authorize a new delivery.
     const source = await this.source(scope, input.source)

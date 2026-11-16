@@ -10,7 +10,7 @@ const logger = new Logger('PptxResourceCard')
 
 /** One delivery identity per original file; editing and downloading resolve independently. */
 export function pptxResourceCard(projectId: string, filePath: string, title: string, resolved: ContentEditorResolution,
-  options: { slideCount?: number; download?: { filePath: string; resolved: ContentEditorResolution } } = {}): ConversationResourceCard {
+  options: { slideCount?: number; coverHash?: string; download?: { filePath: string; resolved: ContentEditorResolution } } = {}): ConversationResourceCard {
   const { viewKey, selectionId, parameters } = resolved
   if (viewKey !== `${PPTX_VIEW_PROVIDER}__${PPTX_VIEW}` || !selectionId || !parameters)
     throw new Error('pptx.preview_unavailable')
@@ -21,6 +21,9 @@ export function pptxResourceCard(projectId: string, filePath: string, title: str
   const reference = target.resource?.resourceRef ?? { providerKey: 'platform.workspace.file', resourceId: target.selectionId, filePath: download.filePath }
   const id = digest({ projectId, filePath })
   const content: NonNullable<ConversationResourceCard['content']> = []
+  if (options.coverHash) content.push({ kind: 'image-gallery', images: [{ id: options.coverHash, title,
+    file: { viewKey: target.viewKey, targetId: target.selectionId,
+      fileKey: JSON.stringify({ kind: 'cover', source: reference, sha256: options.coverHash }) } }] })
   content.push({ kind: 'file-list', files: [{ id: digest({ projectId, filePath: download.filePath }), title,
     file: { viewKey: target.viewKey, targetId: target.selectionId, fileKey: JSON.stringify(reference) } }] })
   return {

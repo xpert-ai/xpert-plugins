@@ -32,7 +32,7 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const read = (buffer, extra = {}) => engine.run({ action: 'inspect', buffer, offset: 0, limit: 3, ...extra })
 const target = inspected => inspected.slides[0].objects.find(obj => obj.text === '人和 AI 共同制作')
 
-function fixture(managed = false) {
+function fixture(managed = false, previews) {
   const storage = new Map(), calls = { writes: 0, providerWrites: 0, auth: 0 }, state = { denied: false, canWrite: true, bound: true }
   const check = () => { if (state.denied) throw new ForbiddenException('revoked') }
   const project = { assertAssistant: async () => { check(); if (!state.bound) throw new ForbiddenException('unbound') },
@@ -65,8 +65,8 @@ function fixture(managed = false) {
   const capabilities = { 'platform.content.editors': editors, 'platform.project.files': native, 'platform.project.access': project,
     'platform.assistant.middleware-access': { assertAccess: async input => { calls.auth++; check(); assert.equal(input.provider, 'pptx-editor'); assert.equal(input.assistantId, scope.assistantId) } } }
   const runtime = { require: key => { assert.ok(capabilities[key.id], key.id); return capabilities[key.id] } }
-  const templates = new PptxTemplates(runtime, format, engine)
-  return { storage, state, calls, templates, service: new PptxAi(runtime, format, engine, templates) }
+  const templates = new PptxTemplates(runtime, format, engine, previews)
+  return { storage, state, calls, templates, service: new PptxAi(runtime, format, engine, templates, previews) }
 }
 
 test('native template creation preserves human edits on retries, binds input identity and rechecks permissions', async () => {
@@ -308,6 +308,28 @@ test('compose, export and export retries upsert one delivery without merging dif
   assert.equal(cards.reduce((result, card) => upsertResourceCardContent(result, card), []).length, 2)
 })
 
+test('template and export cards attach the correct cover source and preserve delivery without rendering', async () => {
+  const inputs = [], previews = { create: async input => { inputs.push(input); return hash(Buffer.from(input.path)) } }
+  const f = fixture(false, previews)
+  const input = { source: { kind: 'builtin', templateId: 'dsh-signal', language: 'zh' }, operationId: id(95), title: '封面预览',
+    slides: [{ sourceSlide: 1, fills: [], notes: '' }] }
+  const created = await f.service.composeTemplate(scope, input)
+  assert.equal(inputs[0].path, created.filePath)
+  assert.equal(created.card.content[0].kind, 'image-gallery')
+  const exported = await f.service.export(scope, { filePath: created.filePath, expectedRevision: created.revision })
+  const card = await f.service.exportCard(scope, exported)
+  assert.equal(inputs.at(-1).path, exported.filePath)
+  assert.equal(JSON.parse(card.content[0].images[0].file.fileKey).source.filePath, exported.filePath)
+  assert.equal(card.open.parameters.filePath, created.filePath)
+  previews.create = async () => { throw new Error('preview unavailable') }
+  const replay = await f.service.composeTemplate(scope, input)
+  assert.equal(replay.card.content[0].kind, 'file-list')
+  assert.equal(replay.filePath, created.filePath)
+  const fallback = await f.service.exportCard(scope, exported)
+  assert.equal(fallback.content[0].kind, 'file-list')
+  assert.equal(JSON.parse(fallback.content[0].files[0].file.fileKey).filePath, exported.filePath)
+  assert.equal(fallback.open.parameters.filePath, created.filePath)
+})
 
 test('card resolution/delivery failure does not fail or repeat a committed export', async () => {
   const f = fixture(), created = await f.service.create(scope, plan)

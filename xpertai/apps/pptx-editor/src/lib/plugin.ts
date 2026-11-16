@@ -8,6 +8,8 @@ import { PptxEngine } from './ai-engine.js'
 import { PptxAiMiddleware } from './ai-middleware.js'
 import { PptxAssistantCapability } from './assistant-capability.js'
 import { PptxTemplates } from './template-service.js'
+import { PptxPreview } from './preview.js'
+import { PptxPreviewProcessor } from './preview-processor.js'
 
-@XpertServerPlugin({ providers: [PptxFormat, PptxResourceEditor, PptxFiles, PptxView, PptxEngine, PptxTemplates, PptxAi, PptxAiMiddleware, PptxAssistantCapability] })
+@XpertServerPlugin({ providers: [PptxFormat, PptxResourceEditor, PptxFiles, PptxView, PptxEngine, PptxTemplates, PptxPreview, PptxPreviewProcessor, PptxAi, PptxAiMiddleware, PptxAssistantCapability] })
 export class PptxEditorPlugin {}

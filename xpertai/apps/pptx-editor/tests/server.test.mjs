@@ -54,3 +54,17 @@ test('blank PPTX is accepted and malformed ZIP input is rejected before editing'
   await format.validateFile(await format.create())
   await assert.rejects(format.validateFile(Buffer.from('not a zip')),error=>error.getStatus()===400)
 })
+
+test('cover reads retain trusted Project scope and reject forged references or download-purpose reuse', async () => {
+  let input, hash
+  const view = new PptxView({}, {}, { resolve: async (value, expected) => { input = value; hash = expected; return { mimeType: 'image/png' } } })
+  const cover = { kind: 'cover', source, sha256: 'a'.repeat(64) }
+  const request = { fileKey: JSON.stringify(cover), purpose: 'preview' }
+  await view.resolveViewFile(context, key, request)
+  assert.deepEqual(input, { actor: { tenantId: uuid(2), organizationId: uuid(3), userId: uuid(4) }, projectId: uuid(5), assistantId: uuid(1), source })
+  assert.equal(hash, cover.sha256)
+  for (const changed of [{ ...request, purpose: 'download' }, { ...request, fileKey: JSON.stringify({ ...cover, projectId: uuid(9) }) },
+    { ...request, fileKey: JSON.stringify({ ...cover, sha256: '../../private' }) }]) {
+    await assert.rejects(view.resolveViewFile(context, key, changed), error => error.getStatus() === 400)
+  }
+})
