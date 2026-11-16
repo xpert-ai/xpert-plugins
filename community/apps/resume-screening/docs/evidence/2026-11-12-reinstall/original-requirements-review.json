@@ -1,0 +1,31 @@
+{
+  "reviewedOn": "2026-11-12",
+  "requirementDocument": "Xpert业务应用开发面试说明.docx",
+  "requirementDocumentSha256": "26a2ce28d92d601b45150c3c6c8eed1380d2f4f4f2fca198c94e4b031d84ef98",
+  "scope": "Original requirements audit; source/evidence review and isolated fixture reproduction. No deployment/restart or platform data changes.",
+  "conclusion": "Core workflow evidenced; complete delivery requirements not yet all satisfied.",
+  "acceptanceSourceHashesUnchanged": true,
+  "artifactHashesUnchanged": true,
+  "defaultTestsReexecuted": {
+    "total": 57,
+    "passed": 56,
+    "skipped": 1,
+    "failed": 0,
+    "builtDistAndExistingTestFixtures": true
+  },
+  "reproducedProductIssue": {
+    "kind": "isolated fake repository reproduction; no platform data changed",
+    "aiOriginal": 72,
+    "priorManualAdjustment": 75,
+    "afterClearingInput": 75,
+    "uiHintSaysBlankKeepsAiOriginal": true,
+    "matchesUiHint": false
+  },
+  "remainingChecks": [
+    "field-specific missing/invalid input guidance",
+    "controlled model/external-service failure and recovery on current build",
+    "portable host prerequisite or confirmed platform defect evidence",
+    "switchable redacted debug logger and sandbox/theme verification",
+    "final commit/PR after user confirmation"
+  ]
+}
