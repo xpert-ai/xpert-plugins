@@ -43,6 +43,7 @@ import {
 	isLarkCardActionValue,
 	LarkCardActionValue,
 	LarkMessage,
+	isPrivateDeliveryRejection,
 	parseLarkClientError,
 	TLarkConnectionMode,
 	TIntegrationLarkOptions,
@@ -394,6 +395,37 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	// ==================== Outbound (Send Messages) ====================
+
+	async resolvePrivateDestination(integration: IIntegration<TIntegrationLarkOptions>, subjectId: string) {
+		const { client } = this.getOrCreateLarkClient(integration)
+		const response = await client.contact.user.get({
+			params: { user_id_type: 'union_id' },
+			path: { user_id: subjectId }
+		}).catch((error: unknown) => {
+			const rejection = parseLarkClientError(error)
+			if (rejection.code === 99991672 || rejection.error?.permission_violations?.length) return null
+			throw new Error('lark_directory_unavailable')
+		})
+		if (!response) return null
+		const user = response.data?.user
+		if (response.code !== 0 || user?.union_id !== subjectId || !user.open_id || !integration.options?.appId) return null
+		return { appId: integration.options.appId, recipient: user.open_id }
+	}
+
+	async sendPrivateNotification(integration: IIntegration<TIntegrationLarkOptions>, recipient: string, text: string, attemptId: string) {
+		const { client } = this.getOrCreateLarkClient(integration)
+		try {
+			const response = await client.im.message.create({
+				params: { receive_id_type: 'open_id' },
+				data: { receive_id: recipient, msg_type: 'text', content: JSON.stringify({ text }), uuid: attemptId }
+			})
+			if (response.code !== undefined && response.code !== 0) return { status: 'failed' } as const
+			const messageId = response.data?.message_id
+			return messageId ? { status: 'accepted', messageId } as const : { status: 'unknown' } as const
+		} catch (error) {
+			return isPrivateDeliveryRejection(error) ? { status: 'failed' } as const : { status: 'unknown' } as const
+		}
+	}
 
 	async sendText(ctx: TChatContext, content: string): Promise<TChatSendResult> {
 		try {

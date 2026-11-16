@@ -46,6 +46,10 @@ export class ReviewRun {
   @Column({ type: 'varchar', nullable: true }) evidenceUserId!: string | null
   @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'uuid' }) repositoryPolicyId!: string
+  @Column({ type: 'boolean', default: false }) outputPending!: boolean
+  // A null timestamp quarantines a conflicting handoff without acknowledging it.
+  @Column({ type: 'timestamptz', nullable: true, default: () => "'epoch'::timestamptz" }) outputAvailableAt!: Date | null
+  @Column({ type: 'uuid', nullable: true }) outputMessageId!: string | null
   @Column({ type: 'varchar' }) operationKey!: string
   @Column({ type: 'int' }) number!: number
   @Column({ type: 'varchar' }) headSha!: string

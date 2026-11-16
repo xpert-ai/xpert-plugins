@@ -156,7 +156,7 @@ export async function editFollowUp(tx: EntityManager, scope: ProcurementScope, i
       timer.wakeReceiptId !== scope.eventReceiptId
     )
       throw new ConflictException('delivery_check_no_longer_applicable')
-    return publishDeliveryCheck(tx, key, scope.userId, scope.eventReceiptId)
+    return publishDeliveryCheck(tx, key, scope.userId, scope.eventReceiptId, route)
   }
   if (deadline && (timer?.state !== 'fired' || timer.version !== deadline.version || !currentQuote))
     throw new ConflictException('follow_up_no_longer_applicable')

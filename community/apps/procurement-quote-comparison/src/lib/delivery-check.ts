@@ -58,6 +58,11 @@ export class DeliveryCheck {
   @Column('integer') revision!: number
   @Column('varchar') actionKind!: 'publish_delivery_check'
   @Column('uuid') publishedFor!: string
+  @Column({ type: 'uuid', nullable: true }) outputBinding!: string | null
+  @Column({ type: 'int', nullable: true }) outputRevision!: number | null
+  // A null timestamp quarantines a conflicting handoff without acknowledging it.
+  @Column({ type: 'timestamptz', nullable: true, default: () => "'epoch'::timestamptz" }) outputAvailableAt!: Date | null
+  @Column({ type: 'uuid', nullable: true }) outputMessageId!: string | null
   @CreateDateColumn({ type: 'timestamptz' }) publishedAt!: Date
 }
 
@@ -188,13 +193,13 @@ export type CheckKey = Pick<
   'tenantId' | 'organizationId' | 'caseId' | 'riskId' | 'series' | 'revision' | 'actionKind'
 >
 
-export async function publishDeliveryCheck(tx: EntityManager, key: CheckKey, userId: string, receiptId: string) {
+export async function publishDeliveryCheck(tx: EntityManager, key: CheckKey, userId: string, receiptId: string, route: { binding: string; revision: number }) {
   // The caller holds the case lock. The unique index also protects writers on other instances.
   const inserted = await tx
     .createQueryBuilder()
     .insert()
     .into(DeliveryCheck)
-    .values({ ...key, publishedFor: userId })
+    .values({ ...key, publishedFor: userId, outputBinding: route.binding, outputRevision: route.revision })
     .orIgnore()
     .returning('id')
     .execute()

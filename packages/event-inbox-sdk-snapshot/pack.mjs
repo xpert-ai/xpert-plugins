@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const sourceDigest = 'a06373c4535df77e94b7be4cd09168f948f05218af72008433f8ee6faaf8fc01'
-const version = '3.36.0-event-inbox.2'
+const sourceDigest = '9a163315bb7c314783a0b2a758ad6365a7b210bc415cbb5c342d20d0c41cc08e'
+const version = '3.36.0-outbox.5'
 const [checkout, destination] = process.argv.slice(2)
 if (!checkout) throw new Error('Usage: node pack.mjs <xpert-checkout> [output-directory]')
 const root = path.resolve(checkout)

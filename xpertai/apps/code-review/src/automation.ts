@@ -225,7 +225,9 @@ export class Automation {
     if (successor) await this.asAssistant(p, () => this.enqueueStep(p, successor!, delay))
   }
   private async finish(manager: EntityManager, run: ReviewRun, status: RunStatus, reason: string | null = null) {
-    await manager.update(ReviewRun, { id: run.id }, { status, reason, finishedAt: new Date() })
+    await manager.update(ReviewRun, { id: run.id }, { status, reason, finishedAt: new Date(),
+      ...((status === 'completed' || status === 'published') && run.evidenceUserId && !run.outputMessageId ? { outputPending: true } : {})
+    })
   }
   private async stop(manager: EntityManager, p: ReviewRepository, run: ReviewRun, status: RunStatus, reason: string, assertOwned: AssertAutomationOwnership) {
     await assertOwned()

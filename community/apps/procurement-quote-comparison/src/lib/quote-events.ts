@@ -1,3 +1,4 @@
+import { deliveryCheckOutput } from './delivery-check-output.js'
 import { quoteFact as factSchema } from './delivery-check.js'
 import { matchesStoredExtraction } from "./quote-extraction.js";
 import { Injectable, ForbiddenException } from "@nestjs/common";
@@ -78,6 +79,7 @@ export class QuoteEvents implements PluginAgentEventSource {
     @InjectRepository(ProcurementComparisonCase)
     readonly cases: Repository<ProcurementComparisonCase>
   ) {}
+  get outputs() { return deliveryCheckOutput(this.cases) }
   private target(tx: EntityManager, ctx: AgentEventContext) {
     return tx.findOne(ProcurementComparisonCase, {
       where: {

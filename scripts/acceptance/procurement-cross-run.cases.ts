@@ -1,3 +1,4 @@
+import { verifyOutputHandoff } from './agent-output.fixture.js'
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
@@ -195,6 +196,9 @@ test('two procurement wakes on one quote publish one visible check across indepe
   assert.notEqual(receipts[0], receipts[1])
   const reminders = await db.getRepository(DeliveryCheck).findBy({ caseId, riskId, revision: 2 })
   assert.deepEqual(reminders.map((check) => check.id), [reminderId])
+  const handoff = await verifyOutputHandoff(f, source.outputs)
+  assert.equal(handoff.output, reminderId)
+  t.diagnostic(JSON.stringify(handoff))
   const links = await db.getRepository(DeliveryCheckReceipt).findBy({ checkId: reminderId! })
   assert.deepEqual(links.map((l) => l.receiptId).sort(), [...receipts].sort())
   for (const { claim, outcome } of [first, second]) {

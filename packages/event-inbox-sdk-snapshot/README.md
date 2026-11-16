@@ -1,6 +1,6 @@
 # Event Inbox SDK snapshot
 
-Procurement Quote Comparison builds against `3.36.0-event-inbox.2` for the follow-up wake contract, branch references and trusted event receipt context. The packer pins the source digest of both platform packages. The community workspace locks both archives by SHA-512 integrity and resolves the SDK's Contracts dependency to the same archive. Code Review and Lark build against the registry release `3.36.0`. All three plugins use the host's SDK at runtime.
+Procurement Quote Comparison, Code Review and Lark build against `3.36.0-outbox.5`. The SDK adds a scoped output source and private-channel delivery operations. Contracts includes versioned output references, recipient-specific result fields and the notification protocol. Both workspaces lock the archives by SHA-512 and resolve the SDK's Contracts dependency to the same archive. The host supplies the runtime SDK. The packer verifies the combined source digest before building.
 
 For the event source contract, type declarations, and plugin examples, see the [Event Inbox plugin guide](../../docs/event-inbox.md).
 
@@ -10,4 +10,4 @@ To reproduce the archives, use a source checkout matching the pinned source dige
 node packages/event-inbox-sdk-snapshot/pack.mjs "$XPERT_PLATFORM_ROOT" "$OUTPUT_DIR"
 ```
 
-Switch the procurement development dependencies and community lockfile to registry releases that include the follow-up wake contract, branch references and trusted event receipt context. Remove the snapshot override and these archives together.
+Once an official release contains these contracts, update all three development dependencies, both workspace overrides and both lockfiles together. Verify the host build and the three plugin lifecycles against that release.

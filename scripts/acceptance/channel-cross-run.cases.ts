@@ -1,3 +1,4 @@
+import { verifyOutputHandoff } from './agent-output.fixture.js'
 import assert from 'node:assert/strict'
 import { createHmac, randomUUID } from 'node:crypto'
 import { test } from 'node:test'
@@ -5,6 +6,30 @@ import { fileURLToPath } from 'node:url'
 import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { setup, lark, larkFixture } from './event-inbox.fixture.js'
+
+test('Feishu private delivery distinguishes a provider refusal from an interrupted attempt', async () => {
+  const { LarkChannelStrategy } = await import(lark + 'lark-channel.strategy.js')
+  const channel = Object.create(LarkChannelStrategy.prototype)
+  let error: unknown = { response: { status: 403, data: { code: 99991672, msg: 'permission denied' } } }
+  channel.getOrCreateLarkClient = () => ({ client: { im: { message: { create: async () => { throw error } } } } })
+  const send = () => channel.sendPrivateNotification({}, 'private-user', 'notification', randomUUID())
+  assert.deepEqual(await send(), { status: 'failed' })
+  error = new Error('connection lost after request')
+  assert.deepEqual(await send(), { status: 'unknown' })
+  error = { response: { status: 502, data: { code: 10001, msg: 'upstream unavailable' } } }
+  assert.deepEqual(await send(), { status: 'unknown' })
+})
+
+test('Feishu directory scope denial hides an unverified private target and temporary lookup errors remain retryable', async () => {
+  const { LarkChannelStrategy } = await import(lark + 'lark-channel.strategy.js')
+  const channel = Object.create(LarkChannelStrategy.prototype)
+  let response: unknown = { code: 99991672, msg: 'missing directory scope' }
+  channel.getOrCreateLarkClient = () => ({ client: { contact: { user: { get: async () => { throw response } } } } })
+  const integration = { options: { appId: 'test-app' } }
+  assert.equal(await channel.resolvePrivateDestination(integration, 'verified-subject'), null)
+  response = new Error('connection lost')
+  await assert.rejects(channel.resolvePrivateDestination(integration, 'verified-subject'), /lark_directory_unavailable/)
+})
 
 test('two distinct signed PR deliveries reuse the current ReviewRun and a new head creates a new one', async (t) => {
   const f = await setup(t, 'code_review.github')
@@ -54,6 +79,16 @@ test('two distinct signed PR deliveries reuse the current ReviewRun and a new he
   const progress = await source.describe(f.ctx, second.row.event, second.decision)
   assert(progress?.result?.fields.some((field) => field.value === 'running'))
   assert.equal(await f.runs.count(), 1)
+  const runId = first.decision.resultRef.key
+  const run = await f.runs.findOneByOrFail({ id: runId })
+  // Model output is supplied by the fixture. The production automation completes the result in store mode.
+  await f.runs.update(runId, { settings: { ...run.settings, executionMode: 'assistant', publication: 'store' },
+    evidenceUserId: f.ctx.userId, reviewId: randomUUID(), startedAt: new Date() })
+  const reviewed = Object.create(f.viewReviews)
+  reviewed.reconcile = async () => ({ status: 'reviewed' })
+  await f.automation(reviewed).processStep(await f.stepFor(runId), { ...f.context, userId: f.ctx.userId, jobName: 'step' })
+  assert.equal((await f.runs.findOneByOrFail({ id: runId })).status, 'completed')
+  t.diagnostic(JSON.stringify(await verifyOutputHandoff(f, source.outputs)))
   const fresh = await deliver('b'.repeat(40))
   assert.notEqual(fresh.decision.resultRef.key, first.decision.resultRef.key)
   assert.equal(await f.runs.count(), 2)

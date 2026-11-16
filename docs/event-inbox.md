@@ -74,8 +74,23 @@ export const eventTypes = [
 
 新增类型可沿用以上模式。例如，为普通用户消息增加分类之前，先确定真实来源、声明类型版本与分类键，再由该来源发布事件。[Code Review 实现](../xpertai/apps/code-review/src/review-event-source.ts) · [采购实现](../community/apps/procurement-quote-comparison/src/lib/quote-events.ts) · [飞书实现](../xpertai/integrations/lark/src/lib/lark-event-source.ts)
 
+## 从领域结果发布主动通知
+
+在现有 `PluginAgentEventSource` 上实现可选的 `outputs: AgentOutputSource`。用 `kinds` 声明类型键和本地化名称。业务事务同时写入结果和待交接标记。
+
+| 接口 | 插件职责 |
+| --- | --- |
+| `listPending(context, limit)` | 返回 `schemaVersion: 1` 的引用，包含 `kind`、领域结果 `key`、不可变 `revision`、`recipientId` 和 `publishedAt`。接收人必须是领域记录授权的绑定用户。 |
+| `acknowledge(context, ref, messageId)` | 将原记录标为已交接。重复确认接受相同的平台输出 ID。不同 ID 返回 `'conflict'`，临时故障抛出异常。平台提交输出和派发任务后确认。 |
+| `defer(context, ref, retryAt)` | 实现该方法的插件只扫描已到期的待交接记录。单个输出交接失败后推迟到指定时间重试。不可变引用或确认冲突时传入 `null`，隔离该项并保留待交接记录。已确认记录不受影响。 |
+| `resolveForRecipient(context, ref)` | 按当前用户、绑定和业务版本授权。可见时提供标题、可选结果字段和会话引用。失效返回 `superseded`，越权返回 `forbidden`，暂时无法判定返回 `unavailable`。 |
+
+采购使用 `procurement.delivery_check`。两张到期回执可以关联同一个 `DeliveryCheck.id`，只在首次发布时写入交接标记。Code Review 使用 `code_review.result`，以评审运行 ID 和 head SHA 标识结果，复核 `evidenceUserId` 的领域权限。通知中心可查看授权的评审状态、提交和可用摘要。飞书作为投递渠道，由平台按本人偏好、已验证身份和指定的集成调用。外发只使用标题。[采购策略](../community/apps/procurement-quote-comparison/src/lib/delivery-check-output.ts) · [评审策略](../xpertai/apps/code-review/src/review-event-source.ts) · [飞书渠道](../xpertai/integrations/lark/src/lib/lark-channel.strategy.ts)
+
+升级已有业务库时先应用两个插件的增量 SQL，再装载新生产者。新增字段保留旧记录。历史评审和采购提醒不会被标记为待发。已应用首版发件箱迁移的环境还需应用交接重试迁移。[采购升级 SQL](../community/apps/procurement-quote-comparison/migrations/20261116-agent-output.sql) · [评审升级 SQL](../xpertai/apps/code-review/migrations/20261116-agent-output.sql) · [采购交接重试 SQL](../community/apps/procurement-quote-comparison/migrations/20261116-output-handoff-retry.sql) · [评审交接重试 SQL](../xpertai/apps/code-review/migrations/20261116-output-handoff-retry.sql)
+
 ## 验证接入
 
-1. 使用所属工作区锁文件构建 SDK 消费者和插件，运行 dist-first 生命周期检查，确认实际产物能加载来源。Code Review 和飞书使用正式版 `3.36.0`。采购比价使用带有到期唤醒、会话分支和受信来源回执的 `3.36.0-event-inbox.2` 开发快照。部署主机需要支持插件使用的 SDK、Contracts 和事件模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
+1. 使用所属工作区锁文件构建三个插件，运行 dist-first 生命周期检查。Code Review、采购比价和飞书均锁定 `3.36.0-outbox.5`。部署主机需要支持本版 SDK、Contracts、事件模块和通知模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
 2. 在独立 PostgreSQL 验收库验证正常输入、同一事实重投、切回或多实例恢复、越权拒绝。核对回执 ID 和实际领域写入数。Code Review 可先启用仓库规则中的影子比对，核实旧路径与新路径的决定，再按仓库切流。[跨插件场景](../scripts/acceptance/event-inbox.test.ts)
 3. 在工作台和两个个人入口选择同一回执，核对类型、分类、结果和会话。在另一个无权账户、无会话引用和历史描述缺失的情况下，分别验证数据权限、动作隐藏和“未分类”回退。
