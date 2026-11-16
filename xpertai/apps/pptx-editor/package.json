@@ -1,0 +1,85 @@
+{
+  "name": "@xpert-ai/plugin-pptx-editor",
+  "version": "0.1.0",
+  "description": "Native PPTX editing, speaker notes and versioned collaboration-space integration.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "!**/*.tsbuildinfo"
+  ],
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "pptx_editor"
+    }
+  },
+  "nx": {
+    "name": "pptx-editor",
+    "targets": {
+      "test": { "dependsOn": ["build"] },
+      "test:server": { "dependsOn": ["build"] }
+    }
+  },
+  "scripts": {
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && node scripts/build.mjs && tsc -p tsconfig.lib.json",
+    "verify:dist": "node scripts/build.mjs --check",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs --runInBand && pnpm run test:server",
+    "test:server": "node --test tests/server.test.mjs",
+    "prepack": "pnpm run build && pnpm run verify:dist"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "fast-xml-parser": "^5.3.7",
+    "pptxgenjs": "^4.0.1",
+    "zod": "3.25.67",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "^3.35.0",
+    "@xpert-ai/plugin-sdk": "^3.35.0",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "3.35.0",
+    "@xpert-ai/plugin-sdk": "3.35.0",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "@swc/core": "~1.5.7",
+    "@swc/jest": "~0.2.38",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.9",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@tailwindcss/vite": "^4.3.2",
+    "tailwindcss": "^4.3.2",
+    "vite": "^7.3.0",
+    "esbuild": "^0.27.0",
+    "jest": "^30.0.2",
+    "jest-environment-jsdom": "^30.0.2",
+    "lucide-react": "1.24.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^5.9.2",
+    "socket.io-client": "^4.8.1"
+  }
+}

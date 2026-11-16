@@ -365,6 +365,9 @@
     },
     {
       "path": "./apps/markdown-editor"
+    },
+    {
+      "path": "./apps/pptx-editor"
     }
   ]
 }

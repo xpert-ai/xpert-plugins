@@ -100,13 +100,14 @@ export class SpacesService {
       const source = result.item
       const sourcePath = result.item.filePath
       const descendants = await this.access.items.findBy({ ...scoped(actor), spaceId: result.space.id })
-      if (source.editorKey === 'markdown.tiptap' || descendants.some((item) => item.editorKey === 'markdown.tiptap' && item.filePath?.startsWith(`${source.filePath}/`))) {
+      if (['file', 'artifact'].includes(source.kind) || source.editorKey === 'markdown.tiptap' || descendants.some((item) => item.editorKey === 'markdown.tiptap' && item.filePath?.startsWith(`${source.filePath}/`))) {
         const target = Object.assign(new SpaceItem(), source, { title: input.title ?? source.title,
           parentId: input.parentId === undefined ? source.parentId : input.parentId, deleted: input.deleted ?? source.deleted })
         const destination = input.deleted === true ? `.space-trash/${source.id}/${sourcePath.split('/').pop()}` : await this.documents.path(actor, target)
         await this.documents.content().move({ actor, assistantId: actor.assistantId, projectId: result.space.projectId,
           source: { providerKey: 'spaces', resourceId: source.id }, path: sourcePath, destination,
           title: target.title, parentResourceId: target.parentId, deleted: target.deleted, expectedSourceVersion: input.expectedVersion })
+        if (!target.deleted) await this.documents.refreshResource(actor, result.space, source.id)
         return this.access.items.findOneByOrFail({ ...scoped(actor), id: source.id })
       }
     }

@@ -49,10 +49,10 @@ export function messageCompletion(name: string, value: unknown[]): CompletionChe
   const fatal = events.find(
     (event) => !event.parent_tool_use_id && event.type !== 'result' && (event.type === 'error' || event.is_error)
   )
-  if (result?.subtype === 'success' && result.is_error === false && result.result?.trim() && !fatal) {
+  if (result?.subtype === 'success' && result.is_error === false && !fatal) {
     return {
       ok: true,
-      text: result.result,
+      text: result.result ?? '',
       diagnostic: {
         ...details,
         code: 'completed',
@@ -78,7 +78,7 @@ export function messageCompletion(name: string, value: unknown[]): CompletionChe
   return completionFailure(
     'cli_error',
     `${name} did not complete successfully${error?.subtype ? ` (${error.subtype})` : ''}: ${
-      cause || 'the final result was unsuccessful or empty'
+      cause || 'the final result was unsuccessful'
     }.`,
     details
   )
