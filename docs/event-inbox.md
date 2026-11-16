@@ -50,6 +50,8 @@ export const eventTypes = [
 
 到期处理器可从 `handle` 的第三个参数取得 SDK 的 `AgentEventFollowUp`。采购插件先提交当前风险版本的到期决定，再调用 `wake({ conversationId, threadId, agentKey, prompt })`。线程和 Agent 引用来自原始运行上下文。宿主验证目标并以回执 ID 防止重复受理。线程忙时插件保留等待状态；成功返回后才记为已启动。重试仍使用同一事实和回执。取消或登记答复会更新风险，已经提交的唤醒继续读取最新业务状态。Code Review 和飞书沿用两参数处理器。
 
+事件唤醒的工具可从宿主创建的 `IAgentMiddlewareContext.eventReceiptId` 取得本次来源。同一 Assistant 委派给本地子 Agent 时，宿主核对租户、组织、用户、工作区、项目、Assistant、会话和线程，匹配后才提供原回执。普通聊天及跨作用域委派均省略回执。兼容旧版宿主的插件也应接受该字段缺省。插件可用回执查找自己的事件记录，执行操作前仍须校验绑定、事实版本、已提交决定和当前用户权限。
+
 ## 为视图提供标题、结果与会话
 
 实现可选的 `searchTitles(context, term)` 时，只返回当前绑定允许搜索的业务对象或结果引用。平台再与可见回执取交集。可选的 `describe(context, event, decision, options)` 返回 `title`、可展示的 `fields`、可选 `result` 和会话引用。对私有评审、采购案例等资源，先用当前执行人复查读取权限，再返回字段；权限不足可以返回 `null`。
@@ -68,6 +70,6 @@ export const eventTypes = [
 
 ## 验证接入
 
-1. 使用所属工作区锁文件构建 SDK 消费者和插件，运行 dist-first 生命周期检查，确认实际产物能加载来源。Code Review 和飞书使用正式版 `3.36.0`。采购比价使用带有到期唤醒和会话分支契约的 `3.36.0-event-inbox.1` 开发快照。部署主机需要支持插件使用的 SDK、Contracts 和事件模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
+1. 使用所属工作区锁文件构建 SDK 消费者和插件，运行 dist-first 生命周期检查，确认实际产物能加载来源。Code Review 和飞书使用正式版 `3.36.0`。采购比价使用带有到期唤醒、会话分支和受信来源回执的 `3.36.0-event-inbox.2` 开发快照。部署主机需要支持插件使用的 SDK、Contracts 和事件模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
 2. 在独立 PostgreSQL 验收库验证正常输入、同一事实重投、切回或多实例恢复、越权拒绝。核对回执 ID 和实际领域写入数。Code Review 可先启用仓库规则中的影子比对，核实旧路径与新路径的决定，再按仓库切流。[跨插件场景](../scripts/acceptance/event-inbox.test.ts)
 3. 在工作台和两个个人入口选择同一回执，核对类型、分类、结果和会话。在另一个无权账户、无会话引用和历史描述缺失的情况下，分别验证数据权限、动作隐藏和“未分类”回退。
