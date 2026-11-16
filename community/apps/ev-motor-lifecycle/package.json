@@ -1,0 +1,82 @@
+{
+  "name": "@xpert-ai/plugin-ev-motor-lifecycle",
+  "version": "0.3.3",
+  "private": true,
+  "description": "Sample-driven EV traction motor order, engineering, delivery and field quality workflow",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/apps/ev-motor-lifecycle"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "blueprints",
+    ".xpertai-plugin",
+    "docs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
+    "test": "vitest run",
+    "prepack": "pnpm run build"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "ev_motor"
+    }
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.26.2",
+    "@xpert-ai/plugin-sdk": "^3.26.2",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "^22.17.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@xpert-ai/contracts": "3.26.2",
+    "@xpert-ai/plugin-sdk": "3.26.2",
+    "esbuild": "^0.27.0",
+    "pg-mem": "^3.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "short-unique-id": "4.4.4",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "zod": "3.25.67",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*"
+  },
+  "dependencies": {
+    "echarts": "5.6.0",
+    "yaml": "2.9.0"
+  }
+}

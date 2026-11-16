@@ -8,6 +8,7 @@ const envelope = z.object({ channel: z.literal(channel), protocolVersion: z.lite
   event: z.object({ type: z.string(), data: z.object({ revision: z.number().optional() }).optional() }).optional(),
   locale: z.string().optional(), theme: z.object({ mode: z.enum(['light', 'dark']).optional(), tokens: z.record(z.string()).optional() }).optional() }).passthrough()
 let host: { instanceId?: string; scopeRevision?: number } | null = null
+export const viewIdentity = () => `${host?.instanceId ?? 'uninitialized'}:${host?.scopeRevision ?? 0}`
 let next = 0
 const appearanceListeners = new Set<() => void>()
 export function onAppearanceChange(listener: () => void) { appearanceListeners.add(listener); return () => { appearanceListeners.delete(listener) } }
@@ -120,4 +121,11 @@ export async function command(commandKey: string, payload: object) {
   const result = z.object({ success: z.boolean(), message: z.string().optional(), code: z.string().optional() }).parse(value)
   if (!result.success) throw new Error(result.message ?? result.code ?? t('bridge.commandFailed'))
   return value
+}
+export async function fileAction(actionKey: string, input: object, file: File) {
+  const buffer = await file.arrayBuffer()
+  const result = z.object({ success: z.boolean(), data: z.unknown(), message: z.string().optional() }).parse(
+    await request('executeFileAction', { actionKey, input, file: { name: file.name, type: file.type, size: file.size, buffer } }))
+  if (!result.success) throw new Error(result.message ?? t('common.actionFailed'))
+  return result.data
 }

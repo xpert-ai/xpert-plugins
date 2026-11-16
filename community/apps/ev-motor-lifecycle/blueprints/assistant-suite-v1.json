@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "xpert-assistant-suite@1",
+  "key": "ev-motor-suite-v1",
+  "plugin": {
+    "name": "@xpert-ai/plugin-ev-motor-lifecycle",
+    "version": "0.3.3"
+  },
+  "roles": [
+    {
+      "key": "sales",
+      "templateKey": "ev-motor-sales",
+      "name": "ev-motor-sales",
+      "title": "销售需求助手",
+      "primaryAgentKey": "Agent_motor_sales"
+    },
+    {
+      "key": "engineering",
+      "templateKey": "ev-motor-engineering",
+      "name": "ev-motor-engineering",
+      "title": "BOM 工程助手",
+      "primaryAgentKey": "Agent_motor_engineering"
+    },
+    {
+      "key": "purchasing",
+      "templateKey": "ev-motor-purchasing",
+      "name": "ev-motor-purchasing",
+      "title": "采购齐套助手",
+      "primaryAgentKey": "Agent_motor_purchasing"
+    },
+    {
+      "key": "planner",
+      "templateKey": "ev-motor-planner",
+      "name": "ev-motor-planner",
+      "title": "生产计划助手",
+      "primaryAgentKey": "Agent_motor_planner"
+    },
+    {
+      "key": "production",
+      "templateKey": "ev-motor-production",
+      "name": "ev-motor-production",
+      "title": "制造交付助手",
+      "primaryAgentKey": "Agent_motor_production"
+    },
+    {
+      "key": "quality",
+      "templateKey": "ev-motor-quality",
+      "name": "ev-motor-quality",
+      "title": "质量与验证助手",
+      "primaryAgentKey": "Agent_motor_quality"
+    },
+    {
+      "key": "service",
+      "templateKey": "ev-motor-service",
+      "name": "ev-motor-service",
+      "title": "售后改进助手",
+      "primaryAgentKey": "Agent_motor_service"
+    }
+  ],
+  "orchestrator": {
+    "key": "coordinator",
+    "name": "ev-motor-coordinator",
+    "templateKey": "ev-motor-coordinator",
+    "title": "订单协调助手",
+    "primaryAgentKey": "Agent_motor_coordinator",
+    "externalRoleKeys": [
+      "sales",
+      "engineering",
+      "purchasing",
+      "planner",
+      "production",
+      "quality",
+      "service"
+    ]
+  }
+}

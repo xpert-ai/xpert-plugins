@@ -1,3 +1,4 @@
+import { larkEventDispatch } from './lark-event-dispatch-context.js'
 import type { LanguagesEnum as TLanguagesEnum, TChatReference, TChatRequest } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
@@ -181,12 +182,15 @@ export class LarkChatDispatchService {
 			}
 		}
 
+		const event = larkEventDispatch.getStore()
+		const intent = event?.integrationId === larkMessage.integrationId && event?.xpertId === xpertId ? event : undefined
 		const runId =
 			input.options?.forceNewRun && input.options.recoverySourceMessageId
 				? this.buildRecoveryRunId(larkMessage.integrationId, [input.options.recoverySourceMessageId])
 				: input.options?.forceNewRun && currentInboundLogIds.length
 				? this.buildRecoveryRunId(larkMessage.integrationId, currentInboundLogIds)
-				: `lark-chat-${randomUUID()}`
+				: intent?.runId ?? `lark-chat-${randomUUID()}`
+		if (intent) await intent.record(runId, conversationId)
 		const sessionKey = conversationId ?? runId
 		const language = larkMessage.language || RequestContext.getLanguageCode()
 		const callbackContext: LarkChatCallbackContext = {

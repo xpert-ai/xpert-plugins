@@ -10,7 +10,7 @@ const providers = [
 
 export function rolePluginDependencies() {
   return { plugins: [
-    '@xpert-ai/plugin-file-memory', '@xpert-ai/plugin-dangling-tool-call', '@xpert-ai/plugin-view-image',
+    '@xpert-ai/plugin-dangling-tool-call', '@xpert-ai/plugin-view-image',
     '@xpert-ai/plugin-loop-guard', '@xpert-ai/plugin-web-tools', '@xpert-ai/plugin-model-retry'
   ] }
 }

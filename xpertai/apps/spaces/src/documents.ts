@@ -21,6 +21,10 @@ export class SpaceDocuments {
   constructor(readonly access: SpaceAccess, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   content() { return this.runtime.require(ContentDocumentsRuntimeCapability) }
   api() { return this.runtime.require(ProjectFilesRuntimeCapability) }
+  refreshResource(actor: SpaceActor, space: Space, resourceId: string) {
+    return this.runtime.require(ContentResourcesRuntimeCapability).catalog.register({ ...this.scope(actor, space),
+      assistantId: actor.assistantId, source: { providerKey: 'spaces', resourceId } })
+  }
   scope(actor: SpaceActor, space: Space) {
     if (!space.projectId) throw denied()
     return { actor, projectId: space.projectId }

@@ -12,6 +12,7 @@ import { Space, SpaceItem, SpaceFileVersion } from './entities.js'
 import { SpacePages } from './pages.js'
 import { SpaceDocuments, contentHash } from './documents.js'
 import { SpaceKnowledge } from './knowledge.js'
+import { SpaceFileCollaboration } from './file-collaboration.js'
 import { SpacesService } from './spaces.js'
 import { denied, PLUGIN, scoped } from './domain.js'
 
@@ -21,7 +22,8 @@ export class SpaceFiles {
     private readonly documents: SpaceDocuments,
     private readonly knowledge: SpaceKnowledge,
     @InjectRepository(SpaceFileVersion) private readonly versions: Repository<SpaceFileVersion>,
-    @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN) private readonly runtime: AgentMiddlewareRuntimeServiceApi) {}
+    @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN) private readonly runtime: AgentMiddlewareRuntimeServiceApi,
+    private readonly collaboration: SpaceFileCollaboration) {}
 
   async put(actor: SpaceActor, itemId: string, buffer: Buffer, fileName: string, mimeType: string, revisionId: string | null = null, updateCurrent = true) {
     const access = await this.access.resource(actor, itemId, 'write')
@@ -49,37 +51,42 @@ export class SpaceFiles {
   /** Opaque file protocol. Editor plugins own parsing; this resource owns snapshots and CAS. */
   async editorRead(actor: SpaceActor, itemId: string) {
     const { item, space } = await this.access.resource(actor, itemId, 'read')
-    if (!item?.editorKey || !item.currentFileVersionId) throw denied()
+    if (!item?.filePath || !['file', 'artifact'].includes(item.kind) || item.deleted) throw denied()
     const disk = await this.documents.read(actor, space, item)
-    if (!disk || disk.sha256 !== item.fileHash) throw new ConflictException('spaces.version_conflict')
-    return { buffer: disk.buffer, revision: this.editorRevision(item) }
+    if (!disk || (item.fileHash && disk.sha256 !== item.fileHash)) throw new ConflictException('spaces.version_conflict')
+    return { buffer: disk.buffer, revision: this.editorRevision(item, disk.sha256), sequence: item.version }
   }
-  private editorRevision(item: SpaceItem) {
+  private editorRevision(item: SpaceItem, hash = item.fileHash) {
     // Metadata changes (move/trash/restore) invalidate a previously opened file as well.
-    return `${item.version}:${item.currentFileVersionId}:${item.fileHash}`
+    return `${item.version}:${item.currentFileVersionId ?? 'unversioned'}:${hash}`
   }
-  async editorWrite(actor: SpaceActor, itemId: string, expectedRevision: string, buffer: Buffer) {
+  async editorWrite(actor: SpaceActor, itemId: string, expectedRevision: string, buffer: Buffer, editorKey?: string) {
     const access = await this.access.resource(actor, itemId, 'write')
     const result = await this.access.items.manager.transaction(async (manager) => {
       await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(actor), id: access.space.id }, lock: { mode: 'pessimistic_write' } })
       const repo = manager.getRepository(SpaceItem)
       const item = await repo.findOneOrFail({ where: { ...scoped(actor), id: itemId }, lock: { mode: 'pessimistic_write' } })
       await this.access.resource(actor, itemId, 'write')
-      if (!item.editorKey || !item.currentFileVersionId || !item.filePath || item.deleted) throw denied()
-      if (this.editorRevision(item) !== expectedRevision) throw new ConflictException('spaces.version_conflict')
+      if (!['file', 'artifact'].includes(item.kind) || !item.filePath || item.deleted) throw denied()
+      if (item.syncError === 'spaces.location_pending') throw new ConflictException('spaces.version_conflict')
+      if (editorKey && item.editorKey && editorKey !== item.editorKey) throw new ConflictException('spaces.version_conflict')
       const disk = await this.documents.read(actor, access.space, item)
-      if (!disk || disk.sha256 !== item.fileHash) throw new ConflictException('spaces.version_conflict')
-      const version = await this.put(actor, itemId, buffer, item.filePath.split('/').pop() ?? item.title,
-        item.file?.mimeType ?? 'application/octet-stream', null, false)
+      if (!disk || (item.fileHash && disk.sha256 !== item.fileHash) ||
+        this.editorRevision(item, disk.sha256) !== expectedRevision) throw new ConflictException('spaces.version_conflict')
+      const fileName = item.filePath.split('/').pop() ?? item.title, mimeType = item.file?.mimeType ?? 'application/octet-stream'
+      // Files written by an Agent have no imported snapshot yet. Preserve their original bytes on first save.
+      if (!item.currentFileVersionId) await this.put(actor, itemId, disk.buffer, fileName, mimeType, null, false)
+      const version = await this.put(actor, itemId, buffer, fileName, mimeType, null, false)
       // ProjectFiles performs a second atomic hash check against edits made outside this resource.
       await this.documents.api().write({ ...this.documents.scope(actor, access.space), path: item.filePath,
-        buffer, expectedHash: item.fileHash })
-      const updated = { ...item, currentFileVersionId: version.id, file: version.reference,
+        buffer, expectedHash: disk.sha256 })
+      const updated = { ...item, editorKey: item.editorKey ?? editorKey ?? null, currentFileVersionId: version.id, file: version.reference,
         fileHash: contentHash(buffer), version: item.version + 1, syncStatus: 'ready' as const, syncError: null }
-      await repo.update(item.id, { currentFileVersionId: updated.currentFileVersionId, file: updated.file,
+      await repo.update(item.id, { editorKey: updated.editorKey, currentFileVersionId: updated.currentFileVersionId, file: updated.file,
         fileHash: updated.fileHash, version: updated.version, syncStatus: updated.syncStatus, syncError: null })
-      return { revision: this.editorRevision(updated) }
+      return { revision: this.editorRevision(updated), sequence: updated.version }
     })
+    await this.collaboration.notify(itemId)
     await this.knowledge.sync(actor, access.space, await this.access.items.findOneByOrFail({ ...scoped(actor), id: itemId }))
     return result
   }

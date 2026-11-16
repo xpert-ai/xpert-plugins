@@ -90,7 +90,7 @@ export class LarkHooksController {
 		}
 
 		this.logger.debug(
-			`[lark-webhook] inbound integration=${integrationId} payload=${this.stringifyInboundPayload(req.body)}`
+			`[lark-webhook] inbound integration=${integrationId}`
 		)
 
 		// Handle Lark webhook URL verification challenge explicitly (plain + encrypted body).
@@ -192,17 +192,6 @@ export class LarkHooksController {
 		return Array.isArray(value) ? value[0] : value
 	}
 
-	private stringifyInboundPayload(payload: unknown): string {
-		try {
-			const serialized = JSON.stringify(payload)
-			if (!serialized) {
-				return 'null'
-			}
-			return serialized.length > 8000 ? `${serialized.slice(0, 8000)}...(truncated)` : serialized
-		} catch (error) {
-			return `<<unserializable: ${toLarkApiErrorMessage(error)}>>`
-		}
-	}
 
 	@Get(':id/runtime-status')
 	async getRuntimeStatus(@Param('id') integrationId: string) {

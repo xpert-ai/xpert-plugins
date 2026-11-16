@@ -1,3 +1,6 @@
+import { AnalysisEvidenceService, captureEvidenceSchema } from './evidence/evidence.service'
+import { AnalysisEvidenceTransfers } from './evidence/evidence-transfers'
+import { evidenceConvertSchema } from './evidence/evidence-view.provider'
 import { createAnalysisSceneTool, ANALYSIS_SCENE_GUIDANCE } from './analysis-scene-tool'
 import { LibraryTemplateExecutionService } from './library/template-execution.service'
 import { instantiateSchema } from './library/execution-contract'
@@ -60,7 +63,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }, additionalProperties: false }
   }
   constructor(private readonly service: DashboardService, @Optional() private readonly saveRequests?: DashboardSaveRequests,
-    @Optional() private readonly libraryExecution?: LibraryTemplateExecutionService) {}
+    @Optional() private readonly libraryExecution?: LibraryTemplateExecutionService,
+    @Optional() private readonly evidenceSnapshots?: AnalysisEvidenceService, @Optional() private readonly evidenceTransfers?: AnalysisEvidenceTransfers) {}
   createMiddleware(_options: unknown, context: IAgentMiddlewareContext): AgentMiddleware {
     const runId = randomUUID()
     const options = middlewareOptionsSchema.parse(_options)
@@ -218,6 +222,14 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if ((evidence.pending || activeRequests.size) && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
       return result
     }, tools: [
+      ...(this.evidenceSnapshots ? [tool(async input => JSON.stringify(await this.evidenceSnapshots!.capture(scope, input)), {
+        name: 'dashboard_capture_evidence', schema: captureEvidenceSchema,
+        description: 'Capture immutable evidence from an explicitly selected published dashboard version and exact controls. Preserves data types, units, completeness, certification and cell citations. Use a UUID requestId; retry unknown outcomes with the same request. Changed sources require a new snapshot; never overwrite existing reports.'
+      })] : []),
+      ...(this.evidenceTransfers ? [tool(async input => JSON.stringify(await this.evidenceTransfers!.convert(scope, input)), {
+        name: 'dashboard_convert_evidence', schema: evidenceConvertSchema,
+        description: 'Create an independent native document or Motion video draft from saved evidence, only when the user requests it. Rechecks current source access. Reuse requestId on retry; existing manual edits are preserved. Motion includes fixed timed captions but no generated voiceover. Return the native resource receipt, never claim publication or video rendering.'
+      })] : []),
       ...(this.libraryExecution ? [tool(async (input, config) => {
         const result = await this.libraryExecution!.instantiate(scope, input, options.allowedFinalProviders)
         if ('dashboard' in result && result.dashboard) {

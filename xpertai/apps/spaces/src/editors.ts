@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { ContentEditorsRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import { ContentEditorsRuntimeCapability, ContentResourcesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { SpaceAccess } from './access.js'
 import { SpaceFiles } from './files.js'
 import { SpacesService } from './spaces.js'
 import { denied, scoped, type SpaceActor } from './domain.js'
+import { fileFormat } from './file-format.js'
+import type { SpaceItem } from './entities.js'
 
 /** Spaces creates navigation/resources; concrete models and editing belong to editor plugins. */
 @Injectable()
@@ -18,6 +20,11 @@ export class SpaceEditors {
     await this.access.project(actor)
     return (await this.runtime.require(ContentEditorsRuntimeCapability).list(this.scope(actor))).filter(editor => editor.kind === 'file')
   }
+  async presentItems(actor: SpaceActor, items: SpaceItem[]) {
+    if (!items.length) return items
+    const formats = await this.list(actor)
+    return items.map(item => ({ ...item, editorKey: item.editorKey ?? fileFormat(item, formats)?.key ?? null }))
+  }
   async create(actor: SpaceActor, spaceId: string, parentId: string | null, title: string, editorKey: string, buffer?: Buffer) {
     const access = await this.access.resource(actor, parentId ?? spaceId, 'write')
     if (access.space.id !== spaceId) throw denied()
@@ -27,6 +34,7 @@ export class SpaceEditors {
     try {
       await this.access.items.update({ ...scoped(actor), id: item.id }, { editorKey })
       await this.files.put(actor, item.id, bytes, fileName, registration.mimeType)
+      await this.runtime.require(ContentResourcesRuntimeCapability).catalog.register({ ...this.scope(actor), source: { providerKey: 'spaces', resourceId: item.id } })
       return await this.access.items.findOneByOrFail({ ...scoped(actor), id: item.id })
     } catch (error) { await this.access.items.update({ ...scoped(actor), id: item.id }, { deleted: true }); throw error }
   }

@@ -39,13 +39,9 @@ const adapter: ComputerJsonlAdapter = {
     const text = events
       .filter((event) => event.type === 'item.completed' && event.item?.type === 'agent_message')
       .at(-1)?.item?.text
-    if (!text?.trim())
-      return completionFailure('missing_final_result', 'Codex completed without a final public Agent message.', {
-        finalEventType: 'turn.completed'
-      })
     return {
       ok: true,
-      text,
+      text: text ?? '',
       diagnostic: { code: 'completed', message: 'Codex completed successfully.', finalEventType: 'turn.completed' }
     }
   }

@@ -43,6 +43,7 @@ let runtimeText = {
 }
 
 export type RemoteBridgeContext = {
+  viewIdentity?: string
   manifest?: RemotePayloadValue
   payload?: RemotePayloadValue
   initialQuery?: {
@@ -113,7 +114,7 @@ export function executeAction(actionKey: string, targetId?: string | null, input
   return request('executeAction', {
     actionKey,
     targetId,
-    input,
+    input: { ...input, collaborationSchemaVersion: 2 },
     parameters
   })
 }
@@ -210,6 +211,7 @@ export function startRemoteBridge(setContext: (context: RemoteBridgeContext) => 
   }
 
   window.addEventListener('message', (event) => {
+    if (event.source !== parent) return
     const message = event.data as RemoteMessage
     if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) {
       return
@@ -218,7 +220,13 @@ export function startRemoteBridge(setContext: (context: RemoteBridgeContext) => 
     if (message.type === 'init') {
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
       setCanvasDebugHostConfig(message.debug)
+      const viewIdentity = `${instanceId}:${String(message.scopeRevision ?? 0)}`
+      if (currentContext?.viewIdentity && currentContext.viewIdentity !== viewIdentity) {
+        for (const request of pending.values()) request.reject(new Error('Canvas view scope changed'))
+        pending.clear()
+      }
       const nextContext: RemoteBridgeContext = {
+        viewIdentity,
         manifest: message.manifest,
         payload: message.payload,
         initialQuery: getInitialQuery(message.initialQuery),

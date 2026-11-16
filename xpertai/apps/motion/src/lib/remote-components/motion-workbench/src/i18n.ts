@@ -1,4 +1,7 @@
 const DICTIONARY = {
+  narrateEvidence: { en: 'Create voiced draft', 'zh-Hans': '生成配音草稿' },
+  narrationQueued: { en: 'Voice-over draft queued', 'zh-Hans': '配音草稿已排队' },
+  narrationHelp: { en: 'Read the first fixed observation aloud using the configured voice model (up to 600 characters). Creates a separate draft and uses model quota. Render retries reuse the saved audio.', 'zh-Hans': '使用已配置的语音模型朗读第一行固定观测值（最多 600 字），生成独立草稿并消耗模型额度。视频重渲染复用已保存的配音。' },
   add: { en: 'Add', 'zh-Hans': '添加' },
   addScene: { en: 'Add scene', 'zh-Hans': '添加场景' },
   allTargets: { en: 'All targets', 'zh-Hans': '全部目标' },
@@ -51,6 +54,7 @@ const DICTIONARY = {
   producer: { en: 'HyperFrames Producer', 'zh-Hans': 'HyperFrames Producer' },
   productionRender: { en: 'Production render', 'zh-Hans': '生产渲染' },
   productionRenderHelp: { en: 'Queue an isolated Node 22 + Chromium + FFmpeg render. The saved SDK source and checksum are the render input.', 'zh-Hans': '排队执行隔离的 Node 22 + Chromium + FFmpeg 渲染；已保存的 SDK 源码及校验和是唯一渲染输入。' },
+  retryProductionRender: { en: 'Retry saved render', 'zh-Hans': '重试原渲染' },
   productionRenderQueued: { en: 'HyperFrames production render queued', 'zh-Hans': 'HyperFrames 生产渲染已排队' },
   queueProductionRender: { en: 'Queue MP4 render', 'zh-Hans': '排队渲染 MP4' },
   renderFps: { en: 'Frame rate', 'zh-Hans': '帧率' },

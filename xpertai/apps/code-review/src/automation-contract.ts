@@ -9,6 +9,7 @@ export type PublicationMode = typeof publicationModes[number]
 export const policySettingsSchema = z.object({
   enabled: z.boolean(),
   executionMode: z.enum(['assistant', 'pipeline']).default('pipeline'),
+  eventInboxShadow: z.boolean().optional(),
   onWorkflowFailure: z.boolean().default(false),
   onWorkflowTimeout: z.boolean().default(false),
   workflows: z.array(z.string().trim().min(1).max(200)).max(30).default([]),

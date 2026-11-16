@@ -1,3 +1,5 @@
+import { z } from 'zod/v3'
+import { CanvasContentProvider } from './canvas-content.provider.js'
 import { Injectable, Optional } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -86,7 +88,8 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
     @Optional()
     private readonly artifactService?: CanvasArtifactService,
     @Optional()
-    private readonly artifactExportService?: CanvasArtifactExportService
+    private readonly artifactExportService?: CanvasArtifactExportService,
+    @Optional() private readonly contentProvider?: CanvasContentProvider
   ) {}
 
   supports(context: XpertResolvedViewHostContext) {
@@ -182,6 +185,8 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           ]
         },
         clientCommands: [
+          { key: 'workbench.content.resolve', label: text('Resolve editor', '解析编辑器') },
+          { key: 'workbench.navigation.open', label: text('Open workbook', '打开工作簿') },
           {
             key: ASSISTANT_CONTEXT_SET_COMMAND,
             label: text('Set Assistant Context', '设置 Assistant 上下文')
@@ -194,6 +199,9 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         actions: [
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_document', label: text('New Canvas', '新建画布'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'upgrade_collaboration', label: text('Upgrade collaboration', '升级协作'), icon: 'ri-refresh-line', actionType: 'invoke' },
+          { key: 'convert_to_workbook', label: text('Create workbook', '生成工作簿'), actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'convert_to_document', label: text('Create document', '生成文档'), actionType: 'invoke', requiredHostAccess: 'edit' },
           { key: 'open_document', label: text('Open Canvas', '打开画布'), icon: 'ri-live-line', actionType: 'invoke' },
           { key: 'autosave_snapshot', label: text('Autosave', '自动保存'), icon: 'ri-save-2-line', actionType: 'invoke' },
           { key: 'save_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', actionType: 'invoke' },
@@ -335,6 +343,11 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         return success('Canvas view refreshed', 'Canvas 视图已刷新')
       }
 
+      if (['create_document', 'open_document', 'autosave_snapshot', 'save_version', 'restore_version', 'upgrade_collaboration'].includes(actionKey) &&
+        getNumberInput(request.input, 'collaborationSchemaVersion') !== 2) {
+        return failure('Reload Canvas to use the current collaboration protocol.', '请重新加载画布以使用当前协作协议。')
+      }
+
       if (actionKey === 'create_document') {
         const result = await this.service.createDocument(scope, {
           title: requireStringInput(request.input, 'title', 'Canvas title is required.'),
@@ -352,6 +365,21 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           ...success('Canvas created', '画布已创建'),
           data: result
         }
+      }
+
+      if (actionKey === 'convert_to_workbook' || actionKey === 'convert_to_document') {
+        if (!this.contentProvider) throw new Error('Canvas conversion is unavailable.')
+        const input = z.object({ documentId: z.string().uuid(), expectedRevision: z.string().regex(/^\d+$/),
+          requestId: z.string().uuid(), title: z.string().trim().min(1).max(200) }).parse(request.input)
+        return { ...success('Created from Canvas', '已从画布创建成果'), data: await this.contentProvider.convert(scope, {
+          documentId: input.documentId, expectedRevision: input.expectedRevision, requestId: input.requestId, title: input.title,
+          target: actionKey === 'convert_to_document' ? 'document' : 'workbook' }) }
+      }
+      if (actionKey === 'upgrade_collaboration') {
+        const sequence = getNumberInput(request.input, 'expectedSequence')
+        if (!Number.isInteger(sequence) || sequence < 0) return failure('Reload the current Canvas revision.', '请重新加载当前画布版本。')
+        return { ...success('Canvas collaboration upgraded', '画布协作协议已升级'), refresh: true,
+          data: await this.service.upgradeCollaborationDocument(scope, requireDocumentId(request), sequence) }
       }
 
       if (actionKey === 'open_document') {
@@ -763,7 +791,8 @@ function isChineseLocale(locale: string | null | undefined) {
 
 function getProjectId(context: XpertResolvedViewHostContext) {
   const scoped = context as ProjectScopedViewHostContext
-  return typeof scoped.projectId === 'string' && scoped.projectId.trim() ? scoped.projectId.trim() : null
+  const projectId = context.runtimeScope?.projectId ?? scoped.projectId
+  return typeof projectId === 'string' && projectId.trim() ? projectId.trim() : null
 }
 
 function isJsonObject(value: CanvasJsonValue | object | null | undefined): value is CanvasJsonObject {

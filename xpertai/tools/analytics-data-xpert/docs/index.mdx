@@ -91,6 +91,12 @@ The provider carries those rows, source-fetch time, upstream execution ID and au
 into the platform normalizer. Truncated results use page scope and unknown total accuracy.
 The reported count must not be interpreted as a verified full business aggregate.
 
+When the endpoint supplies `sourceVersion`, it is preserved in Dataset provenance and
+the dashboard's source inspection metadata. This is a resource revision, not business
+certification. Older endpoints may omit it. The upgraded data-xpert endpoint rechecks
+viewer access and the resource's active state, version, connection and capabilities
+after execution; a change withholds the result and requires a fresh query.
+
 Structured Data Analytics views and free HTML/JS Artifacts consume the same Dataset through
 the host's declared Binding bridge. They do not call data-xpert directly. Filtering resolves
 new declared parameters; refreshing performs another request. Responses must declare

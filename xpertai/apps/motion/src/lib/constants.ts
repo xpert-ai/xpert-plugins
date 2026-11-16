@@ -13,7 +13,7 @@ export const MOTION_REMOTE_ENTRY_KEY = 'motion-workbench'
 export const MOTION_RENDER_QUEUE = 'motion.render'
 export const MOTION_RENDER_JOB = 'hyperframes-production'
 export const MOTION_RENDER_SANDBOX_ACTION = 'motion.hyperframes-render'
-export const MOTION_RENDER_SANDBOX_ACTION_VERSION = '1.0.0'
+export const MOTION_RENDER_SANDBOX_ACTION_VERSION = '1.1.0'
 
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'

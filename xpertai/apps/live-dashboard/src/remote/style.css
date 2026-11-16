@@ -21,11 +21,12 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 .viewer-controls-button:hover, .viewer-controls-button[aria-expanded="true"] { background:color-mix(in srgb, var(--background) 92%, transparent); }
 .viewer-controls-panel { max-height:calc(100dvh - 80px); overflow-y:auto; background:color-mix(in srgb, var(--popover) 94%, transparent); backdrop-filter:blur(16px); }
 .viewer-controls-panel .dashboard-toolbar { flex-wrap:wrap; padding:14px 56px 14px 16px; white-space:normal; border-bottom:0; }
-.viewer-controls-panel .toolbar-title { display:block; flex:1 1 100%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.viewer-controls-panel .toolbar-heading { flex-basis:100%; }
 .viewer-controls-close { position:absolute; right:8px; top:8px; }
 .dashboard-shell[data-read-only] > [role="alert"], .dashboard-shell[data-read-only] > p[role="status"] { position:absolute; z-index:10; bottom:12px; left:12px; right:12px; margin:0; border-radius:8px; background:var(--background); }
-.dashboard-toolbar { display:flex; flex:none; align-items:center; gap:8px; padding:10px 16px; min-width:0; }
-.toolbar-title { min-width:0; flex:1; }
+.dashboard-toolbar { display:flex; flex:none; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 16px; min-width:0; }
+.toolbar-heading { display:flex; flex:1 1 20rem; align-items:center; gap:8px; min-width:0; }
+.toolbar-title { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dashboard-picker { min-width:0; flex:1 1 420px; max-width:680px; }
 .picker-project { min-width:0; flex:0 1 40%; }
 .picker-dashboard { min-width:0; flex:1; text-align:left; }
@@ -35,10 +36,11 @@ html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; 
 .picker-project-pane { border-right:1px solid var(--border); }
 .picker-mobile-tabs { display:none; }
 .toolbar-version { flex:none; }
-.toolbar-actions { display:flex; align-items:center; flex:none; gap:4px; margin-left:auto; }
+.toolbar-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; flex:0 1 auto; min-width:0; max-width:100%; gap:4px; margin-left:auto; }
 @container (max-width:500px) {
   .dashboard-toolbar { flex-wrap:wrap; padding:8px; }
-  .dashboard-picker { flex-basis:100%; max-width:none; }
+  .toolbar-heading { flex-basis:100%; }
+  .dashboard-picker { max-width:none; }
 }
 
 .picker-column { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:auto; }

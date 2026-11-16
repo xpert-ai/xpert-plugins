@@ -104,6 +104,7 @@ export interface SupplierQuoteItemInput {
 }
 
 export interface SaveSupplierQuoteExtractionInput {
+  quoteSeriesId?: string
   caseId: string
   documentId?: string
   supplierName: string

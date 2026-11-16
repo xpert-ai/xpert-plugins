@@ -6,7 +6,7 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "jest.config.ts",
+    "jest.config.mjs",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/**/*.d.ts"

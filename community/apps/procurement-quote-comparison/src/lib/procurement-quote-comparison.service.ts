@@ -1,6 +1,8 @@
+import { normalizeOptional, quoteHeader, quoteLine } from './quote-extraction.js'
+import { QuoteEvents } from './quote-events.js'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { EntityManager, IsNull, Repository } from 'typeorm'
 import {
   ProcurementComparisonCase,
   ProcurementItemMatch,
@@ -80,7 +82,8 @@ export class ProcurementQuoteComparisonService {
     @InjectRepository(ProcurementRiskItem)
     private readonly riskRepository: Repository<ProcurementRiskItem>,
     @InjectRepository(ProcurementRecommendation)
-    private readonly recommendationRepository: Repository<ProcurementRecommendation>
+    private readonly recommendationRepository: Repository<ProcurementRecommendation>,
+    private readonly quoteEvents?: QuoteEvents
   ) {}
 
   async createComparisonCase(scope: ProcurementScope, input: CreateComparisonCaseInput) {
@@ -231,71 +234,64 @@ export class ProcurementQuoteComparisonService {
   }
 
   async saveSupplierQuoteExtraction(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput) {
-    await this.requireCase(scope, input.caseId)
+    if (this.quoteEvents) return this.caseRepository.manager.transaction(tx => this.saveQuote(scope,input,tx))
+    return this.saveQuote(scope,input)
+  }
+
+  private async saveQuote(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput, tx?: EntityManager) {
+    const cases = tx?.getRepository(ProcurementComparisonCase) ?? this.caseRepository
+    const quotes = tx?.getRepository(ProcurementSupplierQuote) ?? this.supplierQuoteRepository
+    const lines = tx?.getRepository(ProcurementQuoteItem) ?? this.quoteItemRepository
+    const documents = tx?.getRepository(ProcurementSourceDocument) ?? this.documentRepository
+    const c = await cases.findOne({where:scopedWhere(scope,{id:input.caseId}), ...(tx ? {lock:{mode:'pessimistic_write' as const}} : {})})
+    if (!c) throw new NotFoundException('Procurement comparison case was not found.')
     const supplierName = normalizeRequired(input.supplierName, 'Supplier name is required.')
 
     const existing =
       input.documentId != null
-        ? await this.supplierQuoteRepository.findOne({
+        ? await quotes.findOne({
             where: scopedWhere(scope, { caseId: input.caseId, documentId: input.documentId })
           })
         : null
 
-    const supplierQuote = await this.supplierQuoteRepository.save(
-      this.supplierQuoteRepository.create({
+    if (tx && existing && await this.quoteEvents.previouslyParsed(tx,c,input,existing)) {
+      return {supplierQuote:existing,items:await lines.findBy(scopedWhere(scope,{caseId:input.caseId,supplierQuoteId:existing.id}))}
+    }
+
+    const supplierQuote = await quotes.save(
+      quotes.create({
         ...existing,
         ...scopedCreate(scope),
         caseId: input.caseId,
         documentId: normalizeOptional(input.documentId),
-        supplierName,
-        supplierContact: normalizeOptional(input.supplierContact),
-        taxIncluded: input.taxIncluded,
-        deliveryTime: normalizeOptional(input.deliveryTime),
-        paymentTerms: normalizeOptional(input.paymentTerms),
-        warranty: normalizeOptional(input.warranty),
-        remarks: normalizeOptional(input.remarks)
+        ...quoteHeader(input)
       })
     )
 
     if (supplierQuote.id) {
-      await this.quoteItemRepository.delete(scopedWhere(scope, { caseId: input.caseId, supplierQuoteId: supplierQuote.id }))
+      await lines.delete(scopedWhere(scope, { caseId: input.caseId, supplierQuoteId: supplierQuote.id }))
     }
 
     const items =
       supplierQuote.id == null
         ? []
-        : await this.quoteItemRepository.save(
+        : await lines.save(
             input.items.map((item) =>
-              this.quoteItemRepository.create({
+              lines.create({
                 ...scopedCreate(scope),
                 caseId: input.caseId,
                 supplierQuoteId: supplierQuote.id,
-                requirementItemId: normalizeOptional(item.requirementItemId),
-                productName: item.productName,
-                brand: normalizeOptional(item.brand),
-                model: normalizeOptional(item.model),
-                specification: normalizeOptional(item.specification),
-                quantity: item.quantity,
-                unit: normalizeOptional(item.unit),
-                unitPrice: normalizeOptional(item.unitPrice),
-                totalPrice: normalizeOptional(item.totalPrice),
-                taxIncluded: item.taxIncluded,
-                taxRate: normalizeOptional(item.taxRate),
-                deliveryTime: normalizeOptional(item.deliveryTime),
-                paymentTerms: normalizeOptional(item.paymentTerms),
-                warranty: normalizeOptional(item.warranty),
-                remarks: normalizeOptional(item.remarks),
-                rawText: normalizeOptional(item.rawText)
+                ...quoteLine(item)
               })
             )
           )
 
     if (input.documentId) {
-      const document = await this.documentRepository.findOne({
+      const document = await documents.findOne({
         where: scopedWhere(scope, { id: input.documentId, caseId: input.caseId })
       })
       if (document) {
-        await this.documentRepository.save({
+        await documents.save({
           ...document,
           supplierQuoteId: supplierQuote.id,
           supplierName,
@@ -304,7 +300,10 @@ export class ProcurementQuoteComparisonService {
       }
     }
 
-    await this.updateCaseCounts(scope, input.caseId)
+    if (tx) {
+      await cases.update({id:c.id},{supplierCount:await quotes.countBy({caseId:c.id})})
+      await this.quoteEvents.capture(tx, c, input, supplierQuote, scope.conversationId)
+    } else await this.updateCaseCounts(scope, input.caseId)
 
     return {
       supplierQuote,
@@ -335,7 +334,7 @@ export class ProcurementQuoteComparisonService {
 
   async saveRiskItems(scope: ProcurementScope, input: SaveRiskItemsInput) {
     await this.requireCase(scope, input.caseId)
-    await this.riskRepository.delete(scopedWhere(scope, { caseId: input.caseId }))
+    await this.riskRepository.delete({ ...scopedWhere(scope, { caseId: input.caseId }), eventOperationKey: IsNull() })
     const risks = await this.riskRepository.save(
       input.risks.map((risk) =>
         this.riskRepository.create({
@@ -833,11 +832,6 @@ function normalizeRequired(value: string | undefined, message: string) {
     throw new BadRequestException(message)
   }
   return normalized
-}
-
-function normalizeOptional(value: string | undefined | null) {
-  const normalized = value?.trim()
-  return normalized ? normalized : undefined
 }
 
 function requireSourceDocumentMaterial(input: {

@@ -1,5 +1,7 @@
+import { OfficeHeader, type OfficeHeaderPanel, type OfficeFormat } from './office-header'
+import { OfficeDocumentPicker } from './office-document-picker'
 import { createOfficeUniver } from './univer-engine'
-import { LocaleType, LogLevel, Univer, UniverInstanceType, mergeLocales } from '@univerjs/core'
+import { CommandType, LocaleType, LogLevel, Univer, UniverInstanceType, mergeLocales } from '@univerjs/core'
 import { FUniver } from '@univerjs/core/facade'
 import DesignEnUS from '@univerjs/design/locale/en-US'
 import DesignZhCN from '@univerjs/design/locale/zh-CN'
@@ -41,7 +43,6 @@ import UIZhCN from '@univerjs/ui/locale/zh-CN'
 import '@univerjs/ui/facade'
 import '@univerjs/docs-ui/facade'
 import '@univerjs/sheets/facade'
-import '@univerjs/sheets-ui/facade'
 import '@univerjs/sheets-formula/facade'
 import '@univerjs/sheets-numfmt/facade'
 import '@univerjs/design/lib/index.css'
@@ -64,22 +65,9 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
-  Download,
-  FileJson,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  RotateCcw,
-  Save,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Send,
   Textarea,
-  Trash2,
-  Upload,
+  PopoverTitle, Tabs, TabsList, TabsTrigger, TabsContent, TooltipProvider,
 } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import {
@@ -134,7 +122,9 @@ function App() {
   const [filterType, setFilterType] = React.useState<OfficeDocumentType | 'all'>('all')
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
-  const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [headerPanel, setHeaderPanel] = React.useState<OfficeHeaderPanel>(null)
+  const listRequestSequenceRef = React.useRef(0)
+  const importFormatRef = React.useRef<OfficeImportFormat>('xlsx')
   const [deleteTarget, setDeleteTarget] = React.useState<DocumentRecord | null>(null)
   const [collabState, setCollabState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [assistantInstruction, setAssistantInstruction] = React.useState('')
@@ -149,6 +139,8 @@ function App() {
   const openRequestSequenceRef = React.useRef(0)
   const clientIdRef = React.useRef(`office-editor-${Math.random().toString(36).slice(2)}`)
   const applyingOperationsRef = React.useRef(false)
+  const unsavedRef = React.useRef(false)
+  unsavedRef.current = dirty || busy
   const t = createTranslator(context?.locale)
 
   React.useEffect(() => {
@@ -172,19 +164,35 @@ function App() {
       (nextContext) => {
         setContext(nextContext)
         const payload = nextContext.payload || null
-        hydratePayload(payload)
-        if (!payload?.item && !Array.isArray(payload?.items) && !Array.isArray(payload?.table?.items)) {
+        const requestedId = nextContext.initialQuery?.selectionId ?? nextContext.initialQuery?.parameters?.documentId
+        if (typeof requestedId === 'string' && requestedId && requestedId !== selectedIdRef.current) {
+          void openDocument(requestedId)
+        } else if (!detailRef.current) {
+          hydratePayload(payload)
+        }
+        if (!requestedId && !payload?.item && !Array.isArray(payload?.items) && !Array.isArray(payload?.table?.items)) {
           setTimeout(() => reloadList(), 0)
         }
       },
       () => {
-        void reloadAfterHostEvent()
+        if (!unsavedRef.current) void reloadAfterHostEvent()
+      },
+      (event) => {
+        if (event.kind === 'prepareClose' && event.resourceId === selectedIdRef.current && typeof event.requestId === 'string') {
+          post('closePrepared', { requestId: event.requestId, ready: !unsavedRef.current })
+        }
       }
     )
     post('ready')
   }, [])
 
   React.useEffect(reportResize, [documents, detail, busy, dirty, collabState])
+  React.useEffect(() => {
+    if (selectedId) void invokeClientCommand('workbench.content.status', {
+      resourceId: selectedId, title: detail?.item?.title, dirty: dirty || busy,
+      label: t(dirty ? 'dirty' : 'synced')
+    }).catch(() => undefined)
+  }, [selectedId, detail?.item?.title, dirty, busy, context?.locale])
 
   React.useEffect(() => {
     void applyQueuedOperations()
@@ -225,12 +233,13 @@ function App() {
     }
   }
 
-  async function reloadList() {
-    const parameters = filterType === 'all' ? {} : { documentType: filterType }
+  async function reloadList(nextFilter = filterType) {
+    const request = ++listRequestSequenceRef.current
+    const parameters = nextFilter === 'all' ? {} : { documentType: nextFilter }
     const response = await requestData({ page: 1, pageSize: 50, parameters })
     const payload = getResponsePayload(response)
     const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.table?.items) ? payload.table.items : []
-    setDocuments(items)
+    if (request === listRequestSequenceRef.current) setDocuments(items)
     return items
   }
 
@@ -274,10 +283,10 @@ function App() {
     return promise
   }
 
-  async function createDocument() {
-    const title = `${typeLabel(documentType, t)} ${new Date().toISOString().slice(0, 10)}`
+  async function createDocument(kind: OfficeDocumentType) {
+    const title = `${typeLabel(kind, t)} ${new Date().toISOString().slice(0, 10)}`
     await runBusy(async () => {
-      const response = await executeAction('create_document', null, { documentType, title }, null)
+      const response = await executeAction('create_document', null, { documentType: kind, title }, null)
       const payload = getSuccessfulActionData(response, context?.locale)
       const documentId = payload?.document?.id || payload?.item?.id || payload?.id
       await reloadList()
@@ -288,7 +297,7 @@ function App() {
   }
 
   async function importDocument(file: File) {
-    const selectedImportFormat = importFormat
+    const selectedImportFormat = importFormatRef.current
     const importDocumentType = documentTypeForImportFormat(selectedImportFormat)
     await runBusy(async () => {
       const response = await executeFileAction(
@@ -553,129 +562,64 @@ function App() {
   const operations = detail?.operations || []
   const snapshots = detail?.snapshots || []
 
+  const pickerDocuments = detail?.item?.id && !documents.some(item => item.id === detail.item!.id)
+    ? [detail.item, ...documents] : documents
+  const filteredDocuments = pickerDocuments.filter(item => filterType === 'all' || item.documentType === filterType)
+  const typeOptions = (['spreadsheet', 'document', 'presentation'] as const).map(value => ({ value, label: t(value) }))
+  function changeHeaderPanel(panel: OfficeHeaderPanel) {
+    setHeaderPanel(panel)
+    if (panel === 'documents' && headerPanel !== 'documents') void reloadList().catch(error => notify('error', getErrorMessage(error)))
+  }
+  function chooseImport(format: OfficeFormat) {
+    importFormatRef.current = format
+    setImportFormat(format)
+    if (importInputRef.current) {
+      importInputRef.current.accept = acceptForImportFormat(format)
+      importInputRef.current.click()
+    }
+  }
+
   return (
-    <div className={`oe-shell ${sidebarOpen ? 'is-sidebar-open' : 'is-sidebar-collapsed'}`}>
-      <aside className="oe-sidebar">
-        <div className="oe-header oe-sidebar-header">
-          <Button
-            className="oe-icon-button"
-            variant="ghost"
-            size="icon"
-            title={sidebarOpen ? t('collapseSidebar') : t('expandSidebar')}
-            aria-label={sidebarOpen ? t('collapseSidebar') : t('expandSidebar')}
-            onClick={() => setSidebarOpen((value) => !value)}
-          >
-            {sidebarOpen ? <PanelLeftClose className="oe-icon" aria-hidden="true" /> : <PanelLeftOpen className="oe-icon" aria-hidden="true" />}
-          </Button>
-          <div className="oe-title">
-            <strong>{t('title')}</strong>
-            <span>{documents.length} {t('documents')}</span>
-          </div>
-          <FileJson className="oe-sidebar-glyph" aria-hidden="true" />
-        </div>
-        <div className="oe-sidebar-body">
-          <div className="oe-filter">
-            <Select value={filterType} onValueChange={(value) => {
-              setFilterType(value as any)
-              setTimeout(() => reloadList(), 0)
-            }}>
-              <SelectTrigger className="oe-select-trigger" aria-label={t('allTypes')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('allTypes')}</SelectItem>
-                <SelectItem value="spreadsheet">{t('spreadsheet')}</SelectItem>
-                <SelectItem value="document">{t('document')}</SelectItem>
-                <SelectItem value="presentation">{t('presentation')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={documentType} onValueChange={(value) => setDocumentType(value as OfficeDocumentType)}>
-              <SelectTrigger className="oe-select-trigger" aria-label={t('newDocumentType')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="spreadsheet">{t('spreadsheet')}</SelectItem>
-                <SelectItem value="document">{t('document')}</SelectItem>
-                <SelectItem value="presentation">{t('presentation')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button className="oe-wide-button" disabled={busy} onClick={createDocument}>
-              <Plus className="oe-icon" aria-hidden="true" />
-              {t('new')}
-            </Button>
-          </div>
-          <div className="oe-list">
-            {documents.map((item) => {
-              const active = item.id === selectedId
-              return (
-                <div key={item.id} className={`oe-doc-row ${active ? 'is-active' : ''}`}>
-                  <button
-                    type="button"
-                    className="oe-doc-button"
-                    onClick={() => openDocument(item.id)}
-                  >
-                    <strong>{item.title || t('untitled')}</strong>
-                    <span>{typeLabel(item.documentType, t)} · v{item.currentVersionNumber || 0} · {formatDate(item.updatedAt)}</span>
-                  </button>
-                  <Button
-                    className="oe-doc-delete"
-                    variant="ghost"
-                    size="icon"
-                    title={`${t('delete')} ${item.title || t('untitled')}`}
-                    aria-label={`${t('delete')} ${item.title || t('untitled')}`}
-                    disabled={busy}
-                    onClick={() => setDeleteTarget(item)}
-                  >
-                    <Trash2 className="oe-icon" aria-hidden="true" />
-                  </Button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </aside>
+    <TooltipProvider delayDuration={250}>
+    <div className="oe-shell">
       <main className="oe-main">
-        <div className="oe-toolbar">
-          <div className="oe-toolbar-title">
-            <strong>{currentTitle}</strong>
-            <span>{currentMeta || t('emptyHint')}</span>
-          </div>
-          <div className="oe-actions">
-            <Select value={importFormat} onValueChange={(value) => setImportFormat(value as OfficeImportFormat)}>
-              <SelectTrigger className="oe-select-trigger oe-format-trigger" aria-label={t('importFormat')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="xlsx">{t('xlsx')}</SelectItem>
-                <SelectItem value="docx">{t('docx')}</SelectItem>
-                <SelectItem value="pptx">{t('pptx')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" title={t('import')} disabled={busy} onClick={() => importInputRef.current?.click()}>
-              <Upload className="oe-icon" aria-hidden="true" />
-              {t('import')}
-            </Button>
-            {detail?.item?.documentType === 'spreadsheet' && detail?.item?.currentFileVersionId ? (
-              <Button variant="outline" title={t('download')} disabled={busy} onClick={downloadExcel}>
-                <Download className="oe-icon" aria-hidden="true" />
-                {t('download')}
-              </Button>
-            ) : null}
-            <Badge className="oe-status-badge" variant={collabState === 'connected' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : undefined}>{t('collab')}: {t(collabState)}</Badge>
-            <Badge className="oe-status-badge" variant="outline" data-status={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
-            <Button variant="outline" title={t('sync')} disabled={!selectedId || busy} onClick={syncCollabState}>
-              <RotateCcw className="oe-icon" aria-hidden="true" />
-              {t('sync')}
-            </Button>
-            <Button title={t('save')} disabled={!selectedId || busy} onClick={() => saveSnapshot()}>
-              <Save className="oe-icon" aria-hidden="true" />
-              {t('save')}
-            </Button>
-            <Button variant="destructive" size="icon" title={t('delete')} disabled={!selectedId || busy} onClick={() => setDeleteTarget(selectedDocument || { id: selectedId, title: currentTitle })}>
-              <Trash2 className="oe-icon" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
+        <OfficeHeader title={currentTitle} kind={detail?.item?.documentType} locale={context?.locale}
+          panel={headerPanel} onPanelChange={changeHeaderPanel} hasDocument={Boolean(selectedId)} busy={busy} dirty={dirty}
+          connected={collabState === 'connected'} status={dirty ? t('dirty') : collabState === 'connected' ? t('synced') : t(collabState)}
+          statusDetail={`${t('collab')}: ${t(collabState)} · ${dirty ? t('dirty') : t('synced')}`}
+          labels={{ documents: t('documents'), save: t('save'), sync: t('sync'), import: t('import'), download: t('download'), delete: t('delete') }}
+          formats={(['xlsx', 'docx', 'pptx'] as const).map(value => ({ value, label: t(value) }))}
+          canDownload={detail?.item?.documentType === 'spreadsheet' && Boolean(detail.item.currentFileVersionId)}
+          onSave={() => void saveSnapshot()} onSync={() => void syncCollabState()} onDownload={() => void downloadExcel()}
+          onImport={chooseImport} onDelete={() => setDeleteTarget(selectedDocument || { id: selectedId, title: currentTitle })}
+          documents={<OfficeDocumentPicker
+            items={filteredDocuments.map(item => ({ id: item.id, title: item.title, documentType: item.documentType }))}
+            selectedId={selectedId} filter={filterType} busy={busy} types={typeOptions}
+            labels={{ title: t('documents'), allTypes: t('allTypes'), new: t('new'), untitled: t('untitled'), empty: t('emptyHint') }}
+            onFilter={value => { setFilterType(value); void reloadList(value).catch(error => notify('error', getErrorMessage(error))) }}
+            onCreate={kind => { setHeaderPanel(null); void createDocument(kind) }}
+            onSelect={id => { setHeaderPanel(null); void openDocument(id) }} />}
+          details={<div className="oe-inspector-content">
+            <PopoverTitle>{currentTitle}</PopoverTitle>
+            <p className="oe-document-meta">{currentMeta} · {snapshots.length} {t('snapshots')}</p>
+            <Tabs defaultValue="operations">
+              <TabsList><TabsTrigger value="operations">{t('operations')} <Badge variant="secondary">{operations.length}</Badge></TabsTrigger><TabsTrigger value="assistant">{t('ask')}</TabsTrigger></TabsList>
+              <TabsContent value="assistant"><div className="oe-section">
+                <Textarea className="oe-textarea" value={assistantInstruction} aria-label={t('ask')}
+                  placeholder={t('assistantPlaceholder')} onChange={event => setAssistantInstruction(event.currentTarget.value)} />
+                <Button disabled={!selectedId || busy || !assistantInstruction.trim()} onClick={askAssistant}><Send />{t('ask')}</Button>
+              </div></TabsContent>
+              <TabsContent value="operations"><div className="oe-operation-list">
+                {operations.map(operation => <div className="oe-operation" key={operation.id}>
+                  <div className="oe-operation-row"><strong>{operationLabel(operation.operationType, t)}</strong>
+                    <Badge variant={operation.status === 'failed' || operation.status === 'conflict' ? 'destructive' : 'secondary'}>{t(operation.status || 'queued')}</Badge>
+                  </div>
+                  {operation.reviewNote ? <span className="oe-operation-detail">{operation.reviewNote}</span> : null}
+                  {operation.operationType === 'import_document' ? <span className="oe-operation-detail">{formatImportOperation(operation, t)}</span> : <pre className="oe-operation-data"><code>{JSON.stringify(operation.input ?? operation.result ?? {}, null, 2)}</code></pre>}
+                </div>)}
+              </div></TabsContent>
+            </Tabs>
+          </div>} />
         <input
           ref={importInputRef}
           className="oe-hidden"
@@ -706,48 +650,6 @@ function App() {
           )}
         </div>
       </main>
-      <aside className="oe-inspector">
-        <div className="oe-header">
-          <div className="oe-title">
-            <strong>{t('operations')}</strong>
-            <span>{operations.length} {t('operations')} · {snapshots.length} {t('snapshots')}</span>
-          </div>
-        </div>
-        <div className="oe-panel-scroll">
-          <section className="oe-section">
-            <div className="oe-section-title">{t('ask')}</div>
-            <Textarea
-              className="oe-textarea"
-              value={assistantInstruction}
-              placeholder={t('assistantPlaceholder')}
-              onChange={(event) => setAssistantInstruction(event.currentTarget.value)}
-            />
-            <Button className="oe-wide-button" disabled={!selectedId || busy} onClick={askAssistant}>
-              <Send className="oe-icon" aria-hidden="true" />
-              {t('ask')}
-            </Button>
-          </section>
-          <section className="oe-section">
-            <div className="oe-section-title">{t('operations')}</div>
-            {operations.map((operation) => (
-              <div className="oe-operation" key={operation.id}>
-                <div className="oe-operation-row">
-                  <strong>{operationLabel(operation.operationType, t)}</strong>
-                  <Badge className="oe-status-badge" variant={operation.status === 'applied' || operation.status === 'failed' || operation.status === 'conflict' ? 'outline' : 'secondary'} data-status={operation.status === 'applied' ? 'success' : operation.status === 'failed' || operation.status === 'conflict' ? 'warning' : undefined}>
-                    {t(operation.status || 'queued')}
-                  </Badge>
-                </div>
-                {operation.reviewNote ? <span className="oe-operation-detail">{operation.reviewNote}</span> : null}
-                {operation.operationType === 'import_document' ? (
-                  <span className="oe-operation-detail">{formatImportOperation(operation, t)}</span>
-                ) : (
-                  <code>{JSON.stringify(operation.input ?? operation.result ?? {}, null, 2)}</code>
-                )}
-              </div>
-            ))}
-          </section>
-        </div>
-      </aside>
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
@@ -780,6 +682,7 @@ function App() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   )
 }
 
@@ -798,7 +701,14 @@ const OfficeUniverHost = React.forwardRef(function OfficeUniverHost(props: any, 
     const univer = createOfficeUniver(containerRef.current, locale)
     const unit = univer.createUnit(toUniverInstanceType(props.documentType), props.snapshot || {})
     const api = FUniver.newAPI(univer)
-    const disposable = api.onCommandExecuted?.(() => {
+    const disposable = api.onCommandExecuted?.((command) => {
+      // Slides 0.25 stores edits through operations; navigation and thumbnail
+      // commands are transient and must not create an unsaved draft.
+      const slideEdit = ['slide.operation.append-slide', 'slide.operation.delete-element',
+        'slide.operation.update-element', 'slide.operation.insert-float-shape.rectangle',
+        'slide.operation.insert-float-shape.ellipse', 'slide.operation.add-text',
+        'slide.command.insert-float-image'].includes(command.id)
+      if (command.type !== CommandType.MUTATION && !slideEdit) return
       snapshotRef.current = readSnapshot(api, unit, props.documentType)
       props.onDirty?.()
     })

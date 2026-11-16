@@ -2,7 +2,7 @@ export type MotionProjectStatus = 'draft' | 'reviewed' | 'archived' | 'failed'
 export type MotionSurface = 'web' | 'video'
 export type MotionVideoEngine = 'hyperframes' | 'legacy_canvas'
 export type MotionVersionSource = 'agent_web' | 'agent_video' | 'workbench' | 'import' | 'restore'
-export type MotionExportKind = 'html' | 'css' | 'react' | 'lottie' | 'json' | 'mp4' | 'gif'
+export type MotionExportKind = 'html' | 'css' | 'react' | 'lottie' | 'json' | 'mp4' | 'gif' | 'wav'
 export type MotionActorType = 'agent' | 'user' | 'system'
 export type MotionRenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
 export type MotionRenderQuality = 'draft' | 'standard' | 'high'
@@ -246,6 +246,8 @@ export interface SaveMotionHyperframesCompositionInput {
 }
 
 export interface StartMotionProductionRenderInput {
+  requestId?: string
+  retryOfExportId?: string
   projectId: string
   kind?: MotionRenderKind
   quality?: MotionRenderQuality

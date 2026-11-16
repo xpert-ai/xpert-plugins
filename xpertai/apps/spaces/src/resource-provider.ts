@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common'
 import { ContentResourceProvider, type ContentResourceEditor, type ContentResourceRequest, type ContentPrincipal, type ContentPageProvider, type ContentLocationProvider, type ContentPublicationObserver, type ContentReferenceProvider, type IContentResourceProvider } from '@xpert-ai/plugin-sdk'
 import { SpaceItemCatalog } from './item-catalog.js'
+import { SpaceFileCollaboration } from './file-collaboration.js'
 import { Space, SpaceItem } from './entities.js'
 import { SpaceAccess } from './access.js'
 import { SpaceFiles } from './files.js'
@@ -14,18 +15,25 @@ import { assertFolderHasNoResources } from './resource-folders.js'
 @ContentResourceProvider('spaces')
 export class SpacesResourceProvider implements IContentResourceProvider {
   readonly title = 'Spaces'
-  constructor(private readonly access: SpaceAccess, private readonly documents: SpaceDocuments, private readonly knowledge: SpaceKnowledge, private readonly subpages: SpaceSubpages, private readonly referenceService: SpaceReferences, private readonly files: SpaceFiles, private readonly itemCatalog: SpaceItemCatalog) {}
+  constructor(private readonly access: SpaceAccess, private readonly documents: SpaceDocuments, private readonly knowledge: SpaceKnowledge, private readonly subpages: SpaceSubpages, private readonly referenceService: SpaceReferences, private readonly files: SpaceFiles, private readonly itemCatalog: SpaceItemCatalog, private readonly fileCollaboration: SpaceFileCollaboration) {}
   get catalog() { return this.itemCatalog.catalog }
   readonly editor: ContentResourceEditor = {
+    createSession: input => this.fileCollaboration.session(input),
     describe: async (input) => {
       const actor = { ...input.actor, projectId: input.projectId, assistantId: input.assistantId }
       const { item, space } = await this.access.resource(actor, input.sourceResourceId, 'read')
-      if (!space.projectId || !item?.editorKey || !item.filePath || item.deleted) throw denied()
-      return { editorKey: item.editorKey, projectId: space.projectId, path: item.filePath, title: item.title }
+      if (!space.projectId || !item?.filePath || item.deleted) throw denied()
+      const editorKey = item.kind === 'page' ? item.editorKey : (await this.itemCatalog.fileFormat(input, item))?.key
+      if (!editorKey) throw denied()
+      return { editorKey, projectId: space.projectId, path: item.filePath, title: item.title }
     },
     files: {
       read: (input) => this.files.editorRead({ ...input.actor, projectId: input.projectId, assistantId: input.assistantId }, input.sourceResourceId),
-      write: (input) => this.files.editorWrite({ ...input.actor, projectId: input.projectId, assistantId: input.assistantId }, input.sourceResourceId, input.expectedRevision, input.buffer)
+      write: async (input) => {
+        const { editorKey } = await this.editor.describe(input)
+        return this.files.editorWrite({ ...input.actor, projectId: input.projectId, assistantId: input.assistantId },
+          input.sourceResourceId, input.expectedRevision, input.buffer, editorKey)
+      }
     }
   }
   readonly references: ContentReferenceProvider = {
@@ -63,6 +71,9 @@ export class SpacesResourceProvider implements IContentResourceProvider {
       const repo = manager.getRepository(SpaceItem)
       const item = await repo.findOneByOrFail({ ...scoped(input.actor), id: input.source.resourceId })
       await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(input.actor), id: item.spaceId }, lock: { mode: 'pessimistic_write' } })
+      const current = await repo.findOneByOrFail({ ...scoped(input.actor), id: item.id })
+      if (current.version !== input.expectedSourceVersion || current.filePath !== input.path)
+        throw new ConflictException('spaces.version_conflict')
       if (input.deleted) await assertFolderHasNoResources(manager, input.actor, item)
       // Resource placement takes the same Space lock and rejects a pending ancestor.
       // Once prepared, no resource can enter a folder while its durable move finishes.

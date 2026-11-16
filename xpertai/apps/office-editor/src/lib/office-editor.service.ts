@@ -1,6 +1,6 @@
 import { OfficeWorkbookService, workbookScope } from './workbooks/service.js'
 import { WORKBOOK_MODEL } from './workbooks/model.js'
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID, createHash } from 'node:crypto'
 import { IsNull, Repository } from 'typeorm'
@@ -878,7 +878,7 @@ export class OfficeEditorService {
   }
 
   async prepareAssistantPrompt(scope: OfficeScope, input: PrepareOfficeAssistantPromptInput) {
-    const document = await this.requireDocument(scope, input.documentId)
+    const document = await this.requireDocument(scope, input.documentId, 'read')
     const instruction = normalizeOptional(input.instruction) ?? '请审阅当前 Office 文档，并将需要修改的内容排队到 Workbench 中由人工确认。'
     return {
       commandKey: 'assistant.chat.send_message',
@@ -937,9 +937,20 @@ export class OfficeEditorService {
       take: pageSize
     })
     const normalizedSearch = normalizeOptional(query.search)?.toLowerCase()
+    const authorizedItems: OfficeDocument[] = []
+    for (const item of items) {
+      try {
+        if (item.contentModel === 'office-editor.document' || item.contentModel === 'office-editor.presentation') {
+          await this.workbooks!.documentSourceAccess(workbookScope(scope), item)
+        }
+        authorizedItems.push(item)
+      } catch (error) {
+        if (!(error instanceof ForbiddenException || error instanceof ConflictException)) throw error
+      }
+    }
     const filteredItems = (normalizedSearch
-      ? items.filter((item) => item.title?.toLowerCase().includes(normalizedSearch))
-      : items).map(toDocumentSummary)
+      ? authorizedItems.filter((item) => item.title?.toLowerCase().includes(normalizedSearch))
+      : authorizedItems).map(toDocumentSummary)
 
     return {
       tableKey: 'documents',
@@ -966,7 +977,7 @@ export class OfficeEditorService {
   }
 
   async createCollabSession(scope: OfficeScope, documentId: string) {
-    assertOriginalOfficeProtocol(await this.requireDocument(scope, documentId))
+    assertOriginalOfficeProtocol(await this.requireDocument(scope, documentId, 'read'))
     const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({
       providerKey: OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
@@ -990,6 +1001,14 @@ export class OfficeEditorService {
     if (context.operation === 'materialize') {
       return true
     }
+    if ((document.contentModel === 'office-editor.document' || document.contentModel === 'office-editor.presentation')) {
+      if (!this.workbooks) return false
+      try {
+        await this.workbooks.access(workbookScope(scope), context.operation === 'read' || context.operation === 'initialize' ? 'read' : 'write')
+        await this.workbooks.documentSourceAccess(workbookScope(scope), document)
+      }
+      catch { return false }
+    }
     const authorization = (context as CollaborationProviderContextWithAuthorization).authorization
     if (context.operation === 'read' || context.operation === 'initialize') {
       return authorization?.canRead !== false
@@ -1008,7 +1027,7 @@ export class OfficeEditorService {
 
   async initializeCollaborationDocument(context: CollaborationProviderContext) {
     const scope = collaborationScope(context)
-    const document = await this.requireDocument(scope, context.resourceId)
+    const document = await this.requireDocument(scope, context.resourceId, 'read')
     assertOriginalOfficeProtocol(document)
     if (!canAccessCollaborationDocument(document, scope.userId)) {
       throw new NotFoundException('Office document was not found.')
@@ -1080,7 +1099,7 @@ export class OfficeEditorService {
   }
 
   private async getDocumentDetail(scope: OfficeScope, documentId: string) {
-    const document = await this.requireDocument(scope, documentId)
+    const document = await this.requireDocument(scope, documentId, 'read')
     const [currentSnapshot, snapshots, operations, fileVersions] = await Promise.all([
       this.snapshotRepository.findOne({
         where: scopedWhere(scope, document.currentSnapshotId
@@ -1116,6 +1135,9 @@ export class OfficeEditorService {
       })
     ])
 
+    if (document.contentModel === 'office-editor.document' || document.contentModel === 'office-editor.presentation') {
+      await this.workbooks!.documentSourceAccess(workbookScope(scope), document)
+    }
     return {
       item: toDocumentSummary(document),
       currentSnapshot: currentSnapshot ? toCurrentSnapshot(currentSnapshot) : null,
@@ -1125,12 +1147,17 @@ export class OfficeEditorService {
     }
   }
 
-  private async requireDocument(scope: OfficeScope, documentId: string) {
+  private async requireDocument(scope: OfficeScope, documentId: string, operation: 'read' | 'write' = 'write') {
     const document = await this.documentRepository.findOne({
       where: scopedDocumentWhere(scope, { id: documentId })
     })
     if (!document) {
       throw new NotFoundException('Office Editor document was not found.')
+    }
+    if ((document.contentModel === 'office-editor.document' || document.contentModel === 'office-editor.presentation')) {
+      if (!this.workbooks) throw new BadRequestException('office.document_unavailable')
+      await this.workbooks.access(workbookScope(scope), operation)
+      await this.workbooks.documentSourceAccess(workbookScope(scope), document)
     }
     if (document.contentModel === WORKBOOK_MODEL.modelId) {
       if (!this.workbooks) throw new BadRequestException('office.workbook_unavailable')

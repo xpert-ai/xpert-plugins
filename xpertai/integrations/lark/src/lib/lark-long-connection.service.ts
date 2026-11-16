@@ -895,7 +895,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		}
 
 		this.logger.debug(
-			`[lark-long] inbound message integration=${integration.id} payload=${this.stringifyInboundPayload(rawPayload)}`
+			`[lark-long] inbound message integration=${integration.id}`
 		)
 
 		let user: IUser
@@ -943,9 +943,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		}
 
 		this.logger.debug(
-			`[lark-long] inbound card action integration=${integration.id} payload=${this.stringifyInboundPayload(
-				rawPayload
-			)}`
+			`[lark-long] inbound card action integration=${integration.id}`
 		)
 
 		let user: IUser
@@ -1637,15 +1635,4 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		return connected ? 'connected' : 'idle'
 	}
 
-	private stringifyInboundPayload(payload: unknown): string {
-		try {
-			const serialized = JSON.stringify(payload)
-			if (!serialized) {
-				return 'null'
-			}
-			return serialized.length > 8000 ? `${serialized.slice(0, 8000)}...(truncated)` : serialized
-		} catch (error) {
-			return `<<unserializable: ${toLarkApiErrorMessage(error)}>>`
-		}
-	}
 }

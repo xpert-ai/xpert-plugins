@@ -90,4 +90,5 @@ export const controlsSchema = z.record(z.union([z.string().max(4000), z.number()
 export const saveSchema = z.object({ manifest: dashboardSchema, expectedVersionId: z.string().uuid().nullable(), expectedRevision: z.number().int().nonnegative().default(0) }).strict()
 export const querySchema = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid().optional(), draftRevision: z.number().int().positive().optional(), controls: controlsSchema.default({}) }).strict()
 /** Generated pages select a saved Binding by ID. Query text, provider and source overrides are rejected. */
-export const queryBindingSchema = querySchema.extend({ bindingId: id }).strict()
+export const queryBindingSchema = querySchema.extend({ bindingId: id,
+  cache: z.object({ maxAgeMs: z.number().int().min(0).max(60000), forceRefresh: z.boolean().optional() }).strict().optional() }).strict()
