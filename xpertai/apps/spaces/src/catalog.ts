@@ -36,7 +36,14 @@ export class SpaceCatalog {
   setPreference(actor: SpaceActor, input: { contentId: string; scope: 'resource' | 'project' | 'organization'; editorKey: string | null; expectedRevision: number }) {
     return this.runtime.require(ContentEditorsRuntimeCapability).setPreference({ ...this.scope(actor), ...input })
   }
-  async types(actor: SpaceActor) { return (await this.api.types(this.scope(actor))).filter(type => type.creatable !== false) }
+  async types(actor: SpaceActor) {
+    const scope = this.scope(actor)
+    const [types, editors] = await Promise.all([this.api.types(scope), this.runtime.require(ContentEditorsRuntimeCapability).list(scope)])
+    // A file type can be browsable without supporting catalog.create. Keep creation
+    // eligibility separate from navigation, using registered models rather than labels.
+    return types.filter(type => type.creatable !== false || editors.some(editor => editor.kind === 'file'
+      && editor.resourceType?.typeId === type.typeId && editor.resourceType.modelId === type.modelId))
+  }
   async attach(actor: SpaceActor, contentId: string, parentId: string | null) {
     const space = await this.spaces.workspace(actor)
     await this.api.get({ ...this.scope(actor), contentId })

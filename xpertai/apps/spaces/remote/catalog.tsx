@@ -9,7 +9,7 @@ import { itemSchema, localizedLabel, type Item } from './model'
 
 // Validate provider metadata against the shared contract; translations are optional.
 export { localizedLabel } from './model'
-export const implementationSchema = z.object({ typeId: z.string(), title: localizedLabel, icon: itemSchema.shape.icon, providerKey: z.string(), implementationKey: z.string(), implementationTitle: localizedLabel, templates: z.array(z.object({ id: z.string(), title: localizedLabel, description: localizedLabel.optional() })).optional() })
+export const implementationSchema = z.object({ typeId: z.string(), title: localizedLabel, icon: itemSchema.shape.icon, providerKey: z.string(), implementationKey: z.string(), implementationTitle: localizedLabel, creatable: z.boolean().optional(), templates: z.array(z.object({ id: z.string(), title: localizedLabel, description: localizedLabel.optional() })).optional() })
 export type Implementation = z.infer<typeof implementationSchema>
 export const catalogItemSchema = z.object({ contentId: z.string(), icon: itemSchema.shape.icon, presentation: itemSchema.shape.presentation, sourceSync: itemSchema.shape.sourceSync, preview: itemSchema.shape.preview, availability: itemSchema.shape.availability, parentId: z.string().nullable().optional(), placementVersion: z.number().optional(), canWrite: z.boolean(), title: z.string(), typeId: z.string(), revision: z.string(), updatedAt: z.string(), deleted: z.boolean(), defaultEditorKey: z.string(), allowedActions: z.array(z.string()), compatibleEditors: itemSchema.shape.compatibleEditors })
 export const catalogPageSchema = z.object({ items: z.array(catalogItemSchema), hasMore: z.boolean(), nextCursor: z.string().optional() })

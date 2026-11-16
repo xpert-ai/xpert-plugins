@@ -1,4 +1,5 @@
 import type { SpaceActor } from './domain.js'
+import type { FileContentEditorRegistration } from '@xpert-ai/contracts'
 import { SpaceArtifacts } from './artifacts.js'
 import { ConflictException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -41,14 +42,14 @@ export class SpacesService {
     return this.tree(actor, space.id)
   }
 
-  async listPage(actor: SpaceActor, spaceId: string, input: ListQuery) {
+  async listPage(actor: SpaceActor, spaceId: string, input: ListQuery, formats: FileContentEditorRegistration[] = []) {
     const root = await this.access.resource(actor, spaceId, input.trash ? 'manage' : 'read')
     if (input.parentId) {
       const parent = await this.access.resource(actor, input.parentId, 'read', input.trash)
       if (parent.space.id !== root.space.id || parent.item?.kind !== 'folder') throw denied()
     }
     const coverage = input.trash ? [] : await this.documents.resourceCoverage(actor, root.space)
-    const page = await listItems(this.access.items, actor, root.space.id, input, coverage)
+    const page = await listItems(this.access.items, actor, root.space.id, input, coverage, formats)
     return { root: root.space, role: root.role, canWrite: root.canWrite, canManage: root.canManage,
       ...page, items: page.items.map(item => ({ ...item, role: root.role })) }
   }

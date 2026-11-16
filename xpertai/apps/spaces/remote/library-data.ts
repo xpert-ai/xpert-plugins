@@ -35,17 +35,19 @@ export function useLibraryData(query: LibraryQuery, scope: number, onError: (err
     const live = () => current === generation.current && scope === scopeRef.current
     const { filter, search, folderId, trash } = query
     const reads: Array<(cursor?: string) => Promise<{ items: Item[]; hasMore: boolean; nextCursor?: string }>> = []
-    // The metadata read is needed for native-type filters as well, but returns no ordinary rows to the merge.
+    // Native files and other providers use disjoint lanes. Both filter before paging;
+    // the catalog excludes Spaces-owned items so the merge cannot duplicate files.
     reads.push(async cursor => {
       const raw = await data({ selectionId: 'root', pageSize: 50, parameters: { trash, search, cursor,
-        ...(folderId ? { parentId: folderId } : {}), ...(filter === 'page' ? { kind: 'page' } : filter === 'files' ? { kind: 'file' } : {}) } })
+        ...(folderId ? { parentId: folderId } : {}), ...(filter === 'page' ? { kind: 'page' } : filter === 'files' ? { kind: 'file' } : {}),
+        ...(!['all', 'page', 'files'].includes(filter) ? { typeId: filter } : {}) } })
       if (z.object({ meta: z.object({ requiresProject: z.literal(true) }) }).safeParse(raw).success) {
         if (live()) { setRequiresProject(true); setRoot(null) }
         return { items: [], hasMore: false }
       }
       const result = listSchema.parse(raw).meta
       if (live()) { setRoot(result.root); setPermissions(result); setRequiresProject(false); remember(result.items) }
-      return ['all', 'page', 'files'].includes(filter) ? result : { items: [], hasMore: false }
+      return result
     })
     if (filter !== 'page') reads.push(async cursor => {
       const result = catalogPageSchema.parse(await action('catalog.list', { deleted: trash, search, cursor,

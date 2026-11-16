@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { action, download } from './bridge'
 import { decode, openPdf } from './engine'
 import { Page } from './page'
+import { PdfToolbar } from './toolbar'
 import { t, useLocale } from './i18n'
 import 'pdfjs-dist/web/pdf_viewer.css'
 
@@ -63,25 +64,11 @@ export function Editor({ source }: { source: Source }) {
   }
   return <main className="document-root">
     <a href="#pdf-document" className="sr-only focus:not-sr-only">{t('document.skip')}</a>
-    <header className="document-toolbar">
-      <Button variant="outline" aria-pressed={sidebar} onClick={() => setSidebar(!sidebar)}>{t('document.thumbnails')}</Button>
-      <span className="min-w-0 flex-1 truncate" title={title}>{title || t('document.loading')}</span>
-      <Button variant="outline" disabled={!title} onClick={() => void download(JSON.stringify(source)).catch(() => setError('document.previewFailed'))}>{t('document.download')}</Button>
-    </header>
-    {pdf && <nav className="document-toolbar" aria-label={t('document.pageNumber')}>
-      <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t('document.previous')}</Button>
-      <Input className="w-20" type="number" min={1} max={pdf.numPages} aria-label={t('document.pageNumber')} value={page} onChange={e => { const n = Number(e.target.value); if (Number.isInteger(n) && n > 0 && n <= pdf.numPages) setPage(n) }} />
-      <span>{t('document.page', { page, total: pdf.numPages })}</span>
-      <Button variant="outline" disabled={page >= pdf.numPages} onClick={() => setPage(page + 1)}>{t('document.next')}</Button>
-      <Button variant="outline" onClick={() => { setFit(false); setScale(Math.max(0.1, scale / 1.2)) }}>{t('document.zoomOut')}</Button>
-      <Button variant="outline" onClick={() => { setFit(false); setScale(Math.min(4, scale * 1.2)) }}>{t('document.zoomIn')}</Button>
-      <Button variant="outline" aria-pressed={fit} onClick={() => setFit(true)}>{t('document.fit')}</Button>
-      <section className="flex gap-2" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void find() } }}>
-        <Input aria-label={t('document.search')} placeholder={t('document.search')} maxLength={200} value={search} onChange={e => { searchEpoch.current++; setSearching(false); setSearch(e.target.value); setNotFound(false) }} />
-        <Button variant="outline" onClick={() => void find()} disabled={searching || !search.trim()}>{t(searching ? 'document.searching' : 'document.find')}</Button>
-      </section>
-    </nav>}
-    {notFound && <p role="status" className="p-3">{t('document.notFound')}</p>}
+    <PdfToolbar title={title} total={pdf?.numPages} page={page} scale={scale} fit={fit} sidebar={sidebar}
+      search={search} searching={searching} notFound={notFound} onPage={setPage} onSidebar={() => setSidebar(!sidebar)}
+      onZoom={direction => { setFit(false); setScale(value => direction === 'in' ? Math.min(4, value * 1.2) : Math.max(0.1, value / 1.2)) }}
+      onFit={() => setFit(true)} onDownload={() => void download(JSON.stringify(source)).catch(() => setError('document.previewFailed'))}
+      onSearch={value => { searchEpoch.current++; setSearching(false); setSearch(value); setNotFound(false) }} onFind={() => void find()} />
     {error && <section role="alert" className="p-3"><p>{t(error)}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>{t('document.reload')}</Button></section>}
     {locked && <section className="p-6 flex flex-wrap gap-3" onKeyDown={e => { if (e.key === 'Enter' && password) { e.preventDefault(); unlock.current?.(password); setPassword('') } }}>
       <p>{t('document.password')}</p><Input type="password" autoComplete="off" aria-label={t('document.passwordLabel')} value={password} onChange={e => setPassword(e.target.value)} />

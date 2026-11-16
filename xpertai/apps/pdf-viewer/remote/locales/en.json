@@ -38,5 +38,7 @@
   "document.limit": "This PDF exceeds the preview limit (1,000 pages). Download it to view locally.",
   "document.previewFailed": "Unable to preview this file. Retry or download the original.",
   "document.skip": "Skip to document",
-  "document.renderFailed": "This page could not be rendered."
+  "document.renderFailed": "This page could not be rendered.",
+  "document.menu": "Document menu",
+  "document.zoom": "Zoom options"
 }

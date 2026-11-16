@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { BadRequestException } from '@nestjs/common'
 import { z } from 'zod/v3'
 import type { Repository } from 'typeorm'
+import type { FileContentEditorRegistration } from '@xpert-ai/contracts'
 import type { SpaceItem } from './entities.js'
 import { id, scoped, type SpaceActor } from './domain.js'
 import type { ContentPathCoverage } from './content-coverage.js'
@@ -9,6 +10,7 @@ import type { ContentPathCoverage } from './content-coverage.js'
 export const listQuery = z.object({
   trash: z.boolean().default(false), search: z.string().max(200).default(''),
   parentId: id.nullable().optional(), kind: z.enum(['folder', 'page', 'file']).optional(),
+  typeId: z.string().min(1).max(200).optional(),
   cursor: z.string().max(1000).optional(), pageSize: z.number().int().min(1).max(100).default(50),
   page: z.number().int().min(1).max(100000).default(1)
 }).strict()
@@ -18,8 +20,11 @@ const cursorSchema = z.object({ key: z.string(), at: z.string().datetime(), id }
 /** SQL reaches only roots and their same-space descendants. Orphans/cycles cannot
  * enter the result, and a deleted ancestor hides active descendants. No per-row ACL cache. */
 export async function listItems(repo: Repository<SpaceItem>, actor: SpaceActor, spaceId: string,
-  input: ListQuery, coverage: ContentPathCoverage[]) {
-  const key = createHash('sha256').update(JSON.stringify([actor, spaceId, input.trash, input.search, input.parentId, input.kind])).digest('hex')
+  input: ListQuery, coverage: ContentPathCoverage[], formats: FileContentEditorRegistration[] = []) {
+  const codecs = formats.map(format => ({ key: format.key, suffix: `.${format.extension.replace(/^\./, '').toLowerCase()}`,
+    typeId: format.resourceType?.typeId ?? null })).sort((a, b) => a.key.localeCompare(b.key))
+  const key = createHash('sha256').update(JSON.stringify([actor, spaceId, input.trash, input.search, input.parentId, input.kind,
+    input.typeId, ...(input.typeId ? [codecs] : [])])).digest('hex')
   let after: z.infer<typeof cursorSchema> | undefined
   if (input.cursor) {
     try { after = cursorSchema.parse(JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'))) }
@@ -45,6 +50,18 @@ export async function listItems(repo: Repository<SpaceItem>, actor: SpaceActor, 
     query.andWhere(input.parentId === null ? 'item.parentId IS NULL' : 'item.parentId = :parentId', { parentId: input.parentId })
   }
   if (input.kind) query.andWhere(input.kind === 'file' ? 'item.kind IN (:...kinds)' : 'item.kind = :kind', { kind: input.kind, kinds: ['file', 'artifact'] })
+  // Match fileFormat's registry-based rules BEFORE paging. A stored binding wins;
+  // an unbound file needs exactly one matching codec, including codecs of other types.
+  // Keep these rows in the native item lane so folder placement and ACLs stay intact.
+  if (input.typeId) query.andWhere(`item.kind IN ('file', 'artifact') AND item.filePath IS NOT NULL AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(CAST(:fileCodecs AS jsonb)) AS codec
+    WHERE codec->>'typeId' = :fileTypeId AND (
+      item.editorKey = codec->>'key' OR (NULLIF(item.editorKey, '') IS NULL
+        AND RIGHT(LOWER(item.filePath), LENGTH(codec->>'suffix')) = codec->>'suffix'
+        AND (SELECT COUNT(*) FROM jsonb_array_elements(CAST(:fileCodecs AS jsonb)) AS candidate
+          WHERE RIGHT(LOWER(item.filePath), LENGTH(candidate->>'suffix')) = candidate->>'suffix') = 1)
+    )
+  )`, { fileCodecs: JSON.stringify(codecs), fileTypeId: input.typeId })
   if (input.search) query.andWhere('POSITION(LOWER(:search) IN LOWER(item.title || \' \' || COALESCE(item.filePath, \'\'))) > 0', { search: input.search })
   // Date parameters use the driver's timestamp conversion, matching UpdateDateColumn.
   // Passing an ISO string directly loses timezone conversion for timestamp-without-zone columns.

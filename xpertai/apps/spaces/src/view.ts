@@ -68,8 +68,9 @@ export class SpacesView implements IXpertViewExtensionProvider {
     const parsed = viewListQuery.safeParse({ ...query.parameters, page: query.page, pageSize: query.pageSize,
       ...(resourceId !== space.id ? { parentId: resourceId } : {}) })
     if (!parsed.success) throw new BadRequestException('spaces.invalid_input')
-    const tree = await this.spaces.listPage(actor, space.id, parsed.data)
-    return { items: [], meta: { ...tree, items: await this.editors.presentItems(actor, tree.items),
+    const formats = parsed.data.typeId ? await this.editors.list(actor) : undefined
+    const tree = await this.spaces.listPage(actor, space.id, parsed.data, formats)
+    return { items: [], meta: { ...tree, items: await this.editors.presentItems(actor, tree.items, formats),
       project: { id: space.projectId, title: space.title },
       assistant: { id: context.hostId, title: space.title, dataScope: 'project' } } }
   }

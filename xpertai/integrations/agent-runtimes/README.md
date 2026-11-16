@@ -94,30 +94,13 @@ instruction grants no access, does not prove files exist, and adds no new execut
 
 ## Results and resource cards
 
-Ordinary tasks may finish with a text reply or no reply. Adapters preserve text
-without requiring a report or injecting a coding/review workflow. Oversized replies
-are withheld and marked `textTruncated`, not presented as complete evidence.
-Report content requirements belong to the task or its skill, not the transport.
-With `delivery.reportPath`, Computer adapters collect that exact UTF-8 Markdown file
-through `readTaskReportFile` after verified process completion. The host checks the
-persisted path, receipt owner and current environment generation, bounds reads to
-4 MiB and rejects traversal, links and non-files. It calculates the report digest.
+Adapters preserve ordinary reply text, including JSON or empty replies, without requiring or interpreting an outer result envelope. Replies beyond the 2 MiB UTF-8 transport cap return empty text with `textTruncated: true`, never a partial assessment. Retired `xpert-task-result` and `xpert-task-result-file` blocks are literal text and do not authorize a filesystem read.
 
-Report delivery status exists only when a report file was selected. Artifact
-export has its own optional status. A missing requested report does
-not convert a successful CLI run into an execution failure or a prose success.
-The coordinator can recover delivery using the original invocation revision,
-without launching another CLI, deployment or test run. No requested file delivery
-means no recovery work or additional revision. Unsupported recovery returns an
-explicit error. Successful report delivery
-is retained while a failed export is retried. Artifacts require an explicit path
-selection; names discovered during execution can be selected during recovery.
+Only an explicit `input.delivery.reportPath` requests a report file. The executor writes the requested assessment as UTF-8 Markdown at that exact relative path, without an envelope, platform identities or a model-computed digest. After verified completion, Computer adapters call `readTaskReportFile(receipt, path)`. The host rechecks ownership, environment generation, file permissions, links and the 4 MiB bound. The adapter preserves the report text, records its digest and checkpoints before cleanup. Unavailable, empty or oversized reports produce a separate `result.report` delivery failure; finished execution is not rerun or relabelled as failure. Direct runtimes without a report reader explicitly report unavailable delivery.
 
-The coordinator reads independent review Markdown and explicitly decides acceptance
-or rework. The platform pins identities and result versions; it does not derive a
-verdict from report wording. Deploy matching contracts, SDK, host and plugin as one
-upgrade. Old inline/file JSON envelope protocols and compatibility fallbacks have
-been removed.
+Deploy this source with the matching host SDK/contracts containing the Markdown-report contract (the platform's `markdown-task-reports` changeset, planned 3.36.0). Validate with `XPERT_PLATFORM_ROOT=<host-checkout> pnpm nx run agent-runtimes:verify-source`; registry peers alone do not prove compatibility with these unreleased source APIs. The former JSON result protocol is not supported.
+
+Delivery defaults to `{ "mode": "none" }`. Explicit `files` or `archive` requests collect only caller-selected `paths` plus a selected `reportPath`. Provider output cannot expand this selection. If paths are unknown until completion, the coordinator selects exact paths through delivery recovery; no files are exported from guessed prose or old envelope items. Export failure remains independent of task success. Directory/link/traversal restrictions remain enforced by the host collector.
 
 ## Tools
 

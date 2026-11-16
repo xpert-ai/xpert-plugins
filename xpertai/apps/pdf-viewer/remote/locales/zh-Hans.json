@@ -38,5 +38,7 @@
   "document.limit": "此 PDF 超出预览限制（1,000 页），请下载后在本地查看。",
   "document.previewFailed": "无法预览此文件，请重试或下载原文件。",
   "document.skip": "跳到文档正文",
-  "document.renderFailed": "此页无法渲染。"
+  "document.renderFailed": "此页无法渲染。",
+  "document.menu": "文档菜单",
+  "document.zoom": "缩放选项"
 }

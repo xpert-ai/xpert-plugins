@@ -6,6 +6,7 @@ import { SpacesService } from './spaces.js'
 import { denied, scoped, type SpaceActor } from './domain.js'
 import { fileFormat } from './file-format.js'
 import type { SpaceItem } from './entities.js'
+import type { FileContentEditorRegistration } from '@xpert-ai/contracts'
 
 /** Spaces creates navigation/resources; concrete models and editing belong to editor plugins. */
 @Injectable()
@@ -20,13 +21,14 @@ export class SpaceEditors {
     await this.access.project(actor)
     return (await this.runtime.require(ContentEditorsRuntimeCapability).list(this.scope(actor))).filter(editor => editor.kind === 'file')
   }
-  async presentItems(actor: SpaceActor, items: SpaceItem[]) {
+  async presentItems(actor: SpaceActor, items: SpaceItem[], formats?: FileContentEditorRegistration[]) {
     if (!items.length) return items
-    const formats = await this.list(actor)
+    const available = formats ?? await this.list(actor)
     return items.map(item => {
-      const format = fileFormat(item, formats)
+      const format = fileFormat(item, available)
       return { ...item, editorKey: item.editorKey ?? format?.key ?? null,
         mimeType: format?.mimeType ?? item.file?.mimeType,
+        resourceTypeId: format?.resourceType?.typeId,
         icon: format?.resourceType?.icon }
     })
   }

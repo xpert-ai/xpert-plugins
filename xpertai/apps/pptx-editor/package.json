@@ -19,6 +19,7 @@
     ".xpertai-plugin",
     "README.md",
     "docs",
+    "LICENSE.chatkit-icons",
     "!**/*.tsbuildinfo"
   ],
   "xpert": {
