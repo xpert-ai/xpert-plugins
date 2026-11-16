@@ -52,6 +52,12 @@ export const eventTypes = [
 
 事件唤醒的工具可从宿主创建的 `IAgentMiddlewareContext.eventReceiptId` 取得本次来源。同一 Assistant 委派给本地子 Agent 时，宿主核对租户、组织、用户、工作区、项目、Assistant、会话和线程，匹配后才提供原回执。普通聊天及跨作用域委派均省略回执。兼容旧版宿主的插件也应接受该字段缺省。插件可用回执查找自己的事件记录，执行操作前仍须校验绑定、事实版本、已提交决定和当前用户权限。
 
+采购的 `procurement_follow_up` 在 `inspect` 中返回等待事项、报价修订和该采购人已可见的提醒。获授权的到期运行把查得的报价修订作为 `expectedQuoteRevision` 传给 `publish_check`，首次发布返回 `published` 和工作台提醒 ID。数据库用租户、组织、案例、风险、报价系列、报价修订和动作种类标识一次业务动作。
+
+若较新的报价事件缺少可识别的报价系列（`series`），工作台显示「当前报价版本待核实」，`inspect` 返回 `quoteVersionStatus: "unverified"`。`publish_check` 此时不能新增提醒；已发布的提醒仍可按原修订查看。
+
+同一风险在同一修订下再次到期时，第二张回执通过 `inspect` 关联到已有提醒。重复调用 `publish_check` 返回 `already_published` 和原提醒 ID。事件收件箱可以分别追溯两次到期，采购工作台只展示一条提醒。工作台发布和供应商答复分别记录，旧风险发布情况无法核实时显示「待核实」。[采购领域命令](../community/apps/procurement-quote-comparison/src/lib/quote-follow-up.ts)
+
 ## 为视图提供标题、结果与会话
 
 实现可选的 `searchTitles(context, term)` 时，只返回当前绑定允许搜索的业务对象或结果引用。平台再与可见回执取交集。可选的 `describe(context, event, decision, options)` 返回 `title`、可展示的 `fields`、可选 `result` 和会话引用。对私有评审、采购案例等资源，先用当前执行人复查读取权限，再返回字段；权限不足可以返回 `null`。

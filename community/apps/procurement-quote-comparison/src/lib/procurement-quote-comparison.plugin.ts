@@ -1,4 +1,5 @@
 import { QuoteEventRoute, QuoteEventFact, QuoteEventParse } from './event-journal.js'
+import { DeliveryCheck, DeliveryCheckReceipt } from './delivery-check.js'
 import { QuoteFollowUp } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
@@ -24,6 +25,8 @@ export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
   QuoteEventFact,
   QuoteEventParse,
   QuoteFollowUp,
+  DeliveryCheck,
+  DeliveryCheckReceipt,
   ProcurementComparisonCase,
   ProcurementSourceDocument,
   ProcurementParseJob,

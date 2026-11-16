@@ -1,3 +1,16 @@
+import {
+  DeliveryCheck,
+  DeliveryCheckReceipt,
+  linkCheckReceipt,
+  publishDeliveryCheck,
+  timerFact,
+  verifiedDeadline,
+  resolveRiskQuote,
+  riskQuoteFactsSql,
+  workbenchPublication,
+  type RiskQuoteFacts,
+  type CheckKey
+} from './delivery-check.js'
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common'
 import { Column, Entity, EntityManager, Index, PrimaryColumn, IsNull } from 'typeorm'
 import { z } from 'zod/v3'
@@ -7,29 +20,20 @@ import { journal } from './event-journal.js'
 import type { ProcurementScope } from './types.js'
 
 export const dueType = 'procurement.follow_up.due'
+/** Deadline edits use the timer version. Reminder publication uses the inspected quote revision. */
 export const followUpInput = z
   .object({
     caseId: z.string().uuid(),
     riskId: z.string().uuid(),
-    action: z.enum(['inspect', 'set', 'cancel', 'reply']),
+    action: z.enum(['inspect', 'set', 'cancel', 'reply', 'publish_check']),
+    expectedQuoteRevision: z.number().int().positive().optional(),
     expectedVersion: z.number().int().nonnegative().optional(),
     replyNote: z.string().trim().min(1).max(2000).optional(),
     dueAt: z.string().datetime({ offset: true }).optional()
   })
   .strict()
-const timerFact = z
-  .object({
-    caseId: z.string().uuid(),
-    riskId: z.string().uuid(),
-    version: z.number().int().positive(),
-    conversationId: z.string().uuid(),
-    threadId: z.string().min(1).max(100).optional(),
-    agentKey: z.string().min(1).optional(),
-    dueAt: z.string().datetime(),
-    quoteSource: z.string()
-  })
-  .strict()
 
+/** Current follow-up for a risk. Its version changes as the buyer reschedules, answers or cancels it. */
 @Entity('plugin_procurement_follow_up')
 @Index(['binding', 'bindingRevision', 'state', 'dueAt'])
 export class QuoteFollowUp {
@@ -53,7 +57,7 @@ export class QuoteFollowUp {
 
 // The case lock orders quote capture, timer edits and expiry. Stable risk references come from the journal decision.
 export async function editFollowUp(tx: EntityManager, scope: ProcurementScope, input: z.infer<typeof followUpInput>) {
-  if (!scope.userId || !scope.organizationId || !scope.workspaceId || !journal)
+  if (!scope.tenantId || !scope.userId || !scope.organizationId || !scope.workspaceId || !journal)
     throw new ForbiddenException('follow_up_scope_required')
   const c = await tx.findOne(ProcurementComparisonCase, {
     where: {
@@ -77,50 +81,101 @@ export async function editFollowUp(tx: EntityManager, scope: ProcurementScope, i
   const risk = await tx.findOneBy(ProcurementRiskItem, { id: input.riskId, caseId: input.caseId })
   if (!risk?.eventOperationKey || risk.type !== 'delivery_delay')
     throw new BadRequestException('delivery_risk_required')
-  const [origin] = await tx.query(
-    `SELECT source, snapshot->>'conversationId' AS conversation, snapshot->>'series' AS series
-    FROM plugin_procurement_event_fact WHERE binding=$1 AND event->>'type'='procurement.quote.revised'
-    AND event->>'schemaVersion'='1' AND decision->>'operationKey'=$2 AND decision->'resultRef'->>'key'=$3`,
+  const [facts] = await tx.query<RiskQuoteFacts[]>(
+    `SELECT q.origin, q.latest FROM (${riskQuoteFactsSql}) q
+     WHERE q.binding=$1 AND q.operation_key=$2 AND q.risk_key=$3`,
     [route.binding, risk.eventOperationKey, input.riskId]
   )
-  if (!origin) throw new ConflictException('quote_origin_missing')
+  if (!facts && input.action !== 'inspect') throw new ConflictException('quote_origin_missing')
   const timer = await tx.findOne(QuoteFollowUp, {
     where: { riskId: input.riskId, binding: route.binding },
     lock: { mode: 'pessimistic_write' }
   })
-  const [latest] = await tx.query(
-    `SELECT source, snapshot->>'date' AS delivery FROM plugin_procurement_event_fact WHERE binding=$1
-    AND event->>'type'='procurement.quote.revised' AND event->>'schemaVersion'='1' AND snapshot->>'series'=$2 ORDER BY seq DESC LIMIT 1`,
-    [route.binding, origin.series]
-  )
-  if (input.action === 'inspect')
+  const { expected, current, status: quoteVersionStatus } = resolveRiskQuote(facts, input.caseId)
+  const currentQuote = quoteVersionStatus === 'current'
+  const key: CheckKey | null = expected && {
+    tenantId: scope.tenantId,
+    organizationId: scope.organizationId,
+    caseId: input.caseId,
+    riskId: input.riskId,
+    series: expected.series,
+    revision: expected.revision,
+    actionKind: 'publish_delivery_check'
+  }
+  const deadline = scope.eventReceiptId
+    ? await verifiedDeadline(tx, scope, route, input.caseId, input.riskId, facts?.origin.source)
+    : null
+  if (input.action === 'inspect') {
+    const existing = key && (await tx.findOneBy(DeliveryCheck, key))
+    const reminder = existing?.publishedFor === scope.userId ? existing : null
+    if (reminder && deadline && scope.eventReceiptId) await linkCheckReceipt(tx, scope.eventReceiptId, reminder.id)
     return {
       risk: { id: risk.id, title: risk.title, description: risk.description },
       caseStatus: c.status,
-      currentQuote: latest?.source === origin.source,
-      deliveryDate: latest?.delivery ?? null,
+      currentQuote,
+      quoteVersionStatus,
+      deliveryDate: current?.date ?? null,
+      quoteSeriesId: expected?.series ?? null,
+      quoteRevision: expected?.revision ?? null,
+      latestQuoteRevision: current?.revision ?? null,
+      workbenchPublication: workbenchPublication(
+        quoteVersionStatus,
+        risk.deliveryCheckVersion,
+        !!existing,
+        reminder?.id ?? null
+      ),
+      reminder: reminder
+        ? { id: reminder.id, publishedAt: reminder.publishedAt, quoteRevision: reminder.revision }
+        : null,
+      waitingFor:
+        currentQuote && c.status !== 'completed' && timer && ['waiting', 'captured', 'fired'].includes(timer.state)
+          ? 'supplier_reply'
+          : null,
       replyNote: timer?.replyNote ?? null,
       state: timer?.state ?? 'unscheduled',
       wakeStatus: timer?.wakeStatus ?? null,
       version: timer?.version ?? 0,
       dueAt: timer?.dueAt ?? null
     }
+  }
+  if (input.action === 'publish_check') {
+    if (!deadline || !scope.eventReceiptId) throw new ForbiddenException('follow_up_event_required')
+    if (!key || input.expectedQuoteRevision !== key.revision)
+      throw new ConflictException('delivery_check_no_longer_applicable')
+    const linked = await tx.findOneBy(DeliveryCheckReceipt, { receiptId: scope.eventReceiptId })
+    if (linked && (await tx.existsBy(DeliveryCheck, { ...key, id: linked.checkId, publishedFor: scope.userId })))
+      return { status: 'already_published', reminderId: linked.checkId, quoteRevision: key.revision }
+    if (
+      !currentQuote ||
+      risk.deliveryCheckVersion !== 1 ||
+      c.status === 'completed' ||
+      timer?.state !== 'fired' ||
+      timer.version !== deadline.version ||
+      timer.bindingRevision !== route.revision ||
+      timer.quoteSource !== facts.origin.source ||
+      timer.wakeReceiptId !== scope.eventReceiptId
+    )
+      throw new ConflictException('delivery_check_no_longer_applicable')
+    return publishDeliveryCheck(tx, key, scope.userId, scope.eventReceiptId)
+  }
+  if (deadline && (timer?.state !== 'fired' || timer.version !== deadline.version || !currentQuote))
+    throw new ConflictException('follow_up_no_longer_applicable')
   if ((timer?.version ?? 0) !== input.expectedVersion) throw new ConflictException('follow_up_version_changed')
   const now = new Date()
   if (input.action === 'set') {
     const due = new Date(input.dueAt ?? '')
     if (!Number.isFinite(due.getTime()) || due <= now) throw new BadRequestException('future_deadline_required')
-    const conversationId = timer?.conversationId ?? scope.conversationId ?? origin.conversation
+    const conversationId = timer?.conversationId ?? scope.conversationId ?? expected?.conversationId
     const threadId = timer ? timer.threadId : (scope.threadId ?? null)
     if (!conversationId) throw new BadRequestException('follow_up_conversation_required')
-    if (c.status === 'completed' || latest?.source !== origin.source || timer?.state === 'answered')
+    if (c.status === 'completed' || !currentQuote || timer?.state === 'answered')
       throw new ConflictException('follow_up_no_longer_applicable')
     return tx.save(QuoteFollowUp, {
       riskId: input.riskId,
       caseId: input.caseId,
       binding: route.binding,
       bindingRevision: route.revision,
-      quoteSource: origin.source,
+      quoteSource: facts.origin.source,
       conversationId,
       threadId,
       agentKey:

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createRequire } from 'node:module'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { ProcurementQuoteComparisonViewProvider } from '../../community/apps/procurement-quote-comparison/dist/lib/procurement-quote-comparison-view.provider.js'
 
@@ -23,6 +24,7 @@ test('buyer manages a deadline in the packed procurement remote view', { skip: !
     const item = { id: 'case', title: 'Pump procurement', status: 'reviewing' }
     const risk = { id: 'risk', title: 'Late pump delivery', followUp: { state: 'unscheduled', version: 0 } }
     window.actions = []
+    window.publishCheck = (check) => Object.assign(risk.followUp, check)
     window.showWake = (wakeStatus) => {
       risk.followUp = {
         ...risk.followUp,
@@ -84,6 +86,40 @@ test('buyer manages a deadline in the packed procurement remote view', { skip: !
   await page.evaluate(() => window.showWake('started'))
   await expect(view.getByText('本次已决定的跟进：已启动')).toBeVisible({ timeout: 8000 })
   await expect(view.getByText('已收到答复', { exact: true })).toBeVisible()
+  const directory = process.env.XPERT_EVENT_VIEW_EVIDENCE_DIR
+  const check = directory
+    ? JSON.parse(await readFile(resolve(directory, 'procurement-check.json'), 'utf8'))
+    : {
+        quoteRevision: 2,
+        reminderId: 'one-check',
+        publishedAt: '2026-11-16T10:30:00Z',
+        workbenchPublication: 'published',
+        replyNote: 'Supplier confirmed'
+      }
+  await page.evaluate((check) => window.publishCheck(check), check)
+  await refresh.click()
+  await expect(view.getByText('报价修订 2')).toBeVisible()
+  await expect(view.getByText(/在本案例发布「待核实交期」提醒/)).toHaveCount(1)
+  await expect(view.getByText('供应商答复：Supplier confirmed')).toBeVisible()
+  await refresh.click()
+  await expect(view.getByText(/在本案例发布「待核实交期」提醒/)).toHaveCount(1)
+  const unverified = directory
+    ? JSON.parse(await readFile(resolve(directory, 'procurement-unknown-check.json'), 'utf8'))
+    : {
+        state: 'fired',
+        quoteRevision: 4,
+        quoteVersionStatus: 'unverified',
+        workbenchPublication: 'unknown',
+        reminderId: null,
+        publishedAt: null
+      }
+  await page.evaluate((check) => window.publishCheck(check), unverified)
+  await refresh.click()
+  await expect(view.getByText('当前报价版本待核实')).toBeVisible()
+  await expect(view.getByText('报价修订 4')).toBeVisible()
+  await expect(view.getByText(/在本案例发布「待核实交期」提醒/)).toHaveCount(0)
+  await expect(view.getByRole('button', { name: '改期' })).toHaveCount(0)
+  await expect(view.getByRole('button', { name: '登记答复' })).toBeVisible()
   const actions = await page.evaluate(() => window.actions)
   assert.deepEqual(
     actions.map((a) => [a.expectedVersion, a.action]),

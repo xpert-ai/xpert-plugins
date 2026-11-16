@@ -17,7 +17,9 @@ export class QuoteEventRoute {
   @Column('boolean') enabled!: boolean
 }
 
+/** Immutable source snapshot and its durable inbox receipt and handling decision, scoped to a binding. */
 @Entity('plugin_procurement_event_fact')
+@Index(['binding', 'receipt'], { where: '"receipt" IS NOT NULL' })
 @Index(['binding', 'source'], { unique: true })
 @Index(['binding', 'seq'])
 export class QuoteEventFact {

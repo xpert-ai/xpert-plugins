@@ -172,7 +172,7 @@ export class ProcurementQuoteComparisonMiddleware implements IAgentMiddlewareStr
           name: 'procurement_follow_up',
           schema: followUpInput,
           description:
-            'For an open supplier reply, inspect the delay risk and its version, then set your own one-time UTC deadline. You will wake in this conversation to reassess. Use cancel or reply when resolved. Pass the inspected version on every edit.'
+            'For an open supplier reply, inspect the delay risk and its version, then set your own one-time UTC deadline. You will wake in this conversation to reassess. Use cancel or reply when resolved. Pass the inspected timer version on deadline edits. During an authorized due run use publish_check and expectedQuoteRevision to post one workbench reminder for the current quote. A workbench publication does not confirm supplier delivery.'
         }),
         tool(async (input) => JSON.stringify(await this.service.saveRequirementExtraction(scope, input), null, 2), {
           name: 'procurement_save_requirement',
@@ -213,6 +213,7 @@ function scopeFromContext(
   context: IAgentMiddlewareContext
 ): ProcurementScope {
   return {
+    eventReceiptId: context.eventReceiptId,
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() : context.organizationId,
     workspaceId: context.workspaceId ?? null,

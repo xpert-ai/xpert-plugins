@@ -1,5 +1,12 @@
 import { normalizeOptional, quoteHeader, quoteLine } from './quote-extraction.js'
 import type { z } from 'zod/v3'
+import {
+  resolveRiskQuote,
+  riskQuoteFactsSql,
+  workbenchPublication,
+  type QuoteVersionStatus,
+  type RiskQuoteFacts
+} from './delivery-check.js'
 import { editFollowUp, followUpInput } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
@@ -36,6 +43,32 @@ import type {
   StartParseInput,
   StartParseOptions
 } from './types.js'
+
+/** Authorized workbench projection of a delivery risk, its current deadline and any visible reminder. */
+interface FollowUpRiskRow {
+  riskId: string
+  title: string
+  description: string
+  version: number
+  state: string
+  dueAt: Date | null
+  wakeStatus: 'queued' | 'started' | null
+  currentQuote: boolean
+  quoteVersionStatus: QuoteVersionStatus
+  quoteRevision: number | null
+  replyNote: string | null
+  reminderId: string | null
+  publishedAt: Date | null
+  /** Unknown covers unverifiable history or an existing reminder for another recipient. */
+  workbenchPublication: 'published' | 'unpublished' | 'unknown'
+}
+
+/** Internal evidence from a single scoped query. Raw journal facts never enter the workbench response. */
+type StoredFollowUpRisk = Omit<
+  FollowUpRiskRow,
+  'currentQuote' | 'quoteVersionStatus' | 'quoteRevision' | 'workbenchPublication'
+> &
+  RiskQuoteFacts & { deliveryCheckVersion: number | null; hasReminder: boolean }
 
 type ScopedEntity = {
   tenantId: string
@@ -90,49 +123,54 @@ export class ProcurementQuoteComparisonService {
 
   async listFollowUpRisks(scope: ProcurementScope, caseId: string) {
     const comparisonCase = await this.requireCase(scope, caseId)
-    return this.followUpRiskRows(scope, comparisonCase)
+    return this.followUpRiskRows(scope, comparisonCase, 100)
   }
 
   private async followUpRiskRows(
     scope: ProcurementScope,
-    comparisonCase: ProcurementComparisonCase
-  ): Promise<
-    {
-      riskId: string
-      title: string
-      description: string
-      version: number
-      state: string
-      dueAt: Date | null
-      wakeStatus: 'queued' | 'started' | null
-      currentQuote: boolean
-    }[]
-  > {
+    comparisonCase: ProcurementComparisonCase,
+    limit?: number
+  ): Promise<FollowUpRiskRow[]> {
     const caseId = comparisonCase.id
     if (
       !scope.userId ||
       comparisonCase.createdById !== scope.userId ||
       comparisonCase.workspaceId !== scope.workspaceId ||
-      comparisonCase.projectId !== (scope.projectId ?? null) ||
+      (comparisonCase.projectId ?? null) !== (scope.projectId ?? null) ||
       (scope.assistantId && comparisonCase.xpertId !== scope.assistantId)
     )
       throw new NotFoundException('case_access_changed')
-    return this.caseRepository.query(
+    const rows = await this.caseRepository.query<StoredFollowUpRisk[]>(
       `SELECT r.id AS "riskId", r.title, r.description, coalesce(t.version, 0) AS version,
-      coalesce(t.state,'unscheduled') AS state, t."dueAt", t."wakeStatus", NOT EXISTS (
-        SELECT 1 FROM plugin_procurement_event_fact newer WHERE newer.binding=f.binding
-        AND newer.event->>'type'='procurement.quote.revised' AND newer.event->>'schemaVersion'='1'
-        AND newer.snapshot->>'series'=f.snapshot->>'series' AND newer.seq>f.seq) AS "currentQuote"
+      coalesce(t.state,'unscheduled') AS state, t."dueAt", t."wakeStatus", t."replyNote",
+      q.origin, q.latest, r."deliveryCheckVersion", d.id IS NOT NULL AS "hasReminder",
+      CASE WHEN d."publishedFor"=$4 THEN d.id END AS "reminderId",
+      CASE WHEN d."publishedFor"=$4 THEN d."publishedAt" END AS "publishedAt"
       FROM plugin_procurement_event_route b
-      JOIN plugin_procurement_event_fact f ON f.binding=b.binding AND f.event->>'type'='procurement.quote.revised'
-        AND f.event->>'schemaVersion'='1'
-      JOIN plugin_procurement_risk_item r ON r."eventOperationKey"=f.decision->>'operationKey'
-        AND r.id::text=f.decision->'resultRef'->>'key' AND r."caseId"=$1::uuid
+      JOIN (${riskQuoteFactsSql}) q ON q.binding=b.binding
+      JOIN plugin_procurement_risk_item r ON r."eventOperationKey"=q.operation_key
+        AND r.id::text=q.risk_key AND r."caseId"=$1::uuid
       LEFT JOIN plugin_procurement_follow_up t ON t."riskId"=r.id AND t.binding=b.binding
+      LEFT JOIN plugin_procurement_delivery_check d ON d."riskId"=r.id AND d."caseId"=r."caseId"
+        AND d."tenantId"=b.tenant AND d."organizationId"=b.org
+        AND d.series::text=q.series AND d.revision::text=q.revision AND d."actionKind"='publish_delivery_check'
       WHERE b.ref=$1::text AND b.tenant=$2 AND b.org=$3 AND b.enabled AND r.type='delivery_delay'
-      ORDER BY f.seq DESC LIMIT 100`,
-      [caseId, scope.tenantId, scope.organizationId]
+      ORDER BY q.seq DESC LIMIT $5`,
+      [caseId, scope.tenantId, scope.organizationId, scope.userId, limit ?? null]
     )
+    return rows.map(({ origin, latest, deliveryCheckVersion, hasReminder, reminderId, publishedAt, ...risk }) => {
+      const { expected, status } = resolveRiskQuote({ origin, latest }, caseId)
+      const visibleReminderId = expected ? reminderId : null
+      return {
+        ...risk,
+        currentQuote: status === 'current',
+        quoteVersionStatus: status,
+        quoteRevision: expected?.revision ?? null,
+        reminderId: visibleReminderId,
+        publishedAt: visibleReminderId ? publishedAt : null,
+        workbenchPublication: workbenchPublication(status, deliveryCheckVersion, hasReminder, visibleReminderId)
+      }
+    })
   }
 
   async followUp(scope: ProcurementScope, input: z.infer<typeof followUpInput>) {
@@ -781,6 +819,14 @@ export class ProcurementQuoteComparisonService {
 
   private async getCaseDetail(scope: ProcurementScope, caseId: string) {
     const comparisonCase = await this.requireCase(scope, caseId)
+    if (
+      !scope.tenantId ||
+      (comparisonCase.organizationId ?? null) !== (scope.organizationId ?? null) ||
+      (comparisonCase.projectId ?? null) !== (scope.projectId ?? null) ||
+      (scope.workspaceId && comparisonCase.workspaceId !== scope.workspaceId) ||
+      (scope.assistantId && comparisonCase.xpertId && comparisonCase.xpertId !== scope.assistantId)
+    )
+      throw new NotFoundException('case_access_changed')
     const followUps =
       comparisonCase.createdById === scope.userId &&
       scope.userId &&
@@ -809,14 +855,29 @@ export class ProcurementQuoteComparisonService {
         supplierQuotes,
         quoteItems,
         itemMatches,
-        risks: risks.map((risk) => {
-          if (comparisonCase.createdById !== scope.userId || !risk.eventOperationKey || risk.type !== 'delivery_delay')
-            return risk
-          const timer = followUps.find((row) => row.riskId === risk.id)
-          return timer && (timer.currentQuote || timer.state !== 'unscheduled')
-            ? { ...risk, followUp: { state: timer.state, wakeStatus: timer.wakeStatus, version: timer.version, dueAt: timer.dueAt } }
-            : risk
-        }),
+        risks: risks
+          .filter((risk) => !risk.eventOperationKey || (!!scope.userId && comparisonCase.createdById === scope.userId))
+          .map((risk) => {
+            if (!risk.eventOperationKey || risk.type !== 'delivery_delay') return risk
+            const timer = followUps.find((row) => row.riskId === risk.id)
+            return timer && (timer.quoteVersionStatus !== 'superseded' || timer.state !== 'unscheduled')
+              ? {
+                  ...risk,
+                  followUp: {
+                    state: timer.state,
+                    wakeStatus: timer.wakeStatus,
+                    version: timer.version,
+                    dueAt: timer.dueAt,
+                    quoteRevision: timer.quoteRevision,
+                    quoteVersionStatus: timer.quoteVersionStatus,
+                    replyNote: timer.replyNote,
+                    reminderId: timer.reminderId,
+                    publishedAt: timer.publishedAt,
+                    workbenchPublication: timer.workbenchPublication
+                  }
+                }
+              : risk
+          }),
         recommendation: recommendations[0] ?? null
       },
       total: 1,

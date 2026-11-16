@@ -2,20 +2,16 @@ import assert from 'node:assert/strict'
 import { createHmac, randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { test, type TestContext } from 'node:test'
-import { DataSource, Table, fixture, url } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
+import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
+import { setup, domainDatabase, procurement } from './event-inbox.fixture.js'
+import './procurement-cross-run.cases.js'
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { Review } from '../../xpertai/apps/code-review/src/entity.js'
 import { WorkflowDiagnosis } from '../../xpertai/apps/code-review/src/workflow-entity.js'
 import { parsePullUrl } from '../../xpertai/apps/code-review/src/domain.js'
 import { ReviewDelivery } from '../../xpertai/apps/code-review/src/automation-entities.js'
 
-// Run with the integration packages built and a dedicated PostgreSQL URL. Never select an existing tenant.
-const host = process.env.XPERT_EVENT_HOST_ROOT
-if (!url || !host) throw new Error('Set XPERT_EVENT_HOST_ROOT and XPERT_PIPELINE_TEST_DATABASE_URL')
-const storeModule = pathToFileURL(path.join(host, 'packages/server-ai/src/agent-event/agent-event.store.ts')).href
-const procurement = '../../community/apps/procurement-quote-comparison/dist/lib/'
 const lark = '../../xpertai/integrations/lark/dist/lib/'
 
 // Optional hand-off to the platform browser suite. Only these disposable database scenarios call it.
@@ -52,89 +48,6 @@ async function captureViewReceipt(f: Awaited<ReturnType<typeof setup>>, source: 
   }
   await mkdir(directory, { recursive: true, mode: 0o700 })
   await writeFile(path.join(directory, category + '.json'), JSON.stringify(data), { mode: 0o600 })
-}
-
-async function setup(t: TestContext, adapter: string) {
-  const f = await fixture(t)
-  const { AgentEventStore } = await import(storeModule)
-  // Use the host tables installed by schema-sync. Each scenario owns a fresh tenant in the dedicated test database.
-  const hostDb = await new DataSource({
-    type: 'postgres',
-    url,
-    extra: { options: '-c search_path=public' }
-  }).initialize()
-  const { tenantId, organizationId } = f.p
-  try {
-    await hostDb.transaction(async (tx) => {
-      await tx.query('INSERT INTO tenant(id,name) VALUES ($1,$2)', [tenantId, 'Event Inbox acceptance'])
-      await tx.query(
-        `INSERT INTO organization(id,"tenantId",name,currency,"defaultValueDateType")
-         VALUES ($1,$2,$3,'USD','TODAY')`,
-        [organizationId, tenantId, 'Event Inbox acceptance']
-      )
-    })
-  } catch (error) {
-    await hostDb.destroy()
-    throw error
-  }
-  t.after(async () => {
-    try {
-      await hostDb.query('DELETE FROM tenant WHERE id=$1', [tenantId])
-    } finally {
-      await hostDb.destroy()
-    }
-  })
-  const ctx = {
-    bindingId: randomUUID(),
-    bindingRevision: 1,
-    sourceBindingRef: f.p.id,
-    xpertId: f.p.assistantId,
-    tenantId: f.p.tenantId,
-    organizationId: f.p.organizationId,
-    workspaceId: f.p.workspaceId,
-    projectId: f.p.settings.pipeline!.projectId,
-    userId: f.p.userId,
-    signal: new AbortController().signal
-  }
-  const [binding] = await hostDb.query(
-    `INSERT INTO agent_event_binding(id,"tenantId","organizationId","workspaceId","xpertId",
-    "userId","projectId",plugin,adapter,"sourceBindingRef","publishedAt",revision,state)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,'acceptance',$8,$9,now(),1,'enabled') RETURNING *`,
-    [
-      ctx.bindingId,
-      ctx.tenantId,
-      ctx.organizationId,
-      ctx.workspaceId,
-      ctx.xpertId,
-      ctx.userId,
-      ctx.projectId,
-      adapter,
-      ctx.sourceBindingRef
-    ]
-  )
-  const store = new AgentEventStore(hostDb)
-  const publish = (source: any) => ({
-    publish: (event: any) => store.publish(binding, source, event)
-  })
-  const consume = async (source: any, status: string) => {
-    const claim = await store.claim(binding)
-    assert(claim)
-    const decision = await source.handle(ctx, claim)
-    assert.equal(decision.status, status)
-    // Simulate a lost T4 commit. The next worker must recover the original business result.
-    await hostDb.query("UPDATE agent_event_partition SET expires=now()-interval '1 second' WHERE id=$1", [
-      claim.partition
-    ])
-    const retry = await store.claim(binding)
-    assert(retry)
-    assert.equal(retry.receiptId, claim.receiptId)
-    assert(BigInt(retry.fence) > BigInt(claim.fence))
-    assert.equal(await store.complete(claim, decision), false)
-    assert.deepEqual(await source.handle(ctx, retry), decision)
-    assert.equal(await store.complete(retry, decision), true)
-    return decision
-  }
-  return { ...f, ctx, binding, hostDb, store, publish, consume }
 }
 
 test('Code Review: signed delivery, shared receipt, recovered review run, per-binding rollback', async (t) => {
@@ -314,24 +227,6 @@ test('Code Review: failed workflow and skipped workflow match legacy shadows; ch
   assert.equal((await deliveries.findOneByOrFail({ deliveryId: pending })).shadow?.comparison, 'binding_changed')
 })
 
-async function domainDatabase(f: Awaited<ReturnType<typeof setup>>, entities: any[]) {
-  // Use the same schema as the host receipts and TypeORM metadata for this built plugin.
-  const db = new DataSource({ ...f.db.options, entities })
-  await db.initialize()
-  try {
-    const runner = db.createQueryRunner()
-    try {
-      for (const entity of entities) await runner.createTable(Table.create(db.getMetadata(entity), db.driver))
-    } finally {
-      await runner.release()
-    }
-  } catch (error) {
-    await db.destroy()
-    throw error
-  }
-  return db
-}
-
 test('Procurement: actual extraction service, baseline then a delayed revision and exactly one risk', async (t) => {
   const f = await setup(t, 'procurement.quote')
   const e = await import(procurement + 'entities/index.js')
@@ -350,7 +245,8 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
     e.ProcurementRecommendation
   ]
   const { QuoteFollowUp } = await import(procurement + 'quote-follow-up.js')
-  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteFollowUp])
+  const { DeliveryCheck, DeliveryCheckReceipt } = await import(procurement + 'delivery-check.js')
+  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteFollowUp, DeliveryCheck, DeliveryCheckReceipt])
   try {
     const source = new QuoteEvents(db.getRepository(entities[0]))
     const service = new ProcurementQuoteComparisonService(...entities.map((cls) => db.getRepository(cls)), source)

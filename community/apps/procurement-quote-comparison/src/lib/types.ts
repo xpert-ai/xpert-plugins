@@ -15,7 +15,10 @@ export type ProcurementParseJobStatus = 'queued' | 'running' | 'succeeded' | 'fa
 export type ProcurementMatchStatus = 'exact' | 'similar' | 'spec_mismatch' | 'quantity_mismatch' | 'missing' | 'uncertain'
 export type ProcurementRiskSeverity = 'low' | 'medium' | 'high'
 
+/** Host-provided identity and resource scope for a procurement tool or workbench request. */
 export interface ProcurementScope {
+  /** Inbox receipt for an authorized wake. Interactive workbench requests omit it. */
+  readonly eventReceiptId?: string
   agentKey?: string | null
   tenantId: string
   organizationId?: string | null

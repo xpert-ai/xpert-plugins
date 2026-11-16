@@ -1,3 +1,4 @@
+import { quoteFact as factSchema } from './delivery-check.js'
 import { matchesStoredExtraction } from "./quote-extraction.js";
 import { Injectable, ForbiddenException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -42,23 +43,6 @@ const date = z
     const d = new Date(s + "T00:00:00Z");
     return Number.isFinite(d.getTime()) && d.toISOString().startsWith(s + "T");
   });
-const factSchema = z
-  .object({
-    caseId: z.string().uuid(),
-    series: z.string().uuid(),
-    quote: z.string().uuid(),
-    revision: z.number().int().positive(),
-    digest: z.string(),
-    date: z.string().nullable(),
-    previous: z
-      .object({ revision: z.number(), date: z.string().nullable() })
-      .nullable(),
-    documentId: z.string().uuid().optional(),
-    conversationId: z.string().uuid().optional(),
-    extraction: z.unknown(),
-  })
-  .strict();
-
 const category = {
   key: "procurement",
   label: { en_US: "Procurement", zh_Hans: "采购事件" },
@@ -366,6 +350,14 @@ export class QuoteEvents implements PluginAgentEventSource {
           id: decision.resultRef.key,
           caseId: c.id,
         });
+        const [reminder] = await tx.query<{id: string; revision: number}[]>(
+          `SELECT d.id, d.revision FROM plugin_procurement_event_fact f
+           JOIN plugin_procurement_delivery_check_receipt a ON a."receiptId"=f.receipt
+           JOIN plugin_procurement_delivery_check d ON d.id=a."checkId"
+           WHERE f.binding=$1 AND f.source=$2 AND f.event->'fact'->>'sha256'=$3
+           AND d."caseId"=$4 AND d."riskId"=$5 AND d."tenantId"=$6 AND d."organizationId"=$7 AND d."publishedFor"=$8`,
+          [ctx.bindingId, event.sourceEventId, event.fact.sha256, c.id, decision.resultRef.key, ctx.tenantId, ctx.organizationId, ctx.userId]
+        )
         return {
           title: risk?.title ?? c.title,
           conversation,
@@ -379,7 +371,11 @@ export class QuoteEvents implements PluginAgentEventSource {
             action: {en_US: "View risk", zh_Hans: "查看风险"},
             fields: [
               {label:{en_US:"Severity",zh_Hans:"风险等级"},value:risk.severity},
-              {label:{en_US:"Delivery change",zh_Hans:"交期变更"},value:risk.description}
+              {label:{en_US:"Delivery change",zh_Hans:"交期变更"},value:risk.description},
+              ...(reminder ? [
+                {label:{en_US:"Workbench reminder",zh_Hans:"工作台提醒"},value:reminder.id},
+                {label:{en_US:"Quote revision",zh_Hans:"报价修订"},value:String(reminder.revision)}
+              ] : [])
             ]
           } : undefined
         };
@@ -481,6 +477,7 @@ export class QuoteEvents implements PluginAgentEventSource {
                 caseId: f.caseId,
                 supplierQuoteId: f.quote,
                 eventOperationKey: operationKey,
+                deliveryCheckVersion: 1,
                 type: "delivery_delay",
                 severity: "high",
                 title: "报价交期推迟",
@@ -523,7 +520,7 @@ export class QuoteEvents implements PluginAgentEventSource {
         conversationId: timer.conversationId,
         threadId: timer.threadId ?? undefined,
         agentKey: timer.agentKey ?? undefined,
-        prompt: `Your procurement follow-up is due. Use procurement_follow_up(action="inspect", caseId="${timer.caseId}", riskId="${timer.riskId}") and read the latest reply and case state. If cancelled or answered, finish quietly. Otherwise decide whether to act or set another justified deadline.`,
+        prompt: `Your procurement follow-up is due. Use procurement_follow_up(action="inspect", caseId="${timer.caseId}", riskId="${timer.riskId}") and read the latest reply and case state. If cancelled or answered, finish quietly. For an outstanding supplier reply, publish_check with expectedQuoteRevision from inspect only if workbenchPublication is unpublished. If already published or unknown, do not repeat it. Set a further deadline only when justified.`,
       });
       // Edits change the business state. Only the matching committed wake can report admission.
       await this.cases.manager.update(QuoteFollowUp,

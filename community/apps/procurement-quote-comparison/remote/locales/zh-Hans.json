@@ -15,5 +15,10 @@
   "wakeQueued": "本次已决定的跟进：等待运行",
   "wakeStarted": "本次已决定的跟进：已启动",
   "cancelPendingHelp": "取消当前期限可阻止尚未决定的跟进。此前已决定的运行会保留。",
-  "cancelCommittedHelp": "取消会更新风险的跟进状态。本次已决定的运行仍会启动或继续，Agent 将读取最新状态。"
+  "cancelCommittedHelp": "取消会更新风险的跟进状态。本次已决定的运行仍会启动或继续，Agent 将读取最新状态。",
+  "quoteRevision": "报价修订 {{revision}}",
+  "publishedCheck": "已于 {{date}} 在本案例发布「待核实交期」提醒",
+  "unverifiedQuoteVersion": "当前报价版本待核实",
+  "unverifiedPublication": "以往的提醒发布情况待核实",
+  "recordedReply": "供应商答复：{{note}}"
 }

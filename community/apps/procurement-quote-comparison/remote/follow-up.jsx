@@ -8,7 +8,18 @@ export const i18n = createRemoteI18n({ en, 'zh-Hans': zh })
 
 function RiskTimer({ risk, busy, closed, submit }) {
   React.useSyncExternalStore(i18n.subscribe, i18n.getLocale)
-  const { state, version, dueAt, wakeStatus } = risk.followUp
+  const {
+    state,
+    version,
+    dueAt,
+    wakeStatus,
+    quoteRevision,
+    quoteVersionStatus,
+    reminderId,
+    publishedAt,
+    workbenchPublication,
+    replyNote
+  } = risk.followUp
   const [date, setDate] = React.useState('')
   const [note, setNote] = React.useState('')
   const due = date ? new Date(date) : null
@@ -20,24 +31,41 @@ function RiskTimer({ risk, busy, closed, submit }) {
         {i18n.t(state)}
         {dueAt && ' · ' + i18n.date(dueAt, { dateStyle: 'short', timeStyle: 'short' })}
       </p>
+      {quoteRevision != null && <p>{i18n.t('quoteRevision', { revision: i18n.number(quoteRevision) })}</p>}
+      {reminderId && publishedAt && (
+        <p>
+          {i18n.t('publishedCheck', {
+            date: i18n.date(publishedAt, { dateStyle: 'short', timeStyle: 'short' })
+          })}
+        </p>
+      )}
+      {quoteVersionStatus === 'unverified' && <p>{i18n.t('unverifiedQuoteVersion')}</p>}
+      {quoteVersionStatus !== 'unverified' && workbenchPublication === 'unknown' && (
+        <p>{i18n.t('unverifiedPublication')}</p>
+      )}
+      {replyNote && <p>{i18n.t('recordedReply', { note: replyNote })}</p>}
       {wakeStatus && <p>{i18n.t(wakeStatus === 'started' ? 'wakeStarted' : 'wakeQueued')}</p>}
       {active && !closed && <p>{i18n.t(state === 'fired' ? 'cancelCommittedHelp' : 'cancelPendingHelp')}</p>}
       {!closed && !['superseded', 'answered'].includes(state) && (
         <>
-          <Input
-            type="datetime-local"
-            aria-label={i18n.t('deadline')}
-            value={date}
-            disabled={busy}
-            onChange={(event) => setDate(event.target.value)}
-          />
-          <Button
-            variant="outline"
-            disabled={busy || !due || !(due > new Date())}
-            onClick={() => edit('set', { dueAt: due.toISOString() })}
-          >
-            {i18n.t(active ? 'reschedule' : 'set')}
-          </Button>
+          {(!quoteVersionStatus || quoteVersionStatus === 'current') && (
+            <>
+              <Input
+                type="datetime-local"
+                aria-label={i18n.t('deadline')}
+                value={date}
+                disabled={busy}
+                onChange={(event) => setDate(event.target.value)}
+              />
+              <Button
+                variant="outline"
+                disabled={busy || !due || !(due > new Date())}
+                onClick={() => edit('set', { dueAt: due.toISOString() })}
+              >
+                {i18n.t(active ? 'reschedule' : 'set')}
+              </Button>
+            </>
+          )}
           {active && (
             <>
               <Button variant="ghost" disabled={busy} onClick={() => edit('cancel')}>

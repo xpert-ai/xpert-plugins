@@ -15,5 +15,10 @@
   "wakeQueued": "Committed follow-up: waiting to run",
   "wakeStarted": "Committed follow-up: started",
   "cancelPendingHelp": "Cancel this deadline to prevent a follow-up before its due decision. Previously committed runs are kept.",
-  "cancelCommittedHelp": "Cancellation updates the risk. This committed run will still start or continue and the agent will read the latest status."
+  "cancelCommittedHelp": "Cancellation updates the risk. This committed run will still start or continue and the agent will read the latest status.",
+  "quoteRevision": "Quote revision {{revision}}",
+  "publishedCheck": "Delivery confirmation requested in this case on {{date}}",
+  "unverifiedQuoteVersion": "Current quote version unverified",
+  "unverifiedPublication": "Previous publication unverified",
+  "recordedReply": "Supplier reply: {{note}}"
 }
