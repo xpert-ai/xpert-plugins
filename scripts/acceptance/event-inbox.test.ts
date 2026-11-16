@@ -349,7 +349,8 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
     e.ProcurementRiskItem,
     e.ProcurementRecommendation
   ]
-  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse])
+  const { QuoteFollowUp } = await import(procurement + 'quote-follow-up.js')
+  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteFollowUp])
   try {
     const source = new QuoteEvents(db.getRepository(entities[0]))
     const service = new ProcurementQuoteComparisonService(...entities.map((cls) => db.getRepository(cls)), source)
@@ -410,6 +411,118 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
       (await db.getRepository(e.ProcurementRiskItem).findOneByOrFail({ id: decision.resultRef.key })).type,
       'delivery_delay'
     )
+    await t.test(
+      'agent deadlines survive the originating turn, resume its branch, rearm and suppress obsolete wakes',
+      async () => {
+        const { ProcurementQuoteComparisonMiddleware } = await import(
+          procurement + 'procurement-quote-comparison.middleware.js'
+        )
+        const threadId = randomUUID()
+        const context = { ...scope, conversationId: revisedIn, threadId, agentKey: 'buyer' }
+        const middleware = new ProcurementQuoteComparisonMiddleware(service).createMiddleware({}, context)
+        const tool = (await middleware).tools.find((entry: { name: string }) => entry.name === 'procurement_follow_up')
+        const riskId = decision.resultRef.key
+        const caseId = input.caseId
+        assert((await service.listFollowUpRisks(context, caseId)).some((r: { riskId: string }) => r.riskId === riskId))
+        const call = async (action: string, options = {}) =>
+          JSON.parse(await tool.invoke({ riskId, caseId, action, ...options }))
+        const deadline = () => new Date(Date.now() + 3_600_000).toISOString()
+        const expire = () =>
+          db.query('UPDATE plugin_procurement_follow_up SET "dueAt"=now() WHERE "riskId"=$1', [riskId])
+        const scan = () => source.drain(f.ctx, f.publish(source), 32)
+        assert.equal((await call('inspect')).version, 0)
+        await call('set', { expectedVersion: 0, dueAt: deadline() })
+        await scan()
+        assert.equal(await f.store.claim(f.binding), undefined)
+        await assert.rejects(call('cancel', { expectedVersion: 0 }), /follow_up_version_changed/)
+        await assert.rejects(
+          service.followUp({ ...context, userId: randomUUID() }, { caseId, riskId, action: 'inspect' }),
+          /case_access_changed/
+        )
+        await expire()
+        await Promise.all([scan(), new QuoteEvents(db.getRepository(entities[0])).drain(f.ctx, f.publish(source), 32)])
+        let due = await f.store.claim(f.binding)
+        assert(due)
+        await call('set', { expectedVersion: 1, dueAt: deadline() })
+        const skipped = await source.handle(f.ctx, due, { wake: () => assert.fail('superseded wake') })
+        assert.equal(skipped.status, 'ignored')
+        await f.store.complete(due, skipped)
+        await expire()
+        await scan()
+        due = await f.store.claim(f.binding)
+        assert(due)
+        // The decision commits before chat admission. A busy retry and buyer cancellation do not retract the wake.
+        await assert.rejects(
+          source.handle(f.ctx, due, {
+            wake: async () => {
+              throw new Error('thread_busy')
+            }
+          }),
+          /thread_busy/
+        )
+        assert.equal((await call('inspect')).wakeStatus, 'queued')
+        const cancelled = await call('cancel', { expectedVersion: 2 })
+        assert.equal(cancelled.state, 'cancelled')
+        assert.equal(cancelled.wakeStatus, 'queued')
+        const wake = {
+          wake: async (target: { threadId: string; conversationId: string; agentKey: string; prompt: string }) => {
+            assert.equal(target.agentKey, 'buyer')
+            assert.equal(target.conversationId, revisedIn)
+            assert.equal(target.threadId, threadId)
+            assert(target.prompt.includes(riskId))
+            const fresh = await call('inspect')
+            assert.equal(fresh.state, 'cancelled')
+            assert.equal(fresh.wakeStatus, 'queued')
+            assert.equal(fresh.deliveryDate, '2026-12-03')
+          }
+        }
+        const handled = await source.handle(f.ctx, due, wake)
+        assert.equal(handled.status, 'handled')
+        assert.equal((await call('inspect')).wakeStatus, 'started')
+        assert.equal((await call('inspect')).state, 'cancelled')
+        await call('set', { expectedVersion: 3, dueAt: deadline() })
+        // Simulate loss of the host ACK after the agent already rearmed. Admission has its own dedupe regression.
+        assert.deepEqual(
+          await source.handle(f.ctx, due, {
+            wake: async (target: { threadId: string }) => assert.equal(target.threadId, threadId)
+          }),
+          handled
+        )
+        await f.store.complete(due, handled)
+        assert.deepEqual(
+          (await source.describe(f.ctx, due.event, handled, { includeConversation: true })).conversation,
+          { conversationId: revisedIn, threadId }
+        )
+        await captureViewReceipt(f, source, 'handled', 'procurement')
+        await expire()
+        await scan()
+        const rearmed = await f.store.claim(f.binding)
+        assert(rearmed && rearmed.receiptId !== due.receiptId)
+        await assert.rejects(
+          source.handle(f.ctx, rearmed, {
+            wake: async () => {
+              throw new Error('thread_busy')
+            }
+          }),
+          /thread_busy/
+        )
+        await source.handle(f.ctx, due, { wake: async () => {} })
+        assert.equal((await call('inspect')).wakeStatus, 'queued')
+        const reply = await call('reply', { expectedVersion: 4, replyNote: 'Supplier confirmed delivery' })
+        assert.equal(reply.state, 'answered')
+        const retried = await source.handle(f.ctx, rearmed, {
+          wake: async () => {
+            assert.equal((await call('inspect')).state, 'answered')
+          }
+        })
+        await f.store.complete(rearmed, retried)
+        assert.equal((await call('inspect')).wakeStatus, 'started')
+        assert.equal((await call('inspect')).replyNote, 'Supplier confirmed delivery')
+        await expire()
+        await scan()
+        assert.equal(await f.store.claim(f.binding), undefined)
+      }
+    )
     const secondDocument = await service.registerSourceDocument(scope, {
       caseId: input.caseId,
       name: 'Quote amendment',
@@ -446,6 +559,30 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
       (await db.getRepository(e.ProcurementRiskItem).findOneByOrFail({ id: older.resultRef.key })).description,
       '2026-12-03 → 2026-12-04'
     )
+    await t.test('cancelling before scan, closing a case, or rolling back capture suppresses the waiting deadline', async () => {
+      const task = {caseId:input.caseId,riskId:newer.resultRef.key}
+      const owner = {...scope,conversationId:revisedIn}
+      const edit = (action:string,expectedVersion:number) => service.followUp(owner,{...task,action,expectedVersion,
+        ...(action==='set'? {dueAt:new Date(Date.now()+3600000).toISOString()}: {})})
+      const expire = () => db.query('UPDATE plugin_procurement_follow_up SET "dueAt"=now() WHERE "riskId"=$1',[task.riskId])
+      const scan = async () => {await source.drain(f.ctx,f.publish(source),32);assert.equal(await f.store.claim(f.binding),undefined)}
+      await edit('set',0)
+      await edit('cancel',1)
+      await expire()
+      await scan()
+      await edit('set',2)
+      await expire()
+      await db.getRepository(entities[0]).update(task.caseId,{status:'completed'})
+      await scan()
+      assert.equal((await edit('inspect',3)).state,'superseded')
+      await db.getRepository(entities[0]).update(task.caseId,{status:'reviewing'})
+      await edit('set',4)
+      await source.configure(f.ctx,false)
+      await expire()
+      await scan()
+      await source.configure(f.ctx,true)
+      await scan()
+    })
     await service.saveRiskItems(scope, {
       caseId: input.caseId,
       risks: [

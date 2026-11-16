@@ -2,6 +2,8 @@
 
 This is the source code repository for plugins on the [XpertAI platform](https://github.com/xpert-ai/xpert). The `xpertai/` folder contains officially maintained plugin projects. Partners or community contributors can create independent project folders in the root directory according to their company or organization, and maintain their own plugin code within. For plugin development and release processes, please refer to the official documentation: <https://xpertai.cn/docs/plugin/>.
 
+To publish typed events, display their results in the Event Inbox, and link back to a conversation, see the [Event Inbox plugin guide](docs/event-inbox.md).
+
 ## Repository Structure
 
 - `xpertai/`: Official plugin projects, managed with the Nx build tool for multiple plugin packages.

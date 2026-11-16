@@ -26,7 +26,8 @@
       "@xpert-ai/plugin-sdk@3.12.0>@xpert-ai/contracts": "3.12.0",
       "@xpert-ai/plugin-sdk@3.12.1>@xpert-ai/contracts": "3.12.1",
       "@xpert-ai/plugin-sdk@3.15.0>@xpert-ai/contracts": "3.15.1",
-      "@xpert-ai/plugin-sdk@3.15.4>@xpert-ai/contracts": "3.15.4"
+      "@xpert-ai/plugin-sdk@3.15.4>@xpert-ai/contracts": "3.15.4",
+      "@xpert-ai/plugin-sdk@3.36.0-event-inbox.1>@xpert-ai/contracts": "file:../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-event-inbox.1.tgz"
     }
   }
 }

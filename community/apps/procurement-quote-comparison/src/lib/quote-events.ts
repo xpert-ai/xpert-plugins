@@ -1,4 +1,4 @@
-import { matchesStoredExtraction } from './quote-extraction.js';
+import { matchesStoredExtraction } from "./quote-extraction.js";
 import { Injectable, ForbiddenException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, IsNull, Repository } from "typeorm";
@@ -7,6 +7,8 @@ import {
   type AgentEventContext,
   type AgentEventPublisher,
   type AgentEventDelivery,
+  type AgentEventFollowUp,
+  type AgentEventPresentation,
   type EventDecision,
   type PluginAgentEventSource,
 } from "@xpert-ai/plugin-sdk";
@@ -17,9 +19,20 @@ import {
   ProcurementSourceDocument,
   ProcurementSupplierQuote,
 } from "./entities/index.js";
-import { eventSource, journal, digestSnapshot, QuoteEventParse } from "./event-journal.js";
+import {
+  eventSource,
+  journal,
+  digestSnapshot,
+  QuoteEventParse,
+} from "./event-journal.js";
 import type { SaveSupplierQuoteExtractionInput } from "./types.js";
 
+import {
+  captureDue,
+  decideDue,
+  dueType,
+  QuoteFollowUp,
+} from "./quote-follow-up.js";
 const key = "procurement.quote";
 const type = "procurement.quote.revised";
 const date = z
@@ -67,6 +80,15 @@ export class QuoteEvents implements PluginAgentEventSource {
         icon: { type: "font", value: "clipboard-list" },
       },
     },
+    {
+      type: dueType,
+      schemaVersion: 1,
+      display: {
+        category,
+        label: { en_US: "Follow-up due", zh_Hans: "采购跟进到期" },
+        icon: { type: "font", value: "clock" },
+      },
+    },
   ] as const;
   constructor(
     @InjectRepository(ProcurementComparisonCase)
@@ -91,6 +113,21 @@ export class QuoteEvents implements PluginAgentEventSource {
       if (!c || c.createdById !== ctx.userId)
         throw new ForbiddenException("quote_case_owner_required");
       await journal!.configure(tx, ctx, enabled);
+      await tx
+        .getRepository(QuoteFollowUp)
+        .createQueryBuilder()
+        .update()
+        .set({ state: "superseded", version: () => "version + 1" })
+        .where(
+          'binding = :binding AND state IN (:...states) AND ("bindingRevision" <> :revision OR :enabled = false)',
+          {
+            binding: ctx.bindingId,
+            revision: ctx.bindingRevision,
+            enabled,
+            states: ["waiting", "captured"],
+          }
+        )
+        .execute();
     });
   }
   async previouslyParsed(
@@ -114,11 +151,18 @@ export class QuoteEvents implements PluginAgentEventSource {
       throw new Error("quote_series_mismatch");
     const { caseId, documentId, quoteSeriesId, ...extraction } = input;
     const digest = digestSnapshot(extraction);
-    if (await tx.existsBy(QuoteEventParse, { binding: route.binding, documentId, digest })) return true;
+    if (
+      await tx.existsBy(QuoteEventParse, {
+        binding: route.binding,
+        documentId,
+        digest,
+      })
+    )
+      return true;
     // Old facts identify their own document. Duplicate confirmations had no fact of their own.
     const [prior] = await tx.query(
       `SELECT snapshot->>'documentId'=$2::text AS own FROM plugin_procurement_event_fact
-       WHERE binding=$1 AND snapshot->>'digest'=$3 AND (
+       WHERE binding=$1 AND event->>'type'='procurement.quote.revised' AND event->>'schemaVersion'='1' AND snapshot->>'digest'=$3 AND (
          snapshot->>'documentId'=$2::text OR (snapshot->>'series'=$4 AND NOT EXISTS (
            SELECT 1 FROM plugin_procurement_event_parse WHERE binding=$1 AND "documentId"=($2::text)::uuid)))
        ORDER BY own DESC LIMIT 1`,
@@ -126,10 +170,17 @@ export class QuoteEvents implements PluginAgentEventSource {
     );
     if (!prior) return false;
     if (!prior.own) {
-      const lines = await tx.findBy(ProcurementQuoteItem, { caseId: c.id, supplierQuoteId: quote.id });
+      const lines = await tx.findBy(ProcurementQuoteItem, {
+        caseId: c.id,
+        supplierQuoteId: quote.id,
+      });
       if (!matchesStoredExtraction(input, quote, lines)) return false;
     }
-    await tx.insert(QuoteEventParse, { binding: route.binding, documentId, digest });
+    await tx.insert(QuoteEventParse, {
+      binding: route.binding,
+      documentId,
+      digest,
+    });
     return true;
   }
   async capture(
@@ -178,13 +229,17 @@ export class QuoteEvents implements PluginAgentEventSource {
     }
     const [row] = await tx.query(
       `SELECT snapshot FROM plugin_procurement_event_fact WHERE binding=$1
-      AND snapshot->>'series'=$2 ORDER BY seq DESC LIMIT 1`,
+      AND event->>'type'='procurement.quote.revised' AND event->>'schemaVersion'='1' AND snapshot->>'series'=$2 ORDER BY seq DESC LIMIT 1`,
       [route.binding, series]
     );
     const previous = row ? factSchema.parse(row.snapshot) : null;
     const { caseId, documentId, quoteSeriesId, ...extraction } = input;
     const digest = digestSnapshot(extraction);
-    await tx.insert(QuoteEventParse, { binding: route.binding, documentId, digest });
+    await tx.insert(QuoteEventParse, {
+      binding: route.binding,
+      documentId,
+      digest,
+    });
     if (previous?.digest === digest) return;
     const revision = (previous?.revision ?? 0) + 1;
     const origin = z.string().uuid().safeParse(conversationId);
@@ -202,6 +257,21 @@ export class QuoteEvents implements PluginAgentEventSource {
         ? { revision: previous.revision, date: previous.date }
         : null,
     };
+    if (previous)
+      await tx
+        .getRepository(QuoteFollowUp)
+        .createQueryBuilder()
+        .update()
+        .set({ state: "superseded", version: () => "version + 1" })
+        .where(
+          'binding = :binding AND "quoteSource" = :source AND state IN (:...states)',
+          {
+            binding: route.binding,
+            source: series + "/" + previous.revision,
+            states: ["waiting", "captured", "fired"],
+          }
+        )
+        .execute();
     const id = series + "/" + revision;
     await journal.capture(
       tx,
@@ -223,10 +293,25 @@ export class QuoteEvents implements PluginAgentEventSource {
     publisher: AgentEventPublisher,
     limit: number
   ) {
-    const accessible = await this.cases.manager.transaction(
-      async (tx) => (await this.target(tx, ctx))?.createdById === ctx.userId
-    );
-    if (!accessible) throw new ForbiddenException("quote_case_owner_required");
+    await this.cases.manager.transaction(async (tx) => {
+      const c = await this.target(tx, ctx);
+      if (!c || c.createdById !== ctx.userId)
+        throw new ForbiddenException("quote_case_owner_required");
+      if (c.status === "completed") {
+        await tx
+          .getRepository(QuoteFollowUp)
+          .createQueryBuilder()
+          .update()
+          .set({ state: "superseded", version: () => "version + 1" })
+          .where("binding = :binding AND state IN (:...states)", {
+            binding: ctx.bindingId,
+            states: ["waiting", "captured"],
+          })
+          .execute();
+      } else {
+        await captureDue(tx, ctx, limit);
+      }
+    });
     return journal!.drain(this.cases.manager, ctx, publisher, limit);
   }
   async searchTitles(ctx: AgentEventContext, term: string) {
@@ -263,14 +348,41 @@ export class QuoteEvents implements PluginAgentEventSource {
       const c = await this.target(tx, ctx);
       if (!c || c.createdById !== ctx.userId || event.subject.key !== c.id)
         return null;
-      let conversation: { conversationId: string } | undefined;
+      let conversation: AgentEventPresentation["conversation"];
       if (options?.includeConversation) {
         const [fact] = await tx.query(
-          `SELECT snapshot->>'conversationId' AS id FROM plugin_procurement_event_fact
+          `SELECT snapshot->>'conversationId' AS id, snapshot->>'threadId' AS thread FROM plugin_procurement_event_fact
            WHERE binding=$1 AND source=$2 AND event->'fact'->>'sha256'=$3`,
           [ctx.bindingId, event.sourceEventId, event.fact.sha256]
         );
-        if (fact?.id) conversation = { conversationId: fact.id };
+        if (fact?.id) conversation = { conversationId: fact.id, ...(fact.thread ? { threadId: fact.thread } : {}) };
+      }
+      if (
+        event.type === dueType &&
+        decision?.status === "handled" &&
+        decision.resultRef.kind === "procurement-follow-up"
+      ) {
+        const risk = await tx.findOneBy(ProcurementRiskItem, {
+          id: decision.resultRef.key,
+          caseId: c.id,
+        });
+        return {
+          title: risk?.title ?? c.title,
+          conversation,
+          fields: [
+            {
+              label: { en_US: "Risk", zh_Hans: "风险" },
+              value: decision.resultRef.key,
+            },
+          ],
+          result: risk ? {
+            action: {en_US: "View risk", zh_Hans: "查看风险"},
+            fields: [
+              {label:{en_US:"Severity",zh_Hans:"风险等级"},value:risk.severity},
+              {label:{en_US:"Delivery change",zh_Hans:"交期变更"},value:risk.description}
+            ]
+          } : undefined
+        };
       }
       if (
         decision?.status !== "handled" ||
@@ -323,69 +435,102 @@ export class QuoteEvents implements PluginAgentEventSource {
         : null;
     });
   }
-  handle(
+  async handle(
     ctx: AgentEventContext,
-    delivery: AgentEventDelivery
+    delivery: AgentEventDelivery,
+    followUp?: AgentEventFollowUp
   ): Promise<EventDecision> {
-    return this.cases.manager.transaction(async (tx) => {
-      const c = await this.target(tx, ctx);
-      if (!c || c.createdById !== ctx.userId)
-        return { status: "blocked", reasonCode: "case_access_changed" };
-      return journal!.decide(tx, ctx, delivery, async (data) => {
-        const f = factSchema.parse(data);
-        if (f.caseId !== c.id || c.status === "completed")
-          return { status: "ignored", reasonCode: "case_closed" };
-        if (!f.previous) return { status: "ignored", reasonCode: "baseline" };
-        const currentDate = date.safeParse(f.date),
-          priorDate = date.safeParse(f.previous.date);
-        if (!currentDate.success || !priorDate.success)
-          return { status: "blocked", reasonCode: "delivery_date_unclear" };
-        if (currentDate.data <= priorDate.data)
-          return { status: "ignored", reasonCode: "no_delay" };
-        const operationKey = [
-          f.caseId,
-          f.series,
-          f.previous.revision,
-          f.revision,
-          "delivery_delay_v1",
-        ].join("/");
-        let risk = await tx.findOneBy(ProcurementRiskItem, {
-          eventOperationKey: operationKey,
-        });
-        if (!risk)
-          risk = await tx.save(
-            ProcurementRiskItem,
-            tx.create(ProcurementRiskItem, {
-              tenantId: c.tenantId,
-              organizationId: c.organizationId,
-              workspaceId: c.workspaceId,
-              projectId: c.projectId,
-              caseId: f.caseId,
-              supplierQuoteId: f.quote,
-              eventOperationKey: operationKey,
-              type: "delivery_delay",
-              severity: "high",
-              title: "报价交期推迟",
-              description: f.previous.date + " → " + f.date,
-              suggestion: "核对报价修订 " + f.revision,
-              status: "pending",
-            })
+    if (delivery.event.type === dueType && !followUp)
+      throw new Error("agent_follow_up_host_required");
+    const decision = await this.cases.manager.transaction<EventDecision>(
+      async (tx) => {
+        const c = await this.target(tx, ctx);
+        if (!c || c.createdById !== ctx.userId)
+          return { status: "blocked", reasonCode: "case_access_changed" };
+        return journal!.decide(tx, ctx, delivery, async (data) => {
+          if (delivery.event.type === dueType)
+            return decideDue(tx, ctx, delivery, c, data);
+          const f = factSchema.parse(data);
+          if (f.caseId !== c.id || c.status === "completed")
+            return { status: "ignored", reasonCode: "case_closed" };
+          if (!f.previous) return { status: "ignored", reasonCode: "baseline" };
+          const currentDate = date.safeParse(f.date),
+            priorDate = date.safeParse(f.previous.date);
+          if (!currentDate.success || !priorDate.success)
+            return { status: "blocked", reasonCode: "delivery_date_unclear" };
+          if (currentDate.data <= priorDate.data)
+            return { status: "ignored", reasonCode: "no_delay" };
+          const operationKey = [
+            f.caseId,
+            f.series,
+            f.previous.revision,
+            f.revision,
+            "delivery_delay_v1",
+          ].join("/");
+          let risk = await tx.findOneBy(ProcurementRiskItem, {
+            eventOperationKey: operationKey,
+          });
+          if (!risk)
+            risk = await tx.save(
+              ProcurementRiskItem,
+              tx.create(ProcurementRiskItem, {
+                tenantId: c.tenantId,
+                organizationId: c.organizationId,
+                workspaceId: c.workspaceId,
+                projectId: c.projectId,
+                caseId: f.caseId,
+                supplierQuoteId: f.quote,
+                eventOperationKey: operationKey,
+                type: "delivery_delay",
+                severity: "high",
+                title: "报价交期推迟",
+                description: f.previous.date + " → " + f.date,
+                suggestion: "核对报价修订 " + f.revision,
+                status: "pending",
+              })
+            );
+          await tx.update(
+            ProcurementComparisonCase,
+            { id: c.id },
+            {
+              riskCount: await tx.countBy(ProcurementRiskItem, {
+                caseId: f.caseId,
+              }),
+            }
           );
-        await tx.update(
-          ProcurementComparisonCase,
-          { id: c.id },
-          {
-            riskCount: await tx.countBy(ProcurementRiskItem, {
-              caseId: f.caseId,
-            }),
-          }
-        );
-        return {
-          status: "handled",
-          operationKey,
-          resultRef: { kind: "procurement-risk", key: risk.id! },
-        };
+          return {
+            status: "handled",
+            operationKey,
+            resultRef: { kind: "procurement-risk", key: risk.id! },
+          };
+        });
+      }
+    );
+    if (delivery.event.type === dueType && decision.status === "handled") {
+      // The journal decision wins the expiry/edit race. Retry the same immutable wake even if the next turn already rearmed.
+      const [timer] = await this.cases.query(
+        `SELECT snapshot->>'conversationId' AS "conversationId", snapshot->>'threadId' AS "threadId",
+        snapshot->>'agentKey' AS "agentKey", snapshot->>'caseId' AS "caseId", snapshot->>'riskId' AS "riskId" FROM plugin_procurement_event_fact
+        WHERE binding=$1 AND source=$2 AND event->'fact'->>'sha256'=$3`,
+        [
+          ctx.bindingId,
+          delivery.event.sourceEventId,
+          delivery.event.fact.sha256,
+        ]
+      );
+      if (!timer) throw new Error("follow_up_fact_missing");
+      await followUp!.wake({
+        conversationId: timer.conversationId,
+        threadId: timer.threadId ?? undefined,
+        agentKey: timer.agentKey ?? undefined,
+        prompt: `Your procurement follow-up is due. Use procurement_follow_up(action="inspect", caseId="${timer.caseId}", riskId="${timer.riskId}") and read the latest reply and case state. If cancelled or answered, finish quietly. Otherwise decide whether to act or set another justified deadline.`,
       });
-    });
+      // Edits change the business state. Only the matching committed wake can report admission.
+      await this.cases.manager.update(QuoteFollowUp,
+        { riskId: timer.riskId, binding: ctx.bindingId, wakeReceiptId: delivery.receiptId, wakeStatus: "queued" },
+        { wakeStatus: "started" }
+      );
+    }
+    return decision;
   }
 }
