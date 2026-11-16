@@ -23,7 +23,12 @@ export class SpaceEditors {
   async presentItems(actor: SpaceActor, items: SpaceItem[]) {
     if (!items.length) return items
     const formats = await this.list(actor)
-    return items.map(item => ({ ...item, editorKey: item.editorKey ?? fileFormat(item, formats)?.key ?? null }))
+    return items.map(item => {
+      const format = fileFormat(item, formats)
+      return { ...item, editorKey: item.editorKey ?? format?.key ?? null,
+        mimeType: format?.mimeType ?? item.file?.mimeType,
+        icon: format?.resourceType?.icon }
+    })
   }
   async create(actor: SpaceActor, spaceId: string, parentId: string | null, title: string, editorKey: string, buffer?: Buffer) {
     const access = await this.access.resource(actor, parentId ?? spaceId, 'write')

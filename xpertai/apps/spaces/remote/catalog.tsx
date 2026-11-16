@@ -9,17 +9,17 @@ import { itemSchema, localizedLabel, type Item } from './model'
 
 // Validate provider metadata against the shared contract; translations are optional.
 export { localizedLabel } from './model'
-export const implementationSchema = z.object({ typeId: z.string(), title: localizedLabel, providerKey: z.string(), implementationKey: z.string(), implementationTitle: localizedLabel, templates: z.array(z.object({ id: z.string(), title: localizedLabel, description: localizedLabel.optional() })).optional() })
+export const implementationSchema = z.object({ typeId: z.string(), title: localizedLabel, icon: itemSchema.shape.icon, providerKey: z.string(), implementationKey: z.string(), implementationTitle: localizedLabel, templates: z.array(z.object({ id: z.string(), title: localizedLabel, description: localizedLabel.optional() })).optional() })
 export type Implementation = z.infer<typeof implementationSchema>
-export const catalogItemSchema = z.object({ contentId: z.string(), presentation: itemSchema.shape.presentation, sourceSync: itemSchema.shape.sourceSync, preview: itemSchema.shape.preview, availability: itemSchema.shape.availability, parentId: z.string().nullable().optional(), placementVersion: z.number().optional(), canWrite: z.boolean(), title: z.string(), typeId: z.string(), revision: z.string(), updatedAt: z.string(), deleted: z.boolean(), defaultEditorKey: z.string(), allowedActions: z.array(z.string()), compatibleEditors: itemSchema.shape.compatibleEditors })
-export const catalogPageSchema = z.object({ items: z.array(catalogItemSchema), hasMore: z.boolean() })
+export const catalogItemSchema = z.object({ contentId: z.string(), icon: itemSchema.shape.icon, presentation: itemSchema.shape.presentation, sourceSync: itemSchema.shape.sourceSync, preview: itemSchema.shape.preview, availability: itemSchema.shape.availability, parentId: z.string().nullable().optional(), placementVersion: z.number().optional(), canWrite: z.boolean(), title: z.string(), typeId: z.string(), revision: z.string(), updatedAt: z.string(), deleted: z.boolean(), defaultEditorKey: z.string(), allowedActions: z.array(z.string()), compatibleEditors: itemSchema.shape.compatibleEditors })
+export const catalogPageSchema = z.object({ items: z.array(catalogItemSchema), hasMore: z.boolean(), nextCursor: z.string().optional() })
 // Manifest labels use the platform locale convention; translate once at the adapter boundary.
 export function useCatalogLabel() {
   useLocale()
   return (label: I18nObject) => i18n.label({ ...label })
 }
 export function catalogItem(item: z.infer<typeof catalogItemSchema>): Item {
-  return { id: item.contentId, presentation: item.presentation, sourceSync: item.sourceSync, preview: item.preview, availability: item.availability, title: item.title, kind: 'resource', version: item.placementVersion ?? 0, parentId: item.parentId ?? null, canWrite: item.canWrite, editorKey: item.defaultEditorKey,
+  return { id: item.contentId, icon: item.icon, presentation: item.presentation, sourceSync: item.sourceSync, preview: item.preview, availability: item.availability, title: item.title, kind: 'resource', version: item.placementVersion ?? 0, parentId: item.parentId ?? null, canWrite: item.canWrite, editorKey: item.defaultEditorKey,
     updatedAt: item.updatedAt, deleted: item.deleted, resourceTypeId: item.typeId, resourceRevision: item.revision, allowedActions: item.allowedActions, compatibleEditors: item.compatibleEditors }
 }
 export const openCatalogItem = (id: string, editorKey?: string) => openDocument(id, 'platform.content.catalog', editorKey)

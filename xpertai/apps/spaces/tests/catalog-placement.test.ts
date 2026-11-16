@@ -10,6 +10,7 @@ function fixture() {
   let current: SpaceResourcePlacement | null = null, locked = false, canWrite = true
   const calls: object[] = []
   const catalog = {
+    types: async () => [],
     get: async () => ({ canWrite }),
     list: async (input: object) => { calls.push(input); return { items: [{ contentId: 'resource', canWrite }], hasMore: false } }
   }
@@ -39,7 +40,7 @@ test('placement moves use independent CAS without changing native content; folde
   assert.equal(moved.version, 1)
   await assert.rejects(f.service.move(f.actor, { contentId: 'resource', parentId: null, expectedVersion: 0 }), /version_conflict/)
   await f.service.list(f.actor, { parentId: 'folder', offset: 50 })
-  assert.deepEqual(f.calls[0], { actor: f.actor, projectId: 'project', assistantId: undefined, parentId: 'folder', offset: 50, limit: 50, excludedProviderKeys: ['spaces'], contentIds: ['resource'] })
+  assert.deepEqual(f.calls[0], { actor: f.actor, projectId: 'project', assistantId: undefined, parentId: 'folder', offset: 50, discovery: 'indexed', limit: 50, excludedProviderKeys: ['spaces'], contentIds: ['resource'] })
   const restored = await f.service.move(f.actor, { contentId: 'resource', parentId: null, expectedVersion: 1 })
   assert.equal(restored.version, 2)
 })

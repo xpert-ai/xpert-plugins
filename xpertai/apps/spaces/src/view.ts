@@ -1,3 +1,4 @@
+import { listQuery } from './list-page.js'
 import { SpaceArtifactLibrary } from './artifact-library.js'
 import { SpaceCatalog, catalogQuery, catalogCreate, catalogRename, catalogDuplicate, catalogLifecycle, catalogMove } from './catalog.js'
 import { SpaceImports, sourceSelection, importSelection } from './imports.js'
@@ -16,10 +17,13 @@ import { SpaceFiles } from './files.js'
 import { SpaceKnowledge } from './knowledge.js'
 import { SpaceContent } from './content.js'
 import { SpaceAccess } from './access.js'
+import { SPACES_VIEW_ICON } from './view-icon.js'
 
 const selection = z.object({ itemId: id }).strict()
+const viewListQuery = listQuery.extend({ presentation: z.literal('navigation').optional() })
+  .transform(({ presentation, ...input }) => input)
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
-const actions = ['artifact.reference.open', 'artifact.reference.version', 'artifact.reference.share', 'artifact.reference.revoke', 'catalog.duplicate', 'catalog.backup', 'catalog.preferences', 'catalog.preference.set', 'catalog.move', 'catalog.types', 'catalog.list', 'catalog.create', 'catalog.rename', 'catalog.lifecycle', 'source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
+const actions = ['library.sync', 'folder.list', 'artifact.reference.open', 'artifact.reference.version', 'artifact.reference.share', 'artifact.reference.revoke', 'catalog.duplicate', 'catalog.backup', 'catalog.preferences', 'catalog.preference.set', 'catalog.move', 'catalog.types', 'catalog.list', 'catalog.create', 'catalog.rename', 'catalog.lifecycle', 'source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
   'knowledge.status', 'knowledge.refresh', 'knowledge.search', 'item.create', 'item.edit', 'page.read', 'search',
   'file.list', 'page.export', 'artifact.list', 'artifact.collect', 'artifact.open', 'editor.list', 'editor.create']
 
@@ -32,14 +36,14 @@ export class SpacesView implements IXpertViewExtensionProvider {
   }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench.main', 'agent.workbench.fixed'].includes(slot)) return []
-    return [{ key: VIEW, title: label('Spaces', '协作空间'), hostType: context.hostType, slot,
+    return [{ key: VIEW, title: label('Spaces', '协作空间'), icon: SPACES_VIEW_ICON, hostType: context.hostType, slot,
       source: { provider: 'spaces.views', plugin: PLUGIN }, refreshable: true,
       activation: { requiredFeatures: ['spaces'] },
       workbench: { ...{ projectType: { applicationKey: 'platform', projectTypeKey: 'space' } },
-        ...(slot === 'agent.workbench.fixed' ? { fixed: true, menu: { enabled: true, label: label('Spaces', '协作空间'), order: 35 } } : {}) },
+        ...(slot === 'agent.workbench.fixed' ? { fixed: true, menu: { enabled: true, label: label('Spaces', '协作空间'), icon: SPACES_VIEW_ICON, order: 35 } } : {}) },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: 'spaces' }, dataSource: { mode: 'platform' } },
-      dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsSelection: true, supportsParameters: true } },
+      dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsSelection: true, supportsParameters: true, supportsPagination: true } },
       fileAccess: { purposes: ['download'] },
       actions: [...actions.map((key) => ({ key, label: label(key, key), actionType: 'invoke' as const })),
         { key: 'editor.import', label: label('Import document', '导入文档'), actionType: 'invoke', transport: 'file' },
@@ -61,7 +65,10 @@ export class SpacesView implements IXpertViewExtensionProvider {
     if (!actor.projectId) return { items: [], meta: { requiresProject: true } }
     const space = await this.spaces.workspace(actor)
     const resourceId = !query.selectionId || query.selectionId === 'root' ? space.id : id.parse(query.selectionId)
-    const tree = await this.spaces.tree(actor, resourceId, query.parameters?.trash === true)
+    const parsed = viewListQuery.safeParse({ ...query.parameters, page: query.page, pageSize: query.pageSize,
+      ...(resourceId !== space.id ? { parentId: resourceId } : {}) })
+    if (!parsed.success) throw new BadRequestException('spaces.invalid_input')
+    const tree = await this.spaces.listPage(actor, space.id, parsed.data)
     return { items: [], meta: { ...tree, items: await this.editors.presentItems(actor, tree.items),
       project: { id: space.projectId, title: space.title },
       assistant: { id: context.hostId, title: space.title, dataScope: 'project' } } }
@@ -86,6 +93,8 @@ export class SpacesView implements IXpertViewExtensionProvider {
     await this.spaces.workspace(actor)
     let result: object
     switch (action) {
+      case 'library.sync': result = await this.spaces.synchronize(actor); break
+      case 'folder.list': { const space = await this.spaces.workspace(actor); result = await this.spaces.listPage(actor, space.id, listQuery.parse({ ...z.object({ parentId: id.nullable(), cursor: z.string().optional() }).strict().parse(input), kind: 'folder' })); break }
       case 'source.list': result = await this.imports.sources(actor); break
       case 'source.search': result = await this.imports.search(actor, z.object({ bindingId: id, query: z.string().trim().max(200).default(''), cursor: z.string().max(2000).optional(), pageSize: z.number().int().min(1).max(50).default(25) }).strict().parse(input)); break
       case 'source.preview': result = await this.imports.preview(actor, sourceSelection.parse(input)); break

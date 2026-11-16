@@ -1,6 +1,7 @@
+import { FolderTree } from './folder-tree'
 import { t, useLocale } from './i18n'
 import React, { useState } from 'react'
-import { Button, Input, Label, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, LockKeyhole, Check } from '@xpert-ai/plugin-shadcn-ui'
+import { Button, Input, Label, Tabs, TabsList, TabsTrigger, TabsContent, DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, LockKeyhole, Check, Popover, PopoverTrigger, PopoverContent, Folder, ChevronDown } from '@xpert-ai/plugin-shadcn-ui'
 import { action } from './bridge'
 import { itemSchema, type Item } from './model'
 const getTemplates = () => [
@@ -8,16 +9,18 @@ const getTemplates = () => [
   { title: t('templates.meeting.title'), description: t('templates.meeting.description'), content: t('templates.meeting.content') },
   { title: t('templates.weekly.title'), description: t('templates.weekly.description'), content: t('templates.weekly.content') }
 ]
-export function FolderSelect({ items, value, onChange, disabled }: { items: Item[]; disabled?: boolean; value: string; onChange: (value: string) => void }) {
+export function FolderSelect({ items, value, onChange, disabled, excludedId }: { items: Item[]; disabled?: boolean; value: string; onChange: (value: string) => void; excludedId?: string }) {
   useLocale()
-  // Radix reserves an empty value for the placeholder; map the root option at this UI boundary.
+  const [open, setOpen] = useState(false), [known, setKnown] = useState<Item[]>([])
+  const selected = [...known, ...items].find(item => item.id === value)
   return <div className="form-field"><Label htmlFor="folder-location">{t('folder.location')}</Label>
-    <Select disabled={disabled} value={value || 'root'} onValueChange={(id) => onChange(id === 'root' ? '' : id)}>
-      <SelectTrigger id="folder-location" className="w-full"><SelectValue /></SelectTrigger>
-      <SelectContent position="popper"><SelectItem value="root">{t('folder.root')}</SelectItem>
-        {items.filter((item) => item.kind === 'folder' && !item.deleted).map((item) => <SelectItem key={item.id} value={item.id}>{item.filePath ?? item.title}</SelectItem>)}
-      </SelectContent>
-    </Select>
+    <Popover open={open} onOpenChange={setOpen}><PopoverTrigger asChild><Button id="folder-location" type="button" variant="outline" disabled={disabled} className="w-full justify-between">
+      <span className="truncate">{selected?.filePath ?? selected?.title ?? t('folder.root')}</span><ChevronDown />
+    </Button></PopoverTrigger><PopoverContent className="max-h-[50vh] overflow-y-auto">
+      <Button type="button" variant={!value ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={() => { onChange(''); setOpen(false) }}><Folder />{t('folder.root')}</Button>
+      <FolderTree selected={value || null} excludedId={excludedId} onSelect={item => { setKnown(previous => [...previous, item]); onChange(item.id); setOpen(false) }}
+        onItems={rows => setKnown(previous => [...new Map([...previous, ...rows].map(item => [item.id, item])).values()])} />
+    </PopoverContent></Popover>
   </div>
 }
 export function CreateDialog({ root, items, initialParent, kind, editors, editing, onClose, onDone, run, busy }: {
@@ -48,7 +51,7 @@ export function CreateDialog({ root, items, initialParent, kind, editors, editin
       await onDone(itemSchema.parse(raw)); onClose()
     }) }}>
       <div className="form-columns"><Label>{isPage ? t('create.pageName') : t('common.name')}<Input required autoFocus maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.namePlaceholder')} /></Label>
-        <FolderSelect items={items.filter((item) => item.id !== editing?.id)} value={parent} onChange={setParent} /></div>
+        <FolderSelect excludedId={editing?.id} items={items.filter((item) => item.id !== editing?.id)} value={parent} onChange={setParent} /></div>
       <DialogFooter><span className="muted mr-auto flex items-center gap-2"><LockKeyhole />{t('create.permissions')}</span><Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button><Button disabled={busy}>{editing ? t('common.save') : isPage ? t('create.createPage') : t('common.create')}</Button></DialogFooter>
     </form>
   </DialogContent></Dialog>

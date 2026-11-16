@@ -1,7 +1,10 @@
+import { useLibraryData } from './library-data'
+import { FolderTree } from './folder-tree'
+import { ItemIcon, ResourceTypeIcon } from './item-icon'
 import { ArtifactReferenceDialog, openArtifactReference } from './artifact-reference'
 import { UnavailableContent } from './unavailable-content'
 import { EditorPreferences } from './editor-preferences'
-import { CatalogMoveDialog, CatalogLifecycleDialog, CatalogRenameDialog, CatalogCreateDialog, catalogItem, catalogPageSchema, implementationSchema, useCatalogLabel, openCatalogItem, type Implementation } from './catalog'
+import { CatalogMoveDialog, CatalogLifecycleDialog, CatalogRenameDialog, CatalogCreateDialog, implementationSchema, useCatalogLabel, openCatalogItem, type Implementation } from './catalog'
 import { t, useLocale, i18n, useMessage } from './i18n'
 import { Card, CardHeader, CardContent, CardFooter, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, DialogFooter } from '@xpert-ai/plugin-shadcn-ui'
 import { SourceDialog } from './source-dialog'
@@ -15,19 +18,17 @@ import {
   FileText, Folder, Files, Search, Plus, ChevronDown, Trash2, LockKeyhole, ArrowLeft, MessageSquare,
   History, MoreHorizontal, WandSparkles, X, RefreshCw, Info, Download
 } from '@xpert-ai/plugin-shadcn-ui'
-import { action, connect, data, setAssistantContext, openDocument } from './bridge'
+import { action, connect, setAssistantContext, openDocument } from './bridge'
 import { DownloadButton } from './download'
 import { CreateDialog } from './create-dialog'
 import { MaterialsDialog } from './materials-dialog'
 import { KnowledgePanel } from './panels'
-import { listSchema, artifactTypeName, errorText, dateText, kindName, type Item } from './model'
+import { artifactTypeName, errorText, dateText, kindName, type Item } from './model'
 
-const Icon = ({ kind }: { kind?: string }) => kind === 'folder' ? <Folder /> : <FileText />
 function App() {
   useLocale()
   const label = useCatalogLabel()
   const [implementations, setImplementations] = useState<Implementation[]>([])
-  const [resources, setResources] = useState<Item[]>([]), [moreResources, setMoreResources] = useState(false)
   const [lifecycleResource, setLifecycleResource] = useState<{ item: Item; operation: 'trash' | 'restore' } | null>(null)
   const [movingResource, setMovingResource] = useState<Item | null>(null)
   const [renamingResource, setRenamingResource] = useState<Item | null>(null)
@@ -37,13 +38,10 @@ function App() {
   const [creatingResource, setCreatingResource] = useState<Implementation | null>(null)
   // The menu item unmounts before Dialog opens. Return focus to its persistent trigger.
   const createTrigger = useRef<HTMLButtonElement>(null)
-  const [root, setRoot] = useState<Item | null>(null), [items, setItems] = useState<Item[]>([])
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [compact, setCompact] = useState(false)
   const [selected, setSelected] = useState<Item | null>(null), [folderId, setFolderId] = useState<string | null>(null)
   const [filter, setFilter] = useState('all'), [search, setSearch] = useState(''), [trash, setTrash] = useState(false)
-  const [permissions, setPermissions] = useState({ canWrite: false, canManage: false })
-  const [requiresProject, setRequiresProject] = useState(false), [loading, setLoading] = useState(true)
   const [editors, setEditors] = useState<Array<{ key: string; title: string }>>([])
   const [saved, setSaved] = useState(true)
   const [error, setError] = useMessage(''), [busy, setBusy] = useState(false), [editorKey, setEditorKey] = useState(0)
@@ -52,50 +50,33 @@ function App() {
   const [panel, setPanel] = useState<'knowledge' | null>(null), [modal, setModal] = useState<string | null>(null)
   // Open after the menu releases its focus scope inside the remote iframe.
   const openDialog = (name: string) => { window.setTimeout(() => setModal(name), 0) }
+  const [scope, setScope] = useState(0)
+  const library = useLibraryData({ filter: compact ? 'page' : filter, search, folderId, trash }, scope, error => setError(errorText(error)))
+  const { root, permissions, requiresProject, loading, visible } = library
+  const items = library.knownItems
   const { canWrite, canManage } = permissions
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true); setError('')
     try { await work() } catch (error) { setError(errorText(error)) } finally { setBusy(false) }
   }
-  const load = useCallback(async (deleted = false) => {
-    setLoading(true)
-    try {
-      const raw = await data({ selectionId: 'root', parameters: { trash: deleted } })
-      if (z.object({ meta: z.object({ requiresProject: z.literal(true) }) }).safeParse(raw).success) {
-        setRequiresProject(true); setRoot(null); setItems([]); setResources([]); setImplementations([]); return false
-      }
-      const response = listSchema.parse(raw).meta
-      setRequiresProject(false); setRoot(response.root); setItems(response.items); setPermissions(response); setTrash(deleted)
-      setImplementations(z.array(implementationSchema).parse(await action('catalog.types', {})))
-      return true
-    } finally { setLoading(false) }
-  }, [])
-  const reload = async () => { await load(trash) }
-  // Filter and paginate at the platform catalog, not over the first browser page.
-  // A late response from an old search must not replace the current collection.
-  const catalogRequest = useRef(0)
-  const resourceQuery = { ...(folderId ? { parentId: folderId } : {}), deleted: trash, search, ...(filter === 'files' ? { typeId: 'xpert.artifact' } : !['all', 'page'].includes(filter) ? { typeId: filter } : {}) }
+  const load = useCallback(async (deleted = false) => { setTrash(deleted); setScope(value => value + 1); return true }, [])
+  const reload = library.reload
   useEffect(() => {
-    const request = ++catalogRequest.current
-    setResources([]); setMoreResources(false)
-    if (!root || filter === 'page') return
-    const timeout = window.setTimeout(() => {
-      void action('catalog.list', resourceQuery).then(raw => {
-        if (request !== catalogRequest.current) return
-        const page = catalogPageSchema.parse(raw)
-        setResources(page.items.map(catalogItem)); setMoreResources(page.hasMore)
-      }).catch(error => { if (request === catalogRequest.current) setError(errorText(error)) })
-    }, search ? 200 : 0)
-    return () => { window.clearTimeout(timeout); catalogRequest.current++ }
-  }, [root, folderId, filter, search, trash])
-
-  useEffect(() => connect((query) => {
-    setCompact(z.object({ parameters: z.object({ presentation: z.literal('navigation') }) }).safeParse(query).success)
-    setSelected(null); setSaved(true); setError(''); setPanel(null)
-    void load().then(async (ready) => {
-      if (ready) setEditors(z.array(z.object({ key: z.string(), title: z.string() })).parse(await action('editor.list', {})))
-    }).catch((error) => setError(errorText(error)))
-  }), [load])
+    let current = 0
+    const disconnect = connect(query => {
+      const request = ++current
+      setCompact(z.object({ parameters: z.object({ presentation: z.literal('navigation') }) }).safeParse(query).success)
+      setSelected(null); setFolderId(null); setFilter('all'); setSearch(''); setSaved(true); setError(''); setPanel(null)
+      setImplementations([]); setEditors([])
+      void load()
+      void Promise.all([action('catalog.types', {}), action('editor.list', {})]).then(([types, editors]) => {
+        if (request !== current) return
+        setImplementations(z.array(implementationSchema).parse(types))
+        setEditors(z.array(z.object({ key: z.string(), title: z.string() })).parse(editors))
+      }).catch(error => { if (request === current) setError(errorText(error)) })
+    })
+    return () => { current++; disconnect() }
+  }, [load])
   useEffect(() => {
     if (!root) return
     void setAssistantContext({ key: 'spaces', context: { spaceId: root.id, itemId: selected?.id, filePath: selected?.filePath,
@@ -121,12 +102,8 @@ function App() {
   function navigate(next: string, folder: string | null = null) {
     if (!saved) return
     setSelected(null); setFolderId(folder); setFilter(next); setPanel(null)
-    if (trash) void run(() => load(false))
+    if (trash) setTrash(false)
   }
-  const visible = [...items, ...resources].filter((item) => (!folderId || item.parentId === folderId) &&
-    (filter === 'all' || (filter === 'page' ? item.kind === 'page' : filter === 'files' ? ['file', 'artifact'].includes(item.kind ?? '') || item.presentation?.kind === 'artifact' : item.resourceTypeId === filter)) &&
-    (item.title + ' ' + (item.filePath ?? '')).toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const typeTitle = implementations.find(item => item.typeId === filter)?.title
   const heading = typeTitle ? label(typeTitle) : trash ? t('navigation.trash') : folderId ? items.find((item) => item.id === folderId)?.title ?? t('kind.folder') : filter === 'page' ? t('kind.page') : filter === 'files' ? t('navigation.files') : t('navigation.all')
   const itemActions = (item: Item) => <DropdownMenu modal={false}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={t('library.moreActions', { title: item.title })}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
@@ -159,15 +136,14 @@ function App() {
       <aside className="tree" aria-label={t('navigation.label')}>
         <div className="space-name"><h2>{t('space.title')}</h2><Button variant="ghost" size="icon" aria-label={t('navigation.search')} onClick={() => document.getElementById('space-search')?.focus()}><Search /></Button></div>
         <p className="space-subtitle">{root?.title ?? t('common.opening')}{t('space.sharedSuffix')}</p>
-        {compact && <><Input aria-label={t('navigation.findDocument')} placeholder={t('navigation.findDocument')} value={search} onChange={(event) => setSearch(event.target.value)} /><div className="compact-documents">{visible.filter((item) => item.kind === 'page').map((item) => <Button type="button" variant="ghost" key={item.id} className="nav-item" title={item.filePath ?? item.title} onClick={() => choose(item)}><FileText /><span className="truncate">{item.title}</span></Button>)}</div></>}
+        {compact && <><Input aria-label={t('navigation.findDocument')} placeholder={t('navigation.findDocument')} value={search} onChange={(event) => setSearch(event.target.value)} /><div className="compact-documents">{visible.filter((item) => item.kind === 'page').map((item) => <Button type="button" variant="ghost" key={item.id} className="nav-item" title={item.filePath ?? item.title} onClick={() => choose(item)}><ItemIcon item={item} /><span className="truncate">{item.title}</span></Button>)}</div>
+          {loading && <p role="status">{t('library.loading')}</p>}
+          {library.more && <Button variant="outline" disabled={busy || loading} onClick={() => void run(library.loadMore)}>{t('catalog.more')}</Button>}
+        </>}
         <nav>{[['all', t('navigation.all')], ['page', t('kind.page')], ['files', t('navigation.files')], ...Array.from(new Map(implementations.map(item => [item.typeId, [item.typeId, label(item.title)]])).values())].map(([key, title]) => <Button type="button" variant={!selected && !folderId && !trash && filter === key ? 'secondary' : 'ghost'} key={key} className={!selected && !folderId && !trash && filter === key ? 'nav-item selected' : 'nav-item'} onClick={() => navigate(key)} disabled={!saved}>
-          {key === 'all' ? <Files /> : key === 'page' ? <FileText /> : <Folder />}{title}</Button>)}</nav>
+          {key === 'all' ? <Files /> : key === 'page' ? <ResourceTypeIcon typeId="document" /> : key === 'files' ? <Folder /> : <ResourceTypeIcon typeId={key} icon={implementations.find(item => item.typeId === key)?.icon} />}{title}</Button>)}</nav>
         <p className="nav-label">{t('kind.folder')}</p>
-        <div className="folder-tree">{items.filter((item) => item.kind === 'folder' && !item.deleted)
-          .sort((a, b) => (a.filePath ?? a.title).localeCompare(b.filePath ?? b.title)).map((item) => <React.Fragment key={item.id}>
-          <Button type="button" variant={folderId === item.id && !selected ? 'secondary' : 'ghost'} className={`nav-item ${folderId === item.id && !selected ? 'selected' : ''}`} title={item.filePath ?? item.title} style={{ paddingLeft: `calc(var(--spacing) * ${3 + Math.min(4, (item.filePath?.split('/').length ?? 1) - 1) * 4.5})` }} onClick={() => navigate('all', item.id)} disabled={!saved}><Folder /><span className="truncate">{item.title}</span></Button>
-          {selected && selected.parentId === item.id && <Button type="button" variant="secondary" className="nav-item selected nested" onClick={() => choose(selected)}><FileText />{selected.title}</Button>}
-        </React.Fragment>)}</div>
+        {root && <FolderTree key={scope} revision={library.revision} selected={folderId} onSelect={item => { library.remember([item]); navigate('all', item.id) }} onItems={library.remember} disabled={!saved} />}
         <div className="nav-bottom"><Button type="button" variant="ghost" className={`nav-item ${panel === 'knowledge' ? 'selected' : ''}`} onClick={() => setPanel('knowledge')}><Search />{t('knowledge.title')}</Button>
           {canManage && <Button type="button" variant="ghost" className={`nav-item ${trash ? 'selected' : ''}`} disabled={!saved} onClick={() => void run(async () => { setSelected(null); setFolderId(null); setPanel(null); await load(!trash) })}><Trash2 />{t('navigation.trash')}</Button>}</div>
       </aside>
@@ -186,8 +162,8 @@ function App() {
           </header>
           <article className="document-canvas"><h1>{selected.title}</h1><p className="document-meta">{dateText(selected.updatedAt)}{t('document.projectFileSuffix')}</p>
             {trash ? <p className="empty-message">{t('trash.documentNotice')}</p> : <>
-              {selected.editorKey && <div className="file-preview"><FileText /><p>{t('document.editorUnavailable')}</p><Button variant="outline" onClick={() => choose(selected)}>{t('document.reopenEditor')}</Button></div>}
-              {!selected.editorKey && <div className="file-preview"><Icon kind={selected.kind} /><p>{selected.filePath ?? selected.title}</p><p className="muted">{t('document.originalFormat')}</p></div>}
+              {selected.editorKey && <div className="file-preview"><ItemIcon item={selected} /><p>{t('document.editorUnavailable')}</p><Button variant="outline" onClick={() => choose(selected)}>{t('document.reopenEditor')}</Button></div>}
+              {!selected.editorKey && <div className="file-preview"><ItemIcon item={selected} /><p>{selected.filePath ?? selected.title}</p><p className="muted">{t('document.originalFormat')}</p></div>}
               {selected.kind !== 'resource' && <div className="document-download"><DownloadButton fileKey={`item:${selected.id}`} onError={(error) => setError(errorText(error))}><Download />{t('document.download')}</DownloadButton></div>}
             </>}
           </article>
@@ -205,17 +181,18 @@ function App() {
               </DropdownMenuContent></DropdownMenu>}
             </div>
           </header>
-          <div className="list-toolbar"><span>{t('library.recent')}</span><div className="flex items-center gap-2"><Button variant={layout === 'list' ? 'secondary' : 'ghost'} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>{t('library.listView')}</Button><Button variant={layout === 'grid' ? 'secondary' : 'ghost'} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>{t('library.gridView')}</Button><Button variant="ghost" size="icon" aria-label={t('library.refresh')} disabled={busy || loading} onClick={() => void run(reload)}><RefreshCw /></Button></div></div>
+          <div className="list-toolbar"><span>{t('library.recent')}</span><div className="flex items-center gap-2"><Button variant={layout === 'list' ? 'secondary' : 'ghost'} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>{t('library.listView')}</Button><Button variant={layout === 'grid' ? 'secondary' : 'ghost'} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>{t('library.gridView')}</Button><Button variant="ghost" size="icon" aria-label={t('library.refresh')} disabled={busy || loading || library.syncing} onClick={() => void run(library.synchronize)}><RefreshCw /></Button></div></div>
           {loading ? <div className="empty-message" role="status">{t('library.loading')}</div> : <div className="table-scroll">{layout === 'grid' ? <div className="grid gap-4 p-1" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
-            {visible.map(item => <Card key={item.id}><CardHeader><div className="flex items-center justify-between gap-2"><Button variant="ghost" className="min-w-0" onClick={() => choose(item)}><Icon kind={item.kind} /><span className="truncate">{item.title}</span></Button>{itemActions(item)}</div></CardHeader>
+            {visible.map(item => <Card key={item.id}><CardHeader><div className="flex items-center justify-between gap-2"><Button variant="ghost" className="min-w-0" onClick={() => choose(item)}><ItemIcon item={item} /><span className="truncate">{item.title}</span></Button>{itemActions(item)}</div></CardHeader>
               <CardContent>{item.presentation?.kind === 'artifact' && <Badge variant="secondary" className="mb-2">{artifactTypeName(item.presentation.type)}</Badge>}<div className="aspect-video overflow-hidden" aria-label={t('catalog.outlinePreview')}>
-                {item.preview && item.preview.revision === item.resourceRevision ? <ol>{item.preview.lines.map((line, index) => <li className="truncate" key={index}>{line}</li>)}</ol> : <Icon kind={item.kind} />}
+                {item.preview && item.preview.revision === item.resourceRevision ? <ol>{item.preview.lines.map((line, index) => <li className="truncate" key={index}>{line}</li>)}</ol> : <ItemIcon item={item} />}
               </div>{itemState(item)}</CardContent><CardFooter>{dateText(item.updatedAt)}</CardFooter></Card>)}
           </div> : <Table className="library-table"><TableHeader><TableRow><TableHead>{t('common.name')}</TableHead><TableHead>{t('library.type')}</TableHead><TableHead>{t('library.source')}</TableHead><TableHead>{t('library.updated')}</TableHead><TableHead>{t('library.state')}</TableHead><TableHead><span className="sr-only">{t('library.actions')}</span></TableHead></TableRow></TableHeader>
-            <TableBody>{visible.map((item) => <TableRow key={item.id}><TableCell><Button type="button" variant="ghost" className="file-title" onClick={() => choose(item)}><span className={`file-icon ${item.kind}`}><Icon kind={item.kind} /></span><span><strong>{item.title}</strong><small>{item.parentPageId && items.some((parent) => parent.id === item.parentPageId && !parent.deleted) ? t('library.subpage', { title: items.find((parent) => parent.id === item.parentPageId)?.title ?? '' }) : (item.kind === 'resource' ? items.find(folder => folder.id === item.parentId)?.filePath ?? items.find(folder => folder.id === item.parentId)?.title : item.filePath?.split('/').slice(0, -1).join(' / ')) || t('folder.root')}</small></span></Button></TableCell><TableCell>{item.presentation?.kind === 'artifact' ? artifactTypeName(item.presentation.type) : item.resourceTypeId ? label(implementations.find(type => type.typeId === item.resourceTypeId)?.title ?? { en_US: item.resourceTypeId, zh_Hans: item.resourceTypeId }) : kindName(item.kind)}</TableCell><TableCell>{item.presentation?.kind === 'artifact' ? t('artifact.referenceType') : item.kind === 'resource' ? t('catalog.resource') : item.importOrigin ? t('source.copyType') : item.kind === 'page' ? t('library.spacePage') : item.kind === 'artifact' ? t('materials.assistantArtifacts') : t('library.projectFile')}</TableCell><TableCell>{dateText(item.updatedAt)}</TableCell><TableCell>{itemState(item)}</TableCell><TableCell>{itemActions(item)}</TableCell></TableRow>)}</TableBody></Table>}
+            <TableBody>{visible.map((item) => <TableRow key={item.id}><TableCell><Button type="button" variant="ghost" className="file-title" onClick={() => choose(item)}><span className={`file-icon ${item.kind}`}><ItemIcon item={item} /></span><span><strong>{item.title}</strong><small>{item.parentPageId && items.some((parent) => parent.id === item.parentPageId && !parent.deleted) ? t('library.subpage', { title: items.find((parent) => parent.id === item.parentPageId)?.title ?? '' }) : (item.kind === 'resource' ? items.find(folder => folder.id === item.parentId)?.filePath ?? items.find(folder => folder.id === item.parentId)?.title : item.filePath?.split('/').slice(0, -1).join(' / ')) || t('folder.root')}</small></span></Button></TableCell><TableCell>{item.presentation?.kind === 'artifact' ? artifactTypeName(item.presentation.type) : item.resourceTypeId ? label(implementations.find(type => type.typeId === item.resourceTypeId)?.title ?? { en_US: item.resourceTypeId, zh_Hans: item.resourceTypeId }) : kindName(item.kind)}</TableCell><TableCell>{item.presentation?.kind === 'artifact' ? t('artifact.referenceType') : item.kind === 'resource' ? t('catalog.resource') : item.importOrigin ? t('source.copyType') : item.kind === 'page' ? t('library.spacePage') : item.kind === 'artifact' ? t('materials.assistantArtifacts') : t('library.projectFile')}</TableCell><TableCell>{dateText(item.updatedAt)}</TableCell><TableCell>{itemState(item)}</TableCell><TableCell>{itemActions(item)}</TableCell></TableRow>)}</TableBody></Table>}
             {!visible.length && <div className="empty-message"><FileText /><h2>{search ? t('library.noResults') : trash ? t('trash.empty') : t('library.empty')}</h2><p>{search ? t('library.searchHint') : t('library.createHint')}</p>{canWrite && !trash && !search && <Button onClick={() => setModal('page')}><Plus />{t('create.page')}</Button>}</div>}
           </div>}
-          {moreResources && <Button variant="outline" disabled={busy} onClick={() => void run(async () => { const request = catalogRequest.current; const page = catalogPageSchema.parse(await action('catalog.list', { ...resourceQuery, offset: resources.length })); if (request !== catalogRequest.current) return; setResources(previous => [...previous, ...page.items.map(catalogItem)]); setMoreResources(page.hasMore) })}>{t('catalog.more')}</Button>}
+          {library.more && <Button variant="outline" disabled={busy || loading} onClick={() => void run(library.loadMore)}>{t('catalog.more')}</Button>}
+          {library.syncing && <p className="text-xs text-muted-foreground" role="status">{t('library.syncing')}</p>}
           <p className="library-footnote"><Info />{t('library.storageNote')}</p>
         </>}
       </main>
