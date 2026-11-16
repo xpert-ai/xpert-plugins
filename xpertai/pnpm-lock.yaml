@@ -707,6 +707,18 @@ importers:
 
   apps/docx-editor:
     dependencies:
+      '@docx-editor.dev/core':
+        specifier: 2.23.0
+        version: 2.23.0(pdf-lib@1.17.1)(yjs@13.6.31)
+      '@docx-editor.dev/fonts':
+        specifier: 2.23.0
+        version: 2.23.0
+      '@docx-editor.dev/i18n':
+        specifier: 2.23.0
+        version: 2.23.0
+      '@docx-editor.dev/react':
+        specifier: 2.23.0
+        version: 2.23.0(@docx-editor.dev/core@2.23.0(pdf-lib@1.17.1)(yjs@13.6.31))(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@eigenpal/docx-editor-agents':
         specifier: ^1.5.0
         version: 1.9.0(react@18.3.1)(vue@3.5.40(typescript@5.9.3))
@@ -718,10 +730,16 @@ importers:
         version: 1.9.0
       '@eigenpal/docx-editor-react':
         specifier: ^1.5.0
-        version: 1.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(prosemirror-commands@1.7.1)(prosemirror-dropcursor@1.8.3)(prosemirror-history@1.5.0)(prosemirror-keymap@1.2.3)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-tables@1.8.5)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(vue@3.5.40(typescript@5.9.3))
+        version: 1.9.0(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(prosemirror-commands@1.7.1)(prosemirror-dropcursor@1.8.3)(prosemirror-history@1.5.0)(prosemirror-keymap@1.2.3)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-tables@1.8.5)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(vue@3.5.40(typescript@5.9.3))
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
+      fast-xml-parser:
+        specifier: ^5.3.7
+        version: 5.10.1
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       mammoth:
         specifier: ^1.6.0
         version: 1.12.0
@@ -752,6 +770,9 @@ importers:
       prosemirror-view:
         specifier: ^1.41.6
         version: 1.42.2
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.1(supports-color@8.1.1)
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -777,12 +798,21 @@ importers:
       '@swc/jest':
         specifier: ~0.2.38
         version: 0.2.39(@swc/core@1.5.29(@swc/helpers@0.5.23))
+      '@tailwindcss/vite':
+        specifier: ^4.3.2
+        version: 4.3.3(vite@7.3.6(@types/node@20.19.9)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0))
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.9
+      '@types/react':
+        specifier: 18.3.31
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: 18.3.7
+        version: 18.3.7(@types/react@18.3.31)
       '@xpert-ai/contracts':
         specifier: 3.36.0
         version: 3.36.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -807,12 +837,18 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
+      tailwindcss:
+        specifier: ^4.3.2
+        version: 4.3.2
       typeorm:
         specifier: ^0.3.24
         version: 0.3.31(@sap/hana-client@2.29.25(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(ioredis@5.11.1(supports-color@8.1.1))(mssql@11.0.1(supports-color@8.1.1))(mysql2@3.23.1(@types/node@20.19.9))(pg@8.22.0)(supports-color@8.1.1)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+      vite:
+        specifier: ^7.3.0
+        version: 7.3.6(@types/node@20.19.9)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0)
       zod:
         specifier: 3.25.67
         version: 3.25.67
@@ -6400,6 +6436,36 @@ packages:
     resolution: {integrity: sha512-+MKAJEOfaBe5SmV6t34p80MMKhjvUz0vRrvVJbPT0WElzaOJ/1xs+D+KDv+tD/NE5ujfrChEcshd4fLn0wpiqg==}
     peerDependencies:
       react: '>=16.8.0'
+
+  '@docx-editor.dev/core@2.23.0':
+    resolution: {integrity: sha512-OOipeKNxwlEnUka+Cc8HsV2WATZ9UVyyFlbVYan1OfHal8LMg83Livn4ivPftT0L/8o1w7XekgKwfk8LAYPrQQ==}
+    engines: {node: ^20.16.0 || >=22.3.0}
+    peerDependencies:
+      pdf-lib: ^1.17.1
+      yjs: ^13.6.0
+    peerDependenciesMeta:
+      pdf-lib:
+        optional: true
+      yjs:
+        optional: true
+
+  '@docx-editor.dev/fonts@2.23.0':
+    resolution: {integrity: sha512-BZ+9ezZ+aF7r22Gwodn9RxkidlUW+bAify0GF3eTEgmX96/9qqIh+GwpbVmoxK2Sa8rBDkTyYjPKs6wO41RfhQ==}
+
+  '@docx-editor.dev/i18n@2.23.0':
+    resolution: {integrity: sha512-A0NqvQIgSBeKfNuRzD16s0umOCf23NSIrHJOK4GIgXOsuoX0sy6ZAFaiaQf5Db0u45QoTz/bXkDJ2YaugTub3w==}
+
+  '@docx-editor.dev/react@2.23.0':
+    resolution: {integrity: sha512-u61T5GyNe4tNs6svyeVc9FQStwsvJdk3nuWvRmhoSl3ifESXmL2UML9AwUz+xM+gK0LwfpHeScLtQYqHktUIOw==}
+    peerDependencies:
+      '@docx-editor.dev/core': ~2.23.0
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   '@dotenvx/dotenvx@1.75.1':
     resolution: {integrity: sha512-/BITOC9dmS/edY2zQwZNicQ059O6RKabtQfyEafV0nGtfYRNHYy1DIPiYVcov40+tob9hfmBnbR963dS+EQ1DQ==}
@@ -12553,6 +12619,9 @@ packages:
     resolution: {integrity: sha512-pbnl5XzGBdrFU/wT4jqmJVPn2B6UHPBOhzMQkY/SPUPB6QtUXtmBHBIwCbXJol93mOpGMnQyP/+BB19q04xj7g==}
     engines: {node: '>=4'}
 
+  bidi-js@1.1.0:
+    resolution: {integrity: sha512-fX1Onk0tdVPC7obPWB5EbJ1z7NVhLq4m2xZLq2YXBkxzMXIGRpNMU88n0EPgWseKl12J7zXs7qrDxPK4sRs2fg==}
+
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
     engines: {node: '>=0.6'}
@@ -13704,6 +13773,9 @@ packages:
   electron-to-chromium@1.5.396:
     resolution: {integrity: sha512-yHiw2Y3C3H9U6TMbOfoWK/BPreiOPXRfTWPBwQBoZG6/8TB6eOPnsy5oaRYuatR7Fw2SJ4kKforgufeo7fq0EQ==}
 
+  emf-converter@2.0.2:
+    resolution: {integrity: sha512-QLUufb45P3LlOudCoizBtJpO8cBw8LayH0mkvkRvIjvMlb6junwP0EXgUkdDyZUEF2QSEZUPV8rO8DS5rsJmkA==}
+
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
     engines: {node: '>=12'}
@@ -14485,6 +14557,9 @@ packages:
     resolution: {integrity: sha512-nmT2T0lljbxdQZfspsno9hgrG3Uir6Ks5afism62poxqBM6sDnMEuPmzTq8XN0OEwqKLLdh1jQI3qyE66Nzb3w==}
     engines: {node: '>=6'}
     deprecated: this library is no longer supported
+
+  harfbuzzjs@1.6.1:
+    resolution: {integrity: sha512-+JeJmO+HzXjDwpfCOdGSyM2bNP8WzJNFKl/8TKivbInMYDtfRIuPIDLtnBNmQzcJw6GptbhHY6o5gaH6deCMEw==}
 
   harmony-reflect@1.6.2:
     resolution: {integrity: sha512-HIp/n38R9kQjDEziXyDTuW3vvoxxyxjxFzXLrBr18uB47GnSt+G9D29fqrpM5ZkspMcPICud3XsBJQ4Y2URg8g==}
@@ -18693,6 +18768,9 @@ packages:
   utf8-byte-length@1.0.5:
     resolution: {integrity: sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==}
 
+  utif2@4.1.0:
+    resolution: {integrity: sha512-+oknB9FHrJ7oW7A2WZYajOcv4FcDR4CfoGB0dPNfxbi4GO05RRnFmt5oa23+9w32EanrYcSJWspUiJkLMs+37w==}
+
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
@@ -20847,6 +20925,42 @@ snapshots:
       react: 19.2.7
       tslib: 2.8.1
 
+  '@docx-editor.dev/core@2.23.0(pdf-lib@1.17.1)(yjs@13.6.31)':
+    dependencies:
+      '@docx-editor.dev/i18n': 2.23.0
+      bidi-js: 1.1.0
+      emf-converter: 2.0.2
+      fast-xml-parser: 5.10.1
+      fflate: 0.8.3
+      harfbuzzjs: 1.6.1
+      prosemirror-commands: 1.7.1
+      prosemirror-keymap: 1.2.3
+      prosemirror-model: 1.25.12
+      prosemirror-state: 1.4.4
+      prosemirror-view: 1.42.6
+      utif2: 4.1.0
+    optionalDependencies:
+      pdf-lib: 1.17.1
+      yjs: 13.6.31
+
+  '@docx-editor.dev/fonts@2.23.0': {}
+
+  '@docx-editor.dev/i18n@2.23.0': {}
+
+  '@docx-editor.dev/react@2.23.0(@docx-editor.dev/core@2.23.0(pdf-lib@1.17.1)(yjs@13.6.31))(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@docx-editor.dev/core': 2.23.0(pdf-lib@1.17.1)(yjs@13.6.31)
+      '@docx-editor.dev/i18n': 2.23.0
+      '@radix-ui/react-select': 2.3.7(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+
   '@dotenvx/dotenvx@1.75.1':
     dependencies:
       '@dotenvx/primitives': 0.8.0
@@ -20896,6 +21010,33 @@ snapshots:
       xml-js: 1.6.11
 
   '@eigenpal/docx-editor-i18n@1.9.0': {}
+
+  '@eigenpal/docx-editor-react@1.9.0(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(prosemirror-commands@1.7.1)(prosemirror-dropcursor@1.8.3)(prosemirror-history@1.5.0)(prosemirror-keymap@1.2.3)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-tables@1.8.5)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(vue@3.5.40(typescript@5.9.3))':
+    dependencies:
+      '@eigenpal/docx-editor-agents': 1.9.0(react@18.3.1)(vue@3.5.40(typescript@5.9.3))
+      '@eigenpal/docx-editor-core': 1.9.0(prosemirror-commands@1.7.1)(prosemirror-dropcursor@1.8.3)(prosemirror-history@1.5.0)(prosemirror-keymap@1.2.3)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-tables@1.8.5)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.2)
+      '@eigenpal/docx-editor-i18n': 1.9.0
+      '@radix-ui/react-select': 2.3.7(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      clsx: 2.1.1
+      prosemirror-commands: 1.7.1
+      prosemirror-dropcursor: 1.8.3
+      prosemirror-history: 1.5.0
+      prosemirror-keymap: 1.2.3
+      prosemirror-model: 1.25.11
+      prosemirror-state: 1.4.4
+      prosemirror-tables: 1.8.5
+      prosemirror-transform: 1.12.0
+      prosemirror-view: 1.42.2
+      sonner: 2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    transitivePeerDependencies:
+      - '@ai-sdk/vue'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - vue
 
   '@eigenpal/docx-editor-react@1.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(prosemirror-commands@1.7.1)(prosemirror-dropcursor@1.8.3)(prosemirror-history@1.5.0)(prosemirror-keymap@1.2.3)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-tables@1.8.5)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(vue@3.5.40(typescript@5.9.3))':
     dependencies:
@@ -28039,6 +28180,10 @@ snapshots:
     dependencies:
       is-windows: 1.0.2
 
+  bidi-js@1.1.0:
+    dependencies:
+      require-from-string: 2.0.2
+
   big-integer@1.6.52: {}
 
   bignumber.js@9.0.0: {}
@@ -29235,6 +29380,8 @@ snapshots:
 
   electron-to-chromium@1.5.396: {}
 
+  emf-converter@2.0.2: {}
+
   emittery@0.13.1: {}
 
   emoji-regex@10.6.0: {}
@@ -30384,6 +30531,8 @@ snapshots:
     dependencies:
       ajv: 6.15.0
       har-schema: 2.0.0
+
+  harfbuzzjs@1.6.1: {}
 
   harmony-reflect@1.6.2: {}
 
@@ -32700,7 +32849,6 @@ snapshots:
       lru.min: 1.1.4
       named-placeholders: 1.1.6
       sql-escaper: 1.5.1
-    optional: true
 
   mysql2@3.23.1(@types/node@22.20.1):
     dependencies:
@@ -35794,6 +35942,10 @@ snapshots:
       react: 18.3.1
 
   utf8-byte-length@1.0.5: {}
+
+  utif2@4.1.0:
+    dependencies:
+      pako: 1.0.11
 
   util-deprecate@1.0.2: {}
 

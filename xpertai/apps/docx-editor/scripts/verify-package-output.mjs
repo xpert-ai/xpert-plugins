@@ -10,6 +10,9 @@ const execFileAsync = promisify(execFile)
 const requiredFiles = [
   'dist/index.js',
   'dist/index.d.ts',
+  'dist/lib/native/worker.js',
+  'dist/lib/remote-components/docx-file/app.js',
+  'dist/lib/remote-components/docx-file/app.css',
   'dist/xpert-docx-editor-assistant.yaml',
   'dist/lib/remote-components/docx-editor-workbench/app.js',
   'dist/lib/remote-components/docx-editor-workbench/app.css',
