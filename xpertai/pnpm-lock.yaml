@@ -1754,9 +1754,15 @@ importers:
       fast-xml-parser:
         specifier: ^5.3.7
         version: 5.10.1
+      jsdom:
+        specifier: 25.0.1
+        version: 25.0.1(supports-color@8.1.1)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+      pptx-automizer:
+        specifier: 0.9.4
+        version: 0.9.4
       pptxgenjs:
         specifier: ^4.0.1
         version: 4.0.1
@@ -1767,6 +1773,9 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
     devDependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67))
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.6(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
@@ -1785,6 +1794,9 @@ importers:
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
+      '@types/jsdom':
+        specifier: ^21.1.7
+        version: 21.1.7
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.9
@@ -1806,12 +1818,18 @@ importers:
       esbuild:
         specifier: ^0.27.0
         version: 0.27.7
+      fflate:
+        specifier: 0.8.2
+        version: 0.8.2
       jest:
         specifier: ^30.0.2
         version: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(supports-color@8.1.1)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
       jest-environment-jsdom:
         specifier: ^30.0.2
         version: 30.4.1(supports-color@8.1.1)
+      js-yaml:
+        specifier: 4.1.1
+        version: 4.1.1
       lucide-react:
         specifier: 1.24.0
         version: 1.24.0(react@18.3.1)
@@ -1824,6 +1842,9 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
+      saxes:
+        specifier: 6.0.0
+        version: 6.0.0
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1(supports-color@8.1.1)
@@ -14105,6 +14126,9 @@ packages:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
     engines: {node: ^12.20 || >= 14.13}
 
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
@@ -17018,6 +17042,13 @@ packages:
     resolution: {integrity: sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A==}
     engines: {node: '>=20'}
 
+  pptx-automizer@0.9.4:
+    resolution: {integrity: sha512-WahZ/ejzI9WaMIrNC3e7y7HibhKPExMSpGBusWbXk5XRlqrUzJJ1GyPCrKD2s7XBAxLyJx437GQ9CeWyx4MloA==}
+    engines: {node: '>=20'}
+
+  pptxgenjs@3.12.0:
+    resolution: {integrity: sha512-ZozkYKWb1MoPR4ucw3/aFYlHkVIJxo9czikEclcUVnS4Iw/M+r+TEwdlB3fyAWO9JY1USxJDt0Y0/r15IR/RUA==}
+
   pptxgenjs@4.0.1:
     resolution: {integrity: sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==}
 
@@ -17437,6 +17468,10 @@ packages:
     resolution: {integrity: sha512-GP6h9OgJmhAZpb3dbNbXTfRWVnGcoMhWRZv/HxgM4/qCVqs1P9ukQdYxaUhjWBSAs9oJ/uPXUUvGT1VMe0Bs0Q==}
     engines: {node: '>=16'}
 
+  regexp.escape@2.0.1:
+    resolution: {integrity: sha512-JItRb4rmyTzmERBkAf6J87LjDPy/RscIwmaJQ3gsFlAzrmZbZU8LwBw5IydFZXW9hqpgbPlGbMhtpqtuAhMgtg==}
+    engines: {node: '>= 0.4'}
+
   regexp.prototype.flags@1.5.4:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
     engines: {node: '>= 0.4'}
@@ -17798,6 +17833,10 @@ packages:
   sliced@1.0.1:
     resolution: {integrity: sha512-VZBmZP8WU3sMOZm1bdgTadsQbcscK0UM8oKxKVBs4XAhUo2Xxzm/OFMGBkPusxw9xL3Uy8LrzEqGqJhclsr0yA==}
     deprecated: Unsupported
+
+  slugify@1.6.9:
+    resolution: {integrity: sha512-vZ7rfeehZui7wQs438JXBckYLkIIdfHOXsaVEUMyS5fHo1483l1bMdo0EDSWYclY0yZKFOipDy4KHuKs6ssvdg==}
+    engines: {node: '>=8.0.0'}
 
   smart-buffer@4.2.0:
     resolution: {integrity: sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg==}
@@ -29984,6 +30023,8 @@ snapshots:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.3.3
 
+  fflate@0.8.2: {}
+
   fflate@0.8.3: {}
 
   figures@3.2.0:
@@ -33587,6 +33628,21 @@ snapshots:
 
   powershell-utils@0.1.0: {}
 
+  pptx-automizer@0.9.4:
+    dependencies:
+      '@xmldom/xmldom': 0.9.12
+      jszip: 3.10.1
+      pptxgenjs: 3.12.0
+      regexp.escape: 2.0.1
+      slugify: 1.6.9
+
+  pptxgenjs@3.12.0:
+    dependencies:
+      '@types/node': 18.19.130
+      https: 1.0.0
+      image-size: 1.2.1
+      jszip: 3.10.1
+
   pptxgenjs@4.0.1:
     dependencies:
       '@types/node': 22.20.1
@@ -34174,6 +34230,15 @@ snapshots:
 
   regexp-util@2.0.3: {}
 
+  regexp.escape@2.0.1:
+    dependencies:
+      call-bind: 1.0.9
+      define-properties: 1.2.1
+      es-abstract: 1.24.2
+      es-errors: 1.3.0
+      for-each: 0.3.5
+      safe-regex-test: 1.1.0
+
   regexp.prototype.flags@1.5.4:
     dependencies:
       call-bind: 1.0.9
@@ -34740,6 +34805,8 @@ snapshots:
   slash@3.0.0: {}
 
   sliced@1.0.1: {}
+
+  slugify@1.6.9: {}
 
   smart-buffer@4.2.0: {}
 

@@ -1,10 +1,25 @@
 import JSZip from 'jszip'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { pptxShapeStyle } from '../src/core/pptx-editor-view.utils'
 import { parsePptx, savePptx } from '../src/core/pptx-file.utils'
 import { createSlideCopy, paragraphsForShapeText } from '../src/core/pptx-editor-model.utils'
 import { relationshipPath } from '../src/core/pptx-package.utils'
 import { resolveZipPath } from '../src/core/pptx-xml.utils'
 
 const Presentation = require('pptxgenjs')
+it('renders native DSH line shapes and preserves their original OOXML after editing notes',async()=>{
+  const bytes=readFileSync(resolve(process.cwd(),'assets/templates/dsh-signal/zh.pptx'))
+  const source=Uint8Array.from(bytes).buffer, deck=await parsePptx(source)
+  const line=deck.slides[0].shapes.find(shape=>shape.name==='l2')!
+  expect(line).toMatchObject({kind:'line',sourceTag:'sp',height:0,stroke:'#c8a870'})
+  expect(pptxShapeStyle(line,deck).height).toBe('1px')
+  const original=await JSZip.loadAsync(source)
+  deck.slides[0].notes='Manual note after native template composition'
+  const saved=await savePptx(deck,source), changed=await JSZip.loadAsync(saved)
+  expect(await changed.file('ppt/slides/slide1.xml')!.async('string')).toBe(await original.file('ppt/slides/slide1.xml')!.async('string'))
+  expect((await parsePptx(saved)).slides[0].shapes.find(shape=>shape.name==='l2')?.kind).toBe('line')
+})
 async function fixture() {
   const pptx = new Presentation()
   pptx.layout = 'LAYOUT_WIDE'

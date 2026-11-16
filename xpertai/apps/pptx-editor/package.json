@@ -29,27 +29,38 @@
   "nx": {
     "name": "pptx-editor",
     "targets": {
-      "test": { "dependsOn": ["build"] },
-      "test:server": { "dependsOn": ["build"] }
+      "test": {
+        "dependsOn": [
+          "build"
+        ]
+      },
+      "test:server": {
+        "dependsOn": [
+          "build"
+        ]
+      }
     }
   },
   "scripts": {
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && node scripts/build.mjs && tsc -p tsconfig.lib.json",
     "verify:dist": "node scripts/build.mjs --check",
-    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json && tsc -p tsconfig.worker.json",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs --runInBand && pnpm run test:server",
-    "test:server": "node --test tests/server.test.mjs",
+    "test:server": "node --test tests/*.test.mjs",
     "prepack": "pnpm run build && pnpm run verify:dist"
   },
   "dependencies": {
-    "jszip": "^3.10.1",
     "fast-xml-parser": "^5.3.7",
+    "jsdom": "25.0.1",
+    "jszip": "^3.10.1",
+    "pptx-automizer": "0.9.4",
     "pptxgenjs": "^4.0.1",
-    "zod": "3.25.67",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "3.25.67"
   },
   "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@xpert-ai/contracts": "^3.36.0",
@@ -58,28 +69,33 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@xpert-ai/contracts": "3.36.0",
-    "@xpert-ai/plugin-sdk": "3.36.0",
-    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "@swc/core": "~1.5.7",
     "@swc/jest": "~0.2.38",
+    "@tailwindcss/vite": "^4.3.2",
     "@types/jest": "^30.0.0",
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^20.19.9",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
-    "@tailwindcss/vite": "^4.3.2",
-    "tailwindcss": "^4.3.2",
-    "vite": "^7.3.0",
+    "@xpert-ai/contracts": "3.36.0",
+    "@xpert-ai/plugin-sdk": "3.36.0",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "esbuild": "^0.27.0",
+    "fflate": "0.8.2",
     "jest": "^30.0.2",
     "jest-environment-jsdom": "^30.0.2",
+    "js-yaml": "4.1.1",
     "lucide-react": "1.24.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
+    "saxes": "6.0.0",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5.9.2",
-    "socket.io-client": "^4.8.1"
+    "vite": "^7.3.0"
   }
 }

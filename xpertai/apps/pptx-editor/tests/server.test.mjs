@@ -29,6 +29,13 @@ test('takes actor and Project only from the host and rejects malformed actions w
     await assert.rejects(view.executeViewAction(context,key,'file.read',{input:value}),error=>error.getStatus()===400)
   await assert.rejects(view.executeViewAction({...context,runtimeScope:undefined},key,'file.read',{input:source}),error=>error.getStatus()===400)
 })
+test('template library is feature-gated and rejects forged template actions before service invocation', async () => {
+  const view = new PptxView({}, { compose: async () => { throw new Error('must_not_run') } })
+  const library = view.getViewManifests(context, 'agent.workbench').find(item => item.key === 'pptx_editor.templates')
+  assert.deepEqual(library.activation.requiredFeatures, ['pptx-editor'])
+  assert.equal(view.getViewData(context, library.key, {}).meta.requiresDocument, false)
+  await assert.rejects(view.executeViewAction(context, library.key, 'templates.compose', {input:{projectId:uuid(99)}}), error => error.getStatus() === 400)
+})
 test('rejects stale or readonly writes before the authoritative publisher', async () => {
   let calls=0, canWrite=true
   const api={read:async()=>({registration:{key:'pptx_editor.pptx'},file:{title:'deck.pptx'},revision:'new',canWrite}),write:async()=>{calls++;return {revision:'saved'}}}

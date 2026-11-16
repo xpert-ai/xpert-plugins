@@ -483,8 +483,10 @@ async function parseNode(
   const style =
     directChild(node, 'style') ??
     (fallbackNode ? directChild(fallbackNode, 'style') : null);
-  shape.kind = kind === 'pic' ? 'image' : kind === 'cxnSp' ? 'line' : 'shape';
   const parsedGeometry = geometryOf(properties);
+  // Native templates may encode a line as p:sp rather than a connector.
+  // Keep sourceTag for lossless patching, but render zero-height/width lines as SVG.
+  shape.kind = kind === 'pic' ? 'image' : kind === 'cxnSp' || parsedGeometry === 'line' ? 'line' : 'shape';
   shape.geometry =
     kind === 'cxnSp' && parsedGeometry === 'rect' ? 'line' : parsedGeometry;
   shape.geometryAdjust = readGeometryAdjust(properties);
