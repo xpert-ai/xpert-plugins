@@ -3,6 +3,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, transform } from 'esbuild'
+import { localTranslationsPlugin } from './local-translations.mjs'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
@@ -102,7 +103,7 @@ async function bundleComponent(componentName) {
       '.woff2': 'dataurl',
       '.svg': 'text'
     },
-    plugins: [localWorkspacePackagesPlugin(), reactShimPlugin(componentName)],
+    plugins: [localWorkspacePackagesPlugin(), reactShimPlugin(componentName), localTranslationsPlugin()],
     banner: {
       js: ';'
     },
