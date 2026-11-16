@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-code-review
 
+## 0.7.0
+
+### Minor Changes
+
+- c20e086: Support per-repository Event Inbox migration and durable inbound Feishu messages and card actions.
+
 ## 0.6.0
 
 ### Minor Changes

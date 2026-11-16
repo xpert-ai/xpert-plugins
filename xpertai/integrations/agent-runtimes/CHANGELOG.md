@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-agent-runtimes
 
+## 0.4.0
+
+### Minor Changes
+
+- 084e68c: Replace the unreleased task-result envelope protocols with ordinary Markdown reports and independent delivery statuses. Require the coordinated 3.36 host SDK/contracts upgrade. No old result protocol compatibility is retained.
+
 ## 0.3.2
 
 ### Patch Changes
