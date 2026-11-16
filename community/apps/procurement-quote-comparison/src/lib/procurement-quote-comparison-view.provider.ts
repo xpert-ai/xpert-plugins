@@ -33,6 +33,7 @@ import {
   PROJECT_DETAIL_SECTIONS_SLOT
 } from './constants.js'
 import { ProcurementQuoteComparisonService } from './procurement-quote-comparison.service.js'
+import { followUpInput } from './quote-follow-up.js'
 import type { ProcurementDocumentExtractionStatus, ProcurementDocumentRole, ProcurementScope } from './types.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -41,6 +42,7 @@ const requireFromHere = createRequire(__filename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 const MAX_EXTRACTED_CONTENT_LENGTH = 60000
 const TOOL_NAMES = [
+  'procurement_follow_up',
   'procurement_save_requirement',
   'procurement_save_supplier_quote',
   'procurement_save_item_matches',
@@ -153,6 +155,12 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
         ],
         actions: [
           {
+            key: 'change_follow_up',
+            label: text('Manage follow-up', '管理跟进'),
+            placement: 'row',
+            actionType: 'invoke'
+          },
+          {
             key: 'refresh',
             label: text('Refresh', '刷新'),
             icon: 'ri-refresh-line',
@@ -250,6 +258,10 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
       join(__dirname, 'remote-components', PROCUREMENT_QUOTE_COMPARISON_REMOTE_ENTRY_KEY, 'app.js'),
       'utf8'
     )
+    const remoteDir = join(__dirname, 'remote-components', PROCUREMENT_QUOTE_COMPARISON_REMOTE_ENTRY_KEY)
+    const [controls, appCss] = await Promise.all(
+      ['follow-up.js', 'follow-up.css'].map((name) => readFile(join(remoteDir, name), 'utf8'))
+    )
     const react = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
 
@@ -259,7 +271,8 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
         lang: 'zh-Hans',
         reactUmd: react,
         reactDomUmd: reactDom,
-        appScript
+        appCss,
+        appScript: controls + '\n' + appScript
       }),
       contentType: 'text/html; charset=utf-8'
     }
@@ -295,6 +308,11 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
     try {
       const scope = scopeFromContext(context)
 
+      if (actionKey === 'change_follow_up') {
+        const input = followUpInput.parse({ ...request.input, caseId: requireCaseId(request) })
+        await this.service.followUp(scope, input)
+        return success('Follow-up updated', '跟进已更新')
+      }
       if (actionKey === 'refresh') {
         return success('Procurement view refreshed', '采购比价视图已刷新')
       }
@@ -531,6 +549,7 @@ function scopeFromContext(context: XpertResolvedViewHostContext): ProcurementSco
     organizationId: context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,
     projectId: context.hostType === 'project' ? context.hostId : null,
+    assistantId: context.hostType === 'agent' ? context.hostId : undefined,
     userId: context.userId
   }
 }

@@ -95,6 +95,11 @@ nodes:
         5. If the quote cannot be parsed, call procurement_report_parse_failure with caseId,
            documentId, parseJobId, and a clear error message.
 
+        When a delegated case is waiting on a supplier, find its risk ID with procurement_list_delivery_risks and inspect it with
+        procurement_follow_up. Choose a useful future check yourself within the user's instructions,
+        set the deadline with the current version, and finish this run. On a timer wake read the case
+        again. End the follow-up when resolved, or set a new deadline if a later check is warranted.
+
         Comparison workflow:
         1. Compare saved requirement items and supplier quote items. Match by explicit item ids when
            provided; otherwise explain uncertainty instead of pretending a perfect match.

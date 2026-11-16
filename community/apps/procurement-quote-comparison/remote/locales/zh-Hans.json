@@ -1,0 +1,19 @@
+{
+  "deadline": "跟进截止时间",
+  "set": "设定期限",
+  "reschedule": "改期",
+  "cancel": "取消跟进",
+  "reply": "登记答复",
+  "note": "供应商答复（选填）",
+  "waiting": "等待答复",
+  "captured": "已到期",
+  "fired": "到期决定已记录",
+  "answered": "已收到答复",
+  "cancelled": "已取消",
+  "superseded": "报价已更新",
+  "unscheduled": "尚未设定跟进",
+  "wakeQueued": "本次已决定的跟进：等待运行",
+  "wakeStarted": "本次已决定的跟进：已启动",
+  "cancelPendingHelp": "取消当前期限可阻止尚未决定的跟进。此前已决定的运行会保留。",
+  "cancelCommittedHelp": "取消会更新风险的跟进状态。本次已决定的运行仍会启动或继续，Agent 将读取最新状态。"
+}

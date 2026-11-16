@@ -16,12 +16,14 @@ export type ProcurementMatchStatus = 'exact' | 'similar' | 'spec_mismatch' | 'qu
 export type ProcurementRiskSeverity = 'low' | 'medium' | 'high'
 
 export interface ProcurementScope {
+  agentKey?: string | null
   tenantId: string
   organizationId?: string | null
   workspaceId?: string | null
   projectId?: string | null
   userId?: string | null
   assistantId?: string | null
+  threadId?: string | null
   conversationId?: string | null
 }
 

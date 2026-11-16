@@ -1,4 +1,6 @@
 import { normalizeOptional, quoteHeader, quoteLine } from './quote-extraction.js'
+import type { z } from 'zod/v3'
+import { editFollowUp, followUpInput } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -85,6 +87,57 @@ export class ProcurementQuoteComparisonService {
     private readonly recommendationRepository: Repository<ProcurementRecommendation>,
     private readonly quoteEvents?: QuoteEvents
   ) {}
+
+  async listFollowUpRisks(scope: ProcurementScope, caseId: string) {
+    const comparisonCase = await this.requireCase(scope, caseId)
+    return this.followUpRiskRows(scope, comparisonCase)
+  }
+
+  private async followUpRiskRows(
+    scope: ProcurementScope,
+    comparisonCase: ProcurementComparisonCase
+  ): Promise<
+    {
+      riskId: string
+      title: string
+      description: string
+      version: number
+      state: string
+      dueAt: Date | null
+      wakeStatus: 'queued' | 'started' | null
+      currentQuote: boolean
+    }[]
+  > {
+    const caseId = comparisonCase.id
+    if (
+      !scope.userId ||
+      comparisonCase.createdById !== scope.userId ||
+      comparisonCase.workspaceId !== scope.workspaceId ||
+      comparisonCase.projectId !== (scope.projectId ?? null) ||
+      (scope.assistantId && comparisonCase.xpertId !== scope.assistantId)
+    )
+      throw new NotFoundException('case_access_changed')
+    return this.caseRepository.query(
+      `SELECT r.id AS "riskId", r.title, r.description, coalesce(t.version, 0) AS version,
+      coalesce(t.state,'unscheduled') AS state, t."dueAt", t."wakeStatus", NOT EXISTS (
+        SELECT 1 FROM plugin_procurement_event_fact newer WHERE newer.binding=f.binding
+        AND newer.event->>'type'='procurement.quote.revised' AND newer.event->>'schemaVersion'='1'
+        AND newer.snapshot->>'series'=f.snapshot->>'series' AND newer.seq>f.seq) AS "currentQuote"
+      FROM plugin_procurement_event_route b
+      JOIN plugin_procurement_event_fact f ON f.binding=b.binding AND f.event->>'type'='procurement.quote.revised'
+        AND f.event->>'schemaVersion'='1'
+      JOIN plugin_procurement_risk_item r ON r."eventOperationKey"=f.decision->>'operationKey'
+        AND r.id::text=f.decision->'resultRef'->>'key' AND r."caseId"=$1::uuid
+      LEFT JOIN plugin_procurement_follow_up t ON t."riskId"=r.id AND t.binding=b.binding
+      WHERE b.ref=$1::text AND b.tenant=$2 AND b.org=$3 AND b.enabled AND r.type='delivery_delay'
+      ORDER BY f.seq DESC LIMIT 100`,
+      [caseId, scope.tenantId, scope.organizationId]
+    )
+  }
+
+  async followUp(scope: ProcurementScope, input: z.infer<typeof followUpInput>) {
+    return this.caseRepository.manager.transaction((tx) => editFollowUp(tx, scope, followUpInput.parse(input)))
+  }
 
   async createComparisonCase(scope: ProcurementScope, input: CreateComparisonCaseInput) {
     const title = normalizeRequired(input.title, 'Project title is required.')
@@ -234,8 +287,8 @@ export class ProcurementQuoteComparisonService {
   }
 
   async saveSupplierQuoteExtraction(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput) {
-    if (this.quoteEvents) return this.caseRepository.manager.transaction(tx => this.saveQuote(scope,input,tx))
-    return this.saveQuote(scope,input)
+    if (this.quoteEvents) return this.caseRepository.manager.transaction((tx) => this.saveQuote(scope, input, tx))
+    return this.saveQuote(scope, input)
   }
 
   private async saveQuote(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput, tx?: EntityManager) {
@@ -243,7 +296,10 @@ export class ProcurementQuoteComparisonService {
     const quotes = tx?.getRepository(ProcurementSupplierQuote) ?? this.supplierQuoteRepository
     const lines = tx?.getRepository(ProcurementQuoteItem) ?? this.quoteItemRepository
     const documents = tx?.getRepository(ProcurementSourceDocument) ?? this.documentRepository
-    const c = await cases.findOne({where:scopedWhere(scope,{id:input.caseId}), ...(tx ? {lock:{mode:'pessimistic_write' as const}} : {})})
+    const c = await cases.findOne({
+      where: scopedWhere(scope, { id: input.caseId }),
+      ...(tx ? { lock: { mode: 'pessimistic_write' as const } } : {})
+    })
     if (!c) throw new NotFoundException('Procurement comparison case was not found.')
     const supplierName = normalizeRequired(input.supplierName, 'Supplier name is required.')
 
@@ -254,8 +310,11 @@ export class ProcurementQuoteComparisonService {
           })
         : null
 
-    if (tx && existing && await this.quoteEvents.previouslyParsed(tx,c,input,existing)) {
-      return {supplierQuote:existing,items:await lines.findBy(scopedWhere(scope,{caseId:input.caseId,supplierQuoteId:existing.id}))}
+    if (tx && existing && (await this.quoteEvents.previouslyParsed(tx, c, input, existing))) {
+      return {
+        supplierQuote: existing,
+        items: await lines.findBy(scopedWhere(scope, { caseId: input.caseId, supplierQuoteId: existing.id }))
+      }
     }
 
     const supplierQuote = await quotes.save(
@@ -301,7 +360,7 @@ export class ProcurementQuoteComparisonService {
     }
 
     if (tx) {
-      await cases.update({id:c.id},{supplierCount:await quotes.countBy({caseId:c.id})})
+      await cases.update({ id: c.id }, { supplierCount: await quotes.countBy({ caseId: c.id }) })
       await this.quoteEvents.capture(tx, c, input, supplierQuote, scope.conversationId)
     } else await this.updateCaseCounts(scope, input.caseId)
 
@@ -435,7 +494,12 @@ export class ProcurementQuoteComparisonService {
     })
 
     await this.documentRepository.save({ ...document, status: 'parsing', errorMessage: undefined })
-    await this.caseRepository.save({ ...comparisonCase, xpertId: input.xpertId, agentKey: input.agentKey, status: 'parsing' })
+    await this.caseRepository.save({
+      ...comparisonCase,
+      xpertId: input.xpertId,
+      agentKey: input.agentKey,
+      status: 'parsing'
+    })
 
     return {
       commandKey: 'assistant.chat.send_message',
@@ -467,7 +531,12 @@ export class ProcurementQuoteComparisonService {
     const messages: ProcurementAssistantChatCommand[] = []
     let skipped = 0
 
-    await this.caseRepository.save({ ...comparisonCase, xpertId: input.xpertId, agentKey: input.agentKey, status: 'parsing' })
+    await this.caseRepository.save({
+      ...comparisonCase,
+      xpertId: input.xpertId,
+      agentKey: input.agentKey,
+      status: 'parsing'
+    })
 
     for (const document of documents) {
       const files = [documentToAssistantFile(document, 'supplier_quote')].filter(hasAssistantFileHandle)
@@ -566,7 +635,12 @@ export class ProcurementQuoteComparisonService {
 
     const job = await this.createParseJob(scope, input.caseId, 'requirement', document.id)
     await this.documentRepository.save({ ...document, status: 'parsing' })
-    await this.caseRepository.save({ ...comparisonCase, xpertId: input.xpertId, agentKey: input.agentKey, status: 'parsing' })
+    await this.caseRepository.save({
+      ...comparisonCase,
+      xpertId: input.xpertId,
+      agentKey: input.agentKey,
+      status: 'parsing'
+    })
 
     const result = await assistantTask.startTask({
       xpertId: input.xpertId,
@@ -612,7 +686,12 @@ export class ProcurementQuoteComparisonService {
     let started = 0
     let failed = 0
 
-    await this.caseRepository.save({ ...comparisonCase, xpertId: input.xpertId, agentKey: input.agentKey, status: 'parsing' })
+    await this.caseRepository.save({
+      ...comparisonCase,
+      xpertId: input.xpertId,
+      agentKey: input.agentKey,
+      status: 'parsing'
+    })
 
     await runLimited(documents, maxConcurrency, async (document) => {
       const job = await this.createParseJob(scope, input.caseId, 'supplier_quote', document.id)
@@ -702,6 +781,13 @@ export class ProcurementQuoteComparisonService {
 
   private async getCaseDetail(scope: ProcurementScope, caseId: string) {
     const comparisonCase = await this.requireCase(scope, caseId)
+    const followUps =
+      comparisonCase.createdById === scope.userId &&
+      scope.userId &&
+      this.quoteEvents &&
+      (!scope.assistantId || scope.assistantId === comparisonCase.xpertId)
+        ? await this.followUpRiskRows(scope, comparisonCase)
+        : []
     const [documents, parseJobs, requirementItems, supplierQuotes, quoteItems, itemMatches, risks, recommendations] =
       await Promise.all([
         this.documentRepository.find({ where: scopedWhere(scope, { caseId }) }),
@@ -723,7 +809,14 @@ export class ProcurementQuoteComparisonService {
         supplierQuotes,
         quoteItems,
         itemMatches,
-        risks,
+        risks: risks.map((risk) => {
+          if (comparisonCase.createdById !== scope.userId || !risk.eventOperationKey || risk.type !== 'delivery_delay')
+            return risk
+          const timer = followUps.find((row) => row.riskId === risk.id)
+          return timer && (timer.currentQuote || timer.state !== 'unscheduled')
+            ? { ...risk, followUp: { state: timer.state, wakeStatus: timer.wakeStatus, version: timer.version, dueAt: timer.dueAt } }
+            : risk
+        }),
         recommendation: recommendations[0] ?? null
       },
       total: 1,

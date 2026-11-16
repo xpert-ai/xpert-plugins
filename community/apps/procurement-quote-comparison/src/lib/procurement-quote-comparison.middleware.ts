@@ -9,6 +9,7 @@ import {
   PromiseOrValue,
   RequestContext
 } from '@xpert-ai/plugin-sdk'
+import { followUpInput } from './quote-follow-up.js'
 import { z } from 'zod/v3'
 import {
   PROCUREMENT_ICON,
@@ -162,54 +163,47 @@ export class ProcurementQuoteComparisonMiddleware implements IAgentMiddlewareStr
     return {
       name: PROCUREMENT_QUOTE_COMPARISON_MIDDLEWARE_NAME,
       tools: [
-        tool(
-          async (input) => JSON.stringify(await this.service.saveRequirementExtraction(scope, input), null, 2),
-          {
-            name: 'procurement_save_requirement',
-            description: 'Save parsed procurement project fields and requirement line items.',
-            schema: saveRequirementSchema
-          }
-        ),
-        tool(
-          async (input) => JSON.stringify(await this.service.saveSupplierQuoteExtraction(scope, input), null, 2),
-          {
-            name: 'procurement_save_supplier_quote',
-            description: 'Save parsed supplier quote header, terms, and quote line items.',
-            schema: saveSupplierQuoteSchema
-          }
-        ),
-        tool(
-          async (input) => JSON.stringify(await this.service.saveItemMatches(scope, input), null, 2),
-          {
-            name: 'procurement_save_item_matches',
-            description: 'Save quote-to-requirement item matching results.',
-            schema: saveItemMatchesSchema
-          }
-        ),
-        tool(
-          async (input) => JSON.stringify(await this.service.saveRiskItems(scope, input), null, 2),
-          {
-            name: 'procurement_save_risk_items',
-            description: 'Save procurement comparison risk findings.',
-            schema: saveRiskItemsSchema
-          }
-        ),
-        tool(
-          async (input) => JSON.stringify(await this.service.finalizeRecommendation(scope, input), null, 2),
-          {
-            name: 'procurement_finalize_recommendation',
-            description: 'Save final AI recommendation, explanation, report draft, and pending questions.',
-            schema: finalizeRecommendationSchema
-          }
-        ),
-        tool(
-          async (input) => JSON.stringify(await this.service.reportParseFailure(scope, input), null, 2),
-          {
-            name: 'procurement_report_parse_failure',
-            description: 'Report a failed procurement document parsing task.',
-            schema: reportParseFailureSchema
-          }
-        )
+        tool(async ({ caseId }) => JSON.stringify(await this.service.listFollowUpRisks(scope, caseId)), {
+          name: 'procurement_list_delivery_risks',
+          schema: z.object({ caseId: z.string().uuid() }),
+          description: 'Find recorded delivery risk IDs and current follow-ups for this procurement case.'
+        }),
+        tool(async (input) => JSON.stringify(await this.service.followUp(scope, input)), {
+          name: 'procurement_follow_up',
+          schema: followUpInput,
+          description:
+            'For an open supplier reply, inspect the delay risk and its version, then set your own one-time UTC deadline. You will wake in this conversation to reassess. Use cancel or reply when resolved. Pass the inspected version on every edit.'
+        }),
+        tool(async (input) => JSON.stringify(await this.service.saveRequirementExtraction(scope, input), null, 2), {
+          name: 'procurement_save_requirement',
+          description: 'Save parsed procurement project fields and requirement line items.',
+          schema: saveRequirementSchema
+        }),
+        tool(async (input) => JSON.stringify(await this.service.saveSupplierQuoteExtraction(scope, input), null, 2), {
+          name: 'procurement_save_supplier_quote',
+          description: 'Save parsed supplier quote header, terms, and quote line items.',
+          schema: saveSupplierQuoteSchema
+        }),
+        tool(async (input) => JSON.stringify(await this.service.saveItemMatches(scope, input), null, 2), {
+          name: 'procurement_save_item_matches',
+          description: 'Save quote-to-requirement item matching results.',
+          schema: saveItemMatchesSchema
+        }),
+        tool(async (input) => JSON.stringify(await this.service.saveRiskItems(scope, input), null, 2), {
+          name: 'procurement_save_risk_items',
+          description: 'Save procurement comparison risk findings.',
+          schema: saveRiskItemsSchema
+        }),
+        tool(async (input) => JSON.stringify(await this.service.finalizeRecommendation(scope, input), null, 2), {
+          name: 'procurement_finalize_recommendation',
+          description: 'Save final AI recommendation, explanation, report draft, and pending questions.',
+          schema: finalizeRecommendationSchema
+        }),
+        tool(async (input) => JSON.stringify(await this.service.reportParseFailure(scope, input), null, 2), {
+          name: 'procurement_report_parse_failure',
+          description: 'Report a failed procurement document parsing task.',
+          schema: reportParseFailureSchema
+        })
       ]
     }
   }
@@ -225,6 +219,8 @@ function scopeFromContext(
     projectId: context.projectId ?? null,
     userId: context.userId,
     conversationId: context.conversationId ?? null,
+    threadId: context.threadId ?? null,
+    agentKey: context.agentKey ?? null,
     assistantId: context.xpertId ?? null
   }
 }
