@@ -55,9 +55,13 @@ const temporary = await mkdtemp(join(tmpdir(), 'photo-intake-css-'))
 let utilities
 try {
   const utilitiesPath = join(temporary, 'utilities.css')
+  // Run the CLI's script with this Node: the node_modules/.bin launcher is a shell
+  // script on POSIX and a .cmd on Windows, which cannot be spawned without a shell.
+  const cliPackage = join(root, 'node_modules/@tailwindcss/cli')
+  const cliManifest = JSON.parse(await readFile(join(cliPackage, 'package.json'), 'utf8'))
   const tailwind = spawnSync(
-    join(root, 'node_modules/.bin/tailwindcss'),
-    ['-i', join(root, 'scripts/tailwind.css'), '-o', utilitiesPath, '--minify'],
+    process.execPath,
+    [join(cliPackage, cliManifest.bin.tailwindcss), '-i', join(root, 'scripts/tailwind.css'), '-o', utilitiesPath, '--minify'],
     { cwd: root, encoding: 'utf8' }
   )
   if (tailwind.error) throw tailwind.error
