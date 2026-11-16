@@ -1,4 +1,8 @@
-import { larkEventDispatch } from './lark-event-dispatch-context.js'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { LarkEventCardAccess } from '../lark-event-card-access.service.js'
+import { LarkEventDispatch } from '../lark-event-ingress.js'
+import { submitLarkEventHandoff } from './lark-event-dispatch-context.js'
 import type { LanguagesEnum as TLanguagesEnum, TChatReference, TChatRequest } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
@@ -66,7 +70,10 @@ export class LarkChatDispatchService {
 		private readonly conversationService: LarkConversationService,
 		private readonly runStateService: LarkChatRunStateService,
 		@Inject(LARK_PLUGIN_CONTEXT)
-		private readonly pluginContext: PluginContext
+		private readonly pluginContext: PluginContext,
+		@InjectRepository(LarkEventDispatch)
+		private readonly eventDispatches: Repository<LarkEventDispatch>,
+		private readonly cards: LarkEventCardAccess
 	) {}
 
 	private get handoffPermissionService(): HandoffPermissionService {
@@ -77,26 +84,46 @@ export class LarkChatDispatchService {
 	}
 
 	async enqueueDispatch(input: TLarkChatDispatchInput): Promise<ChatLarkMessage> {
-		const message = await this.buildDispatchMessage(input)
-		await this.enqueuePreparedDispatch(message)
+		await this.submitDispatch(input, (message) => this.enqueuePreparedDispatch(message))
 		return input.larkMessage
+	}
+
+	async submitDispatch(input: TLarkChatDispatchInput, submit: (message: HandoffMessage<AgentChatDispatchPayload>) => Promise<void>) {
+		const send = async (runId?: string, beforeSend?: (responseCardId?: string) => Promise<void>) => {
+			const message = await this.buildDispatchMessage(input, runId, beforeSend)
+			await beforeSend?.(input.larkMessage.id)
+			await submit(message)
+			return message.headers?.conversationId as string | undefined
+		}
+		const refs = input.larkMessage.eventDispatchRefs
+		if (refs?.length) {
+			const { integrationId } = input.larkMessage
+			await submitLarkEventHandoff(this.eventDispatches.manager, refs, {
+				integrationId, xpertId: input.xpertId,
+				chatId: input.larkMessage.chatId, scopeKey: input.larkMessage.scopeKey,
+				tenantId: input.executionContext?.tenantId ?? RequestContext.currentTenantId(),
+				organizationId: input.executionContext?.organizationId ?? RequestContext.getOrganizationId()
+			}, this.cards, send)
+		} else {
+			await send()
+		}
 	}
 
 	async enqueuePreparedDispatch(message: HandoffMessage<AgentChatDispatchPayload>): Promise<void> {
 		await this.handoffPermissionService.enqueue(message, { delayMs: 0 })
 	}
 
-	async buildDispatchMessage(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
+	async buildDispatchMessage(input: TLarkChatDispatchInput, eventRunId?: string, beforeSend?: () => Promise<void>): Promise<HandoffMessage<AgentChatDispatchPayload>> {
 		const scopeKey = input.larkMessage['scopeKey'] as string | undefined
 		if (!scopeKey) {
-			return this.buildDispatchMessageUnlocked(input)
+			return this.buildDispatchMessageUnlocked(input, eventRunId, beforeSend)
 		}
 		return this.runWithDispatchBuildLock(scopeKey, input.xpertId, () =>
-			this.buildDispatchMessageUnlocked(input)
+			this.buildDispatchMessageUnlocked(input, eventRunId, beforeSend)
 		)
 	}
 
-	private async buildDispatchMessageUnlocked(input: TLarkChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
+	private async buildDispatchMessageUnlocked(input: TLarkChatDispatchInput, eventRunId?: string, beforeSend?: () => Promise<void>): Promise<HandoffMessage<AgentChatDispatchPayload>> {
 		const { xpertId, larkMessage } = input
 		const requestUserId = RequestContext.currentUserId()
 		const requestTenantId = RequestContext.currentTenantId()
@@ -169,6 +196,7 @@ export class LarkChatDispatchService {
 
 		await this.clearTypingReaction(larkMessage)
 		if (!followUpMode) {
+			await beforeSend?.()
 			await larkMessage.update({ status: 'thinking' })
 			if (scopeKey) {
 				await this.conversationService.setActiveMessage(
@@ -182,15 +210,12 @@ export class LarkChatDispatchService {
 			}
 		}
 
-		const event = larkEventDispatch.getStore()
-		const intent = event?.integrationId === larkMessage.integrationId && event?.xpertId === xpertId ? event : undefined
 		const runId =
 			input.options?.forceNewRun && input.options.recoverySourceMessageId
 				? this.buildRecoveryRunId(larkMessage.integrationId, [input.options.recoverySourceMessageId])
 				: input.options?.forceNewRun && currentInboundLogIds.length
 				? this.buildRecoveryRunId(larkMessage.integrationId, currentInboundLogIds)
-				: intent?.runId ?? `lark-chat-${randomUUID()}`
-		if (intent) await intent.record(runId, conversationId)
+				: eventRunId ?? `lark-chat-${randomUUID()}`
 		const sessionKey = conversationId ?? runId
 		const language = larkMessage.language || RequestContext.getLanguageCode()
 		const callbackContext: LarkChatCallbackContext = {

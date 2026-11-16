@@ -1,54 +1,16 @@
+import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
 import assert from 'node:assert/strict'
 import { createHmac, randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { test, type TestContext } from 'node:test'
-import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
-import { setup, domainDatabase, procurement } from './event-inbox.fixture.js'
+import { readFile } from 'node:fs/promises'
+import { test } from 'node:test'
+import { setup, domainDatabase, captureViewReceipt, larkFixture, procurement, lark } from './event-inbox.fixture.js'
 import './procurement-cross-run.cases.js'
+import './channel-cross-run.cases.js'
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { Review } from '../../xpertai/apps/code-review/src/entity.js'
 import { WorkflowDiagnosis } from '../../xpertai/apps/code-review/src/workflow-entity.js'
 import { parsePullUrl } from '../../xpertai/apps/code-review/src/domain.js'
 import { ReviewDelivery } from '../../xpertai/apps/code-review/src/automation-entities.js'
-
-const lark = '../../xpertai/integrations/lark/dist/lib/'
-
-// Optional hand-off to the platform browser suite. Only these disposable database scenarios call it.
-async function captureViewReceipt(f: Awaited<ReturnType<typeof setup>>, source: any, state: string, category: string) {
-  const directory = process.env.XPERT_EVENT_VIEW_EVIDENCE_DIR
-  if (!directory) return
-  const [row] = await f.hostDb.query(
-    'SELECT * FROM agent_event_inbox WHERE binding=$1 AND state=$2 ORDER BY seq DESC LIMIT 1',
-    [f.binding.id, state]
-  )
-  const display = source.eventTypes.find(
-    (d: any) => d.type === row.event.type && d.schemaVersion === row.event.schemaVersion
-  )?.display
-  assert.equal(display.category.key, category)
-  const projection = await source.describe?.(f.ctx, row.event, row.decision)
-  const data = {
-    id: row.id,
-    type: row.event.type,
-    schemaVersion: row.event.schemaVersion,
-    display,
-    state: row.state,
-    subject: row.event.subject.key,
-    title: projection?.title ?? row.event.subject.key,
-    assistantId: f.ctx.xpertId,
-    assistant: source.key,
-    occurredAt: row.event.occurredAt,
-    receivedAt: row.receivedAt,
-    sourceEventId: row.sourceEventId,
-    attempt: row.attempt,
-    decision: row.decision,
-    fields: projection?.fields,
-    result: projection?.result,
-    canRetry: false
-  }
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  await writeFile(path.join(directory, category + '.json'), JSON.stringify(data), { mode: 0o600 })
-}
 
 test('Code Review: signed delivery, shared receipt, recovered review run, per-binding rollback', async (t) => {
   const f = await setup(t, 'code_review.github')
@@ -556,81 +518,81 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
   }
 })
 
-async function larkFixture(t: TestContext) {
-  const f = await setup(t, 'lark.inbound')
-  const { LarkEventIngress, LarkEventDispatch } = await import(lark + 'lark-event-ingress.js')
-  const { LarkEventSource } = await import(lark + 'lark-event-source.js')
-  const { LarkTriggerBindingEntity } = await import(lark + 'entities/lark-trigger-binding.entity.js')
-  const { LarkEventFact, LarkEventRoute } = await import(lark + 'event-journal.js')
-  const { LarkMessageLogEntity } = await import(lark + 'entities/lark-message-log.entity.js')
-  const db = await domainDatabase(f, [LarkTriggerBindingEntity, LarkEventDispatch, LarkEventFact, LarkEventRoute, LarkMessageLogEntity])
-  t.after(() => db.destroy())
-  const bindings = db.getRepository(LarkTriggerBindingEntity)
-  const integration = {
-    id: f.ctx.sourceBindingRef,
-    tenantId: f.ctx.tenantId,
-    organizationId: f.ctx.organizationId
+test('Lark: serialized dispatch can arrive on another instance after enqueue acknowledgement, with competing and replayed jobs', async (t) => {
+  const { f, db, source, ingress, integration, msg, conversation, cards, LarkEventDispatch } = await larkFixture(t)
+  const { submitLarkEventHandoff } = await import(lark + 'handoff/lark-event-dispatch-context.js')
+  const replica = await new DataSource(db.options).initialize()
+  t.after(() => replica.destroy())
+  const store = db.getRepository(LarkEventDispatch)
+  const scope = { ...f.ctx, integrationId: integration.id, chatId: 'chat', scopeKey: 'chat' }
+  let job: string
+  conversation.handleMessage = async (_message, ctx) => { job = JSON.stringify(ctx.eventDispatchRefs) }
+  async function enqueue(messageId: string) {
+    await ingress.capture(integration, 'message', { ...msg, message: { ...msg.message, message_id: messageId } })
+    await source.drain(f.ctx, f.publish(source), 32)
+    const receipt = await f.consume(source, 'handled')
+    await source.drain(f.ctx, f.publish(source), 32)
+    const intent = await store.findOneByOrFail({ id: receipt.resultRef.key })
+    assert.equal(intent.state, 'submitted')
+    assert.equal(intent.handoffRunId, null)
+    const refs = JSON.parse(job)
+    assert.deepEqual(refs, [{ id: intent.id, binding: intent.binding, revision: intent.revision, xpertId: f.ctx.xpertId, ownerId: f.ctx.userId }])
+    return refs
   }
-  await bindings.save({
-    ...integration,
-    integrationId: integration.id,
-    xpertId: f.ctx.xpertId,
-    createdById: f.ctx.userId
+
+  const refs = await enqueue('private-message')
+  const conversationId = randomUUID()
+  let sends = 0
+  const send = async (runId: string) => {
+    sends++
+    assert.equal(runId, 'lark-chat-event-' + refs[0].id)
+    return conversationId
+  }
+  await assert.rejects(submitLarkEventHandoff(replica.manager, refs, { ...scope, xpertId: randomUUID() }, cards, send), /scope_changed/)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, [{ ...refs[0], ownerId: randomUUID() }], scope, cards, send), /scope_changed/)
+  await assert.rejects(submitLarkEventHandoff(db.manager, refs, scope, cards, async () => {
+    throw new Error('temporary error preparing the message')
+  }), /temporary error/)
+  assert.equal((await store.findOneByOrFail({ id: refs[0].id })).handoffRunId, null)
+  // Leave the first worker inside its external send while another connection retries the same job.
+  let release!: () => void, started!: () => void
+  const sending = new Promise<void>((resolve) => { started = resolve })
+  const ack = new Promise<void>((resolve) => { release = resolve })
+  const work = submitLarkEventHandoff(db.manager, refs, scope, cards, async (runId: string, beforeSend: () => Promise<void>) => {
+    await beforeSend()
+    started()
+    await ack
+    return send(runId)
   })
-  const ingress = new LarkEventIngress(bindings)
-  const submitted: string[] = []
-  const dispatchedTo = randomUUID()
-  const { larkEventDispatch } = await import(lark + 'handoff/lark-event-dispatch-context.js')
-  const channel = {
-    parseInboundMessage: () => ({ chatType: 'p2p' }),
-    parseCardAction: () => ({})
+  try {
+    await Promise.race([sending, work.then(() => { throw new Error('worker did not claim the job') })])
+    await submitLarkEventHandoff(replica.manager, refs, scope, cards, send)
+    assert.equal(sends, 0)
+  } finally {
+    release()
+    await work
   }
-  const conversation = {
-    getLatestConversationBindingByChatId: async () => ({
-      ...f.ctx,
-      scopeKey: 'chat'
-    }),
-    getActiveMessage: async () => ({
-      thirdPartyMessage: { messageId: 'original' }
-    }),
-    handleMessage: async () => {
-      const intent = larkEventDispatch.getStore()!
-      await intent.record(intent.runId, dispatchedTo)
-      submitted.push('message')
-    },
-    handleCardAction: async () => {
-      submitted.push('card')
-    }
+  await submitLarkEventHandoff(replica.manager, refs, scope, cards, send)
+  assert.equal(sends, 1)
+  assert.equal((await store.findOneByOrFail({ id: refs[0].id })).conversationId, conversationId)
+
+  const uncertain = await enqueue('acknowledgement-lost')
+  let attempts = 0
+  const lostAck = async (_runId: string, beforeSend: () => Promise<void>) => {
+    await beforeSend()
+    attempts++
+    throw new Error('acknowledgement lost after send')
   }
-  const identity = {
-    resolveInboundIdentityForEvent: async (_i: any, d: any) => ({
-      mappedUser: {
-        id: d.event.operator?.open_id === 'other' ? 'other' : f.ctx.userId
-      },
-      requestUser: { id: f.ctx.userId, tenantId: f.ctx.tenantId }
-    })
-  }
-  const source = new LarkEventSource(ingress, channel, conversation, identity, {
-    resolve: () => ({ read: async () => integration })
-  })
-  const msg = {
-    message: {
-      message_id: 'msg-1',
-      chat_id: 'chat',
-      message_type: 'text',
-      content: '{"text":"验收"}',
-      chat_type: 'p2p'
-    },
-    sender: { sender_id: { open_id: 'owner' } }
-  }
-  const click = {
-    operator: { open_id: 'owner' },
-    context: { open_chat_id: 'chat', open_message_id: 'original' },
-    action: { tag: 'button', value: { action: 'confirm' } }
-  }
-  await source.configure(f.ctx, true)
-  return { f, db, source, ingress, integration, msg, click, conversation, submitted, dispatchedTo, identity, channel, LarkEventIngress, LarkEventDispatch, LarkEventSource, LarkTriggerBindingEntity, LarkEventFact, LarkMessageLogEntity }
-}
+  await assert.rejects(submitLarkEventHandoff(db.manager, uncertain, scope, cards, lostAck), /acknowledgement lost/)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, uncertain, scope, cards, lostAck), /outcome_unknown/)
+  assert.equal(attempts, 1)
+  assert.equal((await store.findOneByOrFail({ id: uncertain[0].id })).state, 'outcome_unknown')
+
+  const stale = await enqueue('binding-changed-in-queue')
+  await source.configure({ ...f.ctx, bindingRevision: f.ctx.bindingRevision + 1 }, false)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, stale, scope, cards, send), /scope_changed/)
+  assert.equal(sends, 1)
+})
 
 test('Lark: duplicate callback, message intent, authorized and competing card actions', async (t) => {
   const { f, db, source, ingress, integration, msg, click, conversation, submitted, dispatchedTo, LarkEventDispatch, LarkEventFact, LarkMessageLogEntity } = await larkFixture(t)
@@ -703,7 +665,7 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   await receive(envelope)
   await ingress.capture(integration, 'message', msg)
   await ingress.capture(integration, 'card', click, 'click-1')
-  await ingress.capture(integration, 'card', { ...click, operator: { open_id: 'other' } }, 'click-2')
+  await ingress.capture(integration, 'card', { ...click, operator: { open_id: 'other', union_id: 'union-other' } }, 'click-2')
   await source.drain(f.ctx, f.publish(source), 32)
   await f.consume(source, 'handled')
   await f.consume(source, 'handled')
@@ -727,13 +689,17 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   for (const row of rows) {
     const result = await source.describe(f.ctx, row.event, row.decision, { includeConversation: true })
     if (row.event.type === 'lark.message.received') assert.deepEqual(result?.conversation, { conversationId: dispatchedTo })
-    else assert.equal(result, null)
+    else if (row.decision.status === 'handled') {
+      assert.equal(result?.fields[0].value, 'unknown')
+      assert.equal(result?.conversation, undefined)
+    } else assert.equal(result, null)
   }
   const inbound = rows.find((r: any) => r.event.type === 'lark.message.received')
   const intent = await intents.findOneByOrFail({ kind: 'message' })
   await intents.update(intent.id, { conversationId: null })
   const describeInbound = () => source.describe(f.ctx, inbound.event, inbound.decision, { includeConversation: true })
-  assert.equal(await describeInbound(), null)
+  assert.equal((await describeInbound())?.fields[0].value, 'unknown')
+  assert.equal((await describeInbound())?.conversation, undefined)
   const log = await db.getRepository(LarkMessageLogEntity).save({
     tenantId: f.ctx.tenantId, organizationId: f.ctx.organizationId, integrationId: integration.id,
     xpertId: f.ctx.xpertId, scopeKey: 'chat', direction: 'outbound', status: 'sent',
@@ -741,7 +707,8 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   })
   assert.deepEqual((await describeInbound())?.conversation, { conversationId: dispatchedTo })
   await db.getRepository(LarkMessageLogEntity).update(log.id, { status: 'failed' })
-  assert.equal(await describeInbound(), null)
+  assert.equal((await describeInbound())?.fields[0].value, 'failed')
+  assert.equal((await describeInbound())?.conversation, undefined)
   const cardIntent = await intents.findOneByOrFail({ kind: 'card' })
   await db.query(
     `UPDATE plugin_lark_event_dispatch SET state='started',"updatedAt"=now()-interval '6 minutes' WHERE id=$1`,
@@ -754,7 +721,7 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
 
 for (const change of ['rollback', 'pause'] as const) {
   test(`Lark: a second instance can ${change} while message and card dispatches are pending`, async (t) => {
-    const { f, db, source, ingress, integration, msg, click, identity, channel, conversation, submitted,
+    const { f, db, source, ingress, integration, msg, click, identity, cards, LarkEventCardAccess, channel, conversation, submitted,
       LarkEventDispatch, LarkEventSource, LarkEventIngress, LarkTriggerBindingEntity } = await larkFixture(t)
     await ingress.capture(integration, 'message', msg)
     await ingress.capture(integration, 'card', click, 'click-1')
@@ -767,19 +734,18 @@ for (const change of ['rollback', 'pause'] as const) {
     const replicaDb = new DataSource(db.options)
     await replicaDb.initialize()
     t.after(() => replicaDb.destroy())
-    const plugin = { resolve: () => ({ read: async () => integration }) }
     let releaseWorker!: () => void, signalReady!: () => void
     const gate = new Promise<void>((resolve) => { releaseWorker = resolve })
     const ready = new Promise<void>((resolve) => { signalReady = resolve })
-    const worker = new LarkEventSource(ingress, channel, conversation, {
-      resolveInboundIdentityForEvent: async (...args: Parameters<typeof identity.resolveInboundIdentityForEvent>) => {
-        signalReady()
-        await gate
-        return identity.resolveInboundIdentityForEvent(...args)
-      }
-    }, plugin)
+    const workerIdentity = Object.create(identity)
+    workerIdentity.findIntegration = async (id) => {
+      signalReady()
+      await gate
+      return identity.findIntegration(id)
+    }
+    const worker = new LarkEventSource(ingress, channel, conversation, workerIdentity, new LarkEventCardAccess(workerIdentity, conversation))
     const replica = new LarkEventSource(new LarkEventIngress(replicaDb.getRepository(LarkTriggerBindingEntity)),
-      channel, conversation, identity, plugin)
+      channel, conversation, identity, cards)
     const next = change === 'rollback' ? f.ctx : { ...f.ctx, bindingRevision: f.ctx.bindingRevision + 1 }
     const work = worker.drain(f.ctx, f.publish(worker), 32)
     try {
@@ -904,7 +870,7 @@ test(
     const channel = new LarkChannelStrategy(plugin, new LarkCapabilityService(), ingress)
     const phrase = 'Event Inbox P0 ' + randomUUID().slice(0, 8)
     const submitted: string[] = []
-    let sender = '',
+    let senderUnionId = '',
       original = '',
       chat = '',
       updated = false
@@ -912,12 +878,12 @@ test(
       getLatestConversationBindingByChatId: async (_: string, id: string) =>
         id === chat ? { ...f.ctx, scopeKey: 'self-chat' } : null,
       getActiveMessage: async () => ({
-        thirdPartyMessage: { messageId: original }
+        thirdPartyMessage: { id: original, messageId: 'platform-message' }
       }),
       handleMessage: async (message: any) => {
         if (message.chatType !== 'private' || message.content.trim() !== phrase || original)
           throw Error('unexpected_test_message')
-        sender = message.senderId
+        senderUnionId = message.raw?.sender?.sender_id?.union_id ?? ''
         chat = message.chatId
         const sent = await channel.sendCard(
           { integration, chatId: chat },
@@ -954,12 +920,15 @@ test(
     }
     // This transport test binds only the sender of its random challenge. Organization membership is tested separately.
     const identity = {
-      resolveInboundIdentityForEvent: async (_: any, d: any) => ({
-        mappedUser: d.event.operator?.open_id === sender && sender ? { id: f.ctx.userId } : null,
+      findIntegration: async () => integration,
+      readCurrentCardActor: async (_integration, unionId) =>
+        senderUnionId && unionId === senderUnionId ? { id: f.ctx.userId, tenantId: f.ctx.tenantId } : null,
+      resolveInboundIdentityForEvent: async () => ({
         requestUser: { id: f.ctx.userId, tenantId: f.ctx.tenantId }
       })
     }
-    const source = new LarkEventSource(ingress, channel, conversation, identity, plugin)
+    const { LarkEventCardAccess } = await import(lark + 'lark-event-card-access.service.js')
+    const source = new LarkEventSource(ingress, channel, conversation, identity, new LarkEventCardAccess(identity, conversation))
     await source.configure(f.ctx, true)
     const ws = channel.createWSClientFromConfig(options)
     try {

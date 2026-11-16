@@ -61,9 +61,7 @@ describe('LarkTriggerStrategy', () => {
 			persistedBindings.set(binding.integrationId, { ...binding })
 		}
 		const dispatchService = {
-			buildDispatchMessage: jest.fn().mockResolvedValue({
-				id: 'handoff-id'
-			}),
+			submitDispatch: jest.fn(async (_input, submit) => submit({ id: 'handoff-id' })),
 			enqueueDispatch: jest.fn().mockResolvedValue({
 				messageId: 'enqueued-message'
 			})
@@ -970,6 +968,7 @@ describe('LarkTriggerStrategy', () => {
 				currentInboundLogIds: ['log-1'],
 				historyBefore: '2026-07-15T08:00:00.000Z',
 				larkMessage: {
+					eventDispatchRefs: [{ id: 'intent-1', binding: 'b', revision: 1, xpertId: 'xpert-1', ownerId: 'user-1' }],
 					integrationId: 'integration-1',
 					chatId: 'chat-1',
 					chatType: 'group',
@@ -996,6 +995,7 @@ describe('LarkTriggerStrategy', () => {
 				xpertId: 'xpert-1',
 				version: 1,
 				inputParts: ['第一条消息'],
+				eventDispatchRefs: [{ id: 'intent-1', binding: 'b', revision: 1, xpertId: 'xpert-1', ownerId: 'user-1' }],
 				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
 				historyContext: '[历史上下文]\n用户: 更早消息',
 				historyFiles: [{ fileAssetId: 'history-asset-1' }],
@@ -1039,6 +1039,7 @@ describe('LarkTriggerStrategy', () => {
 			integrationId: 'integration-1',
 			xpertId: 'xpert-1',
 			version: 2,
+			eventDispatchRefs: [{ id: 'intent-1', binding: 'b', revision: 1, xpertId: 'xpert-1', ownerId: 'user-1' }],
 			inputParts: ['第一条消息', '第二条消息'],
 			files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
 			historyContext: '[历史上下文]\n用户: 更早消息',
@@ -1089,6 +1090,9 @@ describe('LarkTriggerStrategy', () => {
 				})
 			})
 		)
+		expect(dispatchService.enqueueDispatch.mock.calls[0][0].larkMessage.eventDispatchRefs).toEqual([
+			{ id: 'intent-1', binding: 'b', revision: 1, xpertId: 'xpert-1', ownerId: 'user-1' }
+		])
 		expect(dispatchService.enqueueDispatch.mock.calls[0][0].larkMessage.chatId).toBe('chat-1')
 		expect(messageHistoryService.updateInboundStatus).toHaveBeenCalledWith(
 			['log-1', 'log-2'],

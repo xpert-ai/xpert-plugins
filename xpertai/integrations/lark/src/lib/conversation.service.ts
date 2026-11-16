@@ -63,6 +63,8 @@ import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity
 import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
 import type { TLarkTriggerConfig } from './workflow/lark-trigger.types.js'
 
+type LarkInboundContext = TChatEventContext<TIntegrationLarkOptions> & Pick<ChatLarkContext, 'eventDispatchRefs'>
+
 type LarkConversationQueueJob = ChatLarkContext<TLarkEvent> & {
 	tenantId?: string
 }
@@ -1977,7 +1979,7 @@ export class LarkConversationService implements OnModuleDestroy {
 					return
 				}
 
-				runWithRequestContext(
+				return new Promise<void>((resolve, reject) => runWithRequestContext(
 					{
 						user,
 						headers: {
@@ -1991,21 +1993,11 @@ export class LarkConversationService implements OnModuleDestroy {
 						}
 					},
 					{},
-					async () => {
-						try {
-							await this.processMessage(job.data as ChatLarkContext<TLarkEvent>)
-							return `Processed message: ${job.id}`
-						} catch (err) {
-              await this.messageHistoryService.updateInboundStatus(
-                job.data.currentInboundLogIds ?? [],
-                'failed',
-                err instanceof Error ? err.message : String(err)
-              )
-							this.logger.error(err)
-							return `Failed to process message: ${job.id} with error ${(err as Error)?.message ?? err}`
-						}
-					}
-				)
+					() => this.processMessage(job.data).then(() => resolve(), reject)
+				)).catch(async (error: Error) => {
+					await this.messageHistoryService.updateInboundStatus(job.data.currentInboundLogIds ?? [], 'failed', error.message)
+					throw error
+				})
 			})
 
 			queue.on('completed', (job) => {
@@ -2092,8 +2084,10 @@ export class LarkConversationService implements OnModuleDestroy {
     try {
       await this.bestEffortAttachTypingReaction(queueJob)
       const scopeQueue = await this.getScopeQueue(scopeKey)
+      const jobIdentity = currentInboundLogIds[0] ?? queueJob.eventDispatchRefs?.[0]?.id
       await scopeQueue.add(queueJob, {
-        ...(currentInboundLogIds[0] ? { jobId: buildLarkInboundJobId(currentInboundLogIds[0]) } : {}),
+        ...(jobIdentity ? { jobId: buildLarkInboundJobId(jobIdentity) } : {}),
+        ...(queueJob.eventDispatchRefs?.length ? { attempts: 3, backoff: { type: 'exponential', delay: 1000 } } : {}),
         removeOnComplete: true
       })
       return true
@@ -2184,7 +2178,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		})
 	}
 
-	async handleMessage(message: TChatInboundMessage, ctx: TChatEventContext<TIntegrationLarkOptions>): Promise<void> {
+	async handleMessage(message: TChatInboundMessage, ctx: LarkInboundContext): Promise<void> {
 		const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
 		if (boundTriggerBinding?.config?.enabled === false) return
 		const user = RequestContext.currentUser()
@@ -2313,6 +2307,7 @@ export class LarkConversationService implements OnModuleDestroy {
       }
     }
 		const queueJob: LarkConversationQueueJob = {
+			eventDispatchRefs: ctx.eventDispatchRefs,
 			tenant: ctx.integration.tenant,
 			tenantId: user.tenantId || ctx.tenantId,
 			organizationId: ctx.organizationId,
@@ -2393,7 +2388,7 @@ export class LarkConversationService implements OnModuleDestroy {
     }
 	}
 
-	async handleCardAction(action: TChatCardAction, ctx: TChatEventContext<TIntegrationLarkOptions>): Promise<void> {
+	async handleCardAction(action: TChatCardAction, ctx: LarkInboundContext): Promise<void> {
 		const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
 		if (boundTriggerBinding?.config?.enabled === false) return
 		if (
@@ -2511,6 +2506,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		await this.onAction(
 			resolveLarkCardActionValue(action.value),
 			{
+				eventDispatchRefs: ctx.eventDispatchRefs,
 				tenant: ctx.integration.tenant,
 				organizationId: ctx.organizationId,
 				integrationId: ctx.integration.id,

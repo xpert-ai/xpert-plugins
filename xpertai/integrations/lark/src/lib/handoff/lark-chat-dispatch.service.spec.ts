@@ -16,7 +16,6 @@ import {
 	MANAGED_QUEUE_SERVICE_TOKEN,
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
-import { larkEventDispatch } from './lark-event-dispatch-context.js'
 import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
 import type { ChatLarkMessage } from '../message.js'
 
@@ -118,7 +117,9 @@ describe('LarkChatDispatchService', () => {
 		const service = new LarkChatDispatchService(
 			conversationService as any,
 			runStateService as any,
-			pluginContext as any
+			pluginContext as any,
+			{} as any,
+			{} as any
 		)
 
 		return {
@@ -229,18 +230,14 @@ describe('LarkChatDispatchService', () => {
 		expect(dispatchLocks.size).toBe(0)
 	})
 
-	it('correlates an Event Inbox dispatch with its original Handoff run and conversation', async () => {
-		mockRequestContext({userId: 'user', tenantId:'tenant', organizationId:'org'})
-		const {service} = createFixture({conversationId:'conversation-1', dispatchContext: {
-			tenantId:'tenant',organizationId:'org',createdById:'user',source:'exact'
-		}})
-		const larkMessage = createLarkMessage()
-		const record = jest.fn(async () => {})
+	it('uses the claimed Event Inbox run ID for the Handoff envelope and callback state', async () => {
+		mockRequestContext()
+		const { service, runStateService } = createFixture()
 		const runId = 'lark-chat-event-test'
-		const message = await larkEventDispatch.run({integrationId:larkMessage.integrationId,xpertId:'xpert-1',runId,record},
-			() => service.buildDispatchMessage({xpertId:'xpert-1', input:'hello', larkMessage:larkMessage as any}))
+		const message = await service.buildDispatchMessage({ xpertId: 'xpert-1', input: 'hello', larkMessage: createLarkMessage() as any }, runId)
 		expect(message.id).toBe(runId)
-		expect(record).toHaveBeenCalledWith(runId, 'conversation-1')
+		expect(message.headers?.conversationId).toBe('conversation-1')
+		expect(runStateService.initialize).toHaveBeenCalledWith(expect.objectContaining({ sourceMessageId: runId }))
 	})
 
 	it('buildDispatchMessage uses assistant runtime principal with creator callback context', async () => {

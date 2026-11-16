@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import type { TestContext } from 'node:test'
 import { DataSource, Table, fixture, url } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
@@ -10,6 +12,43 @@ export const host = process.env.XPERT_EVENT_HOST_ROOT
 if (!url || !host) throw new Error('Set XPERT_EVENT_HOST_ROOT and XPERT_PIPELINE_TEST_DATABASE_URL')
 const storeModule = pathToFileURL(path.join(host, 'packages/server-ai/src/agent-event/agent-event.store.ts')).href
 export const procurement = '../../community/apps/procurement-quote-comparison/dist/lib/'
+export const lark = '../../xpertai/integrations/lark/dist/lib/'
+
+// Optional hand-off to the platform browser suite. Only these disposable database scenarios call it.
+export async function captureViewReceipt(f: Awaited<ReturnType<typeof setup>>, source: any, state: string, category: string) {
+  const directory = process.env.XPERT_EVENT_VIEW_EVIDENCE_DIR
+  if (!directory) return
+  const [row] = await f.hostDb.query(
+    'SELECT * FROM agent_event_inbox WHERE binding=$1 AND state=$2 ORDER BY seq DESC LIMIT 1',
+    [f.binding.id, state]
+  )
+  const display = source.eventTypes.find(
+    (d: any) => d.type === row.event.type && d.schemaVersion === row.event.schemaVersion
+  )?.display
+  assert.equal(display.category.key, category)
+  const projection = await source.describe?.(f.ctx, row.event, row.decision)
+  const data = {
+    id: row.id,
+    type: row.event.type,
+    schemaVersion: row.event.schemaVersion,
+    display,
+    state: row.state,
+    subject: row.event.subject.key,
+    title: projection?.title ?? row.event.subject.key,
+    assistantId: f.ctx.xpertId,
+    assistant: source.key,
+    occurredAt: row.event.occurredAt,
+    receivedAt: row.receivedAt,
+    sourceEventId: row.sourceEventId,
+    attempt: row.attempt,
+    decision: row.decision,
+    fields: projection?.fields,
+    result: projection?.result,
+    canRetry: false
+  }
+  await mkdir(directory, { recursive: true, mode: 0o700 })
+  await writeFile(path.join(directory, category + '.json'), JSON.stringify(data), { mode: 0o600 })
+}
 
 export async function setup(t: TestContext, adapter: string) {
   const f = await fixture(t)
@@ -110,4 +149,138 @@ export async function domainDatabase(f: Awaited<ReturnType<typeof setup>>, entit
     throw error
   }
   return db
+}
+
+export async function larkFixture(t: TestContext) {
+  const f = await setup(t, 'lark.inbound')
+  const { LarkEventIngress, LarkEventDispatch } = await import(lark + 'lark-event-ingress.js')
+  const { LarkEventSource } = await import(lark + 'lark-event-source.js')
+  const { LarkTriggerBindingEntity } = await import(lark + 'entities/lark-trigger-binding.entity.js')
+  const { LarkEventFact, LarkEventRoute } = await import(lark + 'event-journal.js')
+  const { LarkMessageLogEntity } = await import(lark + 'entities/lark-message-log.entity.js')
+  const db = await domainDatabase(f, [
+    LarkTriggerBindingEntity,
+    LarkEventDispatch,
+    LarkEventFact,
+    LarkEventRoute,
+    LarkMessageLogEntity
+  ])
+  t.after(() => db.destroy())
+  const bindings = db.getRepository(LarkTriggerBindingEntity)
+  const integration = {
+    id: f.ctx.sourceBindingRef,
+    tenantId: f.ctx.tenantId,
+    organizationId: f.ctx.organizationId
+  }
+  await bindings.save({
+    ...integration,
+    integrationId: integration.id,
+    xpertId: f.ctx.xpertId,
+    createdById: f.ctx.userId
+  })
+  const ingress = new LarkEventIngress(bindings)
+  const submitted: string[] = []
+  const dispatchedTo = randomUUID()
+  const { submitLarkEventHandoff } = await import(lark + 'handoff/lark-event-dispatch-context.js')
+  const channel = {
+    parseInboundMessage: () => ({ chatType: 'p2p' }),
+    parseCardAction: () => ({})
+  }
+  const conversation = {
+    getLatestConversationBindingByChatId: async () => ({
+      ...f.ctx,
+      scopeKey: 'chat'
+    }),
+    getActiveMessage: async () => ({
+      thirdPartyMessage: { id: 'original', messageId: 'platform-message' }
+    }),
+    handleMessage: async (
+      _message: unknown,
+      ctx: { eventDispatchRefs: import('../../xpertai/integrations/lark/src/lib/types.js').LarkEventDispatchRef[] }
+    ) => {
+      await submitLarkEventHandoff(
+        db.manager,
+        ctx.eventDispatchRefs,
+        { ...f.ctx, integrationId: integration.id, chatId: 'chat', scopeKey: 'chat' },
+        cards,
+        async (_runId, beforeSend) => {
+          await beforeSend()
+          submitted.push('message')
+          return dispatchedTo
+        }
+      )
+    },
+    handleCardAction: async () => {
+      submitted.push('card')
+    }
+  }
+  const { LarkEventCardAccess } = await import(lark + 'lark-event-card-access.service.js')
+  const { LarkInboundIdentityService } = await import(lark + 'lark-inbound-identity.service.js')
+  const { LarkChannelStrategy } = await import(lark + 'lark-channel.strategy.js')
+  const sdk = createRequire(new URL('../../xpertai/integrations/lark/package.json', import.meta.url))(
+    '@xpert-ai/plugin-sdk'
+  )
+  const mappings = new Map([
+    ['union-owner', f.ctx.userId],
+    ['union-other', randomUUID()]
+  ])
+  const lookup = async ({ tenantId, thirdPartyId }) => {
+    const id = mappings.get(thirdPartyId)
+    return id && tenantId === f.ctx.tenantId ? { id, tenantId, thirdPartyId } : null
+  }
+  const plugin = {
+    resolve: (token: string) => {
+      if (token === sdk.USER_PERMISSION_SERVICE_TOKEN) return { read: lookup }
+      if (token === sdk.INTEGRATION_PERMISSION_SERVICE_TOKEN) return { read: async () => integration }
+      throw new Error('Unexpected permission service: ' + token)
+    }
+  }
+  const users = new LarkChannelStrategy(plugin, {})
+  const userCache = new Map()
+  users.cacheManager = userCache
+  users.getOrCreateLarkClient = () => ({ client: {} })
+  const identity = new LarkInboundIdentityService(users, plugin)
+  const cards = new LarkEventCardAccess(identity, conversation)
+  const source = new LarkEventSource(ingress, channel, conversation, identity, cards)
+  const msg = {
+    message: {
+      message_id: 'msg-1',
+      chat_id: 'chat',
+      message_type: 'text',
+      content: '{"text":"验收"}',
+      chat_type: 'p2p'
+    },
+    sender: { sender_id: { open_id: 'owner', union_id: 'union-owner' } }
+  }
+  const click = {
+    operator: { open_id: 'owner', union_id: 'union-owner' },
+    context: { open_chat_id: 'chat', open_message_id: 'original' },
+    action: { tag: 'button', value: { action: 'confirm' } }
+  }
+  await source.configure(f.ctx, true)
+  return {
+    f,
+    db,
+    source,
+    ingress,
+    integration,
+    msg,
+    click,
+    conversation,
+    submitted,
+    dispatchedTo,
+    identity,
+    cards,
+    mappings,
+    userCache,
+    sdk,
+    channel,
+    LarkEventCardAccess,
+    LarkEventIngress,
+    LarkEventDispatch,
+    LarkEventSource,
+    LarkTriggerBindingEntity,
+    LarkEventFact,
+    LarkMessageLogEntity
+  }
 }

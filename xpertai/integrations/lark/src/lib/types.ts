@@ -485,7 +485,17 @@ export type LarkMessageReactionRef = {
 
 export const LARK_TYPING_REACTION_EMOJI_TYPE = 'Typing'
 
+// Trusted Event Inbox references carried by serialized jobs, including merged message windows.
+export type LarkEventDispatchRef = {
+	id: string
+	binding: string
+	revision: number
+	xpertId: string
+	ownerId: string
+}
+
 export type ChatLarkContext<T = any> = {
+	eventDispatchRefs?: LarkEventDispatchRef[]
 	tenant: ITenant
 	tenantId?: string
 	organizationId: string

@@ -901,6 +901,10 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			integrationId: params.integrationId,
 			xpertId: binding.xpertId,
 			version: nextVersion,
+			eventDispatchRefs: [
+				...(sameRoutingTarget ? currentState?.eventDispatchRefs ?? [] : []),
+				...(params.larkMessage.eventDispatchRefs ?? [])
+			],
 			inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
 			files: [
 				...(sameRoutingTarget ? currentState?.files ?? [] : []),
@@ -1003,6 +1007,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 				larkMessage: new ChatLarkMessage(
 					{
 						tenant: null as any,
+						eventDispatchRefs: state.eventDispatchRefs,
 						organizationId: state.latestMessage.organizationId ?? state.organizationId,
 						integrationId: state.latestMessage.integrationId,
 						connectionMode: state.latestMessage.connectionMode ?? 'webhook',
@@ -1128,14 +1133,9 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			return
 		}
 
-		const handoffMessage = await this.dispatchService.buildDispatchMessage(params.dispatchPayload)
-		await Promise.resolve(
-			callback({
-				from: LarkTrigger,
-				xpertId: params.xpertId,
-				handoffMessage
-			})
-		)
+		await this.dispatchService.submitDispatch(params.dispatchPayload, async (handoffMessage) => {
+			await callback({ from: LarkTrigger, xpertId: params.xpertId, handoffMessage })
+		})
 	}
 
 	private resolveDispatchOptions(

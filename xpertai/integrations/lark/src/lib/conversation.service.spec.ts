@@ -3,6 +3,11 @@
 	return createLarkPluginSdkMock(jest)
 })
 
+jest.mock('bull', () => {
+  const Queue = jest.requireActual('bull')
+  return jest.fn((...args) => new Queue(...args))
+})
+import Bull from 'bull'
 import { LarkConversationService } from './conversation.service.js'
 import { CancelConversationCommand, INTEGRATION_PERMISSION_SERVICE_TOKEN, RequestContext } from '@xpert-ai/plugin-sdk'
 import { DispatchLarkChatCommand } from './handoff/commands/dispatch-lark-chat.command.js'
@@ -501,6 +506,51 @@ describe('LarkConversationService', () => {
 			.map(([command]) => command)
 			.filter((command) => command instanceof DispatchLarkChatCommand) as DispatchLarkChatCommand[]
 	}
+
+  it('keeps the Bull job active until the dispatched work settles and propagates failures to Bull', async () => {
+    const { service, larkChannel, messageHistoryService } = createFixture()
+    const queue = { process: jest.fn(), on: jest.fn() }
+    jest.mocked(Bull).mockImplementationOnce(() => queue as any)
+    Object.assign(larkChannel, { getUserById: jest.fn().mockResolvedValue({ id: 'user-1', tenantId: 'tenant-1' }) })
+    await service.getScopeQueue('isolated-scope')
+    const handler = queue.process.mock.calls[0][1]
+    let release!: () => void, processing!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const entered = new Promise<void>((resolve) => { processing = resolve })
+    const process = jest.spyOn(service, 'processMessage').mockImplementation(async () => { processing(); await gate })
+    const job = { id: 'job-1', data: { ...createChatContext(), tenantId: 'tenant-1', currentInboundLogIds: ['log-1'] } }
+    let completed = false
+    const work = handler(job).then(() => { completed = true })
+    await entered
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    try {
+      expect(completed).toBe(false)
+    } finally {
+      release()
+      await work
+    }
+    process.mockRejectedValueOnce(new Error('temporary failure'))
+    await expect(handler(job)).rejects.toThrow('temporary failure')
+    expect(messageHistoryService.updateInboundStatus).toHaveBeenCalledWith(['log-1'], 'failed', 'temporary failure')
+  })
+
+  it('serializes the inbox reference and reuses the Bull job ID when private message history is disabled', async () => {
+    const { service } = createFixture()
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({ id: 'user-1', tenantId: 'tenant-1' } as any)
+    const ref = { id: 'dispatch-1', binding: 'binding-1', revision: 2, xpertId: 'xpert-1', ownerId: 'user-1' }
+    const ctx = { ...createInboundEventContext(), eventDispatchRefs: [ref] }
+    const message = { ...createInboundGroupMessage(), chatType: 'private' as const }
+    await service.handleMessage(message, ctx)
+    await service.handleMessage(message, ctx)
+    expect(add).toHaveBeenCalledTimes(2)
+    const [[job, options], [, retry]] = add.mock.calls
+    expect(JSON.parse(JSON.stringify(job)).eventDispatchRefs).toEqual([ref])
+    expect(options.jobId).toMatch(/^lark_inbound_/)
+    expect(retry.jobId).toBe(options.jobId)
+    expect(options.attempts).toBeGreaterThan(1)
+  })
 
 	it('handleMessage routes non-mentioned group messages into trigger queue when all_messages is enabled', async () => {
 		const { service, groupMentionWindowService, larkChannel } = createFixture({
