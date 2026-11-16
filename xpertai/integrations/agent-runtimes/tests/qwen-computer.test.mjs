@@ -62,40 +62,55 @@ function fixture() {
   return { strategy, context, request, runner, calls, snapshots, setOutput: (value) => (output = value) }
 }
 
-test('JSONL result file is read only after a verified final receipt, then checkpointed before stop', async () => {
+test('JSONL reads the selected report after verified completion and exports before cleanup', async () => {
   const f = fixture()
-  const reference = 'output/report.md'
-  f.request.input.delivery.reportPath = reference
-  const text = 'Report written'
-  f.runner.readTaskReportFile = async (_, value) => {
-    assert.deepEqual(value, reference)
-    f.calls.push('result-file')
-    return { text: '# Review\nDeployment not verified', sha256: 'a'.repeat(64) }
+  f.request.input.delivery.reportPath = 'report.txt'
+  f.runner.readTaskReportFile = async (_, path) => {
+    assert.equal(path, 'report.txt')
+    f.calls.push('report-file')
+    return { text: '# Review\nIndeterminate', sha256: 'host-hash' }
   }
   const started = await f.strategy.start(f.request, f.context)
-  const events = [{ type: 'result', subtype: 'success', is_error: false, result: text }]
+  const events = [{ type: 'result', subtype: 'success', is_error: false, result: 'Finished' }]
   f.setOutput({ state: 'running', events })
   assert.equal((await f.strategy.inspect(started.handle, f.context)).status, 'running')
-  assert.equal(f.calls.includes('result-file'), false)
+  assert.equal(f.calls.includes('report-file'), false)
   f.setOutput({ state: 'exited', exitCode: 0, events })
   const result = await f.strategy.inspect(started.handle, f.context)
   assert.equal(result.status, 'succeeded')
-  assert.equal(result.result.text, '# Review\nDeployment not verified')
-  assert.deepEqual(f.calls.slice(-4), ['result-file', { mode: 'files', paths: ['report.txt', reference] }, 'checkpoint', 'stop'])
+  assert.equal(result.result.text, '# Review\nIndeterminate')
+  assert.deepEqual(f.calls.slice(-4), ['report-file', { mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
   assert.equal(f.snapshots.at(-1).result.text, result.result.text)
 })
 
-test('JSONL invalid file submission fails explicitly without file export or a second launch', async () => {
+test('JSONL exports a caller-selected report without requiring a duplicate paths selection', async () => {
   const f = fixture()
-  f.request.input.delivery.reportPath = 'output/report.md'
-  f.runner.readTaskReportFile = async () => { throw Error('private contents') }
+  f.request.input.delivery = { mode: 'files', reportPath: 'report.txt' }
+  f.runner.readTaskReportFile = async (_, path) => {
+    assert.equal(path, 'report.txt')
+    f.calls.push('report-file')
+    return { text: '# Review\nCompleted', sha256: 'host-hash' }
+  }
   const started = await f.strategy.start(f.request, f.context)
-  const text = '```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```'
-  f.setOutput({ state: 'exited', exitCode: 0, events: [{ type: 'result', subtype: 'success', is_error: false, result: text }] })
   const result = await f.strategy.inspect(started.handle, f.context)
   assert.equal(result.status, 'succeeded')
-  assert.equal(result.result.report.code, 'report_unavailable')
+  assert.equal(result.result.text, '# Review\nCompleted')
+  assert.equal(result.result.report.status, 'completed')
+  assert.equal(result.result.export.status, 'completed')
+  assert.deepEqual(result.result.artifacts, [{ id: 'artifact', versionId: 'version', paths: ['report.txt'] }])
+  assert.deepEqual(f.calls.slice(-4), ['report-file', { mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
+  assert.equal(f.calls.filter(value => value === 'start').length, 1)
+})
+
+test('JSONL report delivery failure is recoverable without changing execution or relaunching', async () => {
+  const f = fixture()
+  f.request.input.delivery = { mode: 'none', reportPath: 'missing.md' }
+  f.runner.readTaskReportFile = async () => { throw Error('private contents') }
+  const started = await f.strategy.start(f.request, f.context)
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'succeeded')
   assert.equal(result.result.text, '')
+  assert.deepEqual(result.result.report, { status: 'failed', path: 'missing.md', code: 'report_unavailable' })
   assert.deepEqual(f.calls.slice(-2), ['checkpoint', 'stop'])
   assert.equal(f.calls.filter(value => value === 'start').length, 1)
 })
