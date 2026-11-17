@@ -18,10 +18,9 @@ export class IntakeCase {
   @Column({ type: 'varchar', length: 16 }) status!: CaseStatus
   /** Bumped on every state change; analysis results must name the revision they belong to. */
   @Column({ type: 'int' }) revision!: number
-  /** JSON array of CategorySuggestion for the latest completed analysis. */
+  /** JSON of the CaseSuggestion left by the latest completed analysis. The column keeps its original name. */
   @Column({ type: 'text', nullable: true }) suggestionsJson!: string | null
   @Column({ type: 'varchar', length: 64, nullable: true }) confirmedCategoryId!: string | null
-  @Column({ type: 'varchar', length: 64, nullable: true }) referenceCategoryId!: string | null
   @Column({ type: 'varchar', length: 64, nullable: true }) failureCode!: FailureCode | null
   @Column({ type: 'varchar' }) createdAt!: string
   @Column({ type: 'varchar' }) updatedAt!: string

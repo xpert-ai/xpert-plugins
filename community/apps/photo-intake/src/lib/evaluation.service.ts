@@ -3,15 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID } from 'node:crypto'
 import { Repository } from 'typeorm'
 import { z } from 'zod/v3'
-import { CATEGORIES } from './domain/categories.js'
+import { categoryDefinitions } from './domain/categories.js'
 import { IntakeError, scopeSchema } from './domain/contracts.js'
 import type { IntakeScope } from './domain/contracts.js'
 import {
-  ATTEMPT_LEASE_MS, MAX_ATTEMPTS, cellSchema, createRunSchema, decideRunSchema,
+  ATTEMPT_LEASE_MS, DEFAULT_PROMPT, MAX_ATTEMPTS, cellSchema, createRunSchema, decideRunSchema,
   decisionSchema, latestAttempt, reviewSampleSchema, reviewSchema, runRevisionSchema, snapshotSchema
 } from './domain/evaluation.js'
 import type {
-  CreateRunInput, EvaluationAttempt, EvaluationCell, EvaluationRunDetail,
+  ActivePrompt, CreateRunInput, EvaluationAttempt, EvaluationCell, EvaluationRunDetail,
   EvaluationRunSummary, ModelSnapshot, RunSnapshot
 } from './domain/evaluation.js'
 import { EvaluationRun } from './evaluation-run.entity.js'
@@ -75,6 +75,27 @@ export class EvaluationService {
 
   async get(scope: IntakeScope, id: string) { return this.detail(await this.owned(scope, id)) }
 
+  /**
+   * The prompt intake uses now: the version a person adopted in the most recently decided run.
+   * Decisions of "tie" or "neither" adopt nothing, so they leave the earlier prompt in effect.
+   */
+  async activePrompt(scope: IntakeScope): Promise<ActivePrompt> {
+    const where = { ...scopeSchema.parse(scope), status: 'reviewed' as const }
+    for (let skip = 0; ; skip += 20) {
+      // A decided run is never written again, so its update time is the decision time.
+      const rows = await this.runs.find({ where, order: { updatedAt: 'DESC', id: 'DESC' }, take: 20, skip })
+      for (const row of rows) {
+        const { verdict } = decisionSchema.parse(JSON.parse(row.decisionJson ?? 'null'))
+        if (verdict === 'a' || verdict === 'b') {
+          const { prompts } = snapshotSchema.parse(JSON.parse(row.snapshotJson))
+          return { text: prompts[verdict], source: { type: 'adopted', runId: row.id, variant: verdict }, runTitle: row.title }
+        }
+      }
+      if (rows.length < 20) break
+    }
+    return { text: DEFAULT_PROMPT, source: { type: 'default' }, runTitle: null }
+  }
+
   async create(scope: IntakeScope, input: CreateRunInput) {
     const owner = scopeSchema.parse(scope)
     const parsed = createRunSchema.parse(input)
@@ -86,7 +107,7 @@ export class EvaluationService {
     }
     const snapshot: RunSnapshot = {
       samples: samples.map(item => item.sample), prompts: { a: parsed.promptA, b: parsed.promptB },
-      categories: CATEGORIES.map(({ id, definition }) => ({ id, definition })), protocolVersion: 1, model: null
+      categories: categoryDefinitions(), protocolVersion: 1, model: null
     }
     // Alternate which variant is called first across samples. Calls never share messages.
     const cells: EvaluationCell[] = snapshot.samples.flatMap((sample, index) =>

@@ -4,75 +4,70 @@ import {
   Badge, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
   Tabs, TabsContent, TabsList, TabsTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@xpert-ai/plugin-shadcn-ui'
-import { RemoteI18nProvider, useLocalizedMessage, useRemoteLocale } from '@xpert-ai/plugin-shadcn-ui/i18n'
+import { RemoteI18nProvider, useRemoteLocale } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
-import { executeAction, requestData, startBridge } from './bridge'
+import { requestData, startBridge } from './bridge'
+import { CaseDesk, CaseDialog } from './cases'
 import { parseWorkbenchData } from './data'
 import type { WorkbenchData } from './data'
-import type { CaseDetail } from '../../../domain/case'
-import { Choice } from './choices'
 import { i18n } from './i18n'
-import { ComparisonSetup, SampleLibrary } from './setup'
+import { ComparisonSetup } from './setup'
 import { RunResults } from './results'
 import './styles.css'
 
-const empty: WorkbenchData = { cases: [], categories: [], selected: null, runs: { items: [], total: 0, page: 1 }, run: null }
+const empty: WorkbenchData = {
+  cases: [], categories: [], selected: null, activePrompt: null, runs: { items: [], total: 0, page: 1 }, run: null
+}
+interface Query { caseId?: string; runId?: string; page: string }
 
 function Workbench() {
   useRemoteLocale(i18n)
   const [data, setData] = useState(empty)
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading')
-  const [tab, setTab] = useState('samples')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const query = useRef<{ runId?: string; page: string }>({ page: '1' })
+  const [tab, setTab] = useState('cases')
+  const [runId, setRunId] = useState<string | null>(null)
+  const [caseId, setCaseId] = useState<string | null>(null)
+  /** The case id the data on screen was loaded for, to tell "still loading" from "not there". */
+  const [loadedCaseId, setLoadedCaseId] = useState<string | null>(null)
+  // What the next load asks for. The open case and run stay in it, so every refresh brings them up to date.
+  const query = useRef<Query>({ page: '1' })
   const sequence = useRef(0)
   const initialized = useRef(false)
   const [hostReady, setHostReady] = useState(false)
-  const [photo, setPhoto] = useState<CaseDetail | null>(null)
-  const [reference, setReference] = useState('unclear')
-  const [saving, setSaving] = useState(false)
-  const [notice, setNotice] = useLocalizedMessage(i18n)
   const load = useCallback(async () => {
     const current = ++sequence.current
+    const asked = query.current
     try {
-      const loaded = parseWorkbenchData(await requestData(query.current))
-      if (current === sequence.current) { setData(loaded); setState('ready') }
+      const loaded = parseWorkbenchData(await requestData({ ...asked }))
+      if (current === sequence.current) { setData(loaded); setLoadedCaseId(asked.caseId ?? null); setState('ready') }
     } catch { if (current === sequence.current) setState('failed') }
   }, [])
   useEffect(() => startBridge(init => {
     i18n.setLocale(init.locale)
+    // A later init only changes the language; it must not reload or reset what the person is doing.
     if (!initialized.current) { initialized.current = true; setHostReady(true); void load() }
   }, () => void load()), [load])
   const selectRun = (id: string | null) => {
     query.current = { page: query.current.page, ...(id ? { runId: id } : {}) }
-    setSelectedId(id)
+    setRunId(id)
     setTab('runs')
     setState('loading')
     void load()
   }
+  const openCase = (id: string | null) => {
+    const { caseId: _closed, ...rest } = query.current
+    query.current = id ? { ...rest, caseId: id } : rest
+    setCaseId(id)
+    void load()
+  }
+  const turnPage = (page: number) => { query.current = { page: String(page) }; void load() }
   const active = data.run?.status === 'running' || data.run?.status === 'ready'
   useEffect(() => {
-    if (!selectedId || !active) return
+    if (!runId || !active) return
     const timer = setInterval(() => void load(), 4000)
     return () => clearInterval(timer)
-  }, [active, selectedId, load])
-  const inspect = async (id: string) => {
-    setNotice('')
-    try {
-      const selected = parseWorkbenchData(await requestData({ caseId: id })).selected
-      setPhoto(selected)
-      setReference(selected?.referenceCategoryId ?? 'unclear')
-    } catch { setNotice(i18n.message('view.loadFailed')) }
-  }
-  const saveReference = async () => {
-    if (!photo) return
-    setSaving(true); setNotice('')
-    try {
-      await executeAction('set_reference', { caseId: photo.id, revision: photo.revision, categoryId: reference })
-      setPhoto(null)
-      await load()
-    } catch { setNotice(i18n.message('common.actionFailed')) } finally { setSaving(false) }
-  }
+  }, [active, runId, load])
+  const openDetail = caseId && data.selected?.id === caseId ? data.selected : null
   return (
     <main className="photo-intake">
       <header className="flex flex-wrap items-start justify-between gap-3 p-4">
@@ -82,23 +77,24 @@ function Workbench() {
       <hr />
       {state === 'loading' ? <p className="p-4" role="status">{i18n.t('view.loading')}</p> : null}
       {state === 'failed' ? <p className="p-4" role="alert">{i18n.t('view.loadFailed')}</p> : null}
-      {notice ? <p className="p-4" role="status">{notice}</p> : null}
       {hostReady ? <Tabs value={tab} onValueChange={setTab} className="workbench-tabs">
         <TabsList className="tab-navigation">
-          <TabsTrigger value="samples">{i18n.t('nav.samples')}</TabsTrigger>
+          <TabsTrigger value="cases">{i18n.t('nav.cases')}</TabsTrigger>
           <TabsTrigger value="compare">{i18n.t('nav.compare')}</TabsTrigger>
           <TabsTrigger value="runs">{i18n.t('nav.runs')}</TabsTrigger>
         </TabsList>
         <div className="workbench-content">
-          <TabsContent value="samples" forceMount hidden={tab !== 'samples'}>
-            <SampleLibrary data={data} refresh={load} inspect={id => void inspect(id)} />
+          <TabsContent value="cases" forceMount hidden={tab !== 'cases'}>
+            <CaseDesk data={data} refresh={load} open={openCase} />
           </TabsContent>
           <TabsContent value="compare" forceMount hidden={tab !== 'compare'}>
-            <ComparisonSetup data={data} created={selectRun} />
+            {/* Keyed on the prompt in effect: the form starts from it, and starts over when it changes. */}
+            <ComparisonSetup key={data.activePrompt ? JSON.stringify(data.activePrompt.source) : 'loading'} data={data} created={selectRun} />
           </TabsContent>
           <TabsContent value="runs" forceMount hidden={tab !== 'runs'}>
-            {selectedId ? data.run?.id === selectedId ? (
-              <RunResults key={data.run.id} run={data.run} categories={data.categories} refresh={load} back={() => selectRun(null)} />
+            {runId ? data.run?.id === runId ? (
+              <RunResults key={data.run.id} run={data.run} categories={data.categories} activePrompt={data.activePrompt}
+                refresh={load} back={() => selectRun(null)} />
             ) : <div><p>{i18n.t(state === 'loading' ? 'run.loading' : 'run.unavailable')}</p>
               <Button variant="ghost" onClick={() => selectRun(null)}>{i18n.t('run.back')}</Button></div> : (
               <section className="flex flex-col gap-3">
@@ -112,23 +108,25 @@ function Workbench() {
                   </TableRow>)}</TableBody>
                 </Table>}
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" disabled={data.runs.page <= 1} onClick={() => { query.current = { page: String(data.runs.page - 1) }; void load() }}>{i18n.t('common.previous')}</Button>
+                  <Button variant="outline" disabled={data.runs.page <= 1} onClick={() => turnPage(data.runs.page - 1)}>{i18n.t('common.previous')}</Button>
                   <span>{i18n.t('common.page', { page: data.runs.page })}</span>
-                  <Button variant="outline" disabled={data.runs.page * 20 >= data.runs.total} onClick={() => { query.current = { page: String(data.runs.page + 1) }; void load() }}>{i18n.t('common.next')}</Button>
+                  <Button variant="outline" disabled={data.runs.page * 20 >= data.runs.total} onClick={() => turnPage(data.runs.page + 1)}>{i18n.t('common.next')}</Button>
                 </div>
               </section>
             )}
           </TabsContent>
         </div>
       </Tabs> : null}
-      <Dialog open={photo !== null} onOpenChange={open => { if (!open) setPhoto(null) }}>
+      <Dialog open={caseId !== null} onOpenChange={open => { if (!open) openCase(null) }}>
         <DialogContent className="evidence-dialog">
-          <DialogHeader><DialogTitle>{photo?.title}</DialogTitle><DialogDescription>{i18n.t('samples.editHint')}</DialogDescription></DialogHeader>
-          {photo?.photoDataUrl ? <img className="evidence-photo" src={photo.photoDataUrl} alt={photo.title} /> : <p>{i18n.t('detail.noPhoto')}</p>}
-          <Choice label={i18n.t('samples.reference')} value={reference} disabled={saving}
-            onChange={setReference} options={data.categories.map(category => ({ value: category.id, label: i18n.label(category.label, category.id) }))} />
-          <Button disabled={saving} onClick={() => void saveReference()}>{i18n.t('samples.saveReference')}</Button>
-          {notice ? <p role="alert">{notice}</p> : null}
+          {openDetail ? <CaseDialog key={openDetail.id} detail={openDetail} categories={data.categories} refresh={load} /> : (
+            <DialogHeader>
+              <DialogTitle>{i18n.t('case.dialogTitle')}</DialogTitle>
+              <DialogDescription>{i18n.t(
+                state === 'failed' ? 'view.loadFailed' : loadedCaseId === caseId ? 'case.unavailable' : 'case.loading'
+              )}</DialogDescription>
+            </DialogHeader>
+          )}
         </DialogContent>
       </Dialog>
     </main>

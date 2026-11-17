@@ -11,11 +11,13 @@ test('a created case is saved with its photo and listed for its owner', async ()
     assert.equal(created.status, 'draft')
     assert.equal(created.revision, 1)
     assert.equal(created.canAnalyze, true)
+    assert.equal(created.canConfirm, true)
 
     assert.deepEqual((await service.listCases(scope)).map(item => item.id), [created.id])
     const detail = await service.getCaseDetail(scope, created.id)
     assert.equal(detail.photoDataUrl, JPEG_DATA_URL)
-    assert.deepEqual(detail.suggestions, [])
+    assert.equal(detail.suggestion, null)
+    assert.equal(detail.confirmedCategoryId, null)
   } finally {
     await db.destroy()
   }

@@ -1,4 +1,5 @@
 import { z } from 'zod/v3'
+import { FAILURE_CODES } from './case.js'
 import { CATEGORY_IDS } from './categories.js'
 
 export const MAX_EVALUATION_SAMPLES = 10
@@ -11,9 +12,11 @@ export const variantSchema = z.enum(VARIANTS)
 export const verdictSchema = z.enum(['a', 'b', 'tie', 'neither'])
 export const runStatusSchema = z.enum(['ready', 'running', 'completed', 'reviewed'])
 export const attemptStatusSchema = z.enum(['pending', 'running', 'succeeded', 'failed'])
-export const evaluationFailureSchema = z.enum([
-  'model_unavailable', 'model_call_failed', 'timeout', 'invalid_output', 'photo_missing', 'interrupted'
-])
+export const evaluationFailureSchema = z.enum(FAILURE_CODES)
+/** Used for intake until a person adopts a version in an acceptance run. */
+export const DEFAULT_PROMPT = '判断照片中的设施问题，选择最可能的类别。'
+/** Requested for every classification call, live or under acceptance. */
+export const MODEL_OPTIONS = { temperature: 0, max_tokens: 512, maxRetries: 0 } as const
 export const createRunSchema = z.object({
   requestKey: z.string().uuid(),
   title: z.string().trim().min(1).max(120),
@@ -29,9 +32,6 @@ export const reviewSampleSchema = runRevisionSchema.extend({
 }).strict()
 export const decideRunSchema = runRevisionSchema.extend({
   verdict: verdictSchema, note: z.string().trim().min(1).max(2000)
-}).strict()
-export const setReferenceSchema = z.object({
-  caseId: z.string().uuid(), revision: z.number().int().positive(), categoryId: categoryIdSchema
 }).strict()
 export const classificationSchema = z.object({
   categoryId: categoryIdSchema,
@@ -72,6 +72,15 @@ export const reviewSchema = z.object({
   attemptIds: z.array(z.string().uuid()).length(2)
 })
 export const decisionSchema = z.object({ verdict: verdictSchema, note: z.string(), decidedAt: z.string() })
+/** Where the prompt used for an intake analysis came from. */
+export const promptSourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('default') }).strict(),
+  z.object({ type: z.literal('adopted'), runId: z.string().uuid(), variant: variantSchema }).strict()
+])
+/** The prompt intake uses now: the version adopted by the latest decided acceptance run, else the default. */
+export const activePromptSchema = z.object({
+  text: z.string(), source: promptSourceSchema, runTitle: z.string().nullable()
+})
 export const runSummarySchema = z.object({
   id: z.string().uuid(), title: z.string(), revision: z.number(), status: runStatusSchema,
   sampleCount: z.number(), createdAt: z.string(), updatedAt: z.string()
@@ -93,6 +102,9 @@ export type EvaluationDecision = z.infer<typeof decisionSchema>
 export type EvaluationUsage = z.infer<typeof usageSchema>
 export type EvaluationFailure = z.infer<typeof evaluationFailureSchema>
 export type CreateRunInput = z.infer<typeof createRunSchema>
+export type Classification = z.infer<typeof classificationSchema>
+export type PromptSource = z.infer<typeof promptSourceSchema>
+export type ActivePrompt = z.infer<typeof activePromptSchema>
 
 export const latestAttempt = (cell: EvaluationCell) => cell.attempts[cell.attempts.length - 1]
 

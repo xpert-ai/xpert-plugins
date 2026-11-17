@@ -16,6 +16,8 @@ import { EvaluationRun } from '../dist/lib/evaluation-run.entity.js'
 import { IntakeService } from '../dist/lib/intake.service.js'
 import { EvaluationService } from '../dist/lib/evaluation.service.js'
 import { EvaluationRunner } from '../dist/lib/evaluation.runner.js'
+import { IntakeAnalyzer } from '../dist/lib/intake.analyzer.js'
+import { DEFAULT_PROMPT } from '../dist/lib/domain/evaluation.js'
 import { PhotoIntakeViewProvider } from '../dist/lib/intake-view.provider.js'
 import { VIEW_KEY, REMOTE_ENTRY } from '../dist/lib/constants.js'
 
@@ -26,8 +28,10 @@ await db.initialize()
 const intake = new IntakeService(db.getRepository(IntakeCase), db.getRepository(IntakePhoto))
 const evaluations = new EvaluationService(db.getRepository(EvaluationRun), intake)
 const runner = new EvaluationRunner(evaluations, intake)
+const analyzer = new IntakeAnalyzer(intake, evaluations)
 const provider = new PhotoIntakeViewProvider(intake, evaluations)
 const entry = await provider.getRemoteComponentEntry(context, VIEW_KEY, { isolation: 'iframe', entry: REMOTE_ENTRY })
+let activeCase
 let activeRun
 let calls = 0
 const commands = []
@@ -36,7 +40,8 @@ class FixtureModel extends BaseChatModel {
   _llmType() { return 'explicit-e2e-fixture' }
   async _generate() {
     calls++
-    const content = calls === 1 ? 'fixture malformed output' : JSON.stringify({ categoryId: 'plumbing', reason: 'Fixture response, not a real image interpretation.' })
+    // The first recognition and the first acceptance call fail, so both retry paths are exercised.
+    const content = calls === 1 || calls === 3 ? 'fixture malformed output' : JSON.stringify({ categoryId: 'plumbing', reason: 'Fixture response, not a real image interpretation.' })
     return { generations: [{ text: content, message: new AIMessage(content) }] }
   }
 }
@@ -44,9 +49,9 @@ const runtime = {
   getDefaultChatModel: async () => ({ model: 'fixture-vision', copilotId: 'fixture-connection' }),
   createModelClient: async () => new FixtureModel({})
 }
-const host = `<!doctype html><html><head><meta charset="utf-8"><title>Evaluation test host</title>
+const host = `<!doctype html><html><head><meta charset="utf-8"><title>Photo intake test host</title>
 <style>html,body{margin:0;height:100%}iframe{width:100%;height:100%;border:0;display:block}</style></head>
-<body><iframe id="view" title="Evaluation workbench" sandbox="allow-downloads allow-forms allow-popups allow-scripts" src="/view"></iframe><script>
+<body><iframe id="view" title="Photo intake" sandbox="allow-downloads allow-forms allow-popups allow-scripts" src="/view"></iframe><script>
 const frame=document.getElementById('view'); const channel='xpertai.remote_component'; const instanceId='test-view';
 window.dataCalls=0;
 const send=message=>frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,...message},'*');
@@ -99,12 +104,18 @@ const server = createServer(async (req, res) => {
     else if (req.url === '/action') {
       actions.push(input.actionKey)
       result = await provider.executeViewAction(context, VIEW_KEY, input.actionKey, { input: input.input })
+      if (input.actionKey === 'create_case' && result.success) activeCase = result.data.id
       if (input.actionKey === 'create_run' && result.success) activeRun = result.data.id
     } else if (req.url === '/command') {
       commands.push(input)
       assert.equal(input.commandKey, 'assistant.chat.send_message')
-      assert.ok(input.payload.text.includes(activeRun))
-      while ((await evaluations.get(scope, activeRun)).status === 'ready') await runner.next(scope, activeRun, runtime)
+      // Stands in for the Assistant: the message names one record, and the matching server tool path runs.
+      if (activeRun && input.payload.text.includes(activeRun)) {
+        while ((await evaluations.get(scope, activeRun)).status === 'ready') await runner.next(scope, activeRun, runtime)
+      } else {
+        assert.ok(input.payload.text.includes(activeCase))
+        await analyzer.analyze(scope, activeCase, runtime)
+      }
       result = { success: true }
     } else throw new Error('unexpected test endpoint')
     res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(result))
@@ -130,11 +141,12 @@ const choose = async (label, option) => {
 }
 const screenshotDir = process.env.WORKBENCH_E2E_SCREENSHOTS
 async function screenshot(name) {
-  if (screenshotDir) { await mkdir(screenshotDir, { recursive: true }); await page.screenshot({ path: join(screenshotDir, name), fullPage: true, animations: 'disabled' }) }
+  // Shared badges and buttons fade between states; let them settle so the picture shows the final one.
+  if (screenshotDir) { await mkdir(screenshotDir, { recursive: true }); await page.waitForTimeout(400); await page.screenshot({ path: join(screenshotDir, name), fullPage: true, animations: 'disabled' }) }
 }
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}`)
-  await visible(frame.getByRole('heading', { name: '图片分类版本验收', exact: true }))
+  await visible(frame.getByRole('heading', { name: '拍照受理', exact: true }))
   await page.frames().find(f => f.url().endsWith('/view')).evaluate(() => {
     window.fixtureClicks = []
     for (const name of ['pointerdown', 'pointerup', 'click']) {
@@ -143,7 +155,7 @@ try {
       }), true)
     }
   })
-  assert.equal(await frame.getByRole('button', { name: '保存样本', exact: true }).isEnabled(), false)
+  assert.equal(await frame.getByRole('button', { name: '保存受理单', exact: true }).isEnabled(), false)
   await frame.getByLabel('照片', { exact: true }).setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image') })
   await visible(frame.getByText('这个文件无法作为照片读取，请换一张 JPG、PNG 或 WebP 图片。', { exact: true }))
   // Decode the encoded preview to check actual output pixels, rather than CSS size.
@@ -178,27 +190,52 @@ try {
     assert.ok(dataUrl.startsWith('data:image/jpeg'))
     assert.deepEqual(await imageDimensions(dataUrl), size.output, `decoded dimensions for ${size.input.join('x')}`)
   }
-  await frame.getByLabel('样本名称', { exact: true }).fill('Fixture image 1')
-  await choose('人工参考类别', '给排水与漏水')
+  await frame.getByLabel('问题描述', { exact: true }).fill('Fixture image 1')
   const requestsBefore = await page.evaluate(() => window.dataCalls)
   await page.evaluate(() => window.setHost('en-US'))
-  await visible(frame.getByRole('heading', { name: 'Image classification version acceptance', exact: true }))
-  assert.equal(await frame.getByLabel('Sample name', { exact: true }).inputValue(), 'Fixture image 1')
+  await visible(frame.getByRole('heading', { name: 'Photo intake', exact: true }))
+  assert.equal(await frame.getByLabel('Description', { exact: true }).inputValue(), 'Fixture image 1')
   assert.equal(await page.evaluate(() => window.dataCalls), requestsBefore, 'locale-only init does not requery')
   await page.evaluate(() => window.setHost('zh-Hans'))
-  await click(frame.getByRole('button', { name: '保存样本', exact: true }))
-  await visible(frame.getByRole('button', { name: 'Fixture image 1', exact: true }))
+  await click(frame.getByRole('button', { name: '保存受理单', exact: true }))
+  // The saved case opens straight away. Nothing has been sent to a model yet.
+  await click(frame.getByRole('button', { name: '让助手识别', exact: true }))
+  await visible(frame.getByText('识别失败：输出未通过 JSON 或类别校验。可以重新识别，或直接确认类别。', { exact: true }))
+  assert.equal(calls, 1)
+  assert.equal((await intake.getCase(scope, activeCase)).status, 'failed')
+  await screenshot('case-failed.png')
+  await click(frame.getByRole('button', { name: '重新识别', exact: true }))
+  await visible(frame.getByRole('heading', { name: '助手建议', exact: true }))
+  await visible(frame.getByText('Fixture response, not a real image interpretation.', { exact: true }))
+  assert.equal(calls, 2)
+  const suggested = await intake.getCase(scope, activeCase)
+  assert.deepEqual([suggested.status, suggested.suggestedCategoryId, suggested.confirmedCategoryId], ['suggested', 'plumbing', null])
+  assert.equal(await frame.getByRole('dialog').getByText('待确认', { exact: true }).getAttribute('data-variant'), 'secondary')
+  await frame.getByText('已发送给助手，结果会自动更新。', { exact: true }).waitFor({ state: 'hidden' })
+  await screenshot('case-suggested.png')
+  // The suggestion is offered as the default; the person can pick another category before confirming.
+  await choose('选择类别', '电路与照明')
+  await choose('选择类别', '给排水与漏水')
+  await click(frame.getByRole('button', { name: '确认类别', exact: true }))
+  await visible(frame.getByText('已确认为：给排水与漏水', { exact: true }))
+  await visible(frame.getByText('与助手建议一致。', { exact: true }))
+  assert.equal(await frame.getByRole('button', { name: '重新识别', exact: true }).count(), 0, 'a confirmed case is final')
+  await page.keyboard.press('Escape')
+  await visible(frame.getByText('最近带建议的已确认受理单：1 / 1 张的确认类别与助手建议一致。', { exact: true }))
+  await visible(frame.getByRole('tabpanel', { name: '受理', exact: true }).getByText('当前用于识别的提示词：默认提示词', { exact: true }))
   assert.equal((await intake.listCases(scope)).length, 1)
+  assert.equal((await intake.getCase(scope, activeCase)).confirmedCategoryId, 'plumbing')
   const savedPhoto = (await intake.getCaseDetail(scope, (await intake.listCases(scope))[0].id)).photoDataUrl
   assert.ok(savedPhoto.startsWith('data:image/jpeg'))
   assert.deepEqual(await imageDimensions(savedPhoto), [1280, 960], 'persisted image has the resized dimensions')
   await click(frame.getByRole('tab', { name: '新建验收', exact: true }))
+  assert.equal(await frame.getByLabel('A · 当前提示词', { exact: true }).inputValue(), DEFAULT_PROMPT, 'A starts from the prompt in effect')
   await frame.getByLabel('验收名称', { exact: true }).fill('Fixture A/B acceptance')
-  await frame.getByRole('checkbox', { name: 'Fixture image 1', exact: true }).check()
+  await frame.getByRole('checkbox', { name: 'Fixture image 1（确认类别：给排水与漏水）', exact: true }).check()
   await click(frame.getByRole('button', { name: '保存验收配置', exact: true }))
   await click(frame.getByRole('button', { name: '运行剩余 2 项', exact: true }))
   await visible(frame.getByRole('button', { name: '将 1 个失败项加入重试', exact: true }))
-  assert.equal(calls, 2)
+  assert.equal(calls, 4)
   await screenshot('comparison-failure.png')
   await click(frame.getByRole('button', { name: 'Fixture image 1', exact: true }))
   await visible(frame.getByText('fixture malformed output', { exact: true }))
@@ -211,16 +248,22 @@ try {
   await click(frame.getByRole('button', { name: '将 1 个失败项加入重试', exact: true }))
   await click(frame.getByRole('button', { name: '运行剩余 1 项', exact: true }))
   await visible(frame.getByRole('button', { name: '保存并定稿结论', exact: true }))
-  assert.equal(calls, 3)
+  assert.equal(calls, 5)
   const rerun = await evaluations.get(scope, activeRun)
   assert.equal(rerun.cells[0].attempts.length, 2)
   assert.equal(rerun.reviews.length, 1, 'previous review remains in history')
-  await choose('采用决定', '采用 A')
+  await choose('采用决定', '采用 B')
   await frame.getByLabel('决定理由', { exact: true }).fill('Fixture acceptance: original failure retained; retry output reviewed.')
   await click(frame.getByRole('button', { name: '保存并定稿结论', exact: true }))
   await visible(frame.getByText('已保存结论', { exact: true }))
-  assert.equal((await evaluations.get(scope, activeRun)).decision.verdict, 'a')
+  assert.equal((await evaluations.get(scope, activeRun)).decision.verdict, 'b')
+  await visible(frame.getByText('这次验收采用的版本 B正用于受理识别。', { exact: true }))
+  assert.deepEqual((await evaluations.activePrompt(scope)).source, { type: 'adopted', runId: activeRun, variant: 'b' })
   await page.reload()
+  await visible(frame.getByRole('tabpanel', { name: '受理', exact: true }).getByText('当前用于识别的提示词：验收“Fixture A/B acceptance”采用的版本 B', { exact: true }))
+  await visible(frame.getByRole('button', { name: 'Fixture image 1', exact: true }))
+  await visible(frame.getByRole('tabpanel', { name: '受理', exact: true }).getByText('已确认', { exact: true }))
+  await screenshot('cases-adopted-prompt.png')
   await click(frame.getByRole('tab', { name: '验收记录', exact: true }))
   await click(frame.getByRole('button', { name: 'Fixture A/B acceptance', exact: true }))
   await visible(frame.getByText('Fixture acceptance: original failure retained; retry output reviewed.', { exact: true }))
@@ -231,7 +274,7 @@ try {
   await page.keyboard.press('Escape')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => window.setHost('en-US','dark'))
-  await visible(frame.getByRole('heading', { name: 'Image classification version acceptance', exact: true }))
+  await visible(frame.getByRole('heading', { name: 'Photo intake', exact: true }))
   const content = page.frames().find(f => f.url().endsWith('/view'))
   const layout = await content.evaluate(() => ({
     width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
@@ -241,12 +284,15 @@ try {
   assert.ok(layout.scroll <= layout.width, 'no page-wide horizontal overflow')
   assert.ok(layout.border.trim(), 'host semantic theme installed')
   assert.equal(layout.background, 'rgb(9, 9, 11)', 'dark host background propagated')
-  assert.equal(await frame.getByText('Decision saved', { exact: true }).evaluate(element => getComputedStyle(element).color), 'rgb(250, 250, 250)')
+  // The badge fades between themes, so read the colour it settles on.
+  const badgeColor = () => frame.getByText('Decision saved', { exact: true }).evaluate(element => getComputedStyle(element).color)
+  for (let waited = 0; waited < 2000 && await badgeColor() !== 'rgb(250, 250, 250)'; waited += 50) await page.waitForTimeout(50)
+  assert.equal(await badgeColor(), 'rgb(250, 250, 250)')
   await screenshot('comparison-narrow-dark.png')
-  assert.equal(commands.length, 2)
+  assert.equal(commands.length, 4)
   assert.deepEqual(errors, [])
-  if (screenshotDir) await writeFile(join(screenshotDir, 'receipt.json'), JSON.stringify({ simulatedHost: true, simulatedModel: true, calls, samples: 1, evaluations: 1, uploadSizes, cases: ['upload','file chooser event','decoded resize dimensions','persisted resize dimensions','locale preservation','failure','review','retry history','decision','reload','narrow dark theme'] }, null, 2))
-  console.log('Workbench E2E passed: real upload/resize, A/B, failure/retry history, human decision, reload, locale and responsive theme. Host/model are fixtures.')
+  if (screenshotDir) await writeFile(join(screenshotDir, 'receipt.json'), JSON.stringify({ simulatedHost: true, simulatedModel: true, calls, intakeCases: 1, evaluations: 1, uploadSizes, cases: ['upload','file chooser event','decoded resize dimensions','persisted resize dimensions','locale preservation','recognition failure','recognition retry','human confirmation','acceptance failure','review','retry history','decision adopts prompt','reload','narrow dark theme'] }, null, 2))
+  console.log('Workbench E2E passed: real upload/resize, recognition failure and retry, human confirmation, A/B acceptance with retry history, adopted prompt, reload, locale and responsive theme. Host/model are fixtures.')
 } catch (error) {
   await screenshot('failure-diagnostic.png')
   console.error('Fixture diagnostic:', {

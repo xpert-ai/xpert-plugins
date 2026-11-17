@@ -8,10 +8,10 @@ import { ASK_ASSISTANT_COMMAND } from '../../../domain/case'
 import {
   currentReview, evaluationMetrics, latestAttempt, MAX_ATTEMPTS, VARIANTS, verdictSchema
 } from '../../../domain/evaluation'
-import type { EvaluationAttempt, EvaluationRunDetail, Verdict } from '../../../domain/evaluation'
+import type { ActivePrompt, EvaluationAttempt, EvaluationRunDetail, Verdict } from '../../../domain/evaluation'
 import { executeAction, invokeClientCommand, requestData } from './bridge'
 import { Choice } from './choices'
-import { parseWorkbenchData } from './data'
+import { categoryLabel, parseWorkbenchData } from './data'
 import type { CategoryView } from './data'
 import { i18n } from './i18n'
 
@@ -21,12 +21,10 @@ const verdictOptions = () => ['a', 'b', 'tie', 'neither'].map(value => ({
 const elapsed = (ms: number | null) => ms === null ? i18n.t('common.unavailable') : i18n.t('common.seconds', {
   value: i18n.number(ms / 1000, { maximumFractionDigits: 2 })
 })
-const categoryLabel = (categories: CategoryView[], id: string) =>
-  i18n.label(categories.find(category => category.id === id)?.label ?? id, id)
 
 function ResultLabel({ attempt, reference, categories }: { attempt: EvaluationAttempt; reference: string; categories: CategoryView[] }) {
   if (attempt.status === 'pending' || attempt.status === 'running') return <span>{i18n.t(`attempt.${attempt.status}`)}</span>
-  if (attempt.status === 'failed') return <span>{i18n.t(`evalFailure.${attempt.failureCode ?? 'model_call_failed'}`)}</span>
+  if (attempt.status === 'failed') return <span>{i18n.t(`failure.${attempt.failureCode ?? 'model_call_failed'}`)}</span>
   return <span>{categoryLabel(categories, attempt.output!.categoryId)} · {i18n.t(
     attempt.output!.categoryId === reference ? 'result.correct' : 'result.incorrect'
   )}</span>
@@ -45,8 +43,11 @@ function Evidence({ run, sampleId, categories, saved }: {
   useEffect(() => {
     let active = true
     void requestData({ caseId: sampleId }).then(value => {
-      if (active) setPhoto(parseWorkbenchData(value).selected?.photoDataUrl ?? null)
-    }).catch(() => { if (active) setNotice(i18n.message('detail.noPhoto')) })
+      if (!active) return
+      const stored = parseWorkbenchData(value).selected?.photoDataUrl ?? null
+      setPhoto(stored)
+      if (!stored) setNotice(i18n.message('result.photoMissing'))
+    }).catch(() => { if (active) setNotice(i18n.message('result.photoLoadFailed')) })
     return () => { active = false }
   }, [sampleId, setNotice])
   const save = async () => {
@@ -67,7 +68,7 @@ function Evidence({ run, sampleId, categories, saved }: {
           {run.cells.find(cell => cell.sampleId === sampleId && cell.variant === variant)!.attempts.map(attempt => (
             <article key={attempt.id} className="flex flex-col gap-2">
               <p>{i18n.t('result.attempt', { number: attempt.number })} · {i18n.t(`attempt.${attempt.status}`)} · {elapsed(attempt.latencyMs)}</p>
-              {attempt.failureCode ? <p>{i18n.t(`evalFailure.${attempt.failureCode}`)}</p> : null}
+              {attempt.failureCode ? <p>{i18n.t(`failure.${attempt.failureCode}`)}</p> : null}
               {attempt.rawOutput !== null ? <pre className="raw-output">{attempt.rawOutput}</pre> : null}
               {attempt.rawOutputTruncated ? <p>{i18n.t('result.truncated')}</p> : null}
               <p>{attempt.usage ? i18n.t('result.usage', {
@@ -95,8 +96,9 @@ function Evidence({ run, sampleId, categories, saved }: {
   )
 }
 
-export function RunResults({ run, categories, refresh, back }: {
-  run: EvaluationRunDetail; categories: CategoryView[]; refresh: () => Promise<void>; back: () => void
+export function RunResults({ run, categories, activePrompt, refresh, back }: {
+  run: EvaluationRunDetail; categories: CategoryView[]; activePrompt: ActivePrompt | null
+  refresh: () => Promise<void>; back: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useLocalizedMessage(i18n)
@@ -173,7 +175,7 @@ export function RunResults({ run, categories, refresh, back }: {
         </div><hr />
         {visibleSamples.length === 0 ? <p>{i18n.t('result.noDifferences')}</p> : (
           <Table>
-            <TableHeader><TableRow><TableHead>{i18n.t('samples.title')}</TableHead>
+            <TableHeader><TableRow><TableHead>{i18n.t('cases.title')}</TableHead>
               <TableHead>{i18n.t('version.a')}</TableHead><TableHead>{i18n.t('version.b')}</TableHead><TableHead>{i18n.t('review.heading')}</TableHead>
             </TableRow></TableHeader>
             <TableBody>{visibleSamples.map(sample => <TableRow key={sample.id}>
@@ -193,6 +195,8 @@ export function RunResults({ run, categories, refresh, back }: {
         {run.decision ? <>
           <p>{i18n.t(`verdict.${run.decision.verdict}`)} · {i18n.date(run.decision.decidedAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
           <p className="raw-output">{run.decision.note}</p>
+          {activePrompt?.source.type === 'adopted' && activePrompt.source.runId === run.id
+            ? <p>{i18n.t('run.active', { version: i18n.t(`version.${activePrompt.source.variant}`) })}</p> : null}
         </> : run.status === 'completed' ? <>
           <p>{i18n.t('decision.hint')}</p>
           <Choice label={i18n.t('decision.choice')} value={verdict} onChange={value => setVerdict(verdictSchema.parse(value))} options={verdictOptions()} disabled={busy} />

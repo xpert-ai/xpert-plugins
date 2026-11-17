@@ -2,29 +2,28 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID } from 'node:crypto'
 import { Repository } from 'typeorm'
-import { CATEGORY_IDS } from './domain/categories.js'
 import {
   ANALYSIS_STALE_MS,
+  caseSuggestionSchema,
+  confirmCaseSchema,
   createCaseSchema,
+  FAILURE_CODES,
   IntakeError,
-  scopeSchema,
-  submitSuggestionsSchema
+  scopeSchema
 } from './domain/contracts.js'
 import type {
   CaseDetail,
   CaseStatus,
+  CaseSuggestion,
   CaseSummary,
-  CategorySuggestion,
+  ConfirmCaseInput,
   CreateCaseInput,
   FailureCode,
-  IntakeScope,
-  SubmitSuggestionsInput
+  IntakeScope
 } from './domain/contracts.js'
 import { decodePhotoDataUrl, toDataUrl } from './domain/photo.js'
 import { IntakeCase } from './intake-case.entity.js'
 import { IntakePhoto } from './intake-photo.entity.js'
-import { setReferenceSchema } from './domain/evaluation.js'
-import { z } from 'zod/v3'
 
 const LIST_LIMIT = 50
 /** Statuses from which a new analysis may start. `analyzing` qualifies only once stale. */
@@ -33,14 +32,18 @@ const ANALYZABLE: readonly CaseStatus[] = ['draft', 'suggested', 'failed']
 export interface StartedAnalysis {
   caseId: string
   revision: number
-  title: string
-  photo: { mimeType: string; buffer: Buffer; sha256: string }
+  photoDataUrl: string
 }
 
-function parseSuggestions(json: string | null): CategorySuggestion[] {
-  if (!json) return []
-  const value: unknown = JSON.parse(json)
-  return Array.isArray(value) ? value : []
+/** Rows written by an earlier format simply have no suggestion. */
+function parseSuggestion(json: string | null): CaseSuggestion | null {
+  if (!json) return null
+  try {
+    const parsed = caseSuggestionSchema.safeParse(JSON.parse(json))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
 }
 
 @Injectable()
@@ -57,20 +60,23 @@ export class IntakeService {
     return this.now().getTime() - Date.parse(record.updatedAt) > ANALYSIS_STALE_MS
   }
 
-  private canAnalyze(record: IntakeCase) {
+  /** Not confirmed yet, and no model call is in flight for it. */
+  private isOpen(record: IntakeCase) {
     return ANALYZABLE.includes(record.status) || (record.status === 'analyzing' && this.isStale(record))
   }
 
   private toSummary(record: IntakeCase): CaseSummary {
+    const open = this.isOpen(record)
     return {
       id: record.id,
       title: record.title,
       status: record.status,
       revision: record.revision,
-      canAnalyze: this.canAnalyze(record),
+      canAnalyze: open,
+      canConfirm: open,
+      suggestedCategoryId: parseSuggestion(record.suggestionsJson)?.categoryId ?? null,
       confirmedCategoryId: record.confirmedCategoryId,
-      referenceCategoryId: record.referenceCategoryId,
-      failureCode: record.failureCode,
+      failureCode: FAILURE_CODES.find(code => code === record.failureCode) ?? null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt
     }
@@ -90,7 +96,7 @@ export class IntakeService {
     scope: IntakeScope,
     id: string,
     expected: { revision: number; status?: CaseStatus },
-    changes: Partial<Pick<IntakeCase, 'status' | 'suggestionsJson' | 'failureCode'>>
+    changes: Partial<Pick<IntakeCase, 'status' | 'suggestionsJson' | 'failureCode' | 'confirmedCategoryId'>>
   ) {
     const owner = scopeSchema.parse(scope)
     const result = await this.cases.update(
@@ -120,7 +126,7 @@ export class IntakeService {
     return {
       ...this.toSummary(record),
       photoDataUrl: photo ? toDataUrl(photo.mimeType, photo.base64) : null,
-      suggestions: parseSuggestions(record.suggestionsJson)
+      suggestion: parseSuggestion(record.suggestionsJson)
     }
   }
 
@@ -142,7 +148,6 @@ export class IntakeService {
       revision: 1,
       suggestionsJson: null,
       confirmedCategoryId: null,
-      referenceCategoryId: parsed.referenceCategoryId ?? null,
       failureCode: null,
       createdAt: now,
       updatedAt: now
@@ -174,60 +179,32 @@ export class IntakeService {
   }
 
   /**
-   * Opens a case for analysis and returns the photo to show the model.
-   * Repeating the call while the same analysis is running returns the same revision.
+   * Claims a case for one analysis and returns the photo to show the model. The claim is a
+   * compare-and-swap, so of several simultaneous requests only one goes on to call the model.
    */
   async startAnalysis(scope: IntakeScope, caseId: string): Promise<StartedAnalysis> {
     const record = await this.findOwned(scope, caseId)
     const photo = await this.photos.findOneBy({ ...scopeSchema.parse(scope), caseId })
     if (!photo) throw new IntakeError('photo_missing', 'This case has no photo, so it cannot be analysed.')
-    const started = (current: IntakeCase): StartedAnalysis => ({
-      caseId,
-      revision: current.revision,
-      title: current.title,
-      photo: { mimeType: photo.mimeType, buffer: Buffer.from(photo.base64, 'base64'), sha256: photo.sha256 }
-    })
-
-    if (record.status === 'analyzing' && !this.isStale(record)) return started(record)
-    if (!this.canAnalyze(record)) {
-      throw new IntakeError('invalid_state', `A ${record.status} case cannot be analysed again.`)
-    }
+    if (record.status === 'confirmed') throw new IntakeError('invalid_state', 'A confirmed case is not analysed again.')
+    if (!this.isOpen(record)) throw new IntakeError('conflict', 'This case is already being analysed.')
     const updated = await this.transition(scope, caseId, { revision: record.revision }, {
       status: 'analyzing',
-      suggestionsJson: null,
       failureCode: null
     })
     if (!updated) throw new IntakeError('conflict', 'The case changed while starting the analysis. Read it again.')
-    return started(updated)
+    return { caseId, revision: updated.revision, photoDataUrl: toDataUrl(photo.mimeType, photo.base64) }
   }
 
-  /** Saves the model's ranked suggestions for exactly the analysis revision it was given. */
-  async submitSuggestions(scope: IntakeScope, input: SubmitSuggestionsInput): Promise<CaseSummary> {
-    const parsed = submitSuggestionsSchema.parse(input)
-    const unknown = parsed.suggestions.filter(item => !CATEGORY_IDS.includes(item.categoryId))
-    if (unknown.length) {
-      throw new IntakeError(
-        'unknown_category',
-        `Unknown categoryId: ${unknown.map(item => item.categoryId).join(', ')}. Allowed: ${CATEGORY_IDS.join(', ')}.`
-      )
-    }
-    if (new Set(parsed.suggestions.map(item => item.categoryId)).size !== parsed.suggestions.length) {
-      throw new IntakeError('invalid_input', 'Each categoryId may appear only once.')
-    }
-    const ranked = [...parsed.suggestions].sort((a, b) => b.confidence - a.confidence)
-    const updated = await this.transition(
-      scope,
-      parsed.caseId,
-      { revision: parsed.revision, status: 'analyzing' },
-      { status: 'suggested', suggestionsJson: JSON.stringify(ranked), failureCode: null }
-    )
+  /** Saves the suggestion for exactly the analysis revision that produced it; a late one is refused. */
+  async saveSuggestion(scope: IntakeScope, caseId: string, revision: number, suggestion: CaseSuggestion): Promise<CaseSummary> {
+    const updated = await this.transition(scope, caseId, { revision, status: 'analyzing' }, {
+      status: 'suggested',
+      suggestionsJson: JSON.stringify(caseSuggestionSchema.parse(suggestion)),
+      failureCode: null
+    })
     if (updated) return this.toSummary(updated)
-
-    const current = await this.findOwned(scope, parsed.caseId)
-    throw new IntakeError(
-      'conflict',
-      `The case is now ${current.status} at revision ${current.revision}; this analysis (revision ${parsed.revision}) is no longer current. Nothing was saved.`
-    )
+    throw new IntakeError('conflict', 'This analysis is no longer current. Nothing was saved.')
   }
 
   /** Records a failed analysis. Returns false when that analysis was already superseded. */
@@ -239,24 +216,34 @@ export class IntakeService {
     return updated !== null
   }
 
-  async setReference(scope: IntakeScope, input: z.infer<typeof setReferenceSchema>) {
-    const parsed = setReferenceSchema.parse(input)
-    await this.findOwned(scope, parsed.caseId)
-    const updated = await this.cases.update(
-      { ...scopeSchema.parse(scope), id: parsed.caseId, revision: parsed.revision },
-      { referenceCategoryId: parsed.categoryId, revision: parsed.revision + 1, updatedAt: this.now().toISOString() }
-    )
-    if (updated.affected !== 1) throw new IntakeError('conflict')
-    return this.getCase(scope, parsed.caseId)
+  /**
+   * A person records the category: the suggested one or a different one, with or without a
+   * suggestion. The suggestion stays on the case, so it remains visible whether they agreed.
+   */
+  async confirmCase(scope: IntakeScope, input: ConfirmCaseInput): Promise<CaseSummary> {
+    const parsed = confirmCaseSchema.parse(input)
+    const record = await this.findOwned(scope, parsed.caseId)
+    if (record.revision !== parsed.revision) throw new IntakeError('conflict')
+    if (!this.isOpen(record)) throw new IntakeError('invalid_state')
+    const updated = await this.transition(scope, parsed.caseId, { revision: parsed.revision }, {
+      status: 'confirmed',
+      confirmedCategoryId: parsed.categoryId,
+      failureCode: null
+    })
+    if (!updated) throw new IntakeError('conflict')
+    return this.toSummary(updated)
   }
 
+  /** Only cases a person has confirmed can serve as acceptance samples; their category is the reference. */
   async evaluationSample(scope: IntakeScope, id: string) {
     const record = await this.findOwned(scope, id)
-    if (!record.referenceCategoryId) throw new IntakeError('invalid_input', 'Add a human reference label first.')
+    if (record.status !== 'confirmed' || !record.confirmedCategoryId) {
+      throw new IntakeError('invalid_input', 'Only cases confirmed by a person can be used as acceptance samples.')
+    }
     const photo = await this.photos.findOneBy({ ...scopeSchema.parse(scope), caseId: id })
     if (!photo) throw new IntakeError('photo_missing')
     return {
-      sample: { id, title: record.title, referenceCategoryId: record.referenceCategoryId, sha256: photo.sha256 },
+      sample: { id, title: record.title, referenceCategoryId: record.confirmedCategoryId, sha256: photo.sha256 },
       photoDataUrl: toDataUrl(photo.mimeType, photo.base64)
     }
   }

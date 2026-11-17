@@ -26,22 +26,22 @@ import {
   VIEW_KEY
 } from './constants.js'
 import { CATEGORIES } from './domain/categories.js'
-import { createCaseSchema, IntakeError } from './domain/contracts.js'
-import { createRunSchema, decideRunSchema, reviewSampleSchema, runRevisionSchema, setReferenceSchema } from './domain/evaluation.js'
+import { confirmCaseSchema, createCaseSchema, IntakeError } from './domain/contracts.js'
+import { createRunSchema, decideRunSchema, reviewSampleSchema, runRevisionSchema } from './domain/evaluation.js'
 import { EvaluationService } from './evaluation.service.js'
 import { IntakeService } from './intake.service.js'
 import { scopeFromView } from './scope.js'
 
 const SLOTS = ['agent.workbench.main', 'agent.workbench.fixed']
-const TITLE = { en_US: 'Version acceptance', zh_Hans: '图片分类版本验收' }
+const TITLE = { en_US: 'Photo intake', zh_Hans: '拍照受理' }
 const querySchema = z.object({
   caseId: z.string().uuid().optional(), runId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).max(10000).default(1)
 }).strict()
 const actionLabels = {
-  create_case: { en_US: 'Add sample', zh_Hans: '添加样本' },
-  set_reference: { en_US: 'Set reference label', zh_Hans: '保存参考标签' },
-  create_run: { en_US: 'Create comparison', zh_Hans: '新建验收' },
+  create_case: { en_US: 'Create case', zh_Hans: '新建受理单' },
+  confirm_case: { en_US: 'Confirm category', zh_Hans: '确认类别' },
+  create_run: { en_US: 'Create acceptance run', zh_Hans: '新建验收' },
   retry_failures: { en_US: 'Retry failures', zh_Hans: '重试失败项' },
   recover_run: { en_US: 'Recover interruption', zh_Hans: '恢复中断任务' },
   review_sample: { en_US: 'Save sample review', zh_Hans: '保存样本评审' },
@@ -68,8 +68,8 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
       key: VIEW_KEY,
       title: TITLE,
       description: {
-        en_US: 'Compare two prompts on fixed images and save an adoption decision.',
-        zh_Hans: '在固定图片上比较两版提示词，查看差异并保存采用决定。'
+        en_US: 'Take in facility photos, confirm the suggested category, and accept prompt changes on confirmed cases.',
+        zh_Hans: '受理设施问题照片，确认助手建议的类别，并用已确认的受理单验收提示词改动。'
       },
       icon: { type: 'font', value: 'ri-camera-lens-line' },
       hostType: 'agent',
@@ -95,10 +95,10 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
         actionType: 'invoke',
         placement: 'toolbar'
       })),
-      // The view asks the Assistant to analyse a case by sending a chat message on the user's behalf.
+      // The view asks the Assistant to analyse a case or run an acceptance by sending a chat message on the user's behalf.
       clientCommands: [{
         key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-        label: { en_US: 'Run evaluation', zh_Hans: '开始评测' }
+        label: { en_US: 'Ask the Assistant', zh_Hans: '交给助手处理' }
       }],
       hostEvents: {
         subscriptions: [{
@@ -130,6 +130,7 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
         if (!(error instanceof IntakeError && error.code === 'not_found')) throw error
       }
     }
+    const activePrompt = await this.evaluations.activePrompt(scope)
     const runs = await this.evaluations.list(scope, parameters.data.page)
     let run = null
     if (parameters.data.runId) {
@@ -137,7 +138,7 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
         if (!(error instanceof IntakeError && error.code === 'not_found')) throw error
       }
     }
-    return { item: { cases, categories: CATEGORIES, selected, runs, run } }
+    return { item: { cases, categories: CATEGORIES, selected, activePrompt, runs, run } }
   }
 
   async executeViewAction(
@@ -151,8 +152,8 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
       switch (actionKey) {
         case 'create_case':
           return { success: true, data: await this.service.createCase(scope, createCaseSchema.parse(request.input)) }
-        case 'set_reference':
-          return { success: true, data: await this.service.setReference(scope, setReferenceSchema.parse(request.input)) }
+        case 'confirm_case':
+          return { success: true, data: await this.service.confirmCase(scope, confirmCaseSchema.parse(request.input)) }
         case 'create_run':
           return { success: true, data: await this.evaluations.create(scope, createRunSchema.parse(request.input)) }
         case 'retry_failures':
@@ -188,7 +189,7 @@ export class PhotoIntakeViewProvider implements IXpertViewExtensionProvider {
     ])
     return {
       contentType: 'text/html; charset=utf-8',
-      html: renderRemoteReactIframeHtml({ title: 'Image version acceptance', appScript, appCss, reactUmd, reactDomUmd })
+      html: renderRemoteReactIframeHtml({ title: 'Photo intake', appScript, appCss, reactUmd, reactDomUmd })
     }
   }
 }

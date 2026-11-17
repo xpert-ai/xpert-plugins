@@ -7,7 +7,7 @@ export interface CategoryDefinition {
 
 /**
  * Self-authored category table for a facility issue-report desk.
- * Evaluation fixture taxonomy. Each run freezes these definitions alongside its prompts.
+ * Each acceptance run freezes these definitions alongside its prompts.
  */
 export const CATEGORIES: readonly CategoryDefinition[] = [
   { id: 'plumbing', label: { en_US: 'Plumbing and leaks', zh_Hans: '给排水与漏水' }, definition: 'Leaking pipes, taps, toilets, drains, water stains caused by an active leak.' },
@@ -22,3 +22,5 @@ export const CATEGORIES: readonly CategoryDefinition[] = [
 ]
 
 export const CATEGORY_IDS = CATEGORIES.map(category => category.id)
+/** The part of the table a model is shown. */
+export const categoryDefinitions = () => CATEGORIES.map(({ id, definition }) => ({ id, definition }))

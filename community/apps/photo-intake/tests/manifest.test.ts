@@ -11,6 +11,8 @@ import { PhotoIntakeViewProvider } from '../dist/lib/intake-view.provider.js'
 import {
   ACTION_KEYS,
   FEATURE,
+  ANALYZE_CASE_TOOL,
+  LIST_CASES_TOOL,
   LIST_RUNS_TOOL,
   GET_RUN_TOOL,
   EVALUATE_NEXT_TOOL,
@@ -24,9 +26,10 @@ import {
 } from '../src/lib/constants.js'
 import { ASK_ASSISTANT_COMMAND } from '../src/lib/domain/case.js'
 import { CATEGORY_IDS } from '../src/lib/domain/categories.js'
+import { DEFAULT_PROMPT } from '../src/lib/domain/evaluation.js'
 import en from '../src/lib/remote-components/workbench/locales/en.json' with { type: 'json' }
 import zhHans from '../src/lib/remote-components/workbench/locales/zh-Hans.json' with { type: 'json' }
-import { createService, scope } from './fixtures.js'
+import { createService, newCase, scope } from './fixtures.js'
 
 const context: XpertResolvedViewHostContext = { ...scope, hostType: 'agent', hostId: scope.xpertId, slots: [] }
 
@@ -66,6 +69,7 @@ test('the view provider declares the workbench view, serves its bundle and rejec
 
     const data = await provider.getViewData(context, VIEW_KEY, { parameters: { caseId: '00000000-0000-4000-8000-000000000000' } })
     assert.equal((data.item as { selected: unknown }).selected, null, 'an unknown case is simply not selected')
+    assert.deepEqual((data.item as { activePrompt: unknown }).activePrompt, { text: DEFAULT_PROMPT, source: { type: 'default' }, runTitle: null })
 
     const entry = await provider.getRemoteComponentEntry(context, VIEW_KEY, { isolation: 'iframe', entry: REMOTE_ENTRY })
     assert.ok(entry.html.includes('xpertai.remote_component'), 'the bundled bridge is inlined')
@@ -78,18 +82,35 @@ test('the view provider declares the workbench view, serves its bundle and rejec
       input: { requestKey: '00000000-0000-4000-8000-000000000000', title: 'x', tenantId: 'other' }
     })
     assert.deepEqual(spoofed, { success: false, data: { code: 'invalid_input' } })
+
+    // A person's confirmation goes through the view, on the revision they were looking at.
+    const created = await service.createCase(scope, newCase())
+    const stale = await provider.executeViewAction(context, VIEW_KEY, 'confirm_case', {
+      input: { caseId: created.id, revision: created.revision + 1, categoryId: 'plumbing' }
+    })
+    assert.deepEqual(stale, { success: false, data: { code: 'conflict' } })
+    const invented = await provider.executeViewAction(context, VIEW_KEY, 'confirm_case', {
+      input: { caseId: created.id, revision: created.revision, categoryId: 'roof' }
+    })
+    assert.deepEqual(invented, { success: false, data: { code: 'invalid_input' } })
+    const confirmed = await provider.executeViewAction(context, VIEW_KEY, 'confirm_case', {
+      input: { caseId: created.id, revision: created.revision, categoryId: 'plumbing' }
+    })
+    assert.equal(confirmed.success, true)
+    assert.equal((await service.getCase(scope, created.id)).confirmedCategoryId, 'plumbing')
   } finally {
     await db.destroy()
   }
 })
 
-test('the middleware exposes only evaluation tools, never human review or fabricated result submission', async () => {
-  const { db, evaluations, runner } = await createService()
+test('the middleware exposes recognition and acceptance tools, never confirmation, review or result submission', async () => {
+  const { db, service, analyzer, evaluations, runner } = await createService()
   try {
-    const middleware = new PhotoIntakeMiddleware(evaluations, runner)
+    const middleware = new PhotoIntakeMiddleware(service, analyzer, evaluations, runner)
     assert.equal(middleware.meta.name, MIDDLEWARE_NAME)
     assert.deepEqual(middleware.meta.features, [FEATURE])
-    assert.deepEqual(middleware.getToolNames(), [LIST_RUNS_TOOL, GET_RUN_TOOL, EVALUATE_NEXT_TOOL])
+    assert.deepEqual(middleware.getToolNames(), [LIST_CASES_TOOL, ANALYZE_CASE_TOOL, LIST_RUNS_TOOL, GET_RUN_TOOL, EVALUATE_NEXT_TOOL])
+    assert.deepEqual([...MUTATING_TOOLS], [ANALYZE_CASE_TOOL, EVALUATE_NEXT_TOOL])
     assert.equal(new Set(CATEGORY_IDS).size, CATEGORY_IDS.length)
     assert.ok(CATEGORY_IDS.includes('unclear'), 'the model always has a way to decline')
   } finally {

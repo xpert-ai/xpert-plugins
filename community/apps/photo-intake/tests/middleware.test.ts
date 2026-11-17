@@ -1,41 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { randomUUID } from 'node:crypto'
-import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
-import type { ChatResult } from '@langchain/core/outputs'
 import { SqljsDriver } from 'typeorm/driver/sqljs/SqljsDriver.js'
-import type { AgentMiddlewareRuntimeApi, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
+import type { IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { PhotoIntakeMiddleware } from '../dist/lib/intake.middleware.js'
-import { EVALUATE_NEXT_TOOL } from '../src/lib/constants.js'
+import { ANALYZE_CASE_TOOL, EVALUATE_NEXT_TOOL, LIST_CASES_TOOL } from '../src/lib/constants.js'
 import { currentReview, evaluationMetrics, latestAttempt } from '../dist/lib/domain/evaluation.js'
-import { createService, newCase, scope } from './fixtures.js'
+import { answer, confirmedCase, createService, newCase, PNG_DATA_URL, runtimeFor, scope } from './fixtures.js'
+import type { Fixture } from './fixtures.js'
 
-class MeasuredModel extends BaseChatModel {
-  constructor(readonly respond: (messages: BaseMessage[]) => Promise<AIMessage>) { super({}) }
-  _llmType() { return 'evaluation-test-double' }
-  async _generate(messages: BaseMessage[]): Promise<ChatResult> {
-    const message = await this.respond(messages)
-    return { generations: [{ text: String(message.content), message }] }
-  }
-}
-
-function runtimeFor(respond: (messages: BaseMessage[]) => Promise<AIMessage>): AgentMiddlewareRuntimeApi {
-  const model = new MeasuredModel(respond)
-  return {
-    getDefaultChatModel: async () => ({ model: 'test-vision', copilotId: 'connection-1' }),
-    // The SDK exposes a caller-selected generic. This fixture provides exactly BaseChatModel.
-    createModelClient: async <T>() => model as T,
-    wrapWorkflowNodeExecution: async () => { throw new Error('unused fixture capability') }
-  }
-}
-const answer = (id = 'plumbing') => new AIMessage({
-  content: JSON.stringify({ categoryId: id, reason: 'A pipe is visibly leaking.' }),
-  usage_metadata: { input_tokens: 20, output_tokens: 10, total_tokens: 30 }
-})
-async function newRun(fixture: Awaited<ReturnType<typeof createService>>) {
-  const sample = await fixture.service.createCase(scope, { ...newCase('PRIVATE_REFERENCE_TITLE'), referenceCategoryId: 'plumbing' })
+async function newRun(fixture: Fixture) {
+  const sample = await confirmedCase(fixture, 'PRIVATE_REFERENCE_TITLE')
   const input = { requestKey: randomUUID(), title: 'Prompt regression', sampleIds: [sample.id], promptA: 'BASELINE_PROMPT', promptB: 'CANDIDATE_PROMPT' }
   const run = await fixture.evaluations.create(scope, input)
   return { run, sample, input }
@@ -69,14 +46,13 @@ test('real runner boundary makes independent A/B calls, stores outputs and score
   } finally { await f.db.destroy() }
 })
 
-test('creation is idempotent, snapshots labels, rejects duplicate images and enforces ownership', async () => {
+test('creation is idempotent, takes the confirmed category as reference, rejects duplicate images and enforces ownership', async () => {
   const f = await createService()
   try {
     const { run, sample, input } = await newRun(f)
     assert.equal((await f.evaluations.create(scope, input)).id, run.id)
-    await f.service.setReference(scope, { caseId: sample.id, revision: sample.revision, categoryId: 'surfaces' })
     assert.equal((await f.evaluations.get(scope, run.id)).snapshot.samples[0].referenceCategoryId, 'plumbing')
-    const duplicate = await f.service.createCase(scope, { ...newCase(), referenceCategoryId: 'plumbing' })
+    const duplicate = await confirmedCase(f)
     await assert.rejects(f.evaluations.create(scope, { ...input, requestKey: randomUUID(), sampleIds: [sample.id, duplicate.id] }), /Duplicate image/)
     for (const key of ['tenantId', 'organizationId', 'workspaceId', 'userId', 'xpertId'] as const) {
       const other = { ...scope, [key]: 'other' }
@@ -192,7 +168,7 @@ test('middleware runs real server boundary and cannot accept model-authored scor
     const runtime = runtimeFor(async () => answer())
     // Only required context fields used by this middleware; no host internals are mocked.
     const context = { ...scope, runtime, tools: new Map(), node: {} } as IAgentMiddlewareContext
-    const middleware = new PhotoIntakeMiddleware(f.evaluations, f.runner).createMiddleware({}, context)
+    const middleware = new PhotoIntakeMiddleware(f.service, f.analyzer, f.evaluations, f.runner).createMiddleware({}, context)
     const tool = middleware.tools!.find(item => item.name === EVALUATE_NEXT_TOOL)!
     await assert.rejects(tool.invoke({ runId: run.id, score: 1 }), /match expected schema/)
     const receipt = JSON.parse(String(await tool.invoke({ runId: run.id })))
@@ -239,7 +215,7 @@ test('review and decision mutations enforce ownership/revision; retries have a b
       const other = { ...scope, [key]: 'other' }
       await assert.rejects(f.evaluations.decide(other, { runId: run.id, revision: done.revision, verdict: 'neither', note: 'Reject' }), /not_found/)
       await assert.rejects(f.evaluations.review(other, { runId: run.id, revision: done.revision, sampleId: sample.id, verdict: 'neither', note: '' }), /not_found/)
-      await assert.rejects(f.service.setReference(other, { caseId: sample.id, revision: sample.revision, categoryId: 'unclear' }), /not_found/)
+      await assert.rejects(f.service.confirmCase(other, { caseId: sample.id, revision: sample.revision, categoryId: 'unclear' }), /not_found/)
     }
     const rejected = await f.evaluations.decide(scope, { runId: run.id, revision: done.revision, verdict: 'neither', note: 'Neither produces valid JSON.' })
     assert.equal(rejected.status, 'reviewed')
@@ -266,5 +242,52 @@ test('oversized output is visibly truncated and cannot count as a valid classifi
     assert.equal(attempt.rawOutput?.length, 65536)
     assert.equal(attempt.rawOutputTruncated, true)
     assert.equal(attempt.failureCode, 'invalid_output')
+  } finally { await f.db.destroy() }
+})
+
+test('the recognise tool saves a suggestion through the server and cannot be handed a category or a decision', async () => {
+  const f = await createService()
+  try {
+    const created = await f.service.createCase(scope, newCase('Leak under the sink'))
+    let calls = 0
+    const runtime = runtimeFor(async () => { calls++; return answer('plumbing') })
+    const context = { ...scope, runtime, tools: new Map(), node: {} } as IAgentMiddlewareContext
+    const middleware = new PhotoIntakeMiddleware(f.service, f.analyzer, f.evaluations, f.runner).createMiddleware({}, context)
+    const analyze = middleware.tools!.find(item => item.name === ANALYZE_CASE_TOOL)!
+    // The model cannot supply the answer itself: the schema takes a case id and nothing else.
+    await assert.rejects(analyze.invoke({ caseId: created.id, categoryId: 'safety' }), /match expected schema/)
+    assert.equal(calls, 0)
+
+    const receipt = JSON.parse(String(await analyze.invoke({ caseId: created.id })))
+    assert.equal(calls, 1)
+    assert.equal(receipt.success, true)
+    assert.equal(receipt.status, 'suggested')
+    assert.equal(receipt.suggestion.categoryId, 'plumbing')
+    assert.equal(receipt.suggestion.categoryLabel.zh_Hans, '给排水与漏水')
+    assert.equal(receipt.confirmedCategoryId, null, 'a suggestion is not a decision')
+    assert.ok(!JSON.stringify(receipt).includes('data:image'), 'the photo stays out of the chat')
+    assert.equal(middleware.tools!.some(item => item.name.includes('confirm')), false)
+
+    const listed = JSON.parse(String(await middleware.tools!.find(item => item.name === LIST_CASES_TOOL)!.invoke({})))
+    assert.deepEqual(listed.map((item: { id: string; status: string }) => [item.id, item.status]), [[created.id, 'suggested']])
+
+    const missing = JSON.parse(String(await analyze.invoke({ caseId: randomUUID() })))
+    assert.deepEqual([missing.success, missing.code], [false, 'not_found'])
+  } finally { await f.db.destroy() }
+})
+
+test('the recognise tool reports a saved failure instead of an invented category', async () => {
+  const f = await createService()
+  try {
+    const created = await f.service.createCase(scope, { ...newCase('Unreadable'), photo: { dataUrl: PNG_DATA_URL } })
+    const runtime = runtimeFor(async () => new AIMessage('I think it is plumbing.'))
+    const context = { ...scope, runtime, tools: new Map(), node: {} } as IAgentMiddlewareContext
+    const middleware = new PhotoIntakeMiddleware(f.service, f.analyzer, f.evaluations, f.runner).createMiddleware({}, context)
+    const receipt = JSON.parse(String(await middleware.tools!.find(item => item.name === ANALYZE_CASE_TOOL)!.invoke({ caseId: created.id })))
+    assert.equal(receipt.success, false)
+    assert.equal(receipt.status, 'failed')
+    assert.equal(receipt.failureCode, 'invalid_output')
+    assert.equal(receipt.suggestion, null)
+    assert.equal((await f.service.getCase(scope, created.id)).failureCode, 'invalid_output')
   } finally { await f.db.destroy() }
 })

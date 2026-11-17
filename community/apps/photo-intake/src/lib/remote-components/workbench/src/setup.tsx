@@ -1,111 +1,17 @@
 import { useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
-import {
-  Button, Checkbox, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Textarea
-} from '@xpert-ai/plugin-shadcn-ui'
+import type { FormEvent } from 'react'
+import { Button, Checkbox, Input, Label, Textarea } from '@xpert-ai/plugin-shadcn-ui'
 import { useLocalizedMessage } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import { MAX_EVALUATION_SAMPLES, runSummarySchema } from '../../../domain/evaluation'
 import { executeAction } from './bridge'
-import { Choice } from './choices'
-import { parseCreatedCase } from './data'
+import { categoryLabel, promptSourceLabel } from './data'
 import type { WorkbenchData } from './data'
 import { i18n } from './i18n'
-import { downscalePhoto } from './photo'
 
-export function SampleLibrary({ data, refresh, inspect }: {
-  data: WorkbenchData; refresh: () => Promise<void>; inspect: (id: string) => void
-}) {
-  const [title, setTitle] = useState('')
-  const [photo, setPhoto] = useState<string | null>(null)
-  const [reference, setReference] = useState('unclear')
-  const [reading, setReading] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useLocalizedMessage(i18n)
-  const requestKey = useRef<string | null>(null)
-  const photoSequence = useRef(0)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const pickPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    const sequence = ++photoSequence.current
-    setPhoto(null)
-    requestKey.current = null
-    if (!file) { setReading(false); return }
-    setReading(true)
-    setError('')
-    try {
-      const url = await downscalePhoto(file)
-      if (sequence === photoSequence.current) setPhoto(url)
-    } catch {
-      if (sequence === photoSequence.current) setError(i18n.message('create.photoInvalid'))
-    } finally {
-      if (sequence === photoSequence.current) setReading(false)
-    }
-  }
-  const save = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!photo || busy || !title.trim()) return
-    requestKey.current ??= crypto.randomUUID()
-    setBusy(true)
-    setError('')
-    try {
-      parseCreatedCase(await executeAction('create_case', {
-        requestKey: requestKey.current, title, referenceCategoryId: reference, photo: { dataUrl: photo }
-      }))
-      requestKey.current = null
-      setPhoto(null)
-      setTitle('')
-      if (inputRef.current) inputRef.current.value = ''
-      await refresh()
-    } catch { setError(i18n.message('create.failed')) } finally { setBusy(false) }
-  }
-  return (
-    <div className="flex flex-col gap-6">
-      <form onSubmit={event => void save(event)} className="flex flex-col gap-3">
-        <h2>{i18n.t('samples.add')}</h2>
-        <hr />
-        <Label htmlFor="sample-photo">{i18n.t('create.photoLabel')}</Label>
-        <Input ref={inputRef} id="sample-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event => void pickPhoto(event)} />
-        <p>{i18n.t('create.photoHint')}</p>
-        {reading ? <p role="status">{i18n.t('create.photoReading')}</p> : null}
-        {photo ? <img className="sample-preview" src={photo} alt={i18n.t('create.photoPreview')} /> : null}
-        <Label htmlFor="sample-title">{i18n.t('samples.title')}</Label>
-        <Input id="sample-title" value={title} maxLength={120} disabled={busy} onChange={event => {
-          requestKey.current = null; setTitle(event.target.value)
-        }} />
-        <Label htmlFor="sample-reference">{i18n.t('samples.reference')}</Label>
-        <Choice id="sample-reference" label={i18n.t('samples.reference')} value={reference} disabled={busy}
-          onChange={value => { requestKey.current = null; setReference(value) }}
-          options={data.categories.map(category => ({ value: category.id, label: i18n.label(category.label, category.id) }))} />
-        <p>{i18n.t('samples.hint')}</p>
-        <div><Button disabled={busy || reading || !photo || !title.trim()} type="submit">
-          {i18n.t(busy ? 'common.saving' : 'samples.save')}
-        </Button></div>
-        {error ? <p role="alert">{error}</p> : null}
-      </form>
-      <section className="flex flex-col gap-3">
-        <h2>{i18n.t('samples.library')}</h2><hr />
-        <p>{i18n.t('samples.limit')}</p>
-        {data.cases.length === 0 ? <p>{i18n.t('samples.empty')}</p> : (
-          <Table>
-            <TableHeader><TableRow><TableHead>{i18n.t('samples.title')}</TableHead><TableHead>{i18n.t('samples.reference')}</TableHead></TableRow></TableHeader>
-            <TableBody>{data.cases.map(sample => (
-              <TableRow key={sample.id}>
-                <TableCell><Button variant="link" onClick={() => inspect(sample.id)}>{sample.title}</Button></TableCell>
-                <TableCell>{sample.referenceCategoryId
-                  ? i18n.label(data.categories.find(item => item.id === sample.referenceCategoryId)?.label ?? sample.referenceCategoryId, sample.referenceCategoryId)
-                  : i18n.t('samples.unlabelled')}</TableCell>
-              </TableRow>
-            ))}</TableBody>
-          </Table>
-        )}
-      </section>
-    </div>
-  )
-}
-
+/** Sets up an acceptance run: the prompt in effect against a candidate, on cases a person has confirmed. */
 export function ComparisonSetup({ data, created }: { data: WorkbenchData; created: (id: string) => void }) {
   const [title, setTitle] = useState('')
-  const [promptA, setPromptA] = useState(() => i18n.t('setup.defaultA'))
+  const [promptA, setPromptA] = useState(data.activePrompt?.text ?? '')
   const [promptB, setPromptB] = useState(() => i18n.t('setup.defaultB'))
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -124,10 +30,14 @@ export function ComparisonSetup({ data, created }: { data: WorkbenchData; create
       created(run.id)
     } catch { setError(i18n.message('setup.failed')) } finally { setBusy(false) }
   }
-  const labelled = data.cases.filter(sample => sample.referenceCategoryId)
+  const confirmed = data.cases.filter(item => item.status === 'confirmed' && item.confirmedCategoryId)
   return (
     <form className="flex flex-col gap-4" onSubmit={event => void save(event)}>
       <h2>{i18n.t('setup.heading')}</h2><hr />
+      <p>{i18n.t('setup.intro')}</p>
+      {data.activePrompt ? <p>{i18n.t('prompt.current', {
+        source: promptSourceLabel(data.activePrompt.source, data.activePrompt.runTitle)
+      })}</p> : null}
       <Label htmlFor="run-title">{i18n.t('setup.title')}</Label>
       <Input id="run-title" maxLength={120} value={title} disabled={busy} onChange={event => { key.current = null; setTitle(event.target.value) }} />
       <div className="prompt-grid">
@@ -142,15 +52,17 @@ export function ComparisonSetup({ data, created }: { data: WorkbenchData; create
       </div>
       <p>{i18n.t('setup.modelHint')}</p>
       <h3>{i18n.t('setup.samples', { count: selected.length, max: MAX_EVALUATION_SAMPLES })}</h3>
-      {labelled.length === 0 ? <p>{i18n.t('setup.noSamples')}</p> : labelled.map(sample => (
-        <div className="flex items-center gap-3" key={sample.id}>
-          <Checkbox id={`pick-${sample.id}`} checked={selected.includes(sample.id)}
-            disabled={busy || (!selected.includes(sample.id) && selected.length >= MAX_EVALUATION_SAMPLES)}
+      {confirmed.length === 0 ? <p>{i18n.t('setup.noSamples')}</p> : confirmed.map(item => (
+        <div className="flex items-center gap-3" key={item.id}>
+          <Checkbox id={`pick-${item.id}`} checked={selected.includes(item.id)}
+            disabled={busy || (!selected.includes(item.id) && selected.length >= MAX_EVALUATION_SAMPLES)}
             onCheckedChange={checked => {
               key.current = null
-              setSelected(ids => checked === true ? [...ids, sample.id] : ids.filter(id => id !== sample.id))
+              setSelected(ids => checked === true ? [...ids, item.id] : ids.filter(id => id !== item.id))
             }} />
-          <Label htmlFor={`pick-${sample.id}`}>{sample.title}</Label>
+          <Label htmlFor={`pick-${item.id}`}>{i18n.t('setup.sample', {
+            title: item.title, category: categoryLabel(data.categories, item.confirmedCategoryId!)
+          })}</Label>
         </div>
       ))}
       <p>{i18n.t('setup.calls', { count: selected.length * 2 })}</p>

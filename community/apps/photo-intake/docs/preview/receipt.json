@@ -1,16 +1,54 @@
 {
   "simulatedHost": true,
   "simulatedModel": true,
-  "calls": 3,
-  "samples": 1,
+  "calls": 5,
+  "intakeCases": 1,
   "evaluations": 1,
+  "uploadSizes": [
+    {
+      "input": [
+        80,
+        60
+      ],
+      "output": [
+        80,
+        60
+      ]
+    },
+    {
+      "input": [
+        1920,
+        2560
+      ],
+      "output": [
+        960,
+        1280
+      ]
+    },
+    {
+      "input": [
+        2560,
+        1920
+      ],
+      "output": [
+        1280,
+        960
+      ]
+    }
+  ],
   "cases": [
     "upload",
+    "file chooser event",
+    "decoded resize dimensions",
+    "persisted resize dimensions",
     "locale preservation",
-    "failure",
+    "recognition failure",
+    "recognition retry",
+    "human confirmation",
+    "acceptance failure",
     "review",
     "retry history",
-    "decision",
+    "decision adopts prompt",
     "reload",
     "narrow dark theme"
   ]
