@@ -31,5 +31,10 @@
   "decision_closed": "已关闭",
   "accept_delay": "接受本次延期",
   "reject_delay": "不接受本次延期",
-  "replacedQuote": "上一版提议 · v{{revision}}：{{date}}"
+  "replacedQuote": "上一版提议 · v{{revision}}：{{date}}",
+  "seriesReviewTitle": "确认报价系列",
+  "seriesConflict": "系列编号 {{series}} 与案例记录冲突。请选择本次修订所属的原始报价。",
+  "seriesNoCandidates": "本案例暂无可选报价系列。",
+  "confirmSeries": "确认系列并保存",
+  "confirmSeriesLabel": "确认归入「{{file}}」（{{series}}）并保存修订"
 }

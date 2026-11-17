@@ -107,7 +107,8 @@
       window.__procurementSetContext = (nextContext) => {
         setContext(nextContext)
         setData(nextContext.payload || null)
-        setTimeout(() => reload(null, nextContext), 0)
+        const caseId = nextContext.initialQuery?.selectionId || null
+        setTimeout(() => reload(caseId, nextContext), 0)
       }
       window.__procurementHandleHostEvent = () => {
         reload()
@@ -628,6 +629,9 @@
           h(
             'section',
             { className: 'proc-panel proc-risk-panel' },
+            detail.seriesReviews?.length ? h(ProcurementFollowUp.SeriesReviews, {
+              reviews: detail.seriesReviews, caseId: item.id, closed: item.status === 'completed', busy, runAction
+            }) : null,
             detail.decisionManagement ? h(ProcurementFollowUp.Decisions, { management: detail.decisionManagement,
               closed: item.status === 'completed', busy, runAction }) : null,
             panelHeader('风险异常', `${risks.length} 项风险`),

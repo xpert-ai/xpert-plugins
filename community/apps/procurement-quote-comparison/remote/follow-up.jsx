@@ -159,3 +159,32 @@ export function Decisions({ management, busy, closed, runAction }) {
     </RemoteI18nProvider>
   )
 }
+
+export function SeriesReviews({ reviews, caseId, busy, closed, runAction }) {
+  React.useSyncExternalStore(i18n.subscribe, i18n.getLocale)
+  return (
+    <RemoteI18nProvider i18n={i18n}>
+      <section>
+        <h3>{i18n.t('seriesReviewTitle')}</h3>
+        {reviews.map(review => (
+          <article key={review.requestId}>
+            <strong>{review.file}</strong>
+            <p>{review.supplier} · {review.proposedDate}</p>
+            <p>{i18n.t('seriesConflict', { series: review.requestedSeries })}</p>
+            {review.candidates.length === 0 && <p>{i18n.t('seriesNoCandidates')}</p>}
+            {review.candidates.map(candidate => (
+              <div key={candidate.seriesId}>
+                <p>{candidate.supplier} · {candidate.file} · {candidate.seriesId}</p>
+                <Button variant="outline" disabled={busy || closed}
+                  aria-label={i18n.t('confirmSeriesLabel', { file: candidate.file, series: candidate.seriesId })}
+                  onClick={() => runAction('confirm_quote_series', {
+                    caseId, documentId: review.documentId, requestId: review.requestId, seriesId: candidate.seriesId
+                  })}>{i18n.t('confirmSeries')}</Button>
+              </div>
+            ))}
+          </article>
+        ))}
+      </section>
+    </RemoteI18nProvider>
+  )
+}

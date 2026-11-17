@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { AIMessage, isBaseMessage, isToolMessage, type BaseMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -9,6 +10,7 @@ import {
   PromiseOrValue,
   RequestContext
 } from '@xpert-ai/plugin-sdk'
+import { QuoteSeriesConfirmationRequired } from './quote-series-review.js'
 import { followUpInput } from './quote-follow-up.js'
 import { z } from 'zod/v3'
 import {
@@ -67,7 +69,7 @@ const supplierQuoteItemSchema = z.object({
 })
 
 const saveSupplierQuoteSchema = z.object({
-  quoteSeriesId: z.string().uuid().optional().describe("Confirmed original quote ID for a revision from another document."),
+  quoteSeriesId: z.string().min(1).optional().describe('Use the series ID supplied for this revision. A conflict requires the buyer to confirm a candidate in the workbench.'),
   caseId: z.string().min(1).describe('Procurement comparison case id.'),
   documentId: z.string().optional().describe('Source quote document id.'),
   supplierName: z.string().min(1).describe('Supplier name.'),
@@ -162,6 +164,15 @@ export class ProcurementQuoteComparisonMiddleware implements IAgentMiddlewareStr
 
     return {
       name: PROCUREMENT_QUOTE_COMPARISON_MIDDLEWARE_NAME,
+      wrapModelCall: async (request, next) => {
+        if (scope.eventReceiptId) {
+          const locale = RequestContext.currentUser()?.preferredLanguage ?? RequestContext.getLanguageCode()
+          const reply = await this.service.decisionWakeReply(scope, scope.eventReceiptId, locale)
+          if (reply !== null) return new AIMessage(reply)
+        }
+        const selection = pendingSeriesReply(request.messages)
+        return selection ? new AIMessage(selection) : next(request)
+      },
       tools: [
         tool(async ({ caseId }) => JSON.stringify(await this.service.listFollowUpRisks(scope, caseId)), {
           name: 'procurement_list_delivery_risks',
@@ -179,9 +190,23 @@ export class ProcurementQuoteComparisonMiddleware implements IAgentMiddlewareStr
           description: 'Save parsed procurement project fields and requirement line items.',
           schema: saveRequirementSchema
         }),
-        tool(async (input) => JSON.stringify(await this.service.saveSupplierQuoteExtraction(scope, input), null, 2), {
+        tool(async (input) => {
+          try {
+            return JSON.stringify(await this.service.saveSupplierQuoteExtraction(scope, input), null, 2)
+          } catch (error) {
+            if (!(error instanceof QuoteSeriesConfirmationRequired)) throw error
+            const review = error.review
+            const zh = (RequestContext.currentUser()?.preferredLanguage ?? RequestContext.getLanguageCode()).toLowerCase().startsWith('zh')
+            const instruction = zh
+              ? `文件「${review.file}」的报价系列编号有冲突，本次修订尚未保存。请在采购工作台选择报价系列并确认保存。`
+              : `The quote series for “${review.file}” conflicts with the case records. The revision is pending. Select a series and confirm in the procurement workbench.`
+            const choices = review.candidates.map(q => `- ${q.supplier} · ${q.file} · ${q.seriesId}`)
+            const message = [instruction, ...choices].join('\n')
+            return JSON.stringify({ status: review.status, message })
+          }
+        }, {
           name: 'procurement_save_supplier_quote',
-          description: 'Save parsed supplier quote header, terms, and quote line items.',
+          description: 'Save a supplier quote with its original file and proposed series. When confirmation is required, present the returned candidates and wait for the buyer in the workbench.',
           schema: saveSupplierQuoteSchema
         }),
         tool(async (input) => JSON.stringify(await this.service.saveItemMatches(scope, input), null, 2), {
@@ -209,11 +234,25 @@ export class ProcurementQuoteComparisonMiddleware implements IAgentMiddlewareStr
   }
 }
 
+// Only the save tool in the current tool batch can end this turn with a buyer selection.
+function pendingSeriesReply(messages: BaseMessage[]) {
+  for (const message of [...messages].reverse()) {
+    if (!isBaseMessage(message) || !isToolMessage(message)) break
+    if (message.name !== 'procurement_save_supplier_quote' || typeof message.content !== 'string') continue
+    try {
+      const result = JSON.parse(message.content)
+      if (result?.status === 'quote_series_confirmation_required' && typeof result.message === 'string') return result.message
+    } catch { /* Other tool outcomes are handled by the model. */ }
+  }
+  return null
+}
+
 function scopeFromContext(
   context: IAgentMiddlewareContext
 ): ProcurementScope {
   return {
     eventReceiptId: context.eventReceiptId,
+    inputMessageId: context.inputMessageId,
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() : context.organizationId,
     workspaceId: context.workspaceId ?? null,

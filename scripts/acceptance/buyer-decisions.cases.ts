@@ -202,6 +202,77 @@ test('retrying a failed original-card update preserves the buyer decision, its f
   assert.equal(await consume(), 0)
 })
 
+test('case C reports the recorded v5 decision in its own thread after a closed v4 follow-up', async (t) => {
+  const { f, db, scope, caseId, service, source, remote, requests, quote, consume, pending, command } = await buyerFixture(t)
+  const { ProcurementQuoteComparisonMiddleware } = await import(procurement + 'procurement-quote-comparison.middleware.js')
+  const middleware = new ProcurementQuoteComparisonMiddleware(service)
+  for (const day of ['01', '08', '10', '15']) {
+    await quote('2026-12-' + day)
+    await consume()
+  }
+  const old = await pending()
+  assert.equal(old.revision, 4)
+  await service.setDelayDecisions(scope, caseId, false)
+  const oldRisk = { caseId, riskId: old.riskId }
+  const timer = await service.followUp(scope, { ...oldRisk, action: 'set', expectedVersion: 0,
+    dueAt: new Date(Date.now() + 180_000).toISOString() })
+  await service.followUp(scope, { ...oldRisk, action: 'reply', expectedVersion: timer.version, replyNote: 'Supplier answered' })
+  await service.setDelayDecisions(scope, caseId, true)
+  await quote('2026-12-18')
+  await consume()
+  const current = await pending()
+  assert.equal(current.revision, 5)
+  assert.notEqual(current.riskId, old.riskId)
+  const submitted = await remote.submitDecision(f.ctx, command(current), 'lark')
+  assert.equal(submitted.status, 'recorded')
+  assert.equal(await consume(), 1)
+  const [fact] = await db.query('SELECT receipt FROM plugin_procurement_event_fact WHERE source=$1',
+    ['decision/' + submitted.decisionId])
+  await assert.rejects(service.followUp({ ...scope, eventReceiptId: fact.receipt }, { ...oldRisk, action: 'inspect' }),
+    /follow_up_event_mismatch/)
+  const history = { messages: [{ role: 'assistant', tool_calls: [{ name: 'procurement_follow_up',
+    args: { action: 'inspect', caseId, riskId: old.riskId } }] }] }
+  const report = async (
+    context: Partial<typeof scope> & { eventReceiptId?: string },
+    next: (request: typeof history) => unknown = () => assert.fail('a recorded decision must finish without calling a model or tools')
+  ) => {
+    const agent = await middleware.createMiddleware({}, { ...scope, ...context })
+    return agent.wrapModelCall(history, next)
+  }
+  const response = await report({ eventReceiptId: fact.receipt })
+  assert.equal(response._getType(), 'ai')
+  assert.match(response.content, /accepted.*quote revision 5.*Supplier.*2026-12-18/)
+  assert.deepEqual(response.tool_calls, [])
+  assert.equal((await report({ eventReceiptId: fact.receipt })).content, response.content)
+  for (const override of [{ userId: randomUUID() }, { threadId: 'other-thread' }, { conversationId: randomUUID() }]) {
+    await assert.rejects(report({ eventReceiptId: fact.receipt, ...override }), /decision_wake_access_changed/)
+  }
+  const [quoteFact] = await db.query("SELECT receipt FROM plugin_procurement_event_fact WHERE event->>'type'='procurement.quote.revised' LIMIT 1")
+  for (const context of [{}, { eventReceiptId: quoteFact.receipt }]) {
+    assert.equal(await report(context, (request) => request), history)
+  }
+  assert.equal((await requests.findOneByOrFail({ id: old.id })).state, 'closed')
+  assert.equal(await requests.countBy({ id: current.id, state: 'accepted', decisionId: submitted.decisionId }), 1)
+  // Case C had already captured v5 with its thread and baseline embedded in the historical snapshot.
+  const { digestSnapshot } = await import(procurement + 'event-journal.js')
+  const [v5] = await db.query(`SELECT id,snapshot FROM plugin_procurement_event_fact WHERE binding=$1
+    AND event->>'type'='procurement.quote.revised' AND event->'fact'->>'revision'='5'`, [f.ctx.bindingId])
+  const snapshot = { ...v5.snapshot, threadId: scope.threadId, decisionBaseline: current.originalDate }
+  await db.query(`UPDATE plugin_procurement_event_fact SET snapshot=$2,event=jsonb_set(event,'{fact,sha256}',to_jsonb($3::text))
+    WHERE id=$1`, [v5.id, snapshot, digestSnapshot(snapshot)])
+  await quote('2026-12-22')
+  await consume()
+  assert.deepEqual((await db.query('SELECT snapshot FROM plugin_procurement_event_fact WHERE id=$1', [v5.id]))[0].snapshot, snapshot)
+  const declined = await remote.submitDecision(f.ctx, command(await pending(), 'reject_delay'), 'lark')
+  assert.equal(await consume(), 1)
+  const [rejection] = await db.query('SELECT receipt FROM plugin_procurement_event_fact WHERE source=$1',
+    ['decision/' + declined.decisionId])
+  assert.match((await report({ eventReceiptId: rejection.receipt })).content, /declined.*2026-12-22.*quote revision 6.*renegotiation/)
+  assert.equal((await report({ eventReceiptId: fact.receipt })).content, response.content)
+  await source.configure({ ...f.ctx, bindingRevision: f.ctx.bindingRevision + 1 }, false)
+  await assert.rejects(report({ eventReceiptId: fact.receipt }), /decision_wake_access_changed/)
+})
+
 test('a missing delivery date invalidates the card; restoring a delayed date requests one fresh decision', async (t) => {
   const { f, caseId, quote, consume, pending, requests, source, command } = await buyerFixture(t)
   await quote('2026-12-01')
@@ -281,3 +352,68 @@ test('enabling decisions after an undated quote uses the last commitment and the
   assert.deepEqual((await source.describe(f.ctx, latest.event, null, { includeConversation: true })).conversation,
     { conversationId: scope.conversationId, threadId: scope.threadId })
 })
+
+for (const history of ['original conversation', 'new conversation']) {
+  test(`a quote series conflict in the ${history} waits for the buyer and publishes v3 once`, async t => {
+    const { f, db, caseId, scope, service, quote, consume } = await buyerFixture(t)
+    const { ProcurementQuoteComparisonMiddleware } = await import(procurement + 'procurement-quote-comparison.middleware.js')
+    const { ProcurementQuoteComparisonViewProvider } = await import(procurement + 'procurement-quote-comparison-view.provider.js')
+    const first = await quote('2026-12-20')
+    const seriesId = first.supplierQuote.id
+    await quote('2026-12-24')
+    await consume()
+    const doc = await service.registerSourceDocument(scope, { caseId, role: 'supplier_quote', name: 'December 27', extractedContent: 'Box: Dec 27' })
+    const actor = { ...scope, inputMessageId: randomUUID(), ...(history === 'new conversation' ? { conversationId: randomUUID(), threadId: randomUUID() } : {}) }
+    const middleware = await new ProcurementQuoteComparisonMiddleware(service).createMiddleware({}, actor)
+    const save = middleware.tools.find(tool => tool.name === 'procurement_save_supplier_quote')
+    const input = { caseId, documentId: doc.id, quoteSeriesId: randomUUID(), supplierName: 'Supplier',
+      items: [{ productName: 'Box' }], deliveryTime: '2026-12-27' }
+    const invoke = async args => JSON.parse(await save.invoke(args))
+    const counts = async () => (await db.query(`SELECT
+      (SELECT count(*)::int FROM plugin_procurement_supplier_quote WHERE "caseId"=$1) quotes,
+      (SELECT count(*)::int FROM plugin_procurement_event_fact WHERE binding=$2) facts`, [caseId, f.binding.id]))[0]
+    const before = await counts()
+    const conflict = await invoke(input)
+    assert.equal(conflict.status, 'quote_series_confirmation_required')
+    assert.ok(conflict.message.includes(seriesId))
+    const output = await middleware.wrapModelCall({ messages: [
+      { _getType: () => 'human', content: history === 'original conversation' ? seriesId : 'Save the revision' },
+      { _getType: () => 'tool', name: save.name, content: JSON.stringify(conflict) }
+    ] }, () => assert.fail('the model must not reinterpret a conflict'))
+    assert.equal(output.content, conflict.message)
+    for (const retry of [{ ...input, quoteSeriesId: seriesId }, { ...input, quoteSeriesId: undefined },
+      { caseId, supplierName: 'Supplier', items: [] }]) {
+      assert.deepEqual(await invoke(retry), conflict)
+    }
+    const view = new ProcurementQuoteComparisonViewProvider(service)
+    const context = { ...actor, hostType: 'project', hostId: actor.projectId }
+    const detail = async () => (await service.getWorkbenchData(scope, { caseId })).item
+    const workbench = await detail()
+    const [review] = workbench.seriesReviews
+    assert.equal(review.candidates.length, 1)
+    assert.equal(review.file, 'December 27')
+    assert.equal(workbench.documents.find(d => d.id === doc.id).status, 'uploaded')
+    const selection = { caseId, documentId: doc.id, requestId: review.requestId, seriesId }
+    const confirm = (actor = context, input = selection) =>
+      view.executeViewAction(actor, 'workbench', 'confirm_quote_series', { input })
+    assert.equal((await confirm({ ...context, userId: randomUUID() })).success, false)
+    assert.equal((await confirm(context, { ...selection, seriesId: randomUUID() })).success, false)
+    assert.deepEqual(await counts(), before)
+    const [a, b] = await Promise.all([confirm(), confirm()])
+    assert.equal(a.success, true, JSON.stringify(a.message))
+    assert.equal(b.success, true, JSON.stringify(b.message))
+    assert.equal((await invoke(input)).supplierQuote.documentId, doc.id)
+    await assert.rejects(invoke({ caseId, supplierName: 'Supplier', items: [] }), /quote_series_review_input_changed/)
+    await consume()
+    assert.deepEqual(await counts(), { quotes: before.quotes + 1, facts: before.facts + 1 })
+    const [receipt] = await f.hostDb.query(`SELECT id,event FROM agent_event_inbox WHERE binding=$1
+      AND event->>'type'='procurement.quote.revised' AND event->'fact'->>'revision'='3'`, [f.binding.id])
+    assert.ok(receipt.id)
+    const [fact] = await db.query('SELECT snapshot FROM plugin_procurement_event_fact WHERE receipt=$1', [receipt.id])
+    assert.deepEqual([fact.snapshot.documentId, fact.snapshot.conversationId, fact.snapshot.date, fact.snapshot.series],
+      [doc.id, actor.conversationId, '2026-12-27', seriesId])
+    assert.deepEqual((await detail()).seriesReviews, [])
+    assert.equal((await confirm()).success, true)
+    assert.deepEqual(await counts(), { quotes: before.quotes + 1, facts: before.facts + 1 })
+  })
+}

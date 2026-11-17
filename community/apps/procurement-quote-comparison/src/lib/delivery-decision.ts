@@ -8,7 +8,7 @@ import { EntityManager, In, IsNull } from 'typeorm'
 import { humanDecisionInputSchema, type HumanDecisionInput, type HumanDecisionResult } from '@xpert-ai/plugin-sdk'
 import { ProcurementComparisonCase, ProcurementRiskItem, ProcurementSupplierQuote } from './entities/index.js'
 import { DelayDecision, DelayDecisionInput } from './entities/delay-decision.entity.js'
-import { digestSnapshot, journal } from './event-journal.js'
+import { digestSnapshot, journal, QuoteEventFact } from './event-journal.js'
 import { riskQuoteFactsSql, resolveRiskQuote, type RiskQuoteFacts } from './delivery-check.js'
 import { QuoteFollowUp } from './quote-follow-up.js'
 import type { ProcurementScope } from './types.js'
@@ -90,6 +90,41 @@ export async function configureDecisions(tx: EntityManager, scope: ProcurementSc
   await tx.update(ProcurementComparisonCase, caseId, { delayDecisionsEnabled: enabled })
   if (!enabled)
     await tx.update(DelayDecision, { caseId, state: 'pending' }, { state: 'closed', version: () => 'version + 1' })
+}
+
+/** A decision wake reports the committed choice for its own receipt in the buyer's original conversation. */
+export async function decisionWakeReply(tx: EntityManager, scope: ProcurementScope, receipt: string, locale: string) {
+  const fact = await tx.findOneBy(QuoteEventFact, { receipt })
+  if (fact?.event.type !== delayDecided) return null
+  const result = fact.decision
+  const caseId = fact.event.subject.key
+  if (result?.status !== 'handled' || result.resultRef.kind !== 'procurement-decision' ||
+      !scope.assistantId || !scope.conversationId || !(await buyerCase(tx, scope, caseId))) {
+    throw new ForbiddenException('decision_wake_access_changed')
+  }
+  const route = await journal!.route(tx, { tenantId: scope.tenantId, organizationId: scope.organizationId!, ref: caseId })
+  const row = await tx.findOneBy(DelayDecision, {
+    id: result.resultRef.key, caseId, binding: fact.binding, buyerId: scope.userId!,
+    conversationId: scope.conversationId
+  })
+  if (!route?.enabled || route.binding !== fact.binding || route.revision !== fact.event.bindingRevision ||
+      !row?.decisionId || row.bindingRevision !== route.revision || row.decidedBy !== scope.userId ||
+      (row.threadId !== null && row.threadId !== scope.threadId) ||
+      fact.source !== 'decision/' + row.decisionId || fact.event.fact.revision !== String(row.revision) ||
+      (row.state !== 'accepted' && row.state !== 'renegotiate')) {
+    throw new ForbiddenException('decision_wake_access_changed')
+  }
+  const accepted = row.state === 'accepted'
+  if (locale.toLowerCase().startsWith('zh')) {
+    const quote = `${row.supplier}报价修订 ${row.revision}`
+    return accepted
+      ? `采购人已接受${quote}的延期，确认交期为 ${row.revisedDate}。`
+      : `采购人未接受${quote}提出的 ${row.revisedDate} 交期，本次延期需重新协商。`
+  }
+  const quote = `quote revision ${row.revision} from ${row.supplier}`
+  return accepted
+    ? `The buyer accepted the delay for ${quote}. The confirmed delivery date is ${row.revisedDate}.`
+    : `The buyer declined the proposed delivery date of ${row.revisedDate} for ${quote}. The delay requires renegotiation.`
 }
 
 export async function decideDelay(

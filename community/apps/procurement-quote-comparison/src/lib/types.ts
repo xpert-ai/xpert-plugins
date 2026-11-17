@@ -19,6 +19,8 @@ export type ProcurementRiskSeverity = 'low' | 'medium' | 'high'
 export interface ProcurementScope {
   /** Inbox receipt for an authorized wake. Interactive workbench requests omit it. */
   readonly eventReceiptId?: string
+  /** Host-authored message ID shared by retries of the same quote extraction turn. */
+  readonly inputMessageId?: string
   agentKey?: string | null
   tenantId: string
   organizationId?: string | null

@@ -128,6 +128,7 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
           querySchema: {
             supportsPagination: true,
             supportsSearch: true,
+            supportsSelection: true,
             supportsParameters: true,
             defaultPageSize: 20
           },
@@ -158,6 +159,9 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
           }
         ],
         actions: [
+          {
+            key: 'confirm_quote_series', label: text('Confirm quote series', '确认报价系列'), placement: 'row', actionType: 'invoke'
+          },
           {
             key: 'set_delay_decisions', label: text('Buyer decisions', '采购人决定'), placement: 'row', actionType: 'invoke'
           },
@@ -318,6 +322,13 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
     try {
       const scope = scopeFromContext(context)
 
+      if (actionKey === 'confirm_quote_series') {
+        const { caseId, documentId, requestId, seriesId } = z.object({
+          caseId: z.string().uuid(), documentId: z.string().uuid(), requestId: z.string().uuid(), seriesId: z.string().uuid()
+        }).strict().parse(request.input)
+        await this.service.confirmQuoteSeries(scope, caseId, documentId, requestId, seriesId)
+        return success('Quote revision saved', '报价修订已保存')
+      }
       if (actionKey === 'set_delay_decisions') {
         const enabled = z.boolean().parse(request.input?.enabled)
         await this.service.setDelayDecisions(scope, requireCaseId(request), enabled)

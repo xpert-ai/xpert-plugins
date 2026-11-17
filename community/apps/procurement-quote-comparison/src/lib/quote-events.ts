@@ -54,6 +54,9 @@ const category = {
   icon: { type: "font", value: "package" },
 } as const;
 
+// Appending a revision only needs the preceding revision, extraction digest and date.
+// Read that projection independently of the full payload contract used to publish and handle events.
+const priorQuoteFields = factSchema.pick({ revision: true, digest: true, date: true }).strip()
 type PriorQuote = { seq: string; snapshot: unknown; baseline: string | null }
 const quoteHistory = `SELECT f.seq, f.snapshot, to_char(q.baseline, 'YYYY-MM-DD') AS baseline FROM plugin_procurement_event_fact f
   LEFT JOIN plugin_procurement_quote_context q USING (binding, source)
@@ -66,7 +69,7 @@ async function commitmentBefore(tx: EntityManager, binding: string, series: stri
   let page = [latest]
   while (page.length) {
     for (const row of page) {
-      const fact = factSchema.parse(row.snapshot)
+      const fact = priorQuoteFields.parse(row.snapshot)
       const baseline = date.safeParse(row.baseline)
       const quoted = date.safeParse(fact.date)
       if (baseline.success && (!quoted.success || baseline.data < quoted.data)) return baseline.data
@@ -253,7 +256,7 @@ export class QuoteEvents implements PluginAgentEventSource {
       quoteHistory + ' ORDER BY f.seq DESC LIMIT 1',
       [route.binding, series]
     );
-    const previous = row ? factSchema.parse(row.snapshot) : null;
+    const previous = row ? priorQuoteFields.parse(row.snapshot) : null;
     const { caseId, documentId, quoteSeriesId, ...extraction } = input;
     const digest = digestSnapshot(extraction);
     await tx.insert(QuoteEventParse, {

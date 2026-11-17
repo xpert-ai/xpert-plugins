@@ -31,5 +31,10 @@
   "decision_closed": "Closed",
   "accept_delay": "Accept this delay",
   "reject_delay": "Decline this delay",
-  "replacedQuote": "Previous proposal · v{{revision}}: {{date}}"
+  "replacedQuote": "Previous proposal · v{{revision}}: {{date}}",
+  "seriesReviewTitle": "Confirm quote series",
+  "seriesConflict": "Series {{series}} conflicts with the case records. Select the original quote for this revision.",
+  "seriesNoCandidates": "No eligible quote series in this case.",
+  "confirmSeries": "Confirm series and save",
+  "confirmSeriesLabel": "Confirm {{file}} ({{series}}) and save the revision"
 }

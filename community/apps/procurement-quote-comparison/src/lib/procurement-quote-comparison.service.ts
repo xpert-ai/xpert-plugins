@@ -7,11 +7,12 @@ import {
   type QuoteVersionStatus,
   type RiskQuoteFacts
 } from './delivery-check.js'
-import { configureDecisions, delayChoices } from './delivery-decision.js'
+import { checkQuoteSeries, isSeriesReviewer, listSeriesReviews, QuoteSeriesConfirmationRequired, readSeriesSelection } from './quote-series-review.js'
+import { buyerCase, configureDecisions, decisionWakeReply, delayChoices } from './delivery-decision.js'
 import { DelayDecision } from './entities/delay-decision.entity.js'
 import { editFollowUp, followUpInput } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { EntityManager, IsNull, Repository } from 'typeorm'
 import {
@@ -179,6 +180,10 @@ export class ProcurementQuoteComparisonService {
     return this.caseRepository.manager.transaction(tx => configureDecisions(tx, scope, caseId, enabled))
   }
 
+  decisionWakeReply(scope: ProcurementScope, receipt: string, locale: string) {
+    return this.caseRepository.manager.transaction(tx => decisionWakeReply(tx, scope, receipt, locale))
+  }
+
   async followUp(scope: ProcurementScope, input: z.infer<typeof followUpInput>) {
     return this.caseRepository.manager.transaction((tx) => editFollowUp(tx, scope, followUpInput.parse(input)))
   }
@@ -331,20 +336,43 @@ export class ProcurementQuoteComparisonService {
   }
 
   async saveSupplierQuoteExtraction(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput) {
-    if (this.quoteEvents) return this.caseRepository.manager.transaction((tx) => this.saveQuote(scope, input, tx))
-    return this.saveQuote(scope, input)
+    if (!this.quoteEvents) {
+      await this.requireCase(scope, input.caseId)
+      return this.saveQuote(scope, input)
+    }
+    const result = await this.caseRepository.manager.transaction(async tx => {
+      const c = await tx.findOne(ProcurementComparisonCase, {
+        where: scopedWhere(scope, { id: input.caseId }), lock: { mode: 'pessimistic_write' }
+      })
+      if (!c) throw new NotFoundException('Procurement comparison case was not found.')
+      const checked = await checkQuoteSeries(tx, scope, c, input)
+      if (checked instanceof QuoteSeriesConfirmationRequired) return checked
+      return this.saveQuote(scope, checked, tx, c)
+    })
+    // Commit the pending request before reporting it to the assistant.
+    if (result instanceof QuoteSeriesConfirmationRequired) throw result
+    return result
   }
 
-  private async saveQuote(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput, tx?: EntityManager) {
+  async confirmQuoteSeries(scope: ProcurementScope, caseId: string, documentId: string, requestId: string, seriesId: string) {
+    return this.caseRepository.manager.transaction(async tx => {
+      const c = await buyerCase(tx, scope, caseId)
+      if (!c || c.status === 'completed') throw new ForbiddenException('quote_series_buyer_required')
+      const review = await readSeriesSelection(tx, caseId, documentId, requestId, seriesId)
+      if (review.confirmedSeries) return { documentId, seriesId }
+      await this.saveQuote({ ...scope, conversationId: review.conversationId, threadId: review.threadId },
+        { ...review.input, quoteSeriesId: seriesId }, tx, c)
+      await tx.update(ProcurementSourceDocument, documentId, { seriesReview: { ...review, confirmedSeries: seriesId } })
+      return { documentId, seriesId }
+    })
+  }
+
+  private async saveQuote(scope: ProcurementScope, input: SaveSupplierQuoteExtractionInput,
+    tx?: EntityManager, lockedCase?: ProcurementComparisonCase) {
     const cases = tx?.getRepository(ProcurementComparisonCase) ?? this.caseRepository
     const quotes = tx?.getRepository(ProcurementSupplierQuote) ?? this.supplierQuoteRepository
     const lines = tx?.getRepository(ProcurementQuoteItem) ?? this.quoteItemRepository
     const documents = tx?.getRepository(ProcurementSourceDocument) ?? this.documentRepository
-    const c = await cases.findOne({
-      where: scopedWhere(scope, { id: input.caseId }),
-      ...(tx ? { lock: { mode: 'pessimistic_write' as const } } : {})
-    })
-    if (!c) throw new NotFoundException('Procurement comparison case was not found.')
     const supplierName = normalizeRequired(input.supplierName, 'Supplier name is required.')
 
     const existing =
@@ -354,7 +382,7 @@ export class ProcurementQuoteComparisonService {
           })
         : null
 
-    if (tx && existing && (await this.quoteEvents.previouslyParsed(tx, c, input, existing))) {
+    if (tx && existing && (await this.quoteEvents.previouslyParsed(tx, lockedCase!, input, existing))) {
       return {
         supplierQuote: existing,
         items: await lines.findBy(scopedWhere(scope, { caseId: input.caseId, supplierQuoteId: existing.id }))
@@ -403,9 +431,9 @@ export class ProcurementQuoteComparisonService {
       }
     }
 
-    if (tx) {
-      await cases.update({ id: c.id }, { supplierCount: await quotes.countBy({ caseId: c.id }) })
-      await this.quoteEvents.capture(tx, c, input, supplierQuote, scope.conversationId, scope.threadId)
+    if (tx && lockedCase) {
+      await cases.update({ id: input.caseId }, { supplierCount: await quotes.countBy({ caseId: input.caseId }) })
+      await this.quoteEvents.capture(tx, lockedCase, input, supplierQuote, scope.conversationId, scope.threadId)
     } else await this.updateCaseCounts(scope, input.caseId)
 
     return {
@@ -855,6 +883,8 @@ export class ProcurementQuoteComparisonService {
     return {
       item: {
         case: comparisonCase,
+        seriesReviews: this.quoteEvents && isSeriesReviewer(scope, comparisonCase)
+          ? await listSeriesReviews(this.caseRepository.manager, caseId) : [],
         decisionManagement: this.quoteEvents && comparisonCase.createdById === scope.userId && !!scope.userId &&
           comparisonCase.workspaceId === scope.workspaceId && !!scope.workspaceId ? {
             enabled: comparisonCase.delayDecisionsEnabled,
