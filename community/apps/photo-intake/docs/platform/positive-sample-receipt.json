@@ -1,0 +1,93 @@
+{
+  "tested_at": "2026-11-13T14:19:18.389Z",
+  "timezone": "Australia/Sydney",
+  "plugin_version": "0.3.0",
+  "plugin_commit": "df5d5746c50521a505fe0500a0efbdb89025ec20",
+  "runtime_code_commit": "7d0f0c3ba8c561049c52b9185d8f2b877a1096b2",
+  "source_sha256": {
+    "src/lib/evaluation.runner.ts": "fab96454df0899b5c2b8582f1c3ab211ea7ee8d89897d2e95a677820b561827f",
+    "src/photo-intake-assistant.yaml": "041aaa3e7ca6539a31578b63062c2e3a9ade2a448e3b1e890532cbf6f23dcb79"
+  },
+  "live_host": true,
+  "persistence": "local Xpert PostgreSQL",
+  "model": "gpt-6-luna",
+  "fixture": "Existing synthetic pipe-leak illustration in the local test library; not a real photograph.",
+  "reference_category": "plumbing",
+  "reference_label_source": "Set by the coding assistant before model calls after inspecting the fixture; not an expert human annotation.",
+  "prompts": {
+    "a": "判断照片中的设施问题，选择最可能的类别。",
+    "b": "先观察可见物体与损坏，再选择类别。区分水相关问题与表面破损，不推测照片中看不到的故障；证据不足时选择 unclear。"
+  },
+  "variants": [
+    {
+      "variant": "a",
+      "attempts": [
+        {
+          "status": "succeeded",
+          "failure_code": null,
+          "latency_ms": 3345,
+          "raw_output": "{\"categoryId\":\"plumbing\",\"reason\":\"Water is dripping from a pipe or fixture and pooling on the floor.\"}",
+          "output": {
+            "categoryId": "plumbing",
+            "reason": "Water is dripping from a pipe or fixture and pooling on the floor."
+          },
+          "usage": {
+            "inputTokens": 4602,
+            "outputTokens": 28,
+            "totalTokens": 4630,
+            "source": "provider"
+          }
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "attempts": [
+        {
+          "status": "succeeded",
+          "failure_code": null,
+          "latency_ms": 2777,
+          "raw_output": "{\"categoryId\":\"plumbing\",\"reason\":\"Water is visibly dripping from a ceiling pipe and pooling on the floor.\"}",
+          "output": {
+            "categoryId": "plumbing",
+            "reason": "Water is visibly dripping from a ceiling pipe and pooling on the floor."
+          },
+          "usage": {
+            "inputTokens": 4631,
+            "outputTokens": 28,
+            "totalTokens": 4659,
+            "source": "provider"
+          }
+        }
+      ]
+    }
+  ],
+  "status": "reviewed",
+  "decision": "tie",
+  "review_note": "自动化正样本补验：输入为已有的管道漏水示意图，参考类别在调用前设为 plumbing。A/B 均格式合规且命中；B 的 ceiling 位置描述仍需人工核对。单个合成样本不足以选出优胜版本。",
+  "decision_note": "自动化平台补验：单张合成漏水示意图上 A/B 均返回 plumbing 且 JSON 合规，保存为暂无明显优胜。本次不代表真实照片准确率或人工专家评审，也未触发失败后重试。",
+  "checks": {
+    "created_and_run_in_actual_ui": true,
+    "review_and_decision_saved_in_ui": true,
+    "reloaded_and_reopened": true,
+    "persisted_result_read_back": true
+  },
+  "image_evaluation_attempts": {
+    "total": 2,
+    "succeeded": 2,
+    "failed": 0
+  },
+  "reported_image_usage": {
+    "input_tokens": 9233,
+    "output_tokens": 56,
+    "total_tokens": 9289,
+    "scope": "These two image calls only; excludes Assistant orchestration.",
+    "cost_usd": null
+  },
+  "limitations": [
+    "Synthetic positive sample does not establish accuracy on real facility photographs or a winning prompt version.",
+    "Both calls succeeded on their first attempt; invalid-output recovery and successful retry were not exercised.",
+    "The sample already existed in the local database; actual host file-picker upload remains unverified.",
+    "The first detail opening showed a no-photo notice; closing and reopening loaded the image. Cause not established."
+  ]
+}
