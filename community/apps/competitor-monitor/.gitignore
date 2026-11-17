@@ -1,0 +1,29 @@
+# Local dependencies and generated output
+/node_modules/
+/dist/
+/coverage/
+*.tsbuildinfo
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Local browser artifacts; curated evidence lives in docs/screenshots/
+/playwright-report/
+/test-results/
+/docs/ui-preview/
+# 编辑器本地配置
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# 临时缓存
+/.cache/
+/.tmp/
+# 本地过程记录，不纳入交付
+/docs/前端迁移与干净环境验证.md
