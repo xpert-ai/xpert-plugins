@@ -1,6 +1,7 @@
 import { IsNull, LessThanOrEqual, Repository } from 'typeorm'
 import type { AgentEventContext, AgentOutputReference, AgentOutputSource } from '@xpert-ai/plugin-sdk'
 import { ProcurementComparisonCase } from './entities/index.js'
+import { PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY, PROCUREMENT_QUOTE_COMPARISON_VIEW_KEY } from './constants.js'
 import { DelayDecision } from './entities/delay-decision.entity.js'
 import { buyerCase, decideDelay, delayChoices, delayKind } from './delivery-decision.js'
 
@@ -63,7 +64,8 @@ export function withDecisionOutput(
         const parent = await buyerCase(tx, { ...c, assistantId: c.xpertId }, c.sourceBindingRef)
         if (!parent) return { status: 'forbidden' } as const
         const row = await tx.findOneBy(DelayDecision, refKey(c, ref))
-        if (!row || parent.status === 'completed' || !parent.delayDecisionsEnabled || row.state !== 'pending')
+        if (!row || row.state === 'superseded' || row.state === 'closed' ||
+          (row.state === 'pending' && (parent.status === 'completed' || !parent.delayDecisionsEnabled)))
           return { status: 'superseded' } as const
         const prior =
           row.replaces &&
@@ -78,6 +80,15 @@ export function withDecisionOutput(
         return {
           status: 'visible',
           title: (parent.title + ' · ' + row.supplier).slice(0, 240),
+          workbench: {
+            state: row.state === 'pending' ? 'pending' : 'handled',
+            title: row.state === 'pending' ? { en_US: 'Confirm supplier delay', zh_Hans: '请确认供应商延期' }
+              : row.state === 'accepted' ? { en_US: 'Supplier delay accepted', zh_Hans: '已接受本次延期' }
+              : { en_US: 'Supplier delay declined', zh_Hans: '未接受本次延期' },
+            openLabel: { en_US: 'Open procurement workbench', zh_Hans: '前往采购工作台' },
+            viewKey: PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY + '__' + PROCUREMENT_QUOTE_COMPARISON_VIEW_KEY,
+            selectionId: row.caseId
+          },
           ...(row.conversationId
             ? {
                 conversation: {
@@ -101,12 +112,12 @@ export function withDecisionOutput(
                 ]
               : [])
           ],
-          decision: {
+          ...(row.state === 'pending' ? { decision: {
             type: 'human_decision',
             schemaVersion: 1,
             requestVersion: row.version,
             choices: delayChoices
-          }
+          } } : {})
         } as const
       })
     },

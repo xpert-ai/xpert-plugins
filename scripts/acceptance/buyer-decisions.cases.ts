@@ -109,6 +109,8 @@ test('buyer decisions serialize the workbench and channel, and fence new quotes 
   const { item } = await service.getWorkbenchData(scope, { caseId })
   const [reference] = await source.outputs.listPending(f.ctx, 1)
   const card = await source.outputs.resolveForRecipient(f.ctx, reference)
+  assert.equal(card.workbench.state, 'pending')
+  assert.equal(card.workbench.selectionId, caseId)
   assert.equal(reference.key, first.id)
   assert.equal(reference.revision, String(first.revision))
   assert.equal(card.decision.schemaVersion, 1)
@@ -126,6 +128,13 @@ test('buyer decisions serialize the workbench and channel, and fence new quotes 
   ])
   assert.deepEqual(outcomes.map((r) => r.status).sort(), ['already_recorded', 'recorded'])
   assert.equal(outcomes[0].decisionId, outcomes[1].decisionId)
+  const history = await remote.resolveForRecipient(f.ctx, reference)
+  assert.equal(history.status, 'visible')
+  assert.equal(history.workbench.state, 'handled')
+  assert.equal(history.workbench.selectionId, caseId)
+  assert.deepEqual(history.fields, card.fields)
+  assert.equal(history.decision, undefined)
+  assert.equal((await remote.resolveForRecipient({ ...f.ctx, userId: randomUUID() }, reference)).status, 'forbidden')
   assert.equal((await attempt(input)).decisionId, outcomes[0].decisionId)
   assert.equal((await attempt({ ...input, choice: 'reject_delay' })).status, 'conflicting_choice')
   const read = () =>
@@ -137,11 +146,13 @@ test('buyer decisions serialize the workbench and channel, and fence new quotes 
   await quote('2026-12-09')
   await consume()
   const replaced = await pending()
+  const replacedRef = { ...reference, key: replaced.id, revision: String(replaced.revision) }
   await quote('2026-12-10')
   assert.equal((await attempt(command(replaced))).status, 'stale')
   await consume()
   const latest = await pending()
   assert.equal(latest.replaces, replaced.id)
+  assert.equal((await remote.resolveForRecipient(f.ctx, replacedRef)).status, 'superseded')
   const race = await Promise.all([
     remote.submitDecision(f.ctx, command(latest, 'reject_delay'), 'lark'),
     attempt(command(latest))
