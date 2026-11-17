@@ -1,4 +1,5 @@
 import type { SpaceActor } from './domain.js'
+import type { FileContentEditorRegistration } from '@xpert-ai/contracts'
 import { SpaceArtifacts } from './artifacts.js'
 import { ConflictException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -12,6 +13,7 @@ import { isInternalSpacePath, SpaceDocuments } from './documents.js'
 import { coveredByContent } from './content-coverage.js'
 import { SpaceKnowledge } from './knowledge.js'
 import { assertFolderHasNoResources } from './resource-folders.js'
+import { listItems, type ListQuery } from './list-page.js'
 
 export const createItemSchema = z.object({ spaceId: id, parentId: id.nullable().default(null), title,
   kind: kindSchema, artifactId: id.optional(), artifactVersionId: id.optional(), content: z.string().max(100000).optional() }).strict()
@@ -20,6 +22,7 @@ export const editItemSchema = z.object({ itemId: id, expectedVersion: z.number()
 
 @Injectable()
 export class SpacesService {
+  private readonly synchronizations = new Map<string, Promise<{ synchronized: boolean }>>()
   constructor(private readonly access: SpaceAccess, private readonly artifacts: SpaceArtifacts, private readonly documents: SpaceDocuments,
     private readonly knowledge: SpaceKnowledge, @InjectRepository(Space) private readonly spaces: Repository<Space>) {}
 
@@ -39,9 +42,43 @@ export class SpacesService {
     return this.tree(actor, space.id)
   }
 
+  async listPage(actor: SpaceActor, spaceId: string, input: ListQuery, formats: FileContentEditorRegistration[] = []) {
+    const root = await this.access.resource(actor, spaceId, input.trash ? 'manage' : 'read')
+    if (input.parentId) {
+      const parent = await this.access.resource(actor, input.parentId, 'read', input.trash)
+      if (parent.space.id !== root.space.id || parent.item?.kind !== 'folder') throw denied()
+    }
+    const coverage = input.trash ? [] : await this.documents.resourceCoverage(actor, root.space)
+    const page = await listItems(this.access.items, actor, root.space.id, input, coverage, formats)
+    return { root: root.space, role: root.role, canWrite: root.canWrite, canManage: root.canManage,
+      ...page, items: page.items.map(item => ({ ...item, role: root.role })) }
+  }
+
+  /** Full reconciliation is an explicit action, never part of an indexed page read. */
+  async synchronize(actor: SpaceActor) {
+    const space = await this.workspace(actor)
+    const access = await this.access.resource(actor, space.id, 'read')
+    const key = JSON.stringify(actor)
+    const pending = this.synchronizations.get(key)
+    if (pending) return pending
+    const work = this.synchronizeFiles(actor, space, access.canWrite)
+    this.synchronizations.set(key, work)
+    try { return await work } finally { if (this.synchronizations.get(key) === work) this.synchronizations.delete(key) }
+  }
+  private async synchronizeFiles(actor: SpaceActor, space: Space, canWrite: boolean) {
+    await this.documents.refreshResources(actor, space)
+    const coverage = await this.documents.resourceCoverage(actor, space)
+    await this.spaces.manager.transaction(async manager => {
+      await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(actor), id: space.id }, lock: { mode: 'pessimistic_write' } })
+      await this.documents.discover(actor, space, canWrite, coverage)
+    })
+    return { synchronized: true }
+  }
+
   async tree(actor: SpaceActor, resourceId: string, trash = false) {
     const principal = await this.access.principal(actor)
     const root = await this.access.resolve(principal, resourceId, trash ? 'manage' : 'read')
+    await this.documents.refreshResources(actor, root.space)
     const coverage = await this.documents.resourceCoverage(actor, root.space)
     if (!trash) await this.spaces.manager.transaction(async (manager) => {
       await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(actor), id: root.space.id }, lock: { mode: 'pessimistic_write' } })

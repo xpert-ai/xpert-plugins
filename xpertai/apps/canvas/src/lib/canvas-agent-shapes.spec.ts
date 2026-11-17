@@ -5,6 +5,7 @@ jest.mock('fractional-indexing', () => {
 
 import { assertRequestedRecordsSurvivedNormalization, collectCanvasAgentShapeInputs } from './canvas-agent-records.js'
 import { createCanvasAgentShapeRecords } from './canvas-agent-shapes.js'
+import { createTLSchema } from '@tldraw/tlschema'
 import type { CanvasRecord, CreateCanvasAgentShapeInput } from './types.js'
 
 describe('Canvas Agent simplified shape creation', () => {
@@ -73,7 +74,7 @@ describe('Canvas Agent simplified shape creation', () => {
       }
     }))
     expect(records[2].props).toEqual(expect.objectContaining({ w: 100, h: 100, geo: 'rectangle', fill: 'semi' }))
-    expect(records[3].props).toEqual(expect.objectContaining({ textFirstEditedBy: null, fontSizeAdjustment: 1 }))
+    expect(records[3].props).toEqual(expect.objectContaining({ textLastEditedBy: null, fontSizeAdjustment: 1 }))
     expect(records[4]).toEqual(expect.objectContaining({ x: 100, y: 100, type: 'arrow' }))
     expect(records[4].props).toEqual(expect.objectContaining({
       start: { x: 0, y: 0 },
@@ -81,6 +82,11 @@ describe('Canvas Agent simplified shape creation', () => {
       arrowheadEnd: 'arrow'
     }))
     expect(new Set(records.filter((record) => record.parentId === 'page:page').map((record) => record.index)).size).toBe(4)
+    // Use the installed schema so dependency upgrades cannot silently break AI-created shapes.
+    const schema = createTLSchema()
+    for (const record of Object.values(store)) {
+      expect(() => schema.types[record.typeName as 'shape'].validate(record as never)).not.toThrow()
+    }
   })
 
   it('requires an explicit parent when the Canvas has multiple pages', () => {

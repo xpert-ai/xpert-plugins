@@ -29,6 +29,13 @@ test('takes actor and Project only from the host and rejects malformed actions w
     await assert.rejects(view.executeViewAction(context,key,'file.read',{input:value}),error=>error.getStatus()===400)
   await assert.rejects(view.executeViewAction({...context,runtimeScope:undefined},key,'file.read',{input:source}),error=>error.getStatus()===400)
 })
+test('template library is feature-gated and rejects forged template actions before service invocation', async () => {
+  const view = new PptxView({}, { compose: async () => { throw new Error('must_not_run') } })
+  const library = view.getViewManifests(context, 'agent.workbench').find(item => item.key === 'pptx_editor.templates')
+  assert.deepEqual(library.activation.requiredFeatures, ['pptx-editor'])
+  assert.equal(view.getViewData(context, library.key, {}).meta.requiresDocument, false)
+  await assert.rejects(view.executeViewAction(context, library.key, 'templates.compose', {input:{projectId:uuid(99)}}), error => error.getStatus() === 400)
+})
 test('rejects stale or readonly writes before the authoritative publisher', async () => {
   let calls=0, canWrite=true
   const api={read:async()=>({registration:{key:'pptx_editor.pptx'},file:{title:'deck.pptx'},revision:'new',canWrite}),write:async()=>{calls++;return {revision:'saved'}}}
@@ -46,4 +53,18 @@ test('blank PPTX is accepted and malformed ZIP input is rejected before editing'
   const format=new PptxFormat()
   await format.validateFile(await format.create())
   await assert.rejects(format.validateFile(Buffer.from('not a zip')),error=>error.getStatus()===400)
+})
+
+test('cover reads retain trusted Project scope and reject forged references or download-purpose reuse', async () => {
+  let input, hash
+  const view = new PptxView({}, {}, { resolve: async (value, expected) => { input = value; hash = expected; return { mimeType: 'image/png' } } })
+  const cover = { kind: 'cover', source, sha256: 'a'.repeat(64) }
+  const request = { fileKey: JSON.stringify(cover), purpose: 'preview' }
+  await view.resolveViewFile(context, key, request)
+  assert.deepEqual(input, { actor: { tenantId: uuid(2), organizationId: uuid(3), userId: uuid(4) }, projectId: uuid(5), assistantId: uuid(1), source })
+  assert.equal(hash, cover.sha256)
+  for (const changed of [{ ...request, purpose: 'download' }, { ...request, fileKey: JSON.stringify({ ...cover, projectId: uuid(9) }) },
+    { ...request, fileKey: JSON.stringify({ ...cover, sha256: '../../private' }) }]) {
+    await assert.rejects(view.resolveViewFile(context, key, changed), error => error.getStatus() === 400)
+  }
 })

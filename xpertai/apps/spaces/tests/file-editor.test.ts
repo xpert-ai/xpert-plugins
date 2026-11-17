@@ -12,7 +12,8 @@ test('create/import delegates arbitrary file formats to the registry and stores 
   const actor = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID(), projectId: randomUUID() }
   const root = randomUUID(), registered: unknown[] = [], writes: unknown[] = [], prepared: Array<{ buffer?: Buffer }> = []
   const item = { id: randomUUID(), kind: 'file' }
-  const editor = { key: 'custom.binary', kind: 'file', extension: 'custom', mimeType: 'application/custom', title: 'Custom' }
+  const editor = { key: 'custom.binary', kind: 'file', extension: 'custom', mimeType: 'application/custom', title: 'Custom',
+    resourceType: { typeId: 'custom.document', icon: { type: 'emoji', value: 'D' } } }
   const service = new SpaceEditors({ project: async () => undefined, resource: async () => ({ space: { id: root } }), items: {
     update: async (_: unknown, value: object) => Object.assign(item, value), findOneByOrFail: async () => item
   } } as never, { put: async (...args: unknown[]) => writes.push(args) } as never,
@@ -25,6 +26,12 @@ test('create/import delegates arbitrary file formats to the registry and stores 
     } }
   } } as never)
   assert.deepEqual(await service.list(actor), [editor])
+  const discovered = Object.assign(new SpaceItem(), { id: randomUUID(), kind: 'file', filePath: 'AI-result.custom', editorKey: null })
+  const presented = (await service.presentItems(actor, [discovered]))[0]
+  assert.equal(presented.editorKey, 'custom.binary')
+  assert.equal(presented.resourceTypeId, 'custom.document')
+  assert.deepEqual(presented.icon, editor.resourceType.icon)
+  assert.equal(discovered.editorKey, null)
   await service.create(actor, root, null, 'Test', editor.key)
   const imported = Buffer.from('imported')
   await service.create(actor, root, null, 'Test', editor.key, imported)

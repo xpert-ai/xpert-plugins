@@ -16,6 +16,7 @@
     "dist",
     "docs",
     "migrations",
+    "LICENSE.chatkit-icons",
     "README.md"
   ],
   "scripts": {

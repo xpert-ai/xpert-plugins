@@ -1,0 +1,71 @@
+@import 'tailwindcss' source(none);
+@source './**/*.{ts,tsx}';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+}
+html, body, #root { width: 100%; height: 100%; margin: 0; min-height: 0; overflow: hidden; }
+*, ::before, ::after { box-sizing: border-box; border-color: var(--border, var(--xui-color-border, #e4e4e7)); }
+
+.document-root {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  background: var(--background); color: var(--foreground);
+  /* Resolve host tokens before the engine introduces its own legacy HSL variables. */
+  --word-background: var(--background); --word-foreground: var(--foreground);
+  --word-muted: var(--muted); --word-muted-foreground: var(--muted-foreground);
+  --word-border: var(--border); --word-primary: var(--primary); --word-ring: var(--ring);
+  --word-radius: var(--radius); --word-font: var(--font-sans);
+  --word-popover: var(--popover); --word-popover-foreground: var(--popover-foreground);
+  --word-primary-foreground: var(--primary-foreground);
+}
+.document-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.document-header { flex: none; position: relative; z-index: 100; border-bottom: 1px solid var(--border); }
+.document-header:empty { display: none; }
+.document-canvas { flex: 1; min-height: 0; min-width: 0; position: relative; display: flex; overflow: hidden; }
+.word-viewport { flex: 1; min-height: 0; min-width: 0; overflow-anchor: none; background: var(--word-muted); }
+.word-toolbar-row { display: flex; align-items: center; gap: 4px; padding: 4px 8px; min-width: 0; }
+.word-formatting { flex: 1; min-width: 0; }
+.word-toolbar-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.word-save-status { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--word-muted-foreground); font-size: 0.75rem; }
+.word-file-menu { width: min(320px, calc(100vw - 24px)); }
+.word-advanced-menu { padding: 0 8px 4px; }
+.word-ruler-row { min-height: 28px; overflow: hidden; scrollbar-gutter: stable both-edges; }
+.word-vertical-ruler { position: absolute; top: 40px; left: 0; z-index: 10; pointer-events: none; }
+
+/* Adapt only engine chrome; shared controls retain their standard variants and sizes. */
+.document-root .docx-editor,
+.document-root .docx-editor.dark,
+.document-root .docx-editor.dark .docx-editor {
+  --background: var(--word-background); --foreground: var(--word-foreground);
+  --muted: var(--word-muted); --muted-foreground: var(--word-muted-foreground);
+  --border: var(--word-border); --input: var(--word-border);
+  --primary: var(--word-primary); --primary-foreground: var(--word-primary-foreground);
+  --ring: var(--word-ring); --radius: var(--word-radius); --font-sans: var(--word-font);
+  --popover: var(--word-popover); --popover-foreground: var(--word-popover-foreground);
+  --doc-surface: var(--word-background); --doc-card: var(--word-background);
+  --doc-bg: var(--word-muted); --doc-bg-subtle: var(--word-muted); --doc-bg-input: var(--word-background);
+  --doc-bg-hover: var(--word-muted); --doc-surface-hover: var(--word-muted);
+  --doc-text: var(--word-foreground); --doc-text-muted: var(--word-muted-foreground);
+  --doc-border: var(--word-border); --doc-border-light: var(--word-border); --doc-border-input: var(--word-border);
+  --doc-primary: var(--word-primary); --doc-accent: var(--word-ring);
+  --doc-primary-light: var(--word-muted); --doc-toggle-active-bg: var(--word-muted);
+  --doc-toggle-active-fg: var(--word-foreground); --doc-on-primary: var(--word-primary-foreground);
+  --doc-popover-bg: var(--word-popover); --doc-popover-fg: var(--word-popover-foreground);
+  --doc-font-ui: var(--word-font); --doc-dialog-font-family: var(--word-font);
+  --doc-dialog-radius: var(--word-radius); --doc-dialog-control-radius: var(--word-radius);
+}
+.word-chrome .docx-toolbar, .word-chrome .docx-menubar {
+  background: var(--word-background); border-radius: var(--word-radius); font-family: var(--word-font);
+}
+@media (max-width: 720px) {
+  .word-action-label { display: none; }
+  .word-status-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .word-toolbar-actions { gap: 4px; }
+}

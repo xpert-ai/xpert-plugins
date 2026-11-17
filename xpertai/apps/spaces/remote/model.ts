@@ -1,11 +1,13 @@
 import { t, i18n } from './i18n'
 import { z } from 'zod/v3'
 import type { ArtifactTypeDescriptor, I18nObject } from '@xpert-ai/contracts'
+import { iconDefinitionSchema } from '@xpert-ai/contracts'
 export const localizedLabel = z.object({ en_US: z.string(), zh_Hans: z.string().optional(), zh_Hant: z.string().optional() }) satisfies z.ZodType<I18nObject>
-export const artifactTypeSchema = z.object({ pluginName: z.string(), resourceType: z.string(), title: localizedLabel.optional() }) satisfies z.ZodType<ArtifactTypeDescriptor>
+export const artifactTypeSchema = z.object({ pluginName: z.string(), resourceType: z.string(), title: localizedLabel.optional(), icon: iconDefinitionSchema.optional() }) satisfies z.ZodType<ArtifactTypeDescriptor, z.ZodTypeDef, unknown>
 export const artifactTypeName = (type?: ArtifactTypeDescriptor) => type?.title ? i18n.label({ ...type.title }) : t('kind.artifact')
 export const itemSchema = z.object({
-  presentation: z.object({ kind: z.literal('artifact'), referenceId: z.string().uuid(), type: artifactTypeSchema.optional() }).optional(),
+  icon: iconDefinitionSchema.optional(), mimeType: z.string().optional(),
+  presentation: z.object({ kind: z.literal('artifact'), referenceId: z.string().uuid(), artifactKind: z.enum(['html', 'markdown', 'pdf', 'pptx', 'image', 'file', 'site', 'presentation']).optional(), type: artifactTypeSchema.optional() }).optional(),
   importOrigin: z.object({ provider: z.string(), documentId: z.string(), url: z.string().nullable(), revision: z.string(), importedAt: z.string(), warnings: z.array(z.string()) }).nullable().optional(),
   canWrite: z.boolean().optional(),
   sourceSync: z.object({ status: z.enum(['synced', 'pending', 'failed']), revision: z.string().optional() }).optional(),
@@ -21,6 +23,7 @@ export const itemSchema = z.object({
 export type Item = z.infer<typeof itemSchema>
 export const listSchema = z.object({ meta: z.object({
   root: itemSchema, items: z.array(itemSchema), role: z.string(), canWrite: z.boolean(), canManage: z.boolean(),
+  hasMore: z.boolean().default(false), nextCursor: z.string().optional(),
   project: z.object({ id: z.string(), title: z.string() })
 }) })
 export const proposalSchema = z.object({ id: z.string(), status: z.string(), patch: z.object({ before: z.string(), after: z.string(), reason: z.string() }) })

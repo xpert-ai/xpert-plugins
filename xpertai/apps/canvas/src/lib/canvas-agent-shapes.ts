@@ -81,6 +81,8 @@ function createGeoShapeRecord(
     growY: 0,
     url: '',
     scale: 1,
+    flipX: false,
+    flipY: false,
     color: input.color ?? 'black',
     labelColor: input.labelColor ?? 'black',
     fill: input.fill ?? 'none',
@@ -108,7 +110,7 @@ function createNoteShapeRecord(
     fontSizeAdjustment: 1,
     url: '',
     scale: 1,
-    textFirstEditedBy: null
+    textLastEditedBy: null
   })
 }
 

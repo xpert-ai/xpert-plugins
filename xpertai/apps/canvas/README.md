@@ -70,5 +70,6 @@ pnpm build
 
 ### Collaboration lifecycle compatibility
 
+Canvas uses tldraw 5.6.0 without dependency patches and requires Node.js 22.12 or later. Upstream handles font loads that settle after disposal. All supported translation catalogs from the matching `@tldraw/assets` version are bundled through the public `assetUrls` API as data URLs, so loading translations and switching languages do not depend on a CDN. Build-time validation rejects missing or mismatched catalogs. Regression checks cover font disposal, translation URLs, and loading and reopening 5.1.1 snapshots. Other assets, such as fonts and icons, retain their existing loading behavior.
 
 Workbench data responses use request sequence checks. Theme updates preserve the active editor; a changed host instance or authorization scope clears the old editor and collaboration session before loading the new resource.
