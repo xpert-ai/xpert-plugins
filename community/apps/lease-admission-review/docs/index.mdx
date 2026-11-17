@@ -1,0 +1,12 @@
+---
+title: Admission Review
+description: Evidence extraction, human drafts and fixed scoring
+---
+
+The plugin preserves source material, three candidate facts and their evidence, and a separate human confirmation record in the host database.
+
+The assistant can read an active attempt, save candidates, or report extraction failure. Only a human workbench action can confirm results. No rating, admission decision, model training or external data retrieval is performed.
+
+The fixed facts are management stability, stock pledge ratio, and debt/assets ratio. Missing, conflict, not applicable and genuine zero remain distinct.
+
+The workbench saves incomplete human drafts independently from AI candidates. Server-side calculation uses the fixed `admission-three-indicators-v1` ruleset, worth at most 15 points, and an independent strictly-over-80% debt/assets rule. Every input change invalidates the previous preview; confirmation recalculates and stores a transactionally consistent snapshot. See [rules and upgrade](scoring).
