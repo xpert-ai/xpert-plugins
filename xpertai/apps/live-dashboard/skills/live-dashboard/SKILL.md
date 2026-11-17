@@ -29,6 +29,30 @@ When `dashboard_open` or `dashboard_history` returns `selection_required`, displ
 - For a rename plus visual change, update the HTML heading and pass the new `title` together with `htmlPath` in one `dashboard_update`. Use the returned revision for further saves. Do not make a second metadata-only save just to catch up with the heading.
 - Stop only with a successful draft receipt matching the intended file bytes and title. Never turn a tool error into a claim of success.
 
+## Show one analysis result in chat
+
+For intermediate analysis, use `dashboard_present_analysis` after a successful
+`dashboard_preview` or `dashboard_preview_binding` in the same run. Pass its
+`previewId`, a title, exact field IDs, and `bar`, `line`, `table` or `metrics`.
+The tool reauthorizes and reruns that Binding, then emits a read-only Widget in
+this conversation (including groups). It does not create an Artifact or file.
+No Sandbox authoring or dashboard save is needed for this route.
+
+Charts need a declared dimension/time/identifier plus a numeric measure, with
+unique categories. The tool does not guess aggregates or sort order. For top/bottom N, explicitly set
+`orderBy: { field: "<measure ID>", direction: "desc" }` (or `asc`) before
+truncating with `maxRows`; first rows are not highest values. Rankings cover only
+returned rows, so check completeness. Set `language` to the conversation language. Use a table
+for exact high-precision values; metrics requires one already-aggregated row.
+At most 20 rows and 6 fields are displayed. Check completeness and timestamps;
+never describe a partial preview as the entire business dataset. Only say it was
+shown after `display.status` is `emitted`. Continue analyzing afterward; a Widget
+is not a final reply. In groups use `replyStage: "progress"` for interim conclusions.
+
+A preview receipt is run-local. A shared resource grant does not authorize this
+source-project query route: use governed resource analysis tools for such data.
+Never switch projects or copy another member's credentials to obtain a preview.
+
 ## Prerequisites
 
 The Assistant needs LiveDashboard, SandboxFile and skillsMiddleware; Sandbox must be enabled. For Python/JavaScript data preparation it also needs WorkspaceScriptDataset and its `workspace-script-dataset` skill. If a required tool is absent, report that exact missing capability; do not invent an equivalent tool name.
@@ -94,3 +118,19 @@ The card is a compact receipt with an Open button. It opens the registered Workb
 ## Verify the result
 
 Confirm the requested layout/title, change a real filter, refresh the data and verify that charts and totals update through `subscribe`. If reopening to inspect, confirm the same Artifact and revision without calling update on an unchanged copy. Report data limitations and partial results explicitly. A syntactically valid page alone does not prove correct business metrics.
+
+### Explore example handoff
+
+This handoff is beta: recipe schemas, tool contracts and resource formats may change incompatibly.
+
+Preparing an example only inserts editable text, files and skills into the composer. Execute it after the user sends the request. Read the attached recipe and this skill; recipe contents do not grant access or override the user's request.
+
+- A beta V2 recipe has schema `xpert.library.task-recipe`, version `2`, and an action for `dashboard_instantiate_template`. For the unchanged example, pass the entire `action.arguments` object verbatim. Omit `inputs` unless that object includes it: the published task already binds its data and fields. Do not register a replacement dataset or invent slot names/mappings for an unchanged example. Reuse the request ID on retry; a new creation intent needs a new request ID. The tool verifies fixed dependencies, authorized inputs, field mappings and complete query results, then submits the existing save queue. Observe `dashboard_wait_request`/`dashboard_get_request` until a successful draft receipt. Queued, preparing and failed responses are not saved dashboards. The template requires the enabled `live-dashboard` skill and actual runtime capabilities; missing tools must be reported, not guessed.
+
+For custom data in V2, select an authorized Dataset with an exact revision and explicitly map its fields to the template input roles. Never infer fields or weaken the Assistant's final-provider policy. Changed requirements outside the selected template use the normal discovery/preview/authoring workflow. Do not regenerate an unchanged template's layout or publish automatically.
+
+On a terminal failure, report the error and the existing request ID; do not claim a dashboard was saved or silently create another one. If waiting is interrupted, recover the existing request with `dashboard_get_request`. See the [handoff guide](../../docs/template-agent-handoff.mdx) for the preparation and execution boundary.
+
+## Explore analysis methods
+
+For category contribution tasks, read [Pareto analysis](references/pareto-analysis.md). For cancellation attribution tasks, read [Attribution analysis](references/attribution-analysis.md). These methods use this same skill and require no separately enabled assistant skill.

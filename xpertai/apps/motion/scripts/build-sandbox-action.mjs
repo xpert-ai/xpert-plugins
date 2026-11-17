@@ -11,7 +11,7 @@ const sourceRoot = path.join(packageRoot, 'sandbox-actions', 'hyperframes-render
 const actionRoot = path.join(packageRoot, 'dist', 'sandbox-actions', 'hyperframes-render')
 const bundleRoot = path.join(actionRoot, 'bundle')
 const copiedPackages = new Map()
-const actionVersion = '1.0.0'
+const actionVersion = '1.1.0'
 
 await rm(actionRoot, { recursive: true, force: true })
 await mkdir(bundleRoot, { recursive: true })
@@ -34,6 +34,7 @@ const producerRoot = path.dirname(producerPackageJsonPath)
 await copyPackageClosure('postcss', createRequire(producerPackageJsonPath), producerRoot, true)
 await copyPackageClosure('esbuild', requireFromPackage, packageRoot, false)
 await copyPackageClosure('@esbuild/linux-x64', requireFromPackage, packageRoot, false)
+await copyPackageClosure('@esbuild/linux-arm64', requireFromPackage, packageRoot, false)
 await copyPackageClosure('@esbuild/darwin-arm64', requireFromPackage, packageRoot, false)
 
 const files = await collectFiles(bundleRoot)

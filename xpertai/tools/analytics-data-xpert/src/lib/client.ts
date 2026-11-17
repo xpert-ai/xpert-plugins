@@ -25,17 +25,42 @@ const optionsSchema = z.object({
   baseUrl: z.string().url(), audience: z.string().min(1),
   assistantCode: z.string().min(1), assistantXpertId: z.string().uuid(), workspaceId: z.string().uuid()
 }).strict()
+
+const certificationSchema = z.discriminatedUnion('status', [
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('legacy_unverified') }).strict(),
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('verified'),
+    definitionHash: z.string().regex(/^[a-f0-9]{64}$/),
+    dependency: z.object({ id: z.string().min(1).max(160), version: z.number().int().nonnegative() }).strict(),
+    certifiedBy: z.string().min(1).max(160), certifiedAt: z.string().datetime() }).strict()
+])
+
 const responseSchema = z.object({
   effect: z.object({ version: z.literal(2), kind: z.enum(['rows', 'series', 'entity']),
     columns: z.array(dataXpertResultColumnSchema),
     rows: z.array(z.record(scalar)),
     summary: z.object({ rowCount: z.number().int().nonnegative(), returnedRowCount: z.number().int().nonnegative(), truncated: z.boolean() }) }),
-  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false)
+  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false),
+  sourceVersion: z.string().min(1).max(256).optional(),
+  certification: certificationSchema.optional()
 })
 
 @Injectable()
 export class DataXpertAnalyticsClient {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+  /**
+   * Ask Data Xpert to validate disclosure authority using the current human's scoped token.
+   * This metadata-only check neither executes the binding nor grants future query access.
+   */
+  async authorizeGroupSharing(binding: AnalyticsBinding, context: DataXpertClientContext) {
+    const payload = dataXpertPayloadSchema.parse(binding.payload)
+    const response = await this.request('authorize-group-sharing', context, {
+      binding: { id: binding.id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode,
+        target: payload.target, params: payload.params }, maxRows: 1
+    })
+    z.object({ authorized: z.literal(true) }).strict().parse(await boundedJson(response))
+  }
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
     const importing = importTargetRequest.safeParse(request)
     if (importing.success) return discoverImportTargets(importing.data, browse => this.discover(browse, context))
@@ -45,7 +70,7 @@ export class DataXpertAnalyticsClient {
       const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
       return analyticsDiscoveryResultSchema.parse({
         items: [{ id: datasetId, name: datasetId, kind: 'dataset',
-          metadata: { output: createDataXpertOutput(datasetId, result.effect.columns) } }],
+          metadata: { payload: parsed.payload, output: createDataXpertOutput(datasetId, result.effect.columns) } }],
         queryContract: dataXpertQueryContract
       })
     }
@@ -56,7 +81,7 @@ export class DataXpertAnalyticsClient {
       nextRequest: json.optional() }).strict().parse(await boundedJson(response))
     return analyticsDiscoveryResultSchema.parse({ ...result,  queryContract: dataXpertQueryContract })
   }
-  private async request(endpoint: 'query' | 'discover', context: DataXpertClientContext, body: Record<string, JSONValue>) {
+  private async request(endpoint: 'query' | 'discover' | 'authorize-group-sharing', context: DataXpertClientContext, body: Record<string, JSONValue>) {
     context.signal.throwIfAborted()
     const options = optionsSchema.parse(context.options)
     const base = new URL(options.baseUrl)
@@ -82,7 +107,8 @@ export class DataXpertAnalyticsClient {
       completeness: { returnedRows: result.effect.summary.returnedRowCount, totalRows: result.effect.summary.rowCount,
         totalAccuracy: result.effect.summary.truncated ? 'unknown' : 'exact', scope: result.effect.summary.truncated ? 'page' : 'full_query_result',
         truncated: result.effect.summary.truncated }, sourceFetchedAt: result.fetchedAt,
-      upstreamExecutionId: result.executionId, auditRef: result.auditRef }
+      upstreamExecutionId: result.executionId, auditRef: result.auditRef, sourceVersion: result.sourceVersion,
+      ...(result.certification ? { certification: result.certification } : {}) }
   }
   private async query(id: string, payload: z.output<typeof dataXpertPayloadSchema>, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext) {
     const response = await this.request('query', context, {

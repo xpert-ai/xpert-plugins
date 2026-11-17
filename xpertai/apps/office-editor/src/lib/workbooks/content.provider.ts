@@ -20,6 +20,7 @@ export class OfficeWorkbookContent implements IContentResourceProvider {
   constructor(private readonly service: OfficeWorkbookService,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
   readonly catalog: ContentCatalogProvider = {
+    acceptedTransferSchemas: ['xpert.content-transfer@1'],
     types: [{ ...WORKBOOK_MODEL, title: { en_US: 'Spreadsheet', zh_Hans: '电子表格' }, implementationKey: WORKBOOK_IMPLEMENTATION,
       implementationTitle: { en_US: 'Univer (Office Editor)', zh_Hans: 'Univer（Office 编辑器）' }, defaultEditorKey: WORKBOOK_EDITOR }],
     discover: async scope => {
@@ -32,7 +33,7 @@ export class OfficeWorkbookContent implements IContentResourceProvider {
     describe: input => this.describe(input),
     create: async input => {
       if (input.implementationKey !== WORKBOOK_IMPLEMENTATION || input.templateId) throw new BadRequestException('office.implementation_unavailable')
-      return { providerKey: WORKBOOK_PROVIDER, resourceId: (await this.service.create(input, input.requestId, input.title)).documentId }
+      return { providerKey: WORKBOOK_PROVIDER, resourceId: (await this.service.create(input, input.requestId, input.title, undefined, input.initialContent)).documentId }
     },
     mutate: async input => ({ providerKey: WORKBOOK_PROVIDER,
       resourceId: await this.service.mutate(input, input.sourceResourceId, input.expectedRevision, input.change) }),
@@ -57,7 +58,7 @@ export class OfficeWorkbookContent implements IContentResourceProvider {
     const revision = String(doc.currentVersionNumber), root = workbookSourceRoot(doc.id!)
     const source = doc.sourceSnapshotPath ? await this.runtime.require(ProjectFilesRuntimeCapability).read({ ...input, path: doc.sourceSnapshotPath }).catch(() => null) : null
     return { ...WORKBOOK_MODEL, projectId: input.projectId, title: doc.title, revision, updatedAt: doc.updatedAt!.toISOString(),
-      deleted: doc.status === 'archived', offlineAccess: 'project',
+      deleted: doc.status === 'archived', offlineAccess: 'project', writeOwnership: 'provider',
       source: doc.sourceSnapshotPath ? { kind: 'bundle', rootPath: root, entryPath: doc.sourceSnapshotPath.slice(root.length + 1) } : { kind: 'managed' },
       containedPaths: [{ path: root, recursive: true }], defaultEditorKey: WORKBOOK_EDITOR,
       sourceSync: { status: source?.sha256 === doc.sourceSnapshotHash ? 'synced' : 'failed', revision },

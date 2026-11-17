@@ -61,7 +61,8 @@ export class SpacesView implements IXpertViewExtensionProvider {
     if (!actor.projectId) return { items: [], meta: { requiresProject: true } }
     const space = await this.spaces.workspace(actor)
     const resourceId = !query.selectionId || query.selectionId === 'root' ? space.id : id.parse(query.selectionId)
-    return { items: [], meta: { ...await this.spaces.tree(actor, resourceId, query.parameters?.trash === true),
+    const tree = await this.spaces.tree(actor, resourceId, query.parameters?.trash === true)
+    return { items: [], meta: { ...tree, items: await this.editors.presentItems(actor, tree.items),
       project: { id: space.projectId, title: space.title },
       assistant: { id: context.hostId, title: space.title, dataScope: 'project' } } }
   }

@@ -1,0 +1,1075 @@
+{
+  "schemaVersion": 1,
+  "template": {
+    "key": "ev_motor.order",
+    "version": "1.1.0",
+    "title": "电动车驱动电机全流程",
+    "projectTypes": [
+      {
+        "applicationKey": "@xpert-ai/plugin-ev-motor-lifecycle:ev-motor-lifecycle",
+        "projectTypeKey": "order"
+      }
+    ],
+    "subjectResolverRef": "ev_motor.order@1",
+    "roles": [
+      {
+        "key": "sales",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "engineering",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "purchasing",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "planner",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "production",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "quality",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "service",
+        "allowedKinds": [
+          "assistant"
+        ]
+      },
+      {
+        "key": "review-engineering",
+        "allowedKinds": [
+          "human"
+        ]
+      },
+      {
+        "key": "review-planning",
+        "allowedKinds": [
+          "human"
+        ]
+      },
+      {
+        "key": "review-quality",
+        "allowedKinds": [
+          "human"
+        ]
+      },
+      {
+        "key": "review-knowledge",
+        "allowedKinds": [
+          "human"
+        ]
+      },
+      {
+        "key": "receipt",
+        "allowedKinds": [
+          "service"
+        ]
+      }
+    ],
+    "lanes": [
+      {
+        "key": "sales",
+        "roleKey": "sales",
+        "label": "销售需求助手",
+        "order": 0
+      },
+      {
+        "key": "engineering",
+        "roleKey": "engineering",
+        "label": "BOM 工程助手",
+        "order": 1
+      },
+      {
+        "key": "purchasing",
+        "roleKey": "purchasing",
+        "label": "采购齐套助手",
+        "order": 2
+      },
+      {
+        "key": "planner",
+        "roleKey": "planner",
+        "label": "生产计划助手",
+        "order": 3
+      },
+      {
+        "key": "production",
+        "roleKey": "production",
+        "label": "制造交付助手",
+        "order": 4
+      },
+      {
+        "key": "quality",
+        "roleKey": "quality",
+        "label": "质量与验证助手",
+        "order": 5
+      },
+      {
+        "key": "service",
+        "roleKey": "service",
+        "label": "售后改进助手",
+        "order": 6
+      },
+      {
+        "key": "review-engineering",
+        "roleKey": "review-engineering",
+        "label": "工程负责人",
+        "order": 7
+      },
+      {
+        "key": "review-planning",
+        "roleKey": "review-planning",
+        "label": "计划负责人",
+        "order": 8
+      },
+      {
+        "key": "review-quality",
+        "roleKey": "review-quality",
+        "label": "质量负责人",
+        "order": 9
+      },
+      {
+        "key": "review-knowledge",
+        "roleKey": "review-knowledge",
+        "label": "工程知识负责人",
+        "order": 10
+      },
+      {
+        "key": "receipt",
+        "roleKey": "receipt",
+        "label": "审批回执",
+        "order": 11
+      }
+    ],
+    "stages": [
+      {
+        "key": "s0",
+        "label": "订单受理",
+        "order": 0
+      },
+      {
+        "key": "s1",
+        "label": "工程审核",
+        "order": 1
+      },
+      {
+        "key": "s2",
+        "label": "插单排程",
+        "order": 2
+      },
+      {
+        "key": "s3",
+        "label": "生产交付",
+        "order": 3
+      },
+      {
+        "key": "s4",
+        "label": "售后改进",
+        "order": 4
+      }
+    ],
+    "executionAuthority": "platform",
+    "topology": {
+      "source": "definition"
+    },
+    "nodes": [
+      {
+        "key": "intake",
+        "label": "提取合同与产品要求",
+        "stageKey": "s0",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "sales",
+        "operationRef": "ev_motor.intake@1",
+        "executorSlot": "sales",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "bom",
+        "label": "比对防护等级与技术 BOM",
+        "stageKey": "s1",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "engineering",
+        "operationRef": "ev_motor.bom@1",
+        "executorSlot": "engineering",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "lock",
+        "label": "批准差异并冻结 BOM",
+        "stageKey": "s1",
+        "outputPorts": {
+          "decision": "platform.human-decision@1"
+        },
+        "kind": "human_gate",
+        "laneKey": "review-engineering",
+        "policyRef": "ev_motor.lock@1",
+        "candidateRoleKey": "review-engineering",
+        "outcomes": [
+          "approve",
+          "reject"
+        ],
+        "outcomeLabels": {
+          "approve": "批准",
+          "reject": "退回"
+        }
+      },
+      {
+        "key": "lock-accepted",
+        "label": "记录批准结果",
+        "stageKey": "s1",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "lock",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-lock@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "lock-returned",
+        "label": "记录退回原因",
+        "stageKey": "s1",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "lock",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-lock@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "supply",
+        "label": "检查齐套与在途物料",
+        "stageKey": "s2",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "purchasing",
+        "operationRef": "ev_motor.supply@1",
+        "executorSlot": "purchasing",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "expediteCheck",
+        "label": "核实缺口与供应商交期",
+        "stageKey": "s2",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "purchasing",
+        "operationRef": "ev_motor.expediteCheck@1",
+        "executorSlot": "purchasing",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "schedule",
+        "label": "比较提前三天交付方案",
+        "stageKey": "s2",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "planner",
+        "operationRef": "ev_motor.schedule@1",
+        "executorSlot": "planner",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "commit",
+        "label": "选择方案并批准排程",
+        "stageKey": "s2",
+        "outputPorts": {
+          "decision": "platform.human-decision@1"
+        },
+        "kind": "human_gate",
+        "laneKey": "review-planning",
+        "policyRef": "ev_motor.commit@1",
+        "candidateRoleKey": "review-planning",
+        "outcomes": [
+          "expedite",
+          "split",
+          "original",
+          "reject"
+        ],
+        "outcomeLabels": {
+          "expedite": "加急并换序",
+          "split": "分批交付",
+          "original": "维持原计划",
+          "reject": "退回"
+        }
+      },
+      {
+        "key": "commit-accepted",
+        "label": "记录批准结果",
+        "stageKey": "s2",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "commit",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-commit@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "commit-returned",
+        "label": "记录退回原因",
+        "stageKey": "s2",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "commit",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-commit@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "build",
+        "label": "报产、装配与实装登记",
+        "stageKey": "s3",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "production",
+        "operationRef": "ev_motor.build@1",
+        "executorSlot": "production",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "test",
+        "label": "核对出厂试验记录",
+        "stageKey": "s3",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "quality",
+        "operationRef": "ev_motor.test@1",
+        "executorSlot": "quality",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "release",
+        "label": "签署质量放行",
+        "stageKey": "s3",
+        "outputPorts": {
+          "decision": "platform.human-decision@1"
+        },
+        "kind": "human_gate",
+        "laneKey": "review-quality",
+        "policyRef": "ev_motor.release@1",
+        "candidateRoleKey": "review-quality",
+        "outcomes": [
+          "approve",
+          "reject"
+        ],
+        "outcomeLabels": {
+          "approve": "批准",
+          "reject": "退回"
+        }
+      },
+      {
+        "key": "release-accepted",
+        "label": "记录批准结果",
+        "stageKey": "s3",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "release",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-release@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "release-returned",
+        "label": "记录退回原因",
+        "stageKey": "s3",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "release",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-release@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "ship",
+        "label": "出库、交付与签收",
+        "stageKey": "s3",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "production",
+        "operationRef": "ev_motor.ship@1",
+        "executorSlot": "production",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "trace",
+        "label": "受理报修并锁定序列号",
+        "stageKey": "s4",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "service",
+        "operationRef": "ev_motor.trace@1",
+        "executorSlot": "service",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "asBuilt",
+        "label": "按序列号查 MES 实装批次",
+        "stageKey": "s4",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "production",
+        "operationRef": "ev_motor.asBuilt@1",
+        "executorSlot": "production",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "benchReport",
+        "label": "按序列号查 QMS 台架索引",
+        "stageKey": "s4",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "quality",
+        "operationRef": "ev_motor.benchReport@1",
+        "executorSlot": "quality",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "recoverReport",
+        "label": "按工单补调试验原件并复核序列号",
+        "stageKey": "s4",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "quality",
+        "operationRef": "ev_motor.recoverReport@1",
+        "executorSlot": "quality",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "cause",
+        "label": "确认拆检根因与工程措施",
+        "stageKey": "s4",
+        "outputPorts": {
+          "decision": "platform.human-decision@1"
+        },
+        "kind": "human_gate",
+        "laneKey": "review-quality",
+        "policyRef": "ev_motor.cause@1",
+        "candidateRoleKey": "review-quality",
+        "outcomes": [
+          "approve",
+          "reject"
+        ],
+        "outcomeLabels": {
+          "approve": "批准",
+          "reject": "退回"
+        }
+      },
+      {
+        "key": "cause-accepted",
+        "label": "记录批准结果",
+        "stageKey": "s4",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "cause",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-cause@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "cause-returned",
+        "label": "记录退回原因",
+        "stageKey": "s4",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "cause",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-cause@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "replay",
+        "label": "回放专家纠错样本",
+        "stageKey": "s4",
+        "inputBindings": {
+          "subject": {
+            "from": "subject"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "engineering",
+        "operationRef": "ev_motor.replay@1",
+        "executorSlot": "engineering",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "publish",
+        "label": "审核并发布下一单可采用的规则",
+        "stageKey": "s4",
+        "outputPorts": {
+          "decision": "platform.human-decision@1"
+        },
+        "kind": "human_gate",
+        "laneKey": "review-knowledge",
+        "policyRef": "ev_motor.publish@1",
+        "candidateRoleKey": "review-knowledge",
+        "outcomes": [
+          "approve",
+          "reject"
+        ],
+        "outcomeLabels": {
+          "approve": "批准",
+          "reject": "退回"
+        }
+      },
+      {
+        "key": "publish-accepted",
+        "label": "记录批准结果",
+        "stageKey": "s4",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "publish",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-publish@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "publish-returned",
+        "label": "记录退回原因",
+        "stageKey": "s4",
+        "inputBindings": {
+          "decision": {
+            "from": "node_output",
+            "nodeKey": "publish",
+            "port": "decision"
+          }
+        },
+        "outputPorts": {
+          "result": "ev_motor.receipt@1"
+        },
+        "kind": "work",
+        "laneKey": "receipt",
+        "operationRef": "ev_motor.record-publish@1",
+        "executorSlot": "receipt",
+        "completionRef": "platform.output-validated@1"
+      },
+      {
+        "key": "materialRoute",
+        "label": "密封件是否齐套？",
+        "stageKey": "s2",
+        "inputBindings": {
+          "supply": {
+            "from": "node_output",
+            "nodeKey": "supply",
+            "port": "result"
+          }
+        },
+        "kind": "router",
+        "policyRef": "ev_motor.materialRoute@1",
+        "outcomes": [
+          "shortage",
+          "stocked"
+        ],
+        "unmatched": "block"
+      },
+      {
+        "key": "traceRoute",
+        "label": "实装与试验序列号是否一致？",
+        "stageKey": "s4",
+        "inputBindings": {
+          "asBuilt": {
+            "from": "node_output",
+            "nodeKey": "asBuilt",
+            "port": "result"
+          },
+          "benchReport": {
+            "from": "node_output",
+            "nodeKey": "benchReport",
+            "port": "result"
+          }
+        },
+        "kind": "router",
+        "policyRef": "ev_motor.traceRoute@1",
+        "outcomes": [
+          "matched",
+          "lookup"
+        ],
+        "unmatched": "block"
+      },
+      {
+        "key": "traceFork",
+        "label": "并行调取实装与试验记录",
+        "stageKey": "s4",
+        "kind": "fork"
+      },
+      {
+        "key": "traceJoin",
+        "label": "等待两份取证回执",
+        "stageKey": "s4",
+        "kind": "join",
+        "join": {
+          "mode": "all_selected",
+          "accept": "completed"
+        }
+      },
+      {
+        "key": "complete",
+        "stageKey": "s4",
+        "kind": "terminal",
+        "outcome": "complete"
+      },
+      {
+        "key": "returned",
+        "stageKey": "s4",
+        "kind": "terminal",
+        "outcome": "returned"
+      }
+    ],
+    "edges": [
+      {
+        "from": "intake",
+        "to": "bom"
+      },
+      {
+        "from": "bom",
+        "to": "lock"
+      },
+      {
+        "from": "lock",
+        "to": "lock-accepted",
+        "outcome": "approve"
+      },
+      {
+        "from": "lock",
+        "to": "lock-returned",
+        "outcome": "reject"
+      },
+      {
+        "from": "lock-accepted",
+        "to": "supply"
+      },
+      {
+        "from": "lock-returned",
+        "to": "returned"
+      },
+      {
+        "from": "supply",
+        "to": "materialRoute"
+      },
+      {
+        "from": "materialRoute",
+        "to": "expediteCheck",
+        "outcome": "shortage"
+      },
+      {
+        "from": "materialRoute",
+        "to": "schedule",
+        "outcome": "stocked"
+      },
+      {
+        "from": "expediteCheck",
+        "to": "schedule"
+      },
+      {
+        "from": "schedule",
+        "to": "commit"
+      },
+      {
+        "from": "commit",
+        "to": "commit-accepted",
+        "outcome": "expedite"
+      },
+      {
+        "from": "commit",
+        "to": "commit-accepted",
+        "outcome": "split"
+      },
+      {
+        "from": "commit",
+        "to": "commit-accepted",
+        "outcome": "original"
+      },
+      {
+        "from": "commit",
+        "to": "commit-returned",
+        "outcome": "reject"
+      },
+      {
+        "from": "commit-accepted",
+        "to": "build"
+      },
+      {
+        "from": "commit-returned",
+        "to": "returned"
+      },
+      {
+        "from": "build",
+        "to": "test"
+      },
+      {
+        "from": "test",
+        "to": "release"
+      },
+      {
+        "from": "release",
+        "to": "release-accepted",
+        "outcome": "approve"
+      },
+      {
+        "from": "release",
+        "to": "release-returned",
+        "outcome": "reject"
+      },
+      {
+        "from": "release-accepted",
+        "to": "ship"
+      },
+      {
+        "from": "release-returned",
+        "to": "returned"
+      },
+      {
+        "from": "ship",
+        "to": "trace"
+      },
+      {
+        "from": "trace",
+        "to": "traceFork"
+      },
+      {
+        "from": "traceFork",
+        "to": "asBuilt"
+      },
+      {
+        "from": "traceFork",
+        "to": "benchReport"
+      },
+      {
+        "from": "asBuilt",
+        "to": "traceJoin"
+      },
+      {
+        "from": "benchReport",
+        "to": "traceJoin"
+      },
+      {
+        "from": "traceJoin",
+        "to": "traceRoute"
+      },
+      {
+        "from": "traceRoute",
+        "to": "cause",
+        "outcome": "matched"
+      },
+      {
+        "from": "traceRoute",
+        "to": "recoverReport",
+        "outcome": "lookup"
+      },
+      {
+        "from": "recoverReport",
+        "to": "cause"
+      },
+      {
+        "from": "cause",
+        "to": "cause-accepted",
+        "outcome": "approve"
+      },
+      {
+        "from": "cause",
+        "to": "cause-returned",
+        "outcome": "reject"
+      },
+      {
+        "from": "cause-accepted",
+        "to": "replay"
+      },
+      {
+        "from": "cause-returned",
+        "to": "returned"
+      },
+      {
+        "from": "replay",
+        "to": "publish"
+      },
+      {
+        "from": "publish",
+        "to": "publish-accepted",
+        "outcome": "approve"
+      },
+      {
+        "from": "publish",
+        "to": "publish-returned",
+        "outcome": "reject"
+      },
+      {
+        "from": "publish-accepted",
+        "to": "complete"
+      },
+      {
+        "from": "publish-returned",
+        "to": "returned"
+      }
+    ],
+    "roundPolicy": {
+      "entryNodeKey": "intake",
+      "maxRounds": 1,
+      "onRework": "await_new_subject_then_next_round",
+      "onLimit": "attention",
+      "newVersionWhileActive": "supersede_round",
+      "terminalOutcomes": [
+        "complete",
+        "returned"
+      ]
+    },
+    "failurePolicy": {
+      "requiredNodeFailure": "block_and_attention",
+      "unknownExecution": "inspect_without_replay"
+    }
+  },
+  "binding": {
+    "templateRef": "ev_motor.order@1.1.0",
+    "roleBindings": {
+      "review-engineering": {
+        "kind": "human",
+        "selectionKey": "review-engineering"
+      },
+      "review-planning": {
+        "kind": "human",
+        "selectionKey": "review-planning"
+      },
+      "review-quality": {
+        "kind": "human",
+        "selectionKey": "review-quality"
+      },
+      "review-knowledge": {
+        "kind": "human",
+        "selectionKey": "review-knowledge"
+      }
+    },
+    "executorBindings": {
+      "sales": {
+        "kind": "assistant",
+        "selectionKey": "sales",
+        "roleKey": "sales"
+      },
+      "engineering": {
+        "kind": "assistant",
+        "selectionKey": "engineering",
+        "roleKey": "engineering"
+      },
+      "purchasing": {
+        "kind": "assistant",
+        "selectionKey": "purchasing",
+        "roleKey": "purchasing"
+      },
+      "planner": {
+        "kind": "assistant",
+        "selectionKey": "planner",
+        "roleKey": "planner"
+      },
+      "production": {
+        "kind": "assistant",
+        "selectionKey": "production",
+        "roleKey": "production"
+      },
+      "quality": {
+        "kind": "assistant",
+        "selectionKey": "quality",
+        "roleKey": "quality"
+      },
+      "service": {
+        "kind": "assistant",
+        "selectionKey": "service",
+        "roleKey": "service"
+      },
+      "receipt": {
+        "kind": "service",
+        "selectionKey": "receipt",
+        "roleKey": "receipt"
+      }
+    },
+    "parameters": {},
+    "limits": {
+      "maxConcurrentExecutions": 2,
+      "maxTechnicalAttemptsPerNode": 2,
+      "runTimeoutMinutes": 1440
+    }
+  }
+}

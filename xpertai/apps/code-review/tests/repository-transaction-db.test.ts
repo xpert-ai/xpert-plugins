@@ -86,3 +86,27 @@ test('repository conflict authority lookup runs after the advisory transaction h
   assert.equal(await f.records.count(), 1)
   assert.equal((await f.records.findOneByOrFail({ id: f.p.id })).assistantId, f.p.assistantId)
 })
+
+test('saving a repository rule selects its publication binding on the server and replaces it when PR mode changes', { skip: !url }, async t => {
+  const f = await fixture(t)
+  const registry = new DefaultRuntimeCapabilityRegistry()
+  const app = new GitHubApp({} as PluginContext), catalog = new ReviewPipelineCatalog(registry)
+  const scope: Scope = { ...f.p, permissions: [AIPermissionsEnum.XPERT_EDIT],
+    assistant: { currentId: f.p.assistantId, instanceId: f.p.assistantId, versionIds: [], principalUserId: f.p.executionUserId! } }
+  registry.register(AssistantMiddlewareAccessRuntimeCapability, { assertAccess: async () => {} })
+  const bindingId = randomUUID()
+  t.mock.method(catalog, 'configurePublication', async (_scope, target, mode) => {
+    assert.deepEqual(target, f.p.settings.pipeline)
+    assert.equal(mode, 'comment')
+    return bindingId
+  })
+  t.mock.method(app, 'inspect', async () => ({ ...f.p, githubIntegrationId: null, githubAppId: '3' }))
+  const service = new Repositories(f.records, app, catalog, registry, { access: async () => {} } as ReviewEvents)
+  const configured = await service.save(scope, f.p.id, f.p.revision, { ...f.p.settings, visibility: 'project', publication: 'comment',
+    publicationBindingId: randomUUID() })
+  assert.equal(configured.settings.publicationBindingId, bindingId)
+  await service.save(scope, f.p.id, configured.revision, { ...configured.settings, executionMode: 'assistant', pipeline: null, visibility: 'organization' })
+  const latest = await f.records.findOneByOrFail({ id: f.p.id })
+  assert.equal(latest.settings.publication, 'comment')
+  assert.equal(latest.settings.publicationBindingId, undefined)
+})

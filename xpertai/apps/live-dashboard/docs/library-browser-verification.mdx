@@ -1,0 +1,46 @@
+---
+title: 资源目录浏览器回归
+description: 使用生产 iframe、独立 PostgreSQL schema 和合成能力验证目录完整操作链路
+---
+
+<Warning>
+资源库处于 Beta 阶段，测试接口随契约调整。本流程使用真实浏览器和数据库事务，但平台文件、Analytics、composer 与保存队列由 fixture 提供，不代表真实 ChatKit、Agent、Sandbox 或 MinIO 验收。
+</Warning>
+
+## 准备
+
+按仓库本地验证流程检查分支和工作区、执行 fast-forward 拉取和冻结依赖安装，再构建插件。保留本地修改；确认测试使用本次构建产物。
+
+准备专用 PostgreSQL 测试库、可用的 Puppeteer 模块及 Chromium。数据库账户需可创建 schema；不要使用客户业务库。测试为每次运行创建随机 schema，并在退出时删除该 schema，不修改现有表。
+
+在插件目录设置以下环境变量后执行脚本。连接串和机器路径放在本地环境，不提交到仓库：
+
+| 变量 | 用途 |
+| --- | --- |
+| `LIVE_DASHBOARD_LIBRARY_TEST_DATABASE_URL` | 独立测试库连接串 |
+| `BROWSER_AUTOMATION_MODULE` | 可被 Node 加载的 Puppeteer 模块名或绝对路径 |
+| `BROWSER_EXECUTABLE` | 可选 Chromium 可执行文件路径；省略则由 Puppeteer 选择 |
+| `LIBRARY_BROWSER_OUTPUT` | 尚不存在的输出目录，其父目录需已存在 |
+
+```sh
+node tests/library-directory.browser.cjs
+```
+
+## 检查范围
+
+- 生产 iframe 正常加载；模板目录、组件目录及详情中的图片实际解码成功，预留内容不能执行。
+- 主题分页经过服务端请求，语言更新保留当前目录状态。
+- ZIP 上传、预检、确认导入，将十个任务匹配到已导入版本。
+- 十个任务依次准备提示词、文件与技能，记录 `assistant.composer.insert`；无 Agent 调用或看板创建。
+- 从已有 Dataset 选择明确字段映射，生成固定 Dataset 修订和模板版本的配方。
+- 只读操作限制、暗色外观与窄屏无横向页面溢出。
+
+输出目录保留截图、合成内容 ZIP 和 `report.json`。报告明确记录哪些能力使用 fixture；重复运行必须使用新目录，避免覆盖失败证据。文件或目录预览成功不能代替业务指标和真实授权链路验收。
+
+真实部署仍需按[验证与验收](/verification)使用实际用户、ChatKit 和数据源另行测试。已有历史验收日期及结论不由本脚本更新。
+
+## 2026-11-08 隔离复验
+
+生产构建、17 项针对性测试和插件生命周期检查通过。独立 PostgreSQL 与 Chromium 回归完成上述操作，确认十项草稿交接，输出九张截图，页面脚本错误及服务请求错误均为零。详情封面和窄屏截图已检查。首次图片检查因等待屏幕外的懒加载图片而超时；脚本改为逐项滚动检查后复验通过，保留了失败记录。
+
+本记录仅覆盖隔离回归，未重新执行真实 ChatKit、Agent、Sandbox 或 MinIO 验收。

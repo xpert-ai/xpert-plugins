@@ -97,10 +97,25 @@
     },
     {
       "type": "workflow",
-      "key": "Middleware_SandboxFile",
+      "key": "Middleware_ResourceAssistant",
       "position": {
         "x": 550,
         "y": 220
+      },
+      "entity": {
+        "type": "middleware",
+        "key": "Middleware_ResourceAssistant",
+        "title": "ResourceAssistant",
+        "provider": "ResourceAssistant",
+        "required": true
+      }
+    },
+    {
+      "type": "workflow",
+      "key": "Middleware_SandboxFile",
+      "position": {
+        "x": 550,
+        "y": 340
       },
       "entity": {
         "type": "middleware",
@@ -115,7 +130,7 @@
       "key": "Middleware_skillsMiddleware",
       "position": {
         "x": 550,
-        "y": 340
+        "y": 460
       },
       "entity": {
         "type": "middleware",
@@ -132,6 +147,13 @@
       "key": "Agent_Bosi/Middleware_LiveDashboard",
       "from": "Agent_Bosi",
       "to": "Middleware_LiveDashboard",
+      "required": true
+    },
+    {
+      "type": "workflow",
+      "key": "Agent_Bosi/Middleware_ResourceAssistant",
+      "from": "Agent_Bosi",
+      "to": "Middleware_ResourceAssistant",
       "required": true
     },
     {

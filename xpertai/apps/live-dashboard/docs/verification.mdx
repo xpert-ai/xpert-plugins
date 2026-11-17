@@ -93,3 +93,7 @@ Binding、依赖锁和保存字节；`boundary.mjs` 和 `permissions.mjs` 分别
 [2026-10-19 固定构建与多模型回归](./fixed-build-multimodel-acceptance)。
 `build.mjs` 在运行前记录外部不可覆盖清单，`models.mjs` 核对实际根执行的模型和参数；
 工具首次成功、业务首次通过、额外修复轮次与模型不可用分别记录。
+
+## 资源目录的隔离浏览器回归
+
+目录预览、ZIP 导入、十项任务草稿交接、Dataset 字段映射和响应式布局，见[资源目录浏览器回归](./library-browser-verification)。该流程使用真实生产 iframe 和独立 PostgreSQL schema；平台 SDK 与 composer 使用 fixture，不替代真实部署验收。

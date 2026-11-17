@@ -55,6 +55,13 @@ async function main() {
         })}\n`
       )
     })
+    if (request.payload.narration) {
+      const audio = path.join(path.dirname(requestPath), 'narration.wav')
+      const mixed = path.join(workRoot, 'narrated.mp4')
+      await execFileAsync('ffmpeg', ['-nostdin', '-y', '-i', outputPath, '-i', audio, '-filter_complex', '[1:a]adelay=3000:all=1,apad[a]',
+        '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { maxBuffer: 1024 * 1024 })
+      await cp(mixed, outputPath)
+    }
     await validateOutput(outputPath, request.payload.kind)
     const ffmpeg = await execFileAsync('ffmpeg', ['-version'], { maxBuffer: 1024 * 1024 })
     const producerPackage = JSON.parse(
@@ -71,6 +78,7 @@ async function main() {
           kind: request.payload.kind,
           quality: request.payload.quality,
           fps: request.payload.fps,
+          narration: !!request.payload.narration,
           outcome: job.outcome ?? 'completed',
           totalFrames: job.totalFrames ?? null,
           duration: job.duration ?? null,
@@ -91,7 +99,7 @@ function parseRequest(value) {
     !isObject(value) ||
     value.contractVersion !== '1' ||
     value.action !== 'motion.hyperframes-render' ||
-    value.actionVersion !== '1.0.0'
+    value.actionVersion !== '1.1.0'
   ) {
     throw new Error('EXPORT_INPUT_INVALID: Sandbox Action contract or version does not match.')
   }
@@ -99,6 +107,7 @@ function parseRequest(value) {
   if (!isObject(payload) || (payload.kind !== 'mp4' && payload.kind !== 'gif')) {
     throw new Error('EXPORT_INPUT_INVALID: payload kind must be mp4 or gif.')
   }
+  if (payload.narration !== undefined && (typeof payload.narration !== 'boolean' || payload.narration && payload.kind !== 'mp4')) throw new Error('EXPORT_INPUT_INVALID: narration requires MP4.')
   if (payload.quality !== 'draft' && payload.quality !== 'standard' && payload.quality !== 'high') {
     throw new Error('EXPORT_INPUT_INVALID: payload quality is invalid.')
   }
@@ -161,7 +170,7 @@ async function findHeadlessShell(root) {
     const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
     for (const entry of entries) {
       const candidate = path.join(directory, entry.name)
-      if (entry.isFile() && entry.name === 'chrome-headless-shell') return candidate
+      if (entry.isFile() && ['chrome-headless-shell', 'headless_shell'].includes(entry.name)) return candidate
       if (entry.isDirectory()) queue.push(candidate)
     }
   }

@@ -1,0 +1,99 @@
+@import '@xpert-ai/plugin-shadcn-ui/style.css';
+:root {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--xui-font-family, system-ui, sans-serif);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.page {
+  padding: clamp(16px, 3vw, 42px);
+  max-width: 1500px;
+  margin: auto;
+}
+.head,
+.controls,
+.caseLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.head {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+.caseLine {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+.chart {
+  height: 175px;
+}
+.lanes {
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+  margin-top: 16px;
+}
+.lane {
+  display: grid;
+  grid-template-columns: minmax(112px, 155px) 1fr;
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 0;
+}
+.tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: minmax(90px, 30%) 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.scroll {
+  max-height: 55vh;
+  overflow: auto;
+}
+.muted {
+  color: var(--muted-foreground);
+}
+.notice {
+  margin-block: 12px;
+}
+.panel {
+  padding-block: 12px;
+}
+.error {
+  color: var(--destructive);
+}
+.stage-scroll { overflow-x:auto; max-width:100%; margin-block:1rem; }
+.desk-layout { display:grid; grid-template-columns:minmax(11rem,15rem) minmax(0,1fr); align-items:start; gap:1.5rem; }
+.desk-index { display:flex; flex-direction:column; align-items:stretch; width:100%; height:auto; }
+.desk-tab { justify-content:space-between; gap:.65rem; }
+.node-paper { min-width:0; }
+.node-paper h2 { margin:0; }
+.node-paper section { margin-block:1.2rem; }
+.record-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap:1rem; }
+.record-grid .source-record { margin:0; padding:.8rem; border:1px solid var(--border); }
+.node-paper .facts { grid-template-columns:minmax(5rem, 27%) minmax(0,1fr); }
+@media(max-width:760px) {
+  .desk-layout { grid-template-columns:minmax(0,1fr); gap:.75rem; }
+  .desk-index { flex-flow:row wrap; justify-content:flex-start; }
+  .desk-tab { flex:0 1 auto; }
+}
+.desk-actions:not(:empty) { display:grid; gap:.65rem; justify-items:start; margin-block:1rem; }
+.desk-actions label { display:grid; gap:.3rem; width:min(100%,42rem); }

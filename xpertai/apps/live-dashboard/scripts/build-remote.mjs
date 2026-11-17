@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto'
 import { writeDistManifest, verifyDist } from './dist-manifest.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const result = await build({ configFile: false, root, plugins: [tailwindcss()], logLevel: 'warn',
+  // Workspace UI and its Radix dependencies must share the consumer's React dispatcher.
+  resolve: { dedupe: ['react', 'react-dom'] },
   define: { 'process.env.NODE_ENV': '"production"' },
   build: { write: false, cssCodeSplit: false, target: 'es2022', minify: true,
     lib: { entry: join(root, 'src/remote/main.tsx'), name: 'LiveDashboard', formats: ['iife'], fileName: 'app' } } })

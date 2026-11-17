@@ -7,11 +7,23 @@ description: "Run organization-owned Assistant reviews and workflow diagnoses, o
 
 Repository rules select an explicit **PR review execution mode**. **Current Assistant** reviews PRs without a Project; **Project pipeline** uses the governance described below. Workflow failure/timeout diagnosis is a separate opt-in in either mode and always runs through the bound Assistant. Switching PR modes preserves workflow triggers and filters. Existing rules retain their mode and trigger settings on upgrade; there is no implicit fallback between PR modes.
 
+## Repository publication settings
+
+In **Code Review → Repositories**, open the repository rules and choose **PR review publication**. Both Current Assistant and Project pipeline support the same three choices.
+
+| Publication | What happens when the review finishes |
+| --- | --- |
+| **Save in Xpert only** | The summary and findings stay in the review workbench. |
+| **Publish a comment after confirmation** | An Assistant manager confirms from the PR detail, or a Project manager confirms at the pipeline's human gate. |
+| **Automatically comment on GitHub PRs** | The repository's GitHub App posts the final summary and line findings to the reviewed commit as a single `COMMENT` review. It also posts clean reviews and reports that call for rework. |
+
+Automatic comments require no human action. The App checks that the PR is open, ready for review and still on the reviewed commit. The action grants no approval and performs no merge. Trials and workflow diagnoses remain in Xpert. Existing rules default to **Save in Xpert only** for Current Assistant and **Publish a comment after confirmation** for Project pipeline. Changing a rule applies to subsequent review runs.
+
 ## Current Assistant and workflow failures
 
 1. Enable **Code review** when creating or editing an Assistant. Select a model with tool calling.
 2. Open its Code Review view, connect GitHub, add an authorized repository and select **Current Assistant** or configure **Project pipeline** for PR reviews.
-3. Bind organization execution authority to the intended Assistant. Then choose PR events and optionally workflow failure/timeout, exact branch/workflow-name filters, guidance and a daily limit. Save the rules.
+3. Bind organization execution authority to the intended Assistant. Then choose PR publication, PR events and optionally workflow failure/timeout, exact branch/workflow-name filters, guidance and a daily limit. Save the rules.
 4. In the Assistant's **Triggers** settings, enable **GitHub events · Code review**. Event instructions apply alongside repository guidance. The subscription belongs to the published Assistant. Execution uses the Assistant's existing account and is revalidated after restarts independently of the configuring user.
 5. Inspect PR results in the review inbox and CI results in **Workflow diagnoses**. A failed branch workflow does not need a linked PR.
 
@@ -23,7 +35,7 @@ Ordinary cancellations, including manual, concurrency and fail-fast cancellation
 
 PR events are deduplicated by repository policy, commit and policy revision. Workflow events additionally distinguish run ID and attempt. PR pushes retain the 30-second debounce. PR and workflow executions share the repository's daily limit. Pausing the trigger or rules, removing the code-review capability, or revoking access prevents new Assistant work. Existing private results retain their audience. New organization evidence follows organization access. One organization owns each App installation/repository policy.
 
-With both paths enabled, a PR event starts the selected Project pipeline while a failed/timed-out workflow creates a separate Assistant diagnosis, including runs without an associated PR. Pipeline CI checks remain part of the PR gate; the diagnosis neither replaces those checks nor publishes or approves the PR. Project access governs pipeline evidence; Assistant access governs new workflow diagnoses even when PR evidence is Project-visible. Existing private diagnoses are not reclassified. The Assistant's GitHub trigger controls diagnosis dispatch; Project pipeline PR dispatch retains its own binding and approval checks.
+With both paths enabled, a PR event starts the selected Project pipeline while a failed/timed-out workflow creates a separate Assistant diagnosis, including runs without an associated PR. Pipeline CI checks remain part of the PR gate; the diagnosis neither replaces those checks nor publishes or approves the PR. Project access governs pipeline evidence; Assistant access governs new workflow diagnoses even when PR evidence is Project-visible. Existing private diagnoses are not reclassified. The Assistant's GitHub trigger controls diagnosis dispatch; Project pipeline PR dispatch uses the repository’s Project binding and PR publication setting.
 
 For manual work, paste a PR URL into an ordinary Assistant conversation to request a review, or open the PR in the workbench and choose **Review with this Assistant**. A running review cannot recursively launch another review. Manual drafts retain the explicit GitHub submission action; shared automation results follow Assistant access.
 
@@ -33,8 +45,8 @@ The plugin supplies versioned templates. A saved Project configuration selects e
 
 | Template | Agent work | Delivery |
 | --- | --- | --- |
-| `code-review.pull-request@1.0.0` | Correctness and security in parallel, then independent verification | Project manager confirmation, GitHub COMMENT |
-| `code-review.pull-request-light@1.0.0` | One reviewer, alongside CI | The same Project manager confirmation and GitHub delivery |
+| `code-review.pull-request@1.0.0` | Correctness and security in parallel, then independent verification | Repository publication setting for automation. Project manager confirmation for manual starts. |
+| `code-review.pull-request-light@1.0.0` | One reviewer, alongside CI | Same publication choices as the standard PR template. |
 | `code-review.local-git@1.0.0` | Parallel review and verification of an imported local snapshot | Confirmed results retained in the Project |
 
 Lightweight review is a platform pipeline. It does not use a separate direct-Agent scheduler.
@@ -42,7 +54,7 @@ Lightweight review is a platform pipeline. It does not use a separate direct-Age
 ## Setup in Bosi
 
 1. Install Code Review and the GitHub Connector. In **Settings → System Integration**, configure a tenant-level `github` integration in the Default tenant. Supply App ID, App slug, OAuth client ID/secret, PEM private key and a webhook secret of at least 32 characters. Select this integration in the Code Review plugin configuration.
-2. Grant the GitHub App **Contents: Read** and **Pull requests: Read & write**; subscribe to **Pull request** events. Configure OAuth callback `https://YOUR-API-DOMAIN/api/connector/oauth/callback` and webhook `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Install the App on the selected repositories. GitHub cannot reach localhost directly.
+2. Grant the GitHub App **Contents: Read** and **Pull requests: Read & write**; subscribe to **Pull request** events. For a Project PR pipeline, also grant **Checks: Read** for CI. Configure OAuth callback `https://YOUR-API-DOMAIN/api/connector/oauth/callback` and webhook `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Install the App on the selected repositories. GitHub cannot reach localhost directly.
 3. Select a **Code Review Project** in Bosi. You do not need to save a configuration in Project Tasks first.
 4. In **Code Review → Repositories**, connect GitHub using the selected integration, add `owner/repository`, and configure its rules. The authorizing GitHub account must have write/admin permission. In **Project review pipeline**, choose an available standard or lightweight template, select published Assistants for its roles and expand **Review parameters** to set CI/priority requirements. **Reuse saved configuration** is optional. Independently enable workflow failure/timeout diagnosis and its name filters as needed; this uses the repository's bound Assistant and requires its published GitHub trigger.
 5. Save the Project configuration with automation paused, then explicitly bind the repository to the intended Assistant, reusing its technical account. Saving a Project binding explicitly makes subsequent review evidence visible to authorized Project editors; it does not migrate old private reviews.
@@ -61,7 +73,7 @@ Push events wait at least 30 seconds. Signed webhook deliveries and worker retri
 
 In Project pipeline mode, an unbound or unavailable configuration is an explicit setup error. There is no fallback to standalone Agent review. Manual pipeline startup and webhook pipeline startup use the same service and supported template validation.
 
-The inbox displays the platform instance and round. **Open review pipeline** navigates within Workbench to that instance. Human publication approval is recorded only by the Project pipeline. The inbox no longer has a second publication confirmation. The publish operation revalidates the exact subject, verified findings, decision digest and approver's current Project management access before posting GitHub `COMMENT`; it never merges or approves the PR.
+The inbox displays the platform instance and round. **Open review pipeline** navigates within Workbench to that instance. With confirmed publication, the pipeline validates the decision and the approver's current Project management access. With automatic publication, it validates the current repository rule and the final report for the same PR revision. It publishes the report before deciding whether the round needs rework.
 
 Repository automation uses the repository-restricted GitHub App installation for reading source, checking CI and publishing. A manually opened PR uses its selected GitHub connection. Source authorization is retained for delegated Agent tools.
 
@@ -75,7 +87,7 @@ Correctness and security Agents save independent findings. The verification node
 
 Apply `20261018-project-pipeline.sql`, `20261021-github-system-integration.sql`, then `20261022-repository-pipelines.sql` before starting the new API when schema synchronization is external. The last migration is additive and idempotent. It does not attach existing repositories, change private review visibility, select Assistants, or publish historical drafts.
 
-Apply `20261102-assistant-events.sql` after these migrations. Old unbound rules still require a Project binding unless explicitly changed to Current Assistant mode. Existing private results remain readable; automated Assistant drafts cannot publish from the inbox. Manual standalone drafts retain their explicit submission action. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
+Apply `20261102-assistant-events.sql` after these migrations. Old unbound rules still require a Project binding unless explicitly changed to Current Assistant mode. Existing private results remain readable. Historical Assistant drafts retain their original publication behavior. Manual standalone drafts retain their explicit submission action. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
 
 Before loading the durable webhook version, apply `20261105-webhook-inbox.sql` when schema synchronization is external. The additive, replayable migration preserves existing processed delivery receipts. Keep automation paused during a rolling upgrade until every API instance has the new transaction boundaries and both scan/step processors; old repository-wide workers must not overlap the new per-PR workers. Accepted events remain in the database across queue outages and worker restarts; processing retries policy-lock contention with backoff. Do not rely on GitHub to automatically redeliver a failed webhook. Pending normalized payloads are cleared after processing; the receipt retains digest, run identity and any binding-change reason.
 

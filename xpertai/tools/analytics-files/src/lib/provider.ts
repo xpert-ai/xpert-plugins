@@ -25,6 +25,34 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
   validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
 
+  /** Reauthorize the exact file and hash its current bytes on every cache hit.
+   * This saves parsing/aggregation, not the authorized source read; mtime is not a proof. */
+  async authorizeResultReuse(binding: AnalyticsBinding, _parameters: Record<string, AnalyticsValue>, context: AnalyticsProviderContext) {
+    return this.guarded(async () => {
+      const query = payloadSchema.parse(binding.payload), { datasets } = optionsSchema.parse(context.options)
+      const definition = datasets.find(dataset => dataset.id === query.datasetId)
+      if (!definition || query.revision !== definition.revision || query.contractHash !== contractHash(definition))
+        throw new Error('FILE_DATASET_CONTRACT_CHANGED')
+      validateOutput(binding, outputColumns(definition, query))
+      const { buffer } = await this.read(definition, context)
+      await this.file(definition, context)
+      return { sourceVersion: `${query.contractHash}:${hash(buffer)}` }
+    })
+  }
+
+  /**
+   * Only a manager of the exact source Project may delegate a current declared file dataset.
+   * Validate the binding and authorized file metadata without reading rows; query access remains actor-scoped.
+   */
+  async authorizeGroupSharing(binding: AnalyticsBinding, context: AnalyticsProviderContext) {
+    const query = payloadSchema.parse(binding.payload), { datasets } = optionsSchema.parse(context.options)
+    const definition = datasets.find(dataset => dataset.id === query.datasetId)
+    if (!definition || query.revision !== definition.revision || query.contractHash !== contractHash(definition) || definition.file.catalog !== 'projects')
+      throw new ForbiddenException('FILE_DATASET_SHARING_UNAVAILABLE')
+    await this.runtime.require(ProjectAccessRuntimeCapability).assertManage({ actor: context.actor, projectId: definition.file.projectId })
+    await this.file(definition, context)
+  }
+
   private check(context: AnalyticsProviderContext) {
     context.signal.throwIfAborted()
     if (Date.now() >= context.deadlineAt) throw new Error('FILE_DATASET_DEADLINE_EXCEEDED')

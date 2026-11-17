@@ -36,7 +36,7 @@ export class MotionExport {
   status?: MotionRenderStatus
 
   @Column({ type: 'varchar', nullable: true })
-  backend?: 'browser' | 'hyperframes' | null
+  backend?: 'browser' | 'hyperframes' | 'model' | null
 
   @Column({ type: 'int', default: 100 })
   progress?: number

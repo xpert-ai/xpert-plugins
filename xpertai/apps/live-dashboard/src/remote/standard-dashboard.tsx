@@ -2,6 +2,7 @@ import * as React from 'react'
 import { createDashboardInspector } from '../lib/inspection-host'
 import { dashboardComponents } from '../lib/dashboard-sources'
 import type { DashboardManifest } from '../lib/dashboard.schema'
+import { standardDashboardDocument } from './dashboard-theme'
 
 export function StandardDashboard({ html, manifest, inspect, onInspect, onExit }: {
   html: string; manifest: DashboardManifest; inspect: boolean
@@ -18,9 +19,12 @@ export function StandardDashboard({ html, manifest, inspect, onInspect, onExit }
     const mounted = createDashboardInspector(frame.current, components, id => callbacks.current.onInspect(id), () => callbacks.current.onExit(), true)
     host.current = mounted
     mounted.setEnabled(inspect)
-    frame.current.srcdoc = html.replace(/<head(\s[^>]*)?>/i, head => head + mounted.prefix)
-    return () => { mounted.dispose(); host.current = undefined }
-  }, [html, manifest.id])
+    const render = () => { if (frame.current) frame.current.srcdoc = standardDashboardDocument(html, mounted.prefix, manifest.visualTheme) }
+    render()
+    const observer = new MutationObserver(render)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] })
+    return () => { observer.disconnect(); mounted.dispose(); host.current = undefined }
+  }, [html, manifest.id, manifest.visualTheme])
   React.useEffect(() => { host.current?.setEnabled(inspect) }, [inspect])
   return <iframe ref={frame} title={manifest.title} sandbox="allow-scripts" className="h-full w-full border-0"/>
 }

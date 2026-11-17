@@ -1,0 +1,524 @@
+{
+  "origin": "original-code-authored",
+  "createdAt": "2026-11-07",
+  "generator": "scripts/generate-catalog-art.mjs",
+  "purpose": "Illustrative catalog shells; synthetic chart shapes and values, no executable templates or third-party screenshots.",
+  "entries": [
+    {
+      "id": "analysis-template-growth-attribution",
+      "file": "analysis-template-growth-attribution.svg",
+      "origin": "original-code-authored",
+      "sha256": "f0141931b49983b57fc72023a21a16bff451e59b5b000b5dbb2d76fcf286e4fe"
+    },
+    {
+      "id": "analysis-template-conversion-diagnosis",
+      "file": "analysis-template-conversion-diagnosis.svg",
+      "origin": "original-code-authored",
+      "sha256": "a167a584d12504a9cf5904f8569d09a7441c1fb4ed1689c29afc080d60b47c50"
+    },
+    {
+      "id": "analysis-template-risk-monitoring",
+      "file": "analysis-template-risk-monitoring.svg",
+      "origin": "original-code-authored",
+      "sha256": "add675984ccea87f8d21ec0aca34f6be69a58022d1cf84a83869b0e773e48dba"
+    },
+    {
+      "id": "analysis-template-customer-lifecycle",
+      "file": "analysis-template-customer-lifecycle.svg",
+      "origin": "original-code-authored",
+      "sha256": "fe410517b9b40fe9c5b07a8285573c446ce78f9cce5577338b6b7dfe88bc6142"
+    },
+    {
+      "id": "analysis-template-regional-flow",
+      "file": "analysis-template-regional-flow.svg",
+      "origin": "original-code-authored",
+      "sha256": "ecf395baeaae611c7fa3a4d0eb7c4d7f2748df809f04259bbc88e3196aa187ba"
+    },
+    {
+      "id": "analysis-template-multi-criteria",
+      "file": "analysis-template-multi-criteria.svg",
+      "origin": "original-code-authored",
+      "sha256": "0412fa816c997caf99628af021c2d974bacd11f194ee74c4b84abb07434c26d8"
+    },
+    {
+      "id": "visual-theme-clarity-blue",
+      "file": "visual-theme-clarity-blue.svg",
+      "origin": "original-code-authored",
+      "sha256": "29b2596f7ffc0f0ad58a07f1e879db74572e7dd0e56be13d2a16fd9e3cfb3686"
+    },
+    {
+      "id": "visual-theme-tdesign-enterprise",
+      "file": "visual-theme-tdesign-enterprise.svg",
+      "origin": "original-code-authored",
+      "sha256": "ef8d27448bb956169b1fe05dfc96850c8c490057567fb685d576ad54e987f6f2"
+    },
+    {
+      "id": "visual-theme-minimal-modern",
+      "file": "visual-theme-minimal-modern.svg",
+      "origin": "original-code-authored",
+      "sha256": "017e9a9cdf672b2c5121408905eaf4ac3d5cbf130a0913f347a437a2da9e8b1e"
+    },
+    {
+      "id": "visual-theme-dark-tech",
+      "file": "visual-theme-dark-tech.svg",
+      "origin": "original-code-authored",
+      "sha256": "bbb150242046541d34f2712bffb834068d6d79cae9301d2d7116bc75e8fcf7c5"
+    },
+    {
+      "id": "visual-theme-cyberpunk",
+      "file": "visual-theme-cyberpunk.svg",
+      "origin": "original-code-authored",
+      "sha256": "d0e34d96d122ba59016ad2be671b9ca265cdff0409519d9ba7708f1bfdbed199"
+    },
+    {
+      "id": "visual-theme-frosted-tech",
+      "file": "visual-theme-frosted-tech.svg",
+      "origin": "original-code-authored",
+      "sha256": "0265d7e12fb7f3175f0f6956358c07f665b577979f3bc7519f1681c1d4132aa2"
+    },
+    {
+      "id": "visual-theme-bauhaus",
+      "file": "visual-theme-bauhaus.svg",
+      "origin": "original-code-authored",
+      "sha256": "ce4f32d64e38271e3deac1524b9bb96bd042a6feff37867893569878643f5d5a"
+    },
+    {
+      "id": "visual-theme-financial-trading",
+      "file": "visual-theme-financial-trading.svg",
+      "origin": "original-code-authored",
+      "sha256": "c6b0f459b146e2d0d25b0ccbe186a380ec19de0c31ceda7d855cfeac5fab5669"
+    },
+    {
+      "id": "visual-theme-premium-business",
+      "file": "visual-theme-premium-business.svg",
+      "origin": "original-code-authored",
+      "sha256": "bc6efe0ad3fcee7298cec057a16481aea305d90e88a5dcf90c36edb72a6323a9"
+    },
+    {
+      "id": "visual-theme-terminal-green",
+      "file": "visual-theme-terminal-green.svg",
+      "origin": "original-code-authored",
+      "sha256": "f313902b3140795ff9f6581cafb5e8cdb86e4f01746c20ad5020498fc6347a20"
+    },
+    {
+      "id": "visual-theme-art-deco",
+      "file": "visual-theme-art-deco.svg",
+      "origin": "original-code-authored",
+      "sha256": "051c6a8dfcf499982a962bb684e2609ab5abd159594d01b83e55ef3479a3359f"
+    },
+    {
+      "id": "visual-theme-material",
+      "file": "visual-theme-material.svg",
+      "origin": "original-code-authored",
+      "sha256": "acf1f8404c4e7423d38c0a6148ecaaeea25d4ded87509768fadf0aed2375b4ca"
+    },
+    {
+      "id": "visual-theme-newsprint",
+      "file": "visual-theme-newsprint.svg",
+      "origin": "original-code-authored",
+      "sha256": "4e29bd765c8ba2e5533d3299e7d8544501f2e61be579dccfec05c635e0b665bb"
+    },
+    {
+      "id": "visual-theme-industrial",
+      "file": "visual-theme-industrial.svg",
+      "origin": "original-code-authored",
+      "sha256": "1ea2e57eef77717b26fe0da0c53146e4269fb3829e769abdcf44e778efbeea65"
+    },
+    {
+      "id": "visual-theme-flat",
+      "file": "visual-theme-flat.svg",
+      "origin": "original-code-authored",
+      "sha256": "d967ce96f8fef6854a57a7697435d7eae5a22ddd670c0b46c07edf5cbb706740"
+    },
+    {
+      "id": "visual-theme-clay",
+      "file": "visual-theme-clay.svg",
+      "origin": "original-code-authored",
+      "sha256": "9ef22aa3e39f2cdf4c2e1cc5995fc931d68641edd35696de7f2d5c1a5da6f6d3"
+    },
+    {
+      "id": "visual-theme-hand-drawn",
+      "file": "visual-theme-hand-drawn.svg",
+      "origin": "original-code-authored",
+      "sha256": "5f382b3b409d022837889ecd7e480cc389c9c41f1d20ccf882b9edb505d5155c"
+    },
+    {
+      "id": "visual-theme-neo-brutalism",
+      "file": "visual-theme-neo-brutalism.svg",
+      "origin": "original-code-authored",
+      "sha256": "6997eba76ea2e0d03ef45c36f0d58f3446ed7a14784e59c6fc0d2c40a2413432"
+    },
+    {
+      "id": "visual-theme-maximalism",
+      "file": "visual-theme-maximalism.svg",
+      "origin": "original-code-authored",
+      "sha256": "8a618d244faae02a39cc78534070f2d742dc28cd62397e45bbd33ff67d9d4cd2"
+    },
+    {
+      "id": "visual-theme-golden-eye",
+      "file": "visual-theme-golden-eye.svg",
+      "origin": "original-code-authored",
+      "sha256": "83a42f11d19af4c0bbacd70065100cb0660683e03dbe55788e4e1fa78944b8ec"
+    },
+    {
+      "id": "visual-theme-deep-sea-mist",
+      "file": "visual-theme-deep-sea-mist.svg",
+      "origin": "original-code-authored",
+      "sha256": "5f8df65f158ad4b091695f3b0e59b35d26039ec7a6b865d12b60457a45eddc37"
+    },
+    {
+      "id": "visual-theme-sage",
+      "file": "visual-theme-sage.svg",
+      "origin": "original-code-authored",
+      "sha256": "5fed15228ba953ed47960856cf03713861d4cc288a44c93aa1fd27e529493a53"
+    },
+    {
+      "id": "visual-theme-deep-sea-blue",
+      "file": "visual-theme-deep-sea-blue.svg",
+      "origin": "original-code-authored",
+      "sha256": "fdfefc5e4bbb8a3eaba4bc92f7bb100ed7b4c535d0c50faa81fbde1d7bc7b76f"
+    },
+    {
+      "id": "visual-theme-crimson-black",
+      "file": "visual-theme-crimson-black.svg",
+      "origin": "original-code-authored",
+      "sha256": "89044d02358275ea910070e86830e2e2455eab0d9e9c6de0cccadb82a98a93ed"
+    },
+    {
+      "id": "visual-theme-redline-brief",
+      "file": "visual-theme-redline-brief.svg",
+      "origin": "original-code-authored",
+      "sha256": "a5686b1542e4dbef0b16a43b25d922913922a5a181cbe7349fa5eac408707317"
+    },
+    {
+      "id": "visual-theme-coral-cream",
+      "file": "visual-theme-coral-cream.svg",
+      "origin": "original-code-authored",
+      "sha256": "1b3496bc4a7efa851d9e2ce0c02c70f5cf28e27563a91a865a76d510b14a0815"
+    },
+    {
+      "id": "visual-theme-amber-sunset",
+      "file": "visual-theme-amber-sunset.svg",
+      "origin": "original-code-authored",
+      "sha256": "dbd1d9054769941c57caced3b91849f3b85a79aead55d426b725c8e7a3334395"
+    },
+    {
+      "id": "visual-theme-midnight-emerald",
+      "file": "visual-theme-midnight-emerald.svg",
+      "origin": "original-code-authored",
+      "sha256": "e3642b070e023f46e4f0dd9d83e51df56a0220ee5ad363250ec7360c76ed31b0"
+    },
+    {
+      "id": "visual-theme-misty-rose",
+      "file": "visual-theme-misty-rose.svg",
+      "origin": "original-code-authored",
+      "sha256": "2c4c041c3b9785e8462a19813a135e63aac7fd4c6e4838a07e9cfa35d2b00ee0"
+    },
+    {
+      "id": "visual-theme-cobalt-diagonal",
+      "file": "visual-theme-cobalt-diagonal.svg",
+      "origin": "original-code-authored",
+      "sha256": "8be0597ba81069ebdf4936b5dc02c86464a9ebb0b9abaa5894a5afe24340a22f"
+    },
+    {
+      "id": "visual-theme-olive-terracotta",
+      "file": "visual-theme-olive-terracotta.svg",
+      "origin": "original-code-authored",
+      "sha256": "9a2e80f8451a8f662497e6c4e87b5d5805b507a06618eda618ea0c15dea05482"
+    },
+    {
+      "id": "visual-theme-burgundy-night",
+      "file": "visual-theme-burgundy-night.svg",
+      "origin": "original-code-authored",
+      "sha256": "2528ecc1e78d7e596fc974fbea18939c926985a1b694a4ab971a409faf94580e"
+    },
+    {
+      "id": "visual-theme-warm-sand",
+      "file": "visual-theme-warm-sand.svg",
+      "origin": "original-code-authored",
+      "sha256": "e431d3361fb95e7e71af2a4c461f54bf8d8df2a01793bd3d228f7a2e9f78e023"
+    },
+    {
+      "id": "visual-theme-paper-journal",
+      "file": "visual-theme-paper-journal.svg",
+      "origin": "original-code-authored",
+      "sha256": "37cf48d0506c5bb7dca241d3718470b375bf6c77702572261e302465da20963b"
+    },
+    {
+      "id": "visual-theme-soft-porcelain",
+      "file": "visual-theme-soft-porcelain.svg",
+      "origin": "original-code-authored",
+      "sha256": "6910488b915d18fe5f7ff761afc73eb74b75a1042bb32c0ab1769a04735fd2f5"
+    },
+    {
+      "id": "visual-theme-misty-green",
+      "file": "visual-theme-misty-green.svg",
+      "origin": "original-code-authored",
+      "sha256": "65121e4120ce98ab4e69db81ff7fd535931261018e481175d226f2664e2df936"
+    },
+    {
+      "id": "visual-theme-dark-olive",
+      "file": "visual-theme-dark-olive.svg",
+      "origin": "original-code-authored",
+      "sha256": "3956380edd7e6182f44e58234fd02a7c1afbd77f1e9194325c55a1651aa8c746"
+    },
+    {
+      "id": "visual-theme-cinematic",
+      "file": "visual-theme-cinematic.svg",
+      "origin": "original-code-authored",
+      "sha256": "70bd2e0e9274ec9bee9c39755d7b3c992de992ace09a84e5666b88049725d5a5"
+    },
+    {
+      "id": "visual-theme-natural-terrain",
+      "file": "visual-theme-natural-terrain.svg",
+      "origin": "original-code-authored",
+      "sha256": "4ffcb9a19f43e4761346bb2159d1e3710e08f7c259e5b1bd44851b56dee02d9b"
+    },
+    {
+      "id": "visual-theme-pastel-matrix",
+      "file": "visual-theme-pastel-matrix.svg",
+      "origin": "original-code-authored",
+      "sha256": "c91440059c6638441fddd9a35ccb5e6ade9f3e0e1c31c785daf36e27aeb5129a"
+    },
+    {
+      "id": "visual-theme-layered-paper",
+      "file": "visual-theme-layered-paper.svg",
+      "origin": "original-code-authored",
+      "sha256": "6829a2a49c26e77038602e382e55f3503be67336e10edafa0b0a091d46edfb76"
+    },
+    {
+      "id": "visual-theme-swiss-grid",
+      "file": "visual-theme-swiss-grid.svg",
+      "origin": "original-code-authored",
+      "sha256": "331fdc6f9d01b42792ede97b627b74b348f13a02f1638b7e6dfa2d1a0e547d52"
+    },
+    {
+      "id": "visual-theme-pixel-dashboard",
+      "file": "visual-theme-pixel-dashboard.svg",
+      "origin": "original-code-authored",
+      "sha256": "6b4c9b5d42bc53bb5986f7860c6f58953fa46124295798ab22b298f0d4ae4a21"
+    },
+    {
+      "id": "component-detail-table",
+      "file": "component-detail-table.svg",
+      "origin": "original-code-authored",
+      "sha256": "bb8e014923cc282e7d9dedbcd50f90c0573e1677562ab5f14c049775f3400512"
+    },
+    {
+      "id": "component-date-range",
+      "file": "component-date-range.svg",
+      "origin": "original-code-authored",
+      "sha256": "9bf1db27731495036bf7c77c442a5188540f3bf9d053921b712822f46a26a04e"
+    },
+    {
+      "id": "component-metric-card",
+      "file": "component-metric-card.svg",
+      "origin": "original-code-authored",
+      "sha256": "bcec5aa4f556ab7e19321d4abb30e5426a1941a7e7553e413d16c14d1a9e1b40"
+    },
+    {
+      "id": "component-option-filter",
+      "file": "component-option-filter.svg",
+      "origin": "original-code-authored",
+      "sha256": "3058a1a2b20a9b71ec51c6242310d3da07c74bafe8833f360fbedb9287be12ae"
+    },
+    {
+      "id": "component-trend-comparison",
+      "file": "component-trend-comparison.svg",
+      "origin": "original-code-authored",
+      "sha256": "e4ee3622d4fa4f28c54122275d5fbadf24a3c44bca0fca89ce836b565612a45f"
+    },
+    {
+      "id": "component-content-panel",
+      "file": "component-content-panel.svg",
+      "origin": "original-code-authored",
+      "sha256": "c8a6396e885d837debefec9e7595213205e235fb3a5a6b5de107d030733a356f"
+    },
+    {
+      "id": "component-combo-chart",
+      "file": "component-combo-chart.svg",
+      "origin": "original-code-authored",
+      "sha256": "f615cf35aefd0ba27504894a2d6af794056b3aa943f2199bf43a8bbb3a43b7e5"
+    },
+    {
+      "id": "component-percent-stacked",
+      "file": "component-percent-stacked.svg",
+      "origin": "original-code-authored",
+      "sha256": "40baa539c514de652a61146ed6e60a143344b35200da8dc8285583b6d4426c9f"
+    },
+    {
+      "id": "component-waterfall",
+      "file": "component-waterfall.svg",
+      "origin": "original-code-authored",
+      "sha256": "499a03d4060938fcbaa63f31aaac5d59f6b2d60a9d0e590c2f3e8dd329edcb95"
+    },
+    {
+      "id": "component-pareto",
+      "file": "component-pareto.svg",
+      "origin": "original-code-authored",
+      "sha256": "21e88824bf381c6bfb5b991a72f211a27ee53958e89cde85e1fcddccc5d8fe74"
+    },
+    {
+      "id": "component-histogram",
+      "file": "component-histogram.svg",
+      "origin": "original-code-authored",
+      "sha256": "8511c1a045a3988f29ea3fd9f0c9fb830bb1470de342287e634fffd5c2b19cf8"
+    },
+    {
+      "id": "component-box-plot",
+      "file": "component-box-plot.svg",
+      "origin": "original-code-authored",
+      "sha256": "fb5712e4e8e36c3573462aca7a00ee5a2bdf69662f63dfeda4082d0e5a25203c"
+    },
+    {
+      "id": "component-small-multiples",
+      "file": "component-small-multiples.svg",
+      "origin": "original-code-authored",
+      "sha256": "75779a597a570725c2764d180cb7e5653362ccb3249996f0f50237080b016f16"
+    },
+    {
+      "id": "component-treemap",
+      "file": "component-treemap.svg",
+      "origin": "original-code-authored",
+      "sha256": "e159ab6f0c78d4e6f05a407b17678aed9ee9d5f00b8462ed3045567a3ff2ff10"
+    },
+    {
+      "id": "component-sunburst",
+      "file": "component-sunburst.svg",
+      "origin": "original-code-authored",
+      "sha256": "13ea0230faa5e618a4be46b1f01b1be9e02e9183a9ba4aaa45f91c6506e4c1e6"
+    },
+    {
+      "id": "component-sankey",
+      "file": "component-sankey.svg",
+      "origin": "original-code-authored",
+      "sha256": "1e28684795948da24d058f5f1a1157330c466d913b3ac01cb0a0ecfdc9fd9cf3"
+    },
+    {
+      "id": "component-calendar-heatmap",
+      "file": "component-calendar-heatmap.svg",
+      "origin": "original-code-authored",
+      "sha256": "c4df503a8dd89d7fa4cd48053308a950263714b326b247dc299db35a56ce4477"
+    },
+    {
+      "id": "component-bullet",
+      "file": "component-bullet.svg",
+      "origin": "original-code-authored",
+      "sha256": "ca7bd6f7501de3ef2cf95ad684d8c0f6e234a7068c1282113ecb47d2ea56c1d3"
+    },
+    {
+      "id": "component-dumbbell",
+      "file": "component-dumbbell.svg",
+      "origin": "original-code-authored",
+      "sha256": "f8c3289e51bb4e12241b918840caff6c7e6f0f8001ac157e749bffae84453b05"
+    },
+    {
+      "id": "component-multi-series",
+      "file": "component-multi-series.svg",
+      "origin": "original-code-authored",
+      "sha256": "fb5fb7a847b4b2547015a38e9e4f37840607c2131ecac09a7d23fc9d0c1b8a39"
+    },
+    {
+      "id": "component-donut",
+      "file": "component-donut.svg",
+      "origin": "original-code-authored",
+      "sha256": "c73fd23f180634ed9a5fa6893bc7824431a9c93eb3c20ecbb850275b5026e68d"
+    },
+    {
+      "id": "component-scatter-bubble",
+      "file": "component-scatter-bubble.svg",
+      "origin": "original-code-authored",
+      "sha256": "0f18514bc9f1fb0d491a1e12b52c69be6fe8ab6b5ed21c49f772f49e5370a900"
+    },
+    {
+      "id": "component-matrix-heatmap",
+      "file": "component-matrix-heatmap.svg",
+      "origin": "original-code-authored",
+      "sha256": "33634a729754d36377c7fe7fadd7c4f56c2ffd1bc71e68ad76c9ab61ba54336d"
+    },
+    {
+      "id": "component-funnel",
+      "file": "component-funnel.svg",
+      "origin": "original-code-authored",
+      "sha256": "a41af2a287287ef65e523f726c1293fc8a9adcd091b814d4c2be38025f481e69"
+    },
+    {
+      "id": "component-radar",
+      "file": "component-radar.svg",
+      "origin": "original-code-authored",
+      "sha256": "58b8c8e4876423916f8ca1639340179689859fa8a6843533b0d388b3d69a5843"
+    },
+    {
+      "id": "component-metric-group",
+      "file": "component-metric-group.svg",
+      "origin": "original-code-authored",
+      "sha256": "653cf39e56a2166e4ea76dec9ef459b947c65c6d615eace952d26219c0f52905"
+    },
+    {
+      "id": "component-pivot-table",
+      "file": "component-pivot-table.svg",
+      "origin": "original-code-authored",
+      "sha256": "0f8f4e528328c76513f800b83946a5f7e58292f7f121a62383173f7ea279c09f"
+    },
+    {
+      "id": "component-ranking",
+      "file": "component-ranking.svg",
+      "origin": "original-code-authored",
+      "sha256": "f0b3a5a7b54aa05ec65a4945ef2f3f0f59c3eece90c60e188392487957ffe413"
+    },
+    {
+      "id": "component-target-progress",
+      "file": "component-target-progress.svg",
+      "origin": "original-code-authored",
+      "sha256": "8af168cf05f30c61272370338f4687ccaee4cec6be64bea49b614a3c20d474ba"
+    },
+    {
+      "id": "component-event-timeline",
+      "file": "component-event-timeline.svg",
+      "origin": "original-code-authored",
+      "sha256": "3ba8900e57a76b342617396a851f84bfb26377d039414a4871ffa4707f5b9c15"
+    },
+    {
+      "id": "component-keyword-filter",
+      "file": "component-keyword-filter.svg",
+      "origin": "original-code-authored",
+      "sha256": "24db7ab6ff7b5a1fa1a63b901b8d423fb87641087a4dfee1f9a59b10ce804c83"
+    },
+    {
+      "id": "component-number-range",
+      "file": "component-number-range.svg",
+      "origin": "original-code-authored",
+      "sha256": "6b5951bcf3462afb032a0afdf13fb0f069e0f022158f9bb1f5cf365bfedadd91"
+    },
+    {
+      "id": "component-segmented-filter",
+      "file": "component-segmented-filter.svg",
+      "origin": "original-code-authored",
+      "sha256": "16d798fc7c6ddab19b7ebc07002a1aa166404f1bb2fd0f4de99e9dc25ea0a17e"
+    },
+    {
+      "id": "component-toggle-filter",
+      "file": "component-toggle-filter.svg",
+      "origin": "original-code-authored",
+      "sha256": "60d82135bfacb580adbf22a2019956ed9ff40350e59075a84726a660da50f7c5"
+    },
+    {
+      "id": "component-tabbed-panel",
+      "file": "component-tabbed-panel.svg",
+      "origin": "original-code-authored",
+      "sha256": "3ca132d69262e85181041fe21e53dd6d3a91fe4abc5b5003bfa18fb833ad2e2e"
+    },
+    {
+      "id": "component-collapsible-panel",
+      "file": "component-collapsible-panel.svg",
+      "origin": "original-code-authored",
+      "sha256": "c85f58a3b429f5b4d300fd16e25c5dbb2e816b06c62c64659b67c1619a9e8f63"
+    },
+    {
+      "id": "component-analysis-note",
+      "file": "component-analysis-note.svg",
+      "origin": "original-code-authored",
+      "sha256": "99f5043d3daf2b6d41a12c13560961f0d76664ea0f14f94720dd992f8d5f3c6a"
+    }
+  ]
+}

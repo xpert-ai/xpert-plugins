@@ -1,3 +1,4 @@
+import { LarkEventIngress } from './lark-event-ingress.js'
 import * as lark from '@larksuiteoapi/node-sdk'
 import type { IIntegration, IUser } from '@xpert-ai/contracts'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
@@ -84,7 +85,8 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	constructor(
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext,
-		private readonly capabilityService: LarkCapabilityService
+		private readonly capabilityService: LarkCapabilityService,
+		private readonly eventIngress?: LarkEventIngress
 	) {}
 
 	private get integrationPermissionService(): IntegrationPermissionService {
@@ -166,7 +168,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 
 		dispatcher.register({
 			'im.message.receive_v1': async (data) => {
-				this.logger.verbose('im.message.receive_v1:', data)
+				this.logger.verbose('im.message.receive_v1')
 
 				const message = this.parseInboundMessage(data, ctx)
 				if (!message) {
@@ -174,6 +176,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				}
 
 				// Lark webhook callbacks should return within 3s, so we ack first and process in background.
+				if (await this.eventIngress?.capture(integration,'message',data)) return true
 				this.runBackgroundEventHandler('message', async () => {
 					if (message.chatType === 'group') {
 						const botInfo = await this.getBotInfo(integration)
@@ -195,11 +198,12 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		if (includeCardAction) {
 			dispatcher.register({
 				'card.action.trigger': async (data: any) => {
-					this.logger.verbose('card.action.trigger:', data)
+					this.logger.verbose('card.action.trigger')
 
 					const action = this.parseCardAction(data, ctx)
 					if (action) {
 						// Lark webhook callbacks should return within 3s, so we ack first and process in background.
+						if (await this.eventIngress?.capture(integration,'card',data,this.getCardActionEventId(data))) return {}
 						this.runBackgroundEventHandler('card action', async () => {
 							if (!(await this.claimCardActionEvent(data, integration.id))) {
 								this.logger.debug(
@@ -837,7 +841,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				const parsed = this.parseJson(message.data.content)
 				await this.assertCardPayloadSupportedByIntegrationId(integrationId, parsed, 'createMessage')
 				this.logger.debug(
-					`[lark-outbound] interactive create integration=${integrationId} payload=${this.toLogString(parsed)}`
+					`[lark-outbound] interactive create integration=${integrationId}`
 				)
 			}
 			const client = await this.getOrCreateLarkClientById(integrationId)
@@ -916,7 +920,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			if (parsed && parsed.text === undefined) {
 				await this.assertCardPayloadSupportedByIntegrationId(integrationId, parsed, 'patchMessage')
 				this.logger.debug(
-					`[lark-outbound] interactive patch integration=${integrationId} message=${payload.path?.message_id} payload=${this.toLogString(parsed)}`
+					`[lark-outbound] interactive patch integration=${integrationId} message=${payload.path?.message_id}`
 				)
 			}
 			const client = await this.getOrCreateLarkClientById(integrationId)

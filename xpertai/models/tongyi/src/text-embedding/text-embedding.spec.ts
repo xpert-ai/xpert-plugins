@@ -1,5 +1,5 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
-import { AiProviderRole, PriceType } from '@xpert-ai/contracts'
+import { AiProviderRole, PriceType, type ModelUsageReport } from '@xpert-ai/contracts'
 import { CredentialsValidateFailedError, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 import { TongyiCredentials } from '../types.js'
@@ -56,6 +56,7 @@ describe('Tongyi embedding routing', () => {
   it('passes runtime callbacks to the shared SDK adapter for every text batch', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
       const request: { input: string[]; encoding_format?: string } = JSON.parse(String(init?.body))
+      const tokens = request.input.length === 2 ? 7 : 11
       return new Response(
         JSON.stringify({
           object: 'list',
@@ -68,16 +69,19 @@ describe('Tongyi embedding routing', () => {
                 ? Buffer.from(new Float32Array([index, 1]).buffer).toString('base64')
                 : [index, 1]
           })),
-          usage: { prompt_tokens: 7, total_tokens: 7 }
+          usage: { prompt_tokens: tokens, total_tokens: tokens }
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
       )
     })
+    const pricingSnapshot = { capturedAt: '2026-11-01T00:00:00Z', rules: [] }
+    const handleModelUsage = jest.fn((_report: ModelUsageReport) => undefined)
     const runtime: TChatModelOptions = {
       verbose: false,
       modelProperties: {},
       handleLLMTokens: jest.fn(),
-      handleModelUsage: jest.fn()
+      handleModelUsage,
+      resolveUsagePricingSnapshot: jest.fn(async () => pricingSnapshot)
     }
     const embeddings = manager.getEmbeddingInstance(copilotModel('text-embedding-v4', { max_chunks: 2 }), runtime)
     await expect(embeddings.embedDocuments(['one', 'two', 'three'])).resolves.toEqual([
@@ -86,7 +90,16 @@ describe('Tongyi embedding routing', () => {
       [0, 1]
     ])
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(runtime.handleModelUsage).toHaveBeenCalledTimes(2)
+    expect(runtime.resolveUsagePricingSnapshot).toHaveBeenCalledTimes(2)
+    const reports = handleModelUsage.mock.calls.map(([report]) => report)
+    expect(reports).toHaveLength(2)
+    expect(new Set(reports.map(report => report.requestId)).size).toBe(2)
+    for (const tokens of [7, 11]) {
+      expect(reports).toContainEqual(expect.objectContaining({
+        model: 'text-embedding-v4', pricingSnapshot,
+        metrics: [{ unit: 'token', authority: 'provider', promptTokens: tokens, completionTokens: 0, totalTokens: tokens }]
+      }))
+    }
     expect(runtime.handleLLMTokens).not.toHaveBeenCalled()
   })
 

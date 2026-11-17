@@ -32,6 +32,10 @@ export class ReviewView implements IXpertViewExtensionProvider {
     private readonly workflows: WorkflowDiagnostics) {}
   private async detail(s: Scope, record: Review) {
     const dto = reviewDto(record)
+    if (record.automationRunId && !record.pipelineProjectId) {
+      const access = await this.automation.repositories.access(s)
+      return { ...dto, canConfirmPublication: access.canManage && record.assistantId === s.assistantId }
+    }
     // The root has already passed its own access check. Its pipeline evidence has separate permissions.
     try {
       const report = await this.pipelines.finalReport(s, record)
@@ -51,9 +55,9 @@ export class ReviewView implements IXpertViewExtensionProvider {
       ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: text('Code review', '代码审查'), icon, order: 35 } } } : {}),
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: 'code-review' }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSelection: true, supportsParameters: true, defaultPageSize: 20 }, cache: { enabled: false } },
-      actions: [...['repository.add', 'repository.save', 'repository.trial', 'repository.preview', 'repository.bind', 'repository.history', 'repository.maintain', 'run.retry'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, permissions: [AIPermissionsEnum.XPERT_EDIT] })),
+      actions: [...['repository.add', 'repository.save', 'repository.trial', 'repository.preview', 'repository.bind', 'repository.history', 'repository.maintain', 'run.retry', 'run.confirm'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, permissions: [AIPermissionsEnum.XPERT_EDIT] })),
         ...['open', 'refresh', 'start', 'cancel', 'mark', 'submit'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })),
-        ...['import-local', 'run.confirm', 'pipeline.start', 'pipeline.start-saved', 'pipeline.configurations', 'pipeline.catalog', 'pipeline.configure'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, requiredHostAccess: 'manage' as const }))],
+        ...['import-local', 'pipeline.start', 'pipeline.start-saved', 'pipeline.configurations', 'pipeline.catalog', 'pipeline.configure'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const, requiredHostAccess: 'manage' as const }))],
       parameters: [{ key: 'inbox', type: 'string', label: text('Inbox', '收件箱') }] }]
   }
   async getRemoteComponentEntry(c: XpertResolvedViewHostContext, viewKey: string, component: XpertRemoteComponentViewSchema['component']) {

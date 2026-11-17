@@ -8,7 +8,8 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
-import { outputDelivery, taskResult } from './task-result.js'
+import { withProjectWorkspaceContext } from './project-workspace.js'
+import { outputDelivery, resolveTaskResult, deliveryPaths } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
@@ -67,7 +68,10 @@ export async function startComputerJsonl(
   }
   await context.checkpoint({ status: 'running', handle })
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
-  await runner.request(receipt, { method: 'POST', path: '/task', body: { prompt: agentPrompt(request.input) } })
+  await runner.request(receipt, {
+    method: 'POST', path: '/task',
+    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt)) }
+  })
   return { status: 'running' as const, handle }
 }
 
@@ -98,10 +102,14 @@ export async function inspectComputerJsonl(
       'runner_unavailable',
       'The CLI runner is unavailable; completion cannot be verified.'
     ).diagnostic
+    // A verified process-family exit permits failure delivery, never a fabricated success or replay.
+    const controlEvidence =
+      process.state === 'exited' ? runnerCompletion(context, handle, 'failed', process.completion) : undefined
     return {
-      status: 'unknown',
+      status: controlEvidence ? 'failed' : 'unknown',
       handle: { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } },
-      error: `[${diagnostic.code}] ${diagnostic.message}`
+      error: `[${diagnostic.code}] ${diagnostic.message}`,
+      controlEvidence
     }
   }
   const state = State.parse(await runner.request(handle.runner, { method: 'GET', path: '/task' }))
@@ -149,25 +157,32 @@ export async function inspectComputerJsonl(
   const diagnostic = { ...completion.diagnostic, ...(state.exitCode !== undefined ? { exitCode: state.exitCode } : {}) }
   handle = { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } }
   const delivery = outputDelivery(handle.metadata?.delivery)
-  const observation: AgentRuntimeObservation =
+  // Missing final protocol data is a failed result even after exit code 0.
+  // Persist it before cleanup; descendant completion below still gates terminal settlement.
+  let observation: AgentRuntimeObservation =
     state.state === 'exited' && state.exitCode === 0 && completion.ok
       ? {
           status: 'succeeded',
           handle,
-          progress,
-          result: { ...taskResult(completion.text, delivery), data: { workingDirectory: receipt.workingDirectory } }
+          progress
         }
       : {
-          status: receiptLost && state.exitCode === 0 ? 'unknown' : 'failed',
+          status: 'failed',
           handle,
           progress,
           error: `[${diagnostic.code}] ${diagnostic.message}${
             diagnostic.exitCode !== undefined ? ` (exit code ${diagnostic.exitCode})` : ''
           }`
         }
+  if (observation.status === 'succeeded' && completion.ok) {
+    observation.result = {
+      ...(await resolveTaskResult(completion.text, delivery, runner.readTaskReportFile
+        ? (path) => runner.readTaskReportFile(receipt, path) : undefined)),
+      data: { workingDirectory: receipt.workingDirectory }
+    }
+  }
   if (observation.result && delivery.mode !== 'none') {
-    const paths =
-      delivery.paths ?? (observation.result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
+    const paths = deliveryPaths(delivery)
     try {
       if (!paths.length) throw new Error('No declared deliverables')
       const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
@@ -178,7 +193,7 @@ export async function inspectComputerJsonl(
       observation.result.export = {
         mode: delivery.mode,
         status: 'failed',
-        error: 'Requested files could not be exported. Inspect the workspace.'
+        error: paths.length ? 'artifact_collection_failed: recover delivery without rerunning the task.' : 'delivery_selection_required: select the exact file paths to collect.'
       }
     }
   }

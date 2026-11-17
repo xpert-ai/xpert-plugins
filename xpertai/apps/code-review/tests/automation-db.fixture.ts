@@ -1,3 +1,4 @@
+import { ReviewEventRoute, ReviewEventFact } from '../src/event-journal.js'
 import 'reflect-metadata'
 import { type TestContext } from 'node:test'
 import { randomUUID } from 'node:crypto'
@@ -10,7 +11,8 @@ import { ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit } from '
 import { WorkflowDiagnosis } from '../src/workflow-entity.js'
 import { defaultPolicy } from '../src/automation-contract.js'
 import type { Repositories } from '../src/repositories.js'
-import type { Reviews } from '../src/backend.js'
+import { Reviews } from '../src/backend.js'
+import { Review } from '../src/entity.js'
 import type { ReviewPipelineAutomation } from '../src/pipeline/automation.js'
 import type { ReviewEvents } from '../src/event-subscription.js'
 import { WorkflowDiagnostics } from '../src/workflow-diagnostics.js'
@@ -21,12 +23,14 @@ import { PLUGIN } from '../src/domain.js'
 import { QUEUE } from '../src/automation-domain.js'
 import { LeaseRedis } from './automation-lease.fixture.js'
 
+export { DataSource, Table }
+
 export const url = process.env.XPERT_PIPELINE_TEST_DATABASE_URL
 if (url && !/^\/xpert_pipeline_test_[a-z0-9_]+$/.test(new URL(url).pathname)) throw new Error('Dedicated test database required')
 
 export async function fixture(t: TestContext) {
   const schema = `review_pool_${randomUUID().replaceAll('-', '')}`
-  const entities = [ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit, WorkflowDiagnosis]
+  const entities = [ReviewEventRoute, ReviewEventFact, ReviewRepository, ReviewRun, ReviewDelivery, ReviewPolicyAudit, WorkflowDiagnosis, Review]
   const db = new DataSource({ type: 'postgres', url, schema, entities, extra: { max: 2, connectionTimeoutMillis: 1000,
     application_name: schema, options: `-c search_path=${schema},public -c statement_timeout=3000 -c idle_in_transaction_session_timeout=5000` } })
   await db.initialize(); await db.query(`CREATE SCHEMA "${schema}"`)
@@ -52,7 +56,7 @@ export async function fixture(t: TestContext) {
       return { state: 'open', draft: false, head: { sha: 'a'.repeat(40) }, base: { ref: 'main' }, user: { type: 'User' } }
     } }) } as unknown as Repositories
   const pipelines = { validate: async () => { await db.query('SELECT 1') }, advance: async () => { state.advances++; await db.query('SELECT 1') } } as unknown as ReviewPipelineAutomation
-  const events = { assertListening: async () => {}, activity: async () => {} } as ReviewEvents
+  const events = { access: async () => {}, assertListening: async () => {}, activity: async () => {} } as ReviewEvents
   const workflows = new WorkflowDiagnostics(db.getRepository(WorkflowDiagnosis), repositories, events, {} as PluginContext)
   const inbox = () => new ReviewWebhookInbox(db.getRepository(ReviewDelivery), repositories, events, workflows)
   const reviews = { prepareAutomatic: async () => { state.prepares++; return { id: randomUUID() } } } as unknown as Reviews
@@ -63,7 +67,7 @@ export async function fixture(t: TestContext) {
     if (!scheduled.has(input.jobId)) jobs.push(input)
     scheduled.add(input.jobId); state.scheduled = scheduled.size; return { jobId: input.jobId }
   } } as unknown as ManagedQueueService
-  const automation = () => new Automation(runs, inbox(), repositories, reviews, capabilities, pipelines, events, workflows, queue)
+  const automation = (reviewService = reviews) => new Automation(runs, inbox(), repositories, reviewService, capabilities, pipelines, events, workflows, queue)
   const addRun = (started = true, number = 1) => runs.save({ tenantId: p.tenantId, organizationId: p.organizationId, assistantId: p.assistantId,
     repositoryPolicyId: p.id, operationKey: randomUUID(), number, headSha: 'a'.repeat(40), title: 'fixture', trigger: 'opened',
     status: 'running', policyRevision: 1, settings: p.settings, notBefore: new Date(),
@@ -78,5 +82,6 @@ export async function fixture(t: TestContext) {
     for (const delivery of await db.getRepository(ReviewDelivery).findBy({ repositoryPolicyId: policy.id, status: 'received' }))
       await inbox().process(policy, delivery.id, check)
   }
-  return { step, stepFor, jobs, workflows, drainInbox, db, schema, p, runs, records, context, automation, addRun, state, redis, inbox, application, repositories }
+  const viewReviews = new Reviews(db.getRepository(Review), {} as PluginContext, repositories, capabilities)
+  return { viewReviews, step, stepFor, jobs, capabilities, workflows, drainInbox, db, schema, p, runs, records, context, automation, addRun, state, redis, inbox, application, repositories }
 }

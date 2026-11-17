@@ -53,5 +53,7 @@ export class DataXpertAnalyticsProvider implements AnalyticsQueryProvider {
     return result
   }
   discover(request: JSONValue, context: AnalyticsProviderContext) { return this.run(context, resolved => this.engine.discover(request, resolved)) }
+  /** Keep source-sharing checks under the same actor and integration revalidation as ordinary queries. */
+  authorizeGroupSharing(binding: AnalyticsBinding, context: AnalyticsProviderContext) { return this.run(context, resolved => this.engine.authorizeGroupSharing(binding, resolved)) }
   execute(binding: AnalyticsBinding, parameters: Record<string, AnalyticsValue>, context: AnalyticsProviderContext) { return this.run(context, resolved => this.engine.execute(binding, parameters, resolved)) }
 }

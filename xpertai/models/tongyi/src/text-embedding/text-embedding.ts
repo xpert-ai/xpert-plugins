@@ -1,5 +1,5 @@
 import { Embeddings } from '@langchain/core/embeddings'
-import { AiModelTypeEnum, ICopilotModel, PriceType } from '@xpert-ai/contracts'
+import { AiModelTypeEnum, ICopilotModel, PriceType, type PriceInfo } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager, OpenAICompatibleEmbeddings, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isTongyiInternationalEndpointEnabled, toCredentialKwargs, TongyiCredentials, TongyiTextEmbeddingModelOptions } from '../types.js'
@@ -12,7 +12,7 @@ export class TongyiTextEmbeddingModel extends TextEmbeddingModelManager {
 		super(modelProvider, AiModelTypeEnum.TEXT_EMBEDDING)
 	}
 
-	override getPrice(model: string, credentials: TongyiCredentials, priceType: PriceType, tokens: number, inputTokens = tokens) {
+	override getPrice(model: string, credentials: TongyiCredentials, priceType: PriceType, tokens: number, inputTokens = tokens): PriceInfo {
 		const price = super.getPrice(model, credentials, priceType, tokens, inputTokens)
 		if (model === 'qwen3.7-text-embedding' && priceType === PriceType.INPUT && isTongyiInternationalEndpointEnabled(credentials)) {
 			return { ...price, unitPrice: 0.525, unit: 0.000001, totalAmount: Number((tokens * 0.525 / 1000000).toFixed(7)) }

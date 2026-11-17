@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-data-xpert",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Governed data-xpert ontology analytics provider",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
@@ -32,16 +32,16 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.32.0",
-    "@xpert-ai/contracts": "^3.32.0",
+    "@xpert-ai/plugin-sdk": "^3.36.0",
+    "@xpert-ai/contracts": "^3.36.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",
     "@nestjs/cqrs": "^11.0.3"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.32.0",
-    "@xpert-ai/contracts": "3.32.0",
+    "@xpert-ai/plugin-sdk": "3.36.0",
+    "@xpert-ai/contracts": "3.36.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",

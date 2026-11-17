@@ -16,6 +16,7 @@ function setup(project = false) {
   const capabilities = {
     'platform.artifacts': {
       getArtifact: async () => artifact,
+      listArtifactVersions: async () => [],
       listArtifacts: async input => { assert.ok(['active', 'archived'].includes(input.status)); return { items: artifact.status === input.status ? [artifact] : [], total: artifact.status === input.status ? 1 : 0 } }
     },
     'platform.artifact-drafts': {

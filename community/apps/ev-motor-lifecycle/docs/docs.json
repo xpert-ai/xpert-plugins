@@ -1,0 +1,20 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "驱动电机制造全流程",
+  "colors": {
+    "primary": "#17645E"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "客户演示",
+        "pages": [
+          "flow",
+          "node-workbenches",
+          "integration"
+        ]
+      }
+    ]
+  }
+}

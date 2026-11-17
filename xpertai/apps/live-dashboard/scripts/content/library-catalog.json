@@ -1,0 +1,1410 @@
+[
+  {
+    "id": "analysis-template-growth-attribution",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_growth_attribution_title",
+    "descriptionKey": "shell_analysis_template_growth_attribution_description",
+    "categories": [
+      "growth",
+      "channels"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-growth-attribution.svg"
+  },
+  {
+    "id": "analysis-template-conversion-diagnosis",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_conversion_diagnosis_title",
+    "descriptionKey": "shell_analysis_template_conversion_diagnosis_description",
+    "categories": [
+      "conversion",
+      "growth"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-conversion-diagnosis.svg"
+  },
+  {
+    "id": "analysis-template-risk-monitoring",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_risk_monitoring_title",
+    "descriptionKey": "shell_analysis_template_risk_monitoring_description",
+    "categories": [
+      "risk"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-risk-monitoring.svg"
+  },
+  {
+    "id": "analysis-template-customer-lifecycle",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_customer_lifecycle_title",
+    "descriptionKey": "shell_analysis_template_customer_lifecycle_description",
+    "categories": [
+      "customers",
+      "growth"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-customer-lifecycle.svg"
+  },
+  {
+    "id": "analysis-template-regional-flow",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_regional_flow_title",
+    "descriptionKey": "shell_analysis_template_regional_flow_description",
+    "categories": [
+      "regions",
+      "operations"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-regional-flow.svg"
+  },
+  {
+    "id": "analysis-template-multi-criteria",
+    "kind": "analysis-template",
+    "titleKey": "shell_analysis_template_multi_criteria_title",
+    "descriptionKey": "shell_analysis_template_multi_criteria_description",
+    "categories": [
+      "decisions",
+      "operations"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "analysis-template-multi-criteria.svg"
+  },
+  {
+    "id": "visual-theme-clarity-blue",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_clarity_blue_title",
+    "descriptionKey": "shell_visual_theme_clarity_blue_description",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-clarity-blue.svg"
+  },
+  {
+    "id": "visual-theme-tdesign-enterprise",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_tdesign_enterprise_title",
+    "descriptionKey": "shell_visual_theme_tdesign_enterprise_description",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-tdesign-enterprise.svg"
+  },
+  {
+    "id": "visual-theme-minimal-modern",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_minimal_modern_title",
+    "descriptionKey": "shell_visual_theme_minimal_modern_description",
+    "categories": [
+      "minimal",
+      "light"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-minimal-modern.svg"
+  },
+  {
+    "id": "visual-theme-dark-tech",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_dark_tech_title",
+    "descriptionKey": "shell_visual_theme_dark_tech_description",
+    "categories": [
+      "tech",
+      "dark"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-dark-tech.svg"
+  },
+  {
+    "id": "visual-theme-cyberpunk",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_cyberpunk_title",
+    "descriptionKey": "shell_visual_theme_cyberpunk_description",
+    "categories": [
+      "tech",
+      "creative"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-cyberpunk.svg"
+  },
+  {
+    "id": "visual-theme-frosted-tech",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_frosted_tech_title",
+    "descriptionKey": "shell_visual_theme_frosted_tech_description",
+    "categories": [
+      "tech",
+      "creative"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-frosted-tech.svg"
+  },
+  {
+    "id": "visual-theme-bauhaus",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_bauhaus_title",
+    "descriptionKey": "shell_visual_theme_bauhaus_description",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-bauhaus.svg"
+  },
+  {
+    "id": "visual-theme-financial-trading",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_financial_trading_title",
+    "descriptionKey": "shell_visual_theme_financial_trading_description",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-financial-trading.svg"
+  },
+  {
+    "id": "visual-theme-premium-business",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_premium_business_title",
+    "descriptionKey": "shell_visual_theme_premium_business_description",
+    "categories": [
+      "business",
+      "editorial"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-premium-business.svg"
+  },
+  {
+    "id": "visual-theme-terminal-green",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_terminal_green_title",
+    "descriptionKey": "shell_visual_theme_terminal_green_description",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-terminal-green.svg"
+  },
+  {
+    "id": "visual-theme-art-deco",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_art_deco_title",
+    "descriptionKey": "shell_visual_theme_art_deco_description",
+    "categories": [
+      "business",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-art-deco.svg"
+  },
+  {
+    "id": "visual-theme-material",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_material_title",
+    "descriptionKey": "shell_visual_theme_material_description",
+    "categories": [
+      "business",
+      "light"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-material.svg"
+  },
+  {
+    "id": "visual-theme-newsprint",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_newsprint_title",
+    "descriptionKey": "shell_visual_theme_newsprint_description",
+    "categories": [
+      "editorial",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-newsprint.svg"
+  },
+  {
+    "id": "visual-theme-industrial",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_industrial_title",
+    "descriptionKey": "shell_visual_theme_industrial_description",
+    "categories": [
+      "tech",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-industrial.svg"
+  },
+  {
+    "id": "visual-theme-flat",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_flat_title",
+    "descriptionKey": "shell_visual_theme_flat_description",
+    "categories": [
+      "minimal",
+      "light"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-flat.svg"
+  },
+  {
+    "id": "visual-theme-clay",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_clay_title",
+    "descriptionKey": "shell_visual_theme_clay_description",
+    "categories": [
+      "creative",
+      "light"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-clay.svg"
+  },
+  {
+    "id": "visual-theme-hand-drawn",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_hand_drawn_title",
+    "descriptionKey": "shell_visual_theme_hand_drawn_description",
+    "categories": [
+      "creative",
+      "editorial"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-hand-drawn.svg"
+  },
+  {
+    "id": "visual-theme-neo-brutalism",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_neo_brutalism_title",
+    "descriptionKey": "shell_visual_theme_neo_brutalism_description",
+    "categories": [
+      "creative",
+      "light"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-neo-brutalism.svg"
+  },
+  {
+    "id": "visual-theme-maximalism",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_maximalism_title",
+    "descriptionKey": "shell_visual_theme_maximalism_description",
+    "categories": [
+      "creative",
+      "dark"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-maximalism.svg"
+  },
+  {
+    "id": "visual-theme-golden-eye",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_golden_eye_title",
+    "descriptionKey": "shell_visual_theme_golden_eye_description",
+    "categories": [
+      "business",
+      "tech"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-golden-eye.svg"
+  },
+  {
+    "id": "visual-theme-deep-sea-mist",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_deep_sea_mist_title",
+    "descriptionKey": "shell_visual_theme_deep_sea_mist_description",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-deep-sea-mist.svg"
+  },
+  {
+    "id": "visual-theme-sage",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_sage_title",
+    "descriptionKey": "shell_visual_theme_sage_description",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-sage.svg"
+  },
+  {
+    "id": "visual-theme-deep-sea-blue",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_deep_sea_blue_title",
+    "descriptionKey": "shell_visual_theme_deep_sea_blue_description",
+    "categories": [
+      "tech",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-deep-sea-blue.svg"
+  },
+  {
+    "id": "visual-theme-crimson-black",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_crimson_black_title",
+    "descriptionKey": "shell_visual_theme_crimson_black_description",
+    "categories": [
+      "business",
+      "creative"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-crimson-black.svg"
+  },
+  {
+    "id": "visual-theme-redline-brief",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_redline_brief_title",
+    "descriptionKey": "shell_visual_theme_redline_brief_description",
+    "categories": [
+      "business",
+      "minimal"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-redline-brief.svg"
+  },
+  {
+    "id": "visual-theme-coral-cream",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_coral_cream_title",
+    "descriptionKey": "shell_visual_theme_coral_cream_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-coral-cream.svg"
+  },
+  {
+    "id": "visual-theme-amber-sunset",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_amber_sunset_title",
+    "descriptionKey": "shell_visual_theme_amber_sunset_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-amber-sunset.svg"
+  },
+  {
+    "id": "visual-theme-midnight-emerald",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_midnight_emerald_title",
+    "descriptionKey": "shell_visual_theme_midnight_emerald_description",
+    "categories": [
+      "tech",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-midnight-emerald.svg"
+  },
+  {
+    "id": "visual-theme-misty-rose",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_misty_rose_title",
+    "descriptionKey": "shell_visual_theme_misty_rose_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-misty-rose.svg"
+  },
+  {
+    "id": "visual-theme-cobalt-diagonal",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_cobalt_diagonal_title",
+    "descriptionKey": "shell_visual_theme_cobalt_diagonal_description",
+    "categories": [
+      "creative",
+      "tech"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-cobalt-diagonal.svg"
+  },
+  {
+    "id": "visual-theme-olive-terracotta",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_olive_terracotta_title",
+    "descriptionKey": "shell_visual_theme_olive_terracotta_description",
+    "categories": [
+      "retro",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-olive-terracotta.svg"
+  },
+  {
+    "id": "visual-theme-burgundy-night",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_burgundy_night_title",
+    "descriptionKey": "shell_visual_theme_burgundy_night_description",
+    "categories": [
+      "business",
+      "creative"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-burgundy-night.svg"
+  },
+  {
+    "id": "visual-theme-warm-sand",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_warm_sand_title",
+    "descriptionKey": "shell_visual_theme_warm_sand_description",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-warm-sand.svg"
+  },
+  {
+    "id": "visual-theme-paper-journal",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_paper_journal_title",
+    "descriptionKey": "shell_visual_theme_paper_journal_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-paper-journal.svg"
+  },
+  {
+    "id": "visual-theme-soft-porcelain",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_soft_porcelain_title",
+    "descriptionKey": "shell_visual_theme_soft_porcelain_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-soft-porcelain.svg"
+  },
+  {
+    "id": "visual-theme-misty-green",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_misty_green_title",
+    "descriptionKey": "shell_visual_theme_misty_green_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-misty-green.svg"
+  },
+  {
+    "id": "visual-theme-dark-olive",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_dark_olive_title",
+    "descriptionKey": "shell_visual_theme_dark_olive_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-dark-olive.svg"
+  },
+  {
+    "id": "visual-theme-cinematic",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_cinematic_title",
+    "descriptionKey": "shell_visual_theme_cinematic_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-cinematic.svg"
+  },
+  {
+    "id": "visual-theme-natural-terrain",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_natural_terrain_title",
+    "descriptionKey": "shell_visual_theme_natural_terrain_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-natural-terrain.svg"
+  },
+  {
+    "id": "visual-theme-pastel-matrix",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_pastel_matrix_title",
+    "descriptionKey": "shell_visual_theme_pastel_matrix_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-pastel-matrix.svg"
+  },
+  {
+    "id": "visual-theme-layered-paper",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_layered_paper_title",
+    "descriptionKey": "shell_visual_theme_layered_paper_description",
+    "categories": [
+      "creative",
+      "business"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-layered-paper.svg"
+  },
+  {
+    "id": "visual-theme-swiss-grid",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_swiss_grid_title",
+    "descriptionKey": "shell_visual_theme_swiss_grid_description",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-swiss-grid.svg"
+  },
+  {
+    "id": "visual-theme-pixel-dashboard",
+    "kind": "visual-theme",
+    "titleKey": "shell_visual_theme_pixel_dashboard_title",
+    "descriptionKey": "shell_visual_theme_pixel_dashboard_description",
+    "categories": [
+      "creative",
+      "retro"
+    ],
+    "featureKeys": [],
+    "appearance": "dark",
+    "status": "planned",
+    "content": null,
+    "preview": "visual-theme-pixel-dashboard.svg"
+  },
+  {
+    "id": "component-detail-table",
+    "kind": "component",
+    "titleKey": "shell_component_detail_table_title",
+    "descriptionKey": "shell_component_detail_table_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_detail_table_feature_0",
+      "shell_component_detail_table_feature_1",
+      "shell_component_detail_table_feature_2",
+      "shell_component_detail_table_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-detail-table.svg"
+  },
+  {
+    "id": "component-date-range",
+    "kind": "component",
+    "titleKey": "shell_component_date_range_title",
+    "descriptionKey": "shell_component_date_range_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_date_range_feature_0",
+      "shell_component_date_range_feature_1",
+      "shell_component_date_range_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-date-range.svg"
+  },
+  {
+    "id": "component-metric-card",
+    "kind": "component",
+    "titleKey": "shell_component_metric_card_title",
+    "descriptionKey": "shell_component_metric_card_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_metric_card_feature_0",
+      "shell_component_metric_card_feature_1",
+      "shell_component_metric_card_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-metric-card.svg"
+  },
+  {
+    "id": "component-option-filter",
+    "kind": "component",
+    "titleKey": "shell_component_option_filter_title",
+    "descriptionKey": "shell_component_option_filter_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_option_filter_feature_0",
+      "shell_component_option_filter_feature_1",
+      "shell_component_option_filter_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-option-filter.svg"
+  },
+  {
+    "id": "component-trend-comparison",
+    "kind": "component",
+    "titleKey": "shell_component_trend_comparison_title",
+    "descriptionKey": "shell_component_trend_comparison_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_trend_comparison_feature_0",
+      "shell_component_trend_comparison_feature_1",
+      "shell_component_trend_comparison_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-trend-comparison.svg"
+  },
+  {
+    "id": "component-content-panel",
+    "kind": "component",
+    "titleKey": "shell_component_content_panel_title",
+    "descriptionKey": "shell_component_content_panel_description",
+    "categories": [
+      "layout"
+    ],
+    "featureKeys": [
+      "shell_component_content_panel_feature_0",
+      "shell_component_content_panel_feature_1",
+      "shell_component_content_panel_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-content-panel.svg"
+  },
+  {
+    "id": "component-combo-chart",
+    "kind": "component",
+    "titleKey": "shell_component_combo_chart_title",
+    "descriptionKey": "shell_component_combo_chart_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_combo_chart_feature_0",
+      "shell_component_combo_chart_feature_1",
+      "shell_component_combo_chart_feature_2",
+      "shell_component_combo_chart_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-combo-chart.svg"
+  },
+  {
+    "id": "component-percent-stacked",
+    "kind": "component",
+    "titleKey": "shell_component_percent_stacked_title",
+    "descriptionKey": "shell_component_percent_stacked_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_percent_stacked_feature_0",
+      "shell_component_percent_stacked_feature_1",
+      "shell_component_percent_stacked_feature_2",
+      "shell_component_percent_stacked_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-percent-stacked.svg"
+  },
+  {
+    "id": "component-waterfall",
+    "kind": "component",
+    "titleKey": "shell_component_waterfall_title",
+    "descriptionKey": "shell_component_waterfall_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_waterfall_feature_0",
+      "shell_component_waterfall_feature_1",
+      "shell_component_waterfall_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-waterfall.svg"
+  },
+  {
+    "id": "component-pareto",
+    "kind": "component",
+    "titleKey": "shell_component_pareto_title",
+    "descriptionKey": "shell_component_pareto_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_pareto_feature_0",
+      "shell_component_pareto_feature_1",
+      "shell_component_pareto_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-pareto.svg"
+  },
+  {
+    "id": "component-histogram",
+    "kind": "component",
+    "titleKey": "shell_component_histogram_title",
+    "descriptionKey": "shell_component_histogram_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_histogram_feature_0",
+      "shell_component_histogram_feature_1",
+      "shell_component_histogram_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-histogram.svg"
+  },
+  {
+    "id": "component-box-plot",
+    "kind": "component",
+    "titleKey": "shell_component_box_plot_title",
+    "descriptionKey": "shell_component_box_plot_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_box_plot_feature_0",
+      "shell_component_box_plot_feature_1",
+      "shell_component_box_plot_feature_2",
+      "shell_component_box_plot_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-box-plot.svg"
+  },
+  {
+    "id": "component-small-multiples",
+    "kind": "component",
+    "titleKey": "shell_component_small_multiples_title",
+    "descriptionKey": "shell_component_small_multiples_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_small_multiples_feature_0",
+      "shell_component_small_multiples_feature_1",
+      "shell_component_small_multiples_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-small-multiples.svg"
+  },
+  {
+    "id": "component-treemap",
+    "kind": "component",
+    "titleKey": "shell_component_treemap_title",
+    "descriptionKey": "shell_component_treemap_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_treemap_feature_0",
+      "shell_component_treemap_feature_1",
+      "shell_component_treemap_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-treemap.svg"
+  },
+  {
+    "id": "component-sunburst",
+    "kind": "component",
+    "titleKey": "shell_component_sunburst_title",
+    "descriptionKey": "shell_component_sunburst_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_sunburst_feature_0",
+      "shell_component_sunburst_feature_1",
+      "shell_component_sunburst_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-sunburst.svg"
+  },
+  {
+    "id": "component-sankey",
+    "kind": "component",
+    "titleKey": "shell_component_sankey_title",
+    "descriptionKey": "shell_component_sankey_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_sankey_feature_0",
+      "shell_component_sankey_feature_1",
+      "shell_component_sankey_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-sankey.svg"
+  },
+  {
+    "id": "component-calendar-heatmap",
+    "kind": "component",
+    "titleKey": "shell_component_calendar_heatmap_title",
+    "descriptionKey": "shell_component_calendar_heatmap_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_calendar_heatmap_feature_0",
+      "shell_component_calendar_heatmap_feature_1",
+      "shell_component_calendar_heatmap_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-calendar-heatmap.svg"
+  },
+  {
+    "id": "component-bullet",
+    "kind": "component",
+    "titleKey": "shell_component_bullet_title",
+    "descriptionKey": "shell_component_bullet_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_bullet_feature_0",
+      "shell_component_bullet_feature_1",
+      "shell_component_bullet_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-bullet.svg"
+  },
+  {
+    "id": "component-dumbbell",
+    "kind": "component",
+    "titleKey": "shell_component_dumbbell_title",
+    "descriptionKey": "shell_component_dumbbell_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_dumbbell_feature_0",
+      "shell_component_dumbbell_feature_1",
+      "shell_component_dumbbell_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-dumbbell.svg"
+  },
+  {
+    "id": "component-multi-series",
+    "kind": "component",
+    "titleKey": "shell_component_multi_series_title",
+    "descriptionKey": "shell_component_multi_series_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_multi_series_feature_0",
+      "shell_component_multi_series_feature_1",
+      "shell_component_multi_series_feature_2",
+      "shell_component_multi_series_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-multi-series.svg"
+  },
+  {
+    "id": "component-donut",
+    "kind": "component",
+    "titleKey": "shell_component_donut_title",
+    "descriptionKey": "shell_component_donut_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_donut_feature_0",
+      "shell_component_donut_feature_1",
+      "shell_component_donut_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-donut.svg"
+  },
+  {
+    "id": "component-scatter-bubble",
+    "kind": "component",
+    "titleKey": "shell_component_scatter_bubble_title",
+    "descriptionKey": "shell_component_scatter_bubble_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_scatter_bubble_feature_0",
+      "shell_component_scatter_bubble_feature_1",
+      "shell_component_scatter_bubble_feature_2",
+      "shell_component_scatter_bubble_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-scatter-bubble.svg"
+  },
+  {
+    "id": "component-matrix-heatmap",
+    "kind": "component",
+    "titleKey": "shell_component_matrix_heatmap_title",
+    "descriptionKey": "shell_component_matrix_heatmap_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_matrix_heatmap_feature_0",
+      "shell_component_matrix_heatmap_feature_1",
+      "shell_component_matrix_heatmap_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-matrix-heatmap.svg"
+  },
+  {
+    "id": "component-funnel",
+    "kind": "component",
+    "titleKey": "shell_component_funnel_title",
+    "descriptionKey": "shell_component_funnel_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_funnel_feature_0",
+      "shell_component_funnel_feature_1",
+      "shell_component_funnel_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-funnel.svg"
+  },
+  {
+    "id": "component-radar",
+    "kind": "component",
+    "titleKey": "shell_component_radar_title",
+    "descriptionKey": "shell_component_radar_description",
+    "categories": [
+      "charts"
+    ],
+    "featureKeys": [
+      "shell_component_radar_feature_0",
+      "shell_component_radar_feature_1",
+      "shell_component_radar_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-radar.svg"
+  },
+  {
+    "id": "component-metric-group",
+    "kind": "component",
+    "titleKey": "shell_component_metric_group_title",
+    "descriptionKey": "shell_component_metric_group_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_metric_group_feature_0",
+      "shell_component_metric_group_feature_1",
+      "shell_component_metric_group_feature_2",
+      "shell_component_metric_group_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-metric-group.svg"
+  },
+  {
+    "id": "component-pivot-table",
+    "kind": "component",
+    "titleKey": "shell_component_pivot_table_title",
+    "descriptionKey": "shell_component_pivot_table_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_pivot_table_feature_0",
+      "shell_component_pivot_table_feature_1",
+      "shell_component_pivot_table_feature_2",
+      "shell_component_pivot_table_feature_3"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-pivot-table.svg"
+  },
+  {
+    "id": "component-ranking",
+    "kind": "component",
+    "titleKey": "shell_component_ranking_title",
+    "descriptionKey": "shell_component_ranking_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_ranking_feature_0",
+      "shell_component_ranking_feature_1",
+      "shell_component_ranking_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-ranking.svg"
+  },
+  {
+    "id": "component-target-progress",
+    "kind": "component",
+    "titleKey": "shell_component_target_progress_title",
+    "descriptionKey": "shell_component_target_progress_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_target_progress_feature_0",
+      "shell_component_target_progress_feature_1",
+      "shell_component_target_progress_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-target-progress.svg"
+  },
+  {
+    "id": "component-event-timeline",
+    "kind": "component",
+    "titleKey": "shell_component_event_timeline_title",
+    "descriptionKey": "shell_component_event_timeline_description",
+    "categories": [
+      "data"
+    ],
+    "featureKeys": [
+      "shell_component_event_timeline_feature_0",
+      "shell_component_event_timeline_feature_1",
+      "shell_component_event_timeline_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-event-timeline.svg"
+  },
+  {
+    "id": "component-keyword-filter",
+    "kind": "component",
+    "titleKey": "shell_component_keyword_filter_title",
+    "descriptionKey": "shell_component_keyword_filter_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_keyword_filter_feature_0",
+      "shell_component_keyword_filter_feature_1",
+      "shell_component_keyword_filter_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-keyword-filter.svg"
+  },
+  {
+    "id": "component-number-range",
+    "kind": "component",
+    "titleKey": "shell_component_number_range_title",
+    "descriptionKey": "shell_component_number_range_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_number_range_feature_0",
+      "shell_component_number_range_feature_1",
+      "shell_component_number_range_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-number-range.svg"
+  },
+  {
+    "id": "component-segmented-filter",
+    "kind": "component",
+    "titleKey": "shell_component_segmented_filter_title",
+    "descriptionKey": "shell_component_segmented_filter_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_segmented_filter_feature_0",
+      "shell_component_segmented_filter_feature_1",
+      "shell_component_segmented_filter_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-segmented-filter.svg"
+  },
+  {
+    "id": "component-toggle-filter",
+    "kind": "component",
+    "titleKey": "shell_component_toggle_filter_title",
+    "descriptionKey": "shell_component_toggle_filter_description",
+    "categories": [
+      "filters"
+    ],
+    "featureKeys": [
+      "shell_component_toggle_filter_feature_0",
+      "shell_component_toggle_filter_feature_1",
+      "shell_component_toggle_filter_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-toggle-filter.svg"
+  },
+  {
+    "id": "component-tabbed-panel",
+    "kind": "component",
+    "titleKey": "shell_component_tabbed_panel_title",
+    "descriptionKey": "shell_component_tabbed_panel_description",
+    "categories": [
+      "layout"
+    ],
+    "featureKeys": [
+      "shell_component_tabbed_panel_feature_0",
+      "shell_component_tabbed_panel_feature_1",
+      "shell_component_tabbed_panel_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-tabbed-panel.svg"
+  },
+  {
+    "id": "component-collapsible-panel",
+    "kind": "component",
+    "titleKey": "shell_component_collapsible_panel_title",
+    "descriptionKey": "shell_component_collapsible_panel_description",
+    "categories": [
+      "layout"
+    ],
+    "featureKeys": [
+      "shell_component_collapsible_panel_feature_0",
+      "shell_component_collapsible_panel_feature_1",
+      "shell_component_collapsible_panel_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-collapsible-panel.svg"
+  },
+  {
+    "id": "component-analysis-note",
+    "kind": "component",
+    "titleKey": "shell_component_analysis_note_title",
+    "descriptionKey": "shell_component_analysis_note_description",
+    "categories": [
+      "layout"
+    ],
+    "featureKeys": [
+      "shell_component_analysis_note_feature_0",
+      "shell_component_analysis_note_feature_1",
+      "shell_component_analysis_note_feature_2"
+    ],
+    "appearance": "light",
+    "status": "planned",
+    "content": null,
+    "preview": "component-analysis-note.svg"
+  }
+]

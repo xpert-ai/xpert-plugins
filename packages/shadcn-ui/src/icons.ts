@@ -65,6 +65,7 @@ export {
   Undo2,
   Upload,
   WandSparkles,
+  Sparkles,
   Wrench,
   ZoomIn,
   ZoomOut

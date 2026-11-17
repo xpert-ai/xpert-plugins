@@ -17,7 +17,7 @@ export function agentPrompt(input: AgentInvocationInput): string {
     ...(input.parameters ? [`Task parameters (JSON):\n${JSON.stringify(input.parameters)}`] : []),
     ...(input.context ? [`Task context (JSON):\n${JSON.stringify(input.context)}`] : []),
     resultInstructions(outputDelivery(input.delivery))
-  ].join('\n\n')
+  ].filter(Boolean).join('\n\n')
   if (Buffer.byteLength(text) > 1024 * 1024) throw new Error('Agent input exceeds the size limit')
   return text
 }

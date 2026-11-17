@@ -10,7 +10,6 @@ import { LARK_PLUGIN_CONTEXT } from './lib/tokens.js'
 import {
   LARK_ADMIN_TEMPLATE_KEY,
   LARK_ADMIN_VIEW_FEATURE,
-  LARK_ARTIFACT_NAMESPACE,
   LARK_ASSISTANT_TEMPLATE_FEATURE,
   LARK_CONVERSATION_TEMPLATE_KEY,
   LARK_DOCUMENT_SOURCE_FEATURE,
@@ -32,14 +31,15 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: { plugin: { level: 'system'; artifactNamespace: string } }
 }
 
 const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>> = {
   meta: {
     name: packageJson.name || LARK_PLUGIN_NAME,
     version: packageJson.version,
-    level: 'system',
-    artifactNamespace: LARK_ARTIFACT_NAMESPACE,
+    level: packageJson.xpert.plugin.level,
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     targetApps: ['xpert'],
     targetAppMeta: {
       xpert: {

@@ -5,7 +5,7 @@ import { dashboardProjectSchema } from './projects.schema'
 import { dashboardSchema } from './dashboard.schema'
 import { dashboardNavigationTargetSchema } from './dashboard-navigation'
 
-export const dashboardSummarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), canDelete: z.boolean().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
+export const dashboardSummarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), canDelete: z.boolean().optional(), isDraft: z.boolean().optional(), isEmpty: z.boolean().optional(), baseVersionId: z.string().nullish() })
 export const dashboardPickerPageSchema = z.object({ items: z.array(dashboardSummarySchema), page: z.number().int().positive(), hasMore: z.boolean(), canEdit: z.boolean().default(false), mode: z.enum(['draft', 'published']).optional() })
 export const dashboardSavedSchema = dashboardSummarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
 // Source identities belong to Analytics, including immutable Definitions and Artifacts.

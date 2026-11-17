@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "composite": false,
+    "rootDir": ".",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": [
+      "node",
+      "react",
+      "react-dom"
+    ]
+  },
+  "include": [
+    "remote/**/*.ts",
+    "remote/**/*.tsx",
+    "src/core/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

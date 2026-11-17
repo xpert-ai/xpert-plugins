@@ -5,14 +5,23 @@ import type { WorkbenchNavigationOpenPayload } from '@xpert-ai/contracts'
 import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from '../lib/dashboard-receipt'
 
 const envelope = z.object({ channel: z.literal('xpertai.remote_component'), protocolVersion: z.literal(1),
-  type: z.string(), visible: z.boolean().optional(), scopeRevision: z.number().optional(), kind: z.string().optional(), resourceId: z.string().optional(), instanceId: z.string().optional(), requestId: z.string().optional(), locale: z.string().optional(),
+  type: z.string(), surface: z.literal('workbench').optional(), visible: z.boolean().optional(), scopeRevision: z.number().optional(), kind: z.string().optional(), resourceId: z.string().optional(), instanceId: z.string().optional(), requestId: z.string().optional(), locale: z.string().optional(),
   initialQuery: z.unknown(), data: z.unknown(), result: z.unknown(), message: z.string().optional(),
   event: z.object({ type: z.string(), toolName: z.string().optional(), data: z.object({ output: z.unknown(), revision: z.number().int().nonnegative().optional() }).optional() }).optional(),
   theme: z.object({ mode: z.string().optional(), density: z.enum(['default', 'compact']).optional(), tokens: z.record(z.union([z.string(), z.number()])).optional() }).optional()
 })
 let instanceId: string | undefined
 let scopeRevision: number | undefined
+/** Capture before a multi-request handoff so a late result cannot write into a new conversation. */
+export function captureViewScope() {
+  const capturedInstance = instanceId, capturedRevision = scopeRevision
+  return () => {
+    if (capturedInstance !== instanceId || capturedRevision !== scopeRevision) throw new Error('Context changed')
+  }
+}
 let initialQuery: unknown
+let workbenchPresentation = false
+export const isWorkbenchPresentation = () => workbenchPresentation
 let hostVisible = true
 // A hidden Workbench tab may keep its iframe mounted. Page Visibility alone
 // cannot detect that state; the scoped host visibility message is authoritative.
@@ -24,7 +33,7 @@ let sequence = 0
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number }>()
 function post(type: string, body: object = {}) { window.parent.postMessage({ channel: 'xpertai.remote_component', protocolVersion: 1, instanceId, scopeRevision, type, ...body }, '*') }
 /** Public navigation is reflected in every init; tool receipts separately invalidate saved content. */
-export function startBridge(onReady: (locale: string, initialQuery: unknown) => void, onCreated: (artifactId: string) => void, onScopeReset: () => void = () => undefined) {
+export function startBridge(onReady: (locale: string, initialQuery: unknown) => void, onCreated: (artifactId: string) => void, onScopeReset: () => void = () => undefined, onVisible: () => void = () => undefined) {
   let lastCreatedVersion: string | undefined
   const listener = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return
@@ -34,6 +43,7 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
       if (instanceId && message.instanceId !== instanceId) return
       if (scopeRevision !== message.scopeRevision) { clearPending(); lastCreatedVersion = undefined; onScopeReset() }
       instanceId = message.instanceId; scopeRevision = message.scopeRevision; initialQuery = message.initialQuery
+      workbenchPresentation = message.surface === 'workbench'
       hostVisible = message.visible ?? true
       document.documentElement.classList.toggle('dark', message.theme?.mode === 'dark')
       for (const [key, value] of Object.entries(message.theme?.tokens ?? {})) {
@@ -45,11 +55,16 @@ export function startBridge(onReady: (locale: string, initialQuery: unknown) => 
     }
     if (message.type === 'hostEvent' && instanceId && message.instanceId === instanceId && message.event?.type === 'view.context.changed') {
       const revision = message.event.data?.revision
-      if (revision !== undefined && revision > (scopeRevision ?? -1)) { clearPending(); scopeRevision = revision; lastCreatedVersion = undefined; onScopeReset() }
+      if (revision !== undefined && revision > (scopeRevision ?? -1)) {
+        clearPending(); scopeRevision = revision; lastCreatedVersion = undefined; onScopeReset()
+        // The host invalidates a mounted view with a context event, not another
+        // init. Re-handshake to load the current project/query after resetting.
+        post('ready')
+      }
       return
     }
     if (!instanceId || message.instanceId !== instanceId || message.scopeRevision !== scopeRevision && message.type !== 'error') return
-    if (message.type === 'visibility') { hostVisible = message.visible === true; return }
+    if (message.type === 'visibility') { const wasVisible = hostVisible; hostVisible = message.visible === true; if (hostVisible && !wasVisible) onVisible(); return }
     if (message.type === 'editorEvent' && message.kind === 'prepareClose' && message.resourceId && message.requestId) { post('closePrepared', { requestId: message.requestId, ready: [...editors].every(listener => listener(message.resourceId!)) }); return }
     if (message.type === 'hostEvent' && message.event?.type === 'assistant.tool.completed' && DASHBOARD_MUTATION_TOOLS.includes(message.event.toolName ?? '')) {
       const receipt = createdDashboard(message.event.data?.output)
@@ -77,6 +92,7 @@ export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClien
   })
 }
 export function selectDashboard(target: { artifactId: string; versionId?: string; draftRevision?: number } | null) {
+  if (!isViewVisible()) return Promise.resolve({ success: true })
   return requestHost('invokeClientCommand', { commandKey: 'assistant.context.set',
     payload: { key: 'live_dashboard', context: target ? { schemaVersion: 1, ...target } : { schemaVersion: 1, mode: 'new' } } })
 }

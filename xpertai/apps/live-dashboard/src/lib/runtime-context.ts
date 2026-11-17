@@ -6,6 +6,7 @@ export function dashboardRuntimeContext(context: IAgentMiddlewareContext): Xpert
   return { tenantId: context.tenantId ?? RequestContext.currentTenantId(),
     organizationId: context.organizationId ?? RequestContext.getOrganizationId(), userId: context.userId ?? RequestContext.currentUserId(),
     hostType: 'agent', hostId: context.xpertId, slots: [],
+    ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
     ...(context.projectId ? { runtimeScope: { projectId: context.projectId, conversationId: context.conversationId ?? null,
       dataScopeKey: `project:${context.projectId}`, workspaceFiles: { catalog: 'projects', scopeId: context.projectId, projectId: context.projectId } } } : {}) }
 }

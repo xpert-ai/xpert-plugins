@@ -17,7 +17,7 @@ function fixture() {
   const scope: Scope = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID(), workspaceId: randomUUID() }
   const policy = Object.assign(new ReviewRepository(), scope, { id: randomUUID(), owner: 'fixture', repository: 'repo', revision: 1, executionRevision: 1,
     settings: { ...defaultPolicy, enabled: true, onWorkflowFailure: true } })
-  const run = { id: 25, run_attempt: 1, head_sha: 'a'.repeat(40), check_suite_id: 30, head_branch: 'main', name: 'CI', conclusion: 'failure', status: 'completed', html_url: 'https://github.com/fixture/repo/actions/runs/25' }
+  const run = { id: 25, run_attempt: 1, head_sha: 'a'.repeat(40), check_suite_id: 30, head_branch: 'main', path: '.github/workflows/ci.yml', name: 'CI', conclusion: 'failure', status: 'completed', html_url: 'https://github.com/fixture/repo/actions/runs/25' }
   const job = { id: 40, run_id: 25, head_sha: run.head_sha, check_run_url: 'https://api.github.com/repos/fixture/repo/check-runs/40', name: 'acceptance', conclusion: 'failure', html_url: run.html_url + '/job/40', steps: [] }
   const row = Object.assign(new WorkflowDiagnosis(), scope, { id: randomUUID(), repositoryPolicyId: policy.id, policyRevision: 1, settings: policy.settings,
     ref: workflowRef(run), status: 'queued' as const, createdAt: new Date(), updatedAt: new Date() })
@@ -43,6 +43,11 @@ function fixture() {
       }
       return path.includes('/jobs?') ? { total_count: state.totalJobs, jobs: [job] } : run
     },
+      source: async (ref: { owner: string; repository: string }, sha: string, path: string) => {
+        assert.equal(ref.owner, policy.owner); assert.equal(ref.repository, policy.repository)
+        assert.equal(sha, run.head_sha); assert.equal(path, run.path)
+        return 'name: CI\njobs:'
+      },
       jobLog: async () => { logReads++; return { content: 'expected failure', truncated: false } } }),
     app: { inspect: async () => { throw new Error('Background execution must not depend on configuring-user OAuth') } }
   } as unknown as Repositories
@@ -77,7 +82,14 @@ for (const executionMode of ['assistant', 'pipeline'] as const) test(`${executio
   assert.equal(f.metrics().logReads,0)
   const evidence = await f.service.evidence(f.execution(),f.config())
   assert.equal(evidence.evidence?.jobs[0].id,40)
-  assert.equal((await f.service.log(f.execution(),f.config(),40,0,10)).lines,'expected failure')
+  assert.equal(evidence.evidence?.workflowPath, f.run.path)
+  assert.deepEqual(await f.service.source(f.execution(), f.config(), f.run.path, 1, 1),
+    { path: f.run.path, sha: f.run.head_sha, offset: 1, total: 2, content: '2: jobs:' })
+  const matched = await f.service.source(f.execution(), f.config(), f.run.path, 0, 1, 'jobs:')
+  assert.equal('matchLine' in matched && matched.matchLine, 2)
+  const missing = await f.service.source(f.execution(), f.config(), f.run.path, 2, 1, 'jobs:')
+  assert.equal('matchLine' in missing && missing.matchLine, null)
+  assert.equal((await f.service.log(f.execution(),f.config(),40,0,10)).lines,'1: expected failure')
   await f.service.complete(f.execution(),f.config(),{ summary: 'Expected fixture failure', findings: [] })
   assert.equal(f.row.status,'completed')
   assert(f.metrics().inspections >= 3)
@@ -99,7 +111,7 @@ test('cancelled job timeout claims quota only after proof and retains proof for 
   assert.equal(f.metrics().dispatches, 1)
   assert.equal(f.row.evidence?.timeouts?.[0].source, 'check_run_annotation')
   assert.equal(f.row.ref.conclusion, 'cancelled')
-  await f.service.complete(f.execution(), f.config(), { summary: 'Confirmed job timeout', findings: [{ jobId: 40, cause: 'Job limit exceeded', evidence: f.state.annotation, suggestion: 'Check the stalled step' }] })
+  await f.service.complete(f.execution(), f.config(), { summary: 'Confirmed job timeout', findings: [{ jobId: 40, citations: { log: [], source: [], limitation: 'GitHub timeout annotation only' }, cause: 'Job limit exceeded', evidence: f.state.annotation, suggestion: 'Check the stalled step', repair: { files: [], workingDirectory: '.', update: [], verify: [], basis: 'No tracked file change established by this timeout.' } }] })
   assert.equal(f.row.status, 'completed')
 })
 
@@ -141,7 +153,9 @@ test('revoked organization authorization denies evidence, logs and finalization;
   const f = fixture()
   await f.service.process(f.policy, f.row.id)
   await assert.rejects(f.service.evidence(f.execution(),{ configurable: { ...f.config().configurable, executionId: randomUUID() } }),/task_binding_mismatch/)
+  await assert.rejects(f.service.source(f.execution(),{ configurable: { ...f.config().configurable, executionId: randomUUID() } },f.run.path,0,10),/task_binding_mismatch/)
   f.deny()
+  await assert.rejects(f.service.source(f.execution(),f.config(),f.run.path,0,10),/execution_authorization_revoked/)
   await assert.rejects(f.service.evidence(f.execution(),f.config()),/execution_authorization_revoked/)
   await assert.rejects(f.service.log(f.execution(),f.config(),40,0,10),/execution_authorization_revoked/)
   await assert.rejects(f.service.complete(f.execution(),f.config(),{ summary: 'Must not save', findings: [] }),/execution_authorization_revoked/)
@@ -167,4 +181,27 @@ test('a lost workflow dispatch receipt reuses committed execution handles across
   assert.equal(f.row.reason, null)
   await f.service.process(f.policy, f.row.id)
   assert.equal(f.metrics().dispatches, 2, 'observation does not dispatch again')
+})
+
+test('raw log references span pages and are resolved independently of step numbers and YAML lines', async () => {
+  const f = fixture()
+  const step = { name: 'Run CI', number: 2, conclusion: 'failure', status: 'completed' }
+  await f.service.process(f.policy, f.row.id)
+  f.row.evidence!.jobs[0].steps = [step]
+  const finding = { jobId: 40, cause: 'Fixture failed', evidence: 'Log and source', suggestion: 'Review fixture',
+    repair: { files: [], workingDirectory: '.', update: [], verify: [], basis: 'Fixture only' },
+    citations: { log: [{ line: 25, quote: 'expected failure' }], source: [{ path: f.run.path, line: 22, quote: 'name: CI' }] } }
+  f.row.evidence!.workflowSources = [{path: f.run.path, lines: [{line: 1, text: '- name: Run CI'}]}]
+  await assert.rejects(f.service.complete(f.execution(),f.config(), {summary: 'Unverified', findings: [
+    {...finding, citations: {log: [], source: [], limitation: 'source unavailable'}}
+  ]}), /returned source/)
+  await assert.rejects(f.service.complete(f.execution(),f.config(), { summary: 'Wrong excerpt', findings: [
+    { ...finding, citations: { ...finding.citations, log: [{ line: 1, quote: 'other run' }] } }
+  ] }), /not found/)
+  assert.equal(f.row.status, 'running')
+  await f.service.complete(f.execution(), f.config(), { summary: 'Verified', findings: [finding] })
+  assert.deepEqual(f.row.result!.findings[0].citations, {
+    steps: [{ number: 2, name: 'Run CI' }], log: [{ line: 1, quote: 'expected failure' }],
+    source: [{ path: f.run.path, line: 1, quote: 'name: CI' }]
+  })
 })
