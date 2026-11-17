@@ -44,7 +44,7 @@ const actionLabels = {
   create_run: { en_US: 'Create acceptance run', zh_Hans: '新建验收' },
   retry_failures: { en_US: 'Retry failures', zh_Hans: '重试失败项' },
   recover_run: { en_US: 'Recover interruption', zh_Hans: '恢复中断任务' },
-  review_sample: { en_US: 'Save sample review', zh_Hans: '保存样本评审' },
+  review_sample: { en_US: 'Save review', zh_Hans: '保存评审' },
   decide_run: { en_US: 'Save adoption decision', zh_Hans: '保存验收结论' }
 }
 const requireHere = createRequire(import.meta.url)

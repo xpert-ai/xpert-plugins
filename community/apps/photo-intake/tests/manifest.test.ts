@@ -51,6 +51,8 @@ test('runtime metadata matches package.json and links one template to the app', 
   assert.equal(app?.appConfig?.assistantTemplateKey, TEMPLATE_KEY)
   assert.equal(plugin.templates?.filter(template => template.key === TEMPLATE_KEY).length, 1)
   assert.match(plugin.templates?.[0]?.dslContent ?? '', new RegExp(`provider: ${MIDDLEWARE_NAME}`))
+  // The chat start screen shows the opener message, and falls back to the long description without one.
+  assert.match(plugin.templates?.[0]?.dslContent ?? '', /\n {2}features:\n {4}opener:\n {6}enabled: true\n {6}message: 今天从哪里开始？\n/)
 })
 
 test('the view provider declares the workbench view, serves its bundle and rejects unknown keys', async () => {

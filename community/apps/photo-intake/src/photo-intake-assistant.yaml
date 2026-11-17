@@ -3,6 +3,11 @@ team:
   type: agent
   title: 拍照受理助手
   description: 识别受理单照片并给出类别建议，由人确认；运行已保存的提示词验收
+  features:
+    opener:
+      enabled: true
+      message: 今天从哪里开始？
+      questions: []
   options:
     templateKey: photo-intake-assistant
   agentConfig:
