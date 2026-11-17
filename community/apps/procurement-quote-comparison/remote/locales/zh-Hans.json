@@ -20,5 +20,16 @@
   "publishedCheck": "已于 {{date}} 在本案例发布「待核实交期」提醒",
   "unverifiedQuoteVersion": "当前报价版本待核实",
   "unverifiedPublication": "以往的提醒发布情况待核实",
-  "recordedReply": "供应商答复：{{note}}"
+  "recordedReply": "供应商答复：{{note}}",
+  "buyerDecisions": "采购人决定",
+  "enableDecisions": "启用交期延期确认",
+  "disableDecisions": "关闭交期延期确认",
+  "decision_pending": "待采购人决定",
+  "decision_accepted": "已接受本次延期",
+  "decision_renegotiate": "未接受 · 待重新协商",
+  "decision_superseded": "报价已换版，请重新确认",
+  "decision_closed": "已关闭",
+  "accept_delay": "接受本次延期",
+  "reject_delay": "不接受本次延期",
+  "replacedQuote": "上一版提议 · v{{revision}}：{{date}}"
 }

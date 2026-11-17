@@ -20,5 +20,16 @@
   "publishedCheck": "Delivery confirmation requested in this case on {{date}}",
   "unverifiedQuoteVersion": "Current quote version unverified",
   "unverifiedPublication": "Previous publication unverified",
-  "recordedReply": "Supplier reply: {{note}}"
+  "recordedReply": "Supplier reply: {{note}}",
+  "buyerDecisions": "Buyer decisions",
+  "enableDecisions": "Enable buyer decisions",
+  "disableDecisions": "Stop new decisions",
+  "decision_pending": "Awaiting buyer decision",
+  "decision_accepted": "Accepted",
+  "decision_renegotiate": "Declined · renegotiation required",
+  "decision_superseded": "Quote superseded",
+  "decision_closed": "Closed",
+  "accept_delay": "Accept this delay",
+  "reject_delay": "Decline this delay",
+  "replacedQuote": "Previous proposal · v{{revision}}: {{date}}"
 }

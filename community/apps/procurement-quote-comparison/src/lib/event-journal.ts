@@ -43,4 +43,13 @@ export class QuoteEventParse {
   @PrimaryColumn('varchar', { length: 64 }) digest!: string
 }
 
+/** Optional local context for a quote revision. The v1 wire snapshot and its digest are shared with older workers. */
+@Entity('plugin_procurement_quote_context')
+export class QuoteRevisionContext {
+  @PrimaryColumn('uuid') binding!: string
+  @PrimaryColumn('varchar') source!: string
+  @Column('date', { nullable: true }) baseline!: string | null
+  @Column('varchar', { nullable: true }) threadId!: string | null
+}
+
 export const digestSnapshot = (value: unknown) => sdk.agentEventDigest(value)

@@ -6,6 +6,7 @@ import { test } from 'node:test'
 import { setup, domainDatabase, captureViewReceipt, larkFixture, procurement, lark } from './event-inbox.fixture.js'
 import './procurement-cross-run.cases.js'
 import './channel-cross-run.cases.js'
+import './buyer-decisions.cases.js'
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { Review } from '../../xpertai/apps/code-review/src/entity.js'
 import { WorkflowDiagnosis } from '../../xpertai/apps/code-review/src/workflow-entity.js'
@@ -192,7 +193,7 @@ test('Code Review: failed workflow and skipped workflow match legacy shadows; ch
 test('Procurement: actual extraction service, baseline then a delayed revision and exactly one risk', async (t) => {
   const f = await setup(t, 'procurement.quote')
   const e = await import(procurement + 'entities/index.js')
-  const { QuoteEventRoute, QuoteEventFact, QuoteEventParse } = await import(procurement + 'event-journal.js')
+  const { QuoteEventParse } = await import(procurement + 'event-journal.js')
   const { QuoteEvents } = await import(procurement + 'quote-events.js')
   const { ProcurementQuoteComparisonService } = await import(procurement + 'procurement-quote-comparison.service.js')
   const entities = [
@@ -206,9 +207,8 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
     e.ProcurementRiskItem,
     e.ProcurementRecommendation
   ]
-  const { QuoteFollowUp } = await import(procurement + 'quote-follow-up.js')
-  const { DeliveryCheck, DeliveryCheckReceipt } = await import(procurement + 'delivery-check.js')
-  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteFollowUp, DeliveryCheck, DeliveryCheckReceipt])
+  const { PROCUREMENT_QUOTE_COMPARISON_ENTITIES } = await import(procurement + 'procurement-quote-comparison.plugin.js')
+  const db = await domainDatabase(f, PROCUREMENT_QUOTE_COMPARISON_ENTITIES)
   try {
     const source = new QuoteEvents(db.getRepository(entities[0]))
     const service = new ProcurementQuoteComparisonService(...entities.map((cls) => db.getRepository(cls)), source)

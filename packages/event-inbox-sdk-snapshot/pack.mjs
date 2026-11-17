@@ -6,8 +6,10 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const sourceDigest = '9a163315bb7c314783a0b2a758ad6365a7b210bc415cbb5c342d20d0c41cc08e'
-const version = '3.36.0-outbox.5'
+const snapshots = new Map([
+  ['9a163315bb7c314783a0b2a758ad6365a7b210bc415cbb5c342d20d0c41cc08e', '3.36.0-outbox.5'],
+  ['ff5ddd346ee76c1712dc5eb48a1fc6d3ccbe1b8980b2d6c7aeca11a29dc37be0', '3.36.0-workbench-decision.1']
+])
 const [checkout, destination] = process.argv.slice(2)
 if (!checkout) throw new Error('Usage: node pack.mjs <xpert-checkout> [output-directory]')
 const root = path.resolve(checkout)
@@ -25,7 +27,9 @@ for (const file of [...new Set(files.split('\0').filter(Boolean))].sort()) {
       .digest()
   )
 }
-if (hash.digest('hex') !== sourceDigest) throw new Error('SDK or contracts sources differ from this snapshot')
+const sourceDigest = hash.digest('hex')
+const version = snapshots.get(sourceDigest)
+if (!version) throw new Error('SDK or contracts sources differ from this snapshot')
 execFileSync('corepack', ['pnpm', 'exec', 'nx', 'run', 'plugin-sdk:build', '--skip-nx-cache'], {
   cwd: root,
   stdio: 'inherit'

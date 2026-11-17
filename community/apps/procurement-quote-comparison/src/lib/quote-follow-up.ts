@@ -105,6 +105,13 @@ export async function editFollowUp(tx: EntityManager, scope: ProcurementScope, i
   const deadline = scope.eventReceiptId
     ? await verifiedDeadline(tx, scope, route, input.caseId, input.riskId, facts?.origin.source)
     : null
+  // A buyer decision owns the reminder for its revision. Supplier replies remain independent.
+  const [decision] = await tx.query(
+    `SELECT id FROM plugin_procurement_delay_decision WHERE "caseId"=$1 AND "riskId"=$2 AND binding=$3 AND revision=$4
+      AND state IN ('pending','accepted','renegotiate')`,
+    [c.id, risk.id, route.binding, expected?.revision ?? -1])
+  if (decision && ['publish_check','set'].includes(input.action))
+    throw new ConflictException('buyer_decision_manages_this_revision')
   if (input.action === 'inspect') {
     const existing = key && (await tx.findOneBy(DeliveryCheck, key))
     const reminder = existing?.publishedFor === scope.userId ? existing : null
@@ -127,6 +134,7 @@ export async function editFollowUp(tx: EntityManager, scope: ProcurementScope, i
       reminder: reminder
         ? { id: reminder.id, publishedAt: reminder.publishedAt, quoteRevision: reminder.revision }
         : null,
+      buyerDecisionId: decision?.id ?? null,
       waitingFor:
         currentQuote && c.status !== 'completed' && timer && ['waiting', 'captured', 'fired'].includes(timer.state)
           ? 'supplier_reply'

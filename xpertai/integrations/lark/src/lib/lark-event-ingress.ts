@@ -10,7 +10,7 @@ import type { TIntegrationLarkOptions } from './types.js'
 
 const text = z.string().min(1).max(256)
 const id = z.object({ open_id: text, union_id: text.nullish(), user_id: text.nullish() })
-const msg = z.object({
+export const msg = z.object({
   sender: z.object({ sender_id: id, sender_type: z.string().nullish() }),
   message: z.object({
     message_id: text,
@@ -35,7 +35,10 @@ const msg = z.object({
       .optional(),
   }),
 })
-const cardValue = z.union([text, z.object({ action: text })])
+export const decisionButton = z.object({
+  action: z.literal('human_decision'), interactionId: z.string().uuid(), choice: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/)
+}).strict()
+const cardValue = z.union([text, decisionButton, z.object({ action: text.refine(value => value !== 'human_decision') })])
 export const card = z.object({
   operator: id,
   context: z.object({ open_chat_id: text, open_message_id: text }),
@@ -69,6 +72,7 @@ export class LarkEventIngress {
     kind: 'message' | 'card',
     raw: unknown,
     eventId?: string,
+    verifiedDecisionChannel = false,
   ) {
     if (!journal || !integration.tenantId || !integration.organizationId) return false
     return this.bindings.manager.transaction(async (tx) => {
@@ -92,7 +96,8 @@ export class LarkEventIngress {
       const c = kind === 'card' ? card.parse(payload) : null
       const sourceId = kind + '/' + (m?.message.message_id ?? text.parse(eventId))
       const chat = m?.message.chat_id ?? c.context.open_chat_id
-      const snapshot = m ?? c
+      const decisionCandidate = !!m?.message.parent_id || decisionButton.safeParse(c?.action.value).success
+      const snapshot = verifiedDecisionChannel && decisionCandidate ? {...(m ?? c), verifiedDecisionChannel:true} : m ?? c
       const type = kind === 'message' ? 'lark.message.received' : 'lark.card.action'
       return journal.capture(
         tx,

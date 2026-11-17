@@ -628,6 +628,8 @@
           h(
             'section',
             { className: 'proc-panel proc-risk-panel' },
+            detail.decisionManagement ? h(ProcurementFollowUp.Decisions, { management: detail.decisionManagement,
+              closed: item.status === 'completed', busy, runAction }) : null,
             panelHeader('风险异常', `${risks.length} 项风险`),
             risks.length
               ? risks.map((risk) =>
@@ -638,7 +640,9 @@
                   h('strong', null, displayText(risk.title)),
                   h('p', null, displayText(risk.description)),
                   risk.suggestion ? h('p', { className: 'xui-muted' }, displayText(risk.suggestion)) : null,
-                  risk.followUp ? h(ProcurementFollowUp.Controls, { risk, busy, closed: item.status === 'completed', submit: input => runAction('change_follow_up', input) }) : null
+                  risk.followUp && !detail.decisionManagement?.requests.some(request =>
+                    request.riskId === risk.id && ['pending','accepted','renegotiate'].includes(request.state))
+                    ? h(ProcurementFollowUp.Controls, { risk, busy, closed: item.status === 'completed', submit: input => runAction('change_follow_up', input) }) : null
                 )
             )
               : h('div', { className: 'proc-empty-state compact' }, h('span', null, '暂无风险项'))

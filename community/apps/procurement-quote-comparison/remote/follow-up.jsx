@@ -99,3 +99,63 @@ export function Controls(props) {
     </RemoteI18nProvider>
   )
 }
+
+export function Decisions({ management, busy, closed, runAction }) {
+  React.useSyncExternalStore(i18n.subscribe, i18n.getLocale)
+  const ids = React.useRef(new Map())
+  function submit(request, choice) {
+    const key = [request.id, request.version, choice].join('/')
+    if (!ids.current.has(key)) ids.current.set(key, crypto.randomUUID())
+    return runAction('submit_delay_decision', {
+      requestId: request.id,
+      requestVersion: request.version,
+      schemaVersion: 1,
+      sourceRevision: String(request.revision),
+      choice,
+      commandId: ids.current.get(key)
+    })
+  }
+  const byId = new Map(management.requests.map((r) => [r.id, r]))
+  return (
+    <RemoteI18nProvider i18n={i18n}>
+      <section>
+        <h3>{i18n.t('buyerDecisions')}</h3>
+        <Button
+          variant="outline"
+          disabled={busy || closed}
+          onClick={() => runAction('set_delay_decisions', { enabled: !management.enabled })}
+        >
+          {i18n.t(management.enabled ? 'disableDecisions' : 'enableDecisions')}
+        </Button>
+        {management.requests.map((r) => (
+          <article key={r.id}>
+            <strong>{r.supplier}</strong>
+            <p>
+              {i18n.t('quoteRevision', { revision: i18n.number(r.revision) })} · {r.originalDate} → {r.revisedDate}
+            </p>
+            {byId.has(r.replaces) && (
+              <p>
+                {i18n.t('replacedQuote', {
+                  revision: i18n.number(byId.get(r.replaces).revision),
+                  date: byId.get(r.replaces).revisedDate
+                })}
+              </p>
+            )}
+            <p>
+              {i18n.t('decision_' + r.state)}{' '}
+              {r.decidedAt && i18n.date(r.decidedAt, { dateStyle: 'short', timeStyle: 'short' })} {r.decidedBy}
+            </p>
+            {management.enabled &&
+              !closed &&
+              r.state === 'pending' &&
+              management.choices.map((choice) => (
+                <Button key={choice} variant="outline" disabled={busy} onClick={() => submit(r, choice)}>
+                  {i18n.t(choice)}
+                </Button>
+              ))}
+          </article>
+        ))}
+      </section>
+    </RemoteI18nProvider>
+  )
+}

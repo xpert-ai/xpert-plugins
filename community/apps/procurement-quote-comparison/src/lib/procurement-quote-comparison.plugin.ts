@@ -1,4 +1,5 @@
-import { QuoteEventRoute, QuoteEventFact, QuoteEventParse } from './event-journal.js'
+import { QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteRevisionContext } from './event-journal.js'
+import { DelayDecision, DelayDecisionInput } from './entities/delay-decision.entity.js'
 import { DeliveryCheck, DeliveryCheckReceipt } from './delivery-check.js'
 import { QuoteFollowUp } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
@@ -24,9 +25,12 @@ export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
   QuoteEventRoute,
   QuoteEventFact,
   QuoteEventParse,
+  QuoteRevisionContext,
   QuoteFollowUp,
   DeliveryCheck,
   DeliveryCheckReceipt,
+  DelayDecision,
+  DelayDecisionInput,
   ProcurementComparisonCase,
   ProcurementSourceDocument,
   ProcurementParseJob,

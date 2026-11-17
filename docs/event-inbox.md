@@ -89,8 +89,20 @@ export const eventTypes = [
 
 升级已有业务库时先应用两个插件的增量 SQL，再装载新生产者。新增字段保留旧记录。历史评审和采购提醒不会被标记为待发。已应用首版发件箱迁移的环境还需应用交接重试迁移。[采购升级 SQL](../community/apps/procurement-quote-comparison/migrations/20261116-agent-output.sql) · [评审升级 SQL](../xpertai/apps/code-review/migrations/20261116-agent-output.sql) · [采购交接重试 SQL](../community/apps/procurement-quote-comparison/migrations/20261116-output-handoff-retry.sql) · [评审交接重试 SQL](../xpertai/apps/code-review/migrations/20261116-output-handoff-retry.sql)
 
+### 让接收人决定一个业务事项
+
+在允许本人决定的输出上，`resolveForRecipient` 返回 `decision: { type: 'human_decision', schemaVersion: 1, requestVersion, choices }`。发件箱引用的 `key` 标识该请求，`revision` 固定用户看到的业务版本。插件另用 `requestVersion` 标识请求自身的状态版本。每个选项提供稳定的 `key` 和本地化 `label`，需要支持引用回复时再声明精确匹配的 `replyCommand`。采购插件在一处定义选项与业务处置，工作台和飞书共用选项键和翻译。Code Review 等只读结果继续返回原有展示。
+
+工作台调用 `WorkbenchDecisionCapability.submit`，提交 `{ schemaVersion: 1, requestId, sourceRevision, requestVersion, choice, commandId }`。飞书按钮使用宿主的投递尝试 ID，引用回复携带原卡消息和私聊标识。宿主校验来源绑定、发送人和原卡，使用持久化的输出引用组装同一契约。来源插件在业务事务内复核操作人、版本、选项，并按输入和请求去重。采购插件在这里将 `sourceRevision` 解释为报价修订。
+
+同一请求在工作台和飞书并发提交时，由采购插件在案例事务中确定唯一决定并发布一次续跑。报价替换后，用户须在新修订上重新确认。[采购决定](../community/apps/procurement-quote-comparison/src/lib/delivery-decision.ts)
+
+### 启用采购延期决定
+
+应用[采购决定迁移](../community/apps/procurement-quote-comparison/migrations/20261117-delay-decisions.sql)和[报价修订上下文迁移](../community/apps/procurement-quote-comparison/migrations/20261117-quote-revision-context.sql)后，在案例的「采购人决定」中选择「启用交期延期确认」。采购报价事实保存原始报价。交期比较基准和会话线程与报价在同一事务中保存。交期缺失会使已发出的请求失效。再次取得有效交期时，用此前可核验的承诺日判断是否需要重新确认。
+
 ## 验证接入
 
-1. 使用所属工作区锁文件构建三个插件，运行 dist-first 生命周期检查。Code Review、采购比价和飞书均锁定 `3.36.0-outbox.5`。部署主机需要支持本版 SDK、Contracts、事件模块和通知模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
+1. 使用所属工作区锁文件构建三个插件，运行 dist-first 生命周期检查。采购比价锁定 `3.36.0-workbench-decision.1`，通过 `platform.view.workbench-decision` 提交工作台决定。Code Review 和飞书锁定 `3.36.0-outbox.5`。部署主机需要支持本版 SDK、Contracts、事件模块和通知模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
 2. 在独立 PostgreSQL 验收库验证正常输入、同一事实重投、切回或多实例恢复、越权拒绝。核对回执 ID 和实际领域写入数。Code Review 可先启用仓库规则中的影子比对，核实旧路径与新路径的决定，再按仓库切流。[跨插件场景](../scripts/acceptance/event-inbox.test.ts)
 3. 在工作台和两个个人入口选择同一回执，核对类型、分类、结果和会话。在另一个无权账户、无会话引用和历史描述缺失的情况下，分别验证数据权限、动作隐藏和“未分类”回退。

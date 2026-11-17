@@ -1,3 +1,6 @@
+import { DelayDecision } from './entities/delay-decision.entity.js'
+import { delayDecided, requestDelayDecision } from './delivery-decision.js'
+import { withDecisionOutput } from './delivery-decision-output.js'
 import { deliveryCheckOutput } from './delivery-check-output.js'
 import { quoteFact as factSchema } from './delivery-check.js'
 import { matchesStoredExtraction } from "./quote-extraction.js";
@@ -26,6 +29,7 @@ import {
   journal,
   digestSnapshot,
   QuoteEventParse,
+  QuoteRevisionContext,
 } from "./event-journal.js";
 import type { SaveSupplierQuoteExtractionInput } from "./types.js";
 
@@ -49,6 +53,30 @@ const category = {
   label: { en_US: "Procurement", zh_Hans: "采购事件" },
   icon: { type: "font", value: "package" },
 } as const;
+
+type PriorQuote = { seq: string; snapshot: unknown; baseline: string | null }
+const quoteHistory = `SELECT f.seq, f.snapshot, to_char(q.baseline, 'YYYY-MM-DD') AS baseline FROM plugin_procurement_event_fact f
+  LEFT JOIN plugin_procurement_quote_context q USING (binding, source)
+  WHERE f.binding=$1 AND f.event->>'type'='procurement.quote.revised' AND f.event->>'schemaVersion'='1'
+    AND f.snapshot->>'series'=$2`
+
+// A missing or unparseable date supersedes the old request, but cannot establish a new commitment.
+// A series may have started before decisions were enabled. Look for its last verified commitment.
+async function commitmentBefore(tx: EntityManager, binding: string, series: string, latest: PriorQuote) {
+  let page = [latest]
+  while (page.length) {
+    for (const row of page) {
+      const fact = factSchema.parse(row.snapshot)
+      const baseline = date.safeParse(row.baseline)
+      const quoted = date.safeParse(fact.date)
+      if (baseline.success && (!quoted.success || baseline.data < quoted.data)) return baseline.data
+      if (quoted.success) return quoted.data
+    }
+    page = await tx.query<PriorQuote[]>(quoteHistory + ' AND f.seq < $3 ORDER BY f.seq DESC LIMIT 32',
+      [binding, series, page[page.length - 1].seq])
+  }
+  return null
+}
 
 @Injectable()
 @eventSource(key)
@@ -74,12 +102,16 @@ export class QuoteEvents implements PluginAgentEventSource {
         icon: { type: "font", value: "clock" },
       },
     },
+    {
+      type: delayDecided, schemaVersion: 1,
+      display: { category, label: { en_US: 'Buyer decision', zh_Hans: '采购人决定' }, icon: { type: 'font', value: 'clipboard-check' } }
+    }
   ] as const;
   constructor(
     @InjectRepository(ProcurementComparisonCase)
     readonly cases: Repository<ProcurementComparisonCase>
   ) {}
-  get outputs() { return deliveryCheckOutput(this.cases) }
+  get outputs() { return withDecisionOutput(this.cases, deliveryCheckOutput(this.cases)) }
   private target(tx: EntityManager, ctx: AgentEventContext) {
     return tx.findOne(ProcurementComparisonCase, {
       where: {
@@ -99,6 +131,9 @@ export class QuoteEvents implements PluginAgentEventSource {
       if (!c || c.createdById !== ctx.userId)
         throw new ForbiddenException("quote_case_owner_required");
       await journal!.configure(tx, ctx, enabled);
+      await tx.getRepository(DelayDecision).createQueryBuilder().update().set({state:'closed',version:()=> 'version + 1'})
+        .where('binding=:binding AND state=:state AND ("bindingRevision"<>:revision OR :enabled=false)',
+          {binding:ctx.bindingId,state:'pending',revision:ctx.bindingRevision,enabled}).execute()
       await tx
         .getRepository(QuoteFollowUp)
         .createQueryBuilder()
@@ -174,7 +209,8 @@ export class QuoteEvents implements PluginAgentEventSource {
     c: ProcurementComparisonCase,
     input: SaveSupplierQuoteExtractionInput,
     quote: ProcurementSupplierQuote,
-    conversationId?: string | null
+    conversationId?: string | null,
+    threadId?: string | null
   ) {
     if (!journal || !c.organizationId || !c.id || !quote.id) return;
     const route = await journal.route(tx, {
@@ -213,9 +249,8 @@ export class QuoteEvents implements PluginAgentEventSource {
       );
       quote.eventQuoteSeriesId = series;
     }
-    const [row] = await tx.query(
-      `SELECT snapshot FROM plugin_procurement_event_fact WHERE binding=$1
-      AND event->>'type'='procurement.quote.revised' AND event->>'schemaVersion'='1' AND snapshot->>'series'=$2 ORDER BY seq DESC LIMIT 1`,
+    const [row] = await tx.query<PriorQuote[]>(
+      quoteHistory + ' ORDER BY f.seq DESC LIMIT 1',
       [route.binding, series]
     );
     const previous = row ? factSchema.parse(row.snapshot) : null;
@@ -229,7 +264,8 @@ export class QuoteEvents implements PluginAgentEventSource {
     if (previous?.digest === digest) return;
     const revision = (previous?.revision ?? 0) + 1;
     const origin = z.string().uuid().safeParse(conversationId);
-    const snapshot = {
+    const baseline = c.delayDecisionsEnabled && row ? await commitmentBefore(tx, route.binding, series, row) : null;
+    const snapshot = factSchema.parse({
       caseId: c.id,
       documentId,
       series,
@@ -242,7 +278,9 @@ export class QuoteEvents implements PluginAgentEventSource {
       previous: previous
         ? { revision: previous.revision, date: previous.date }
         : null,
-    };
+    });
+    if (previous) await tx.update(DelayDecision, { binding: route.binding, series, state: "pending" },
+      { state: "superseded", version: () => "version + 1" });
     if (previous)
       await tx
         .getRepository(QuoteFollowUp)
@@ -273,6 +311,11 @@ export class QuoteEvents implements PluginAgentEventSource {
       id,
       String(revision)
     );
+    const originThread = origin.success ? z.string().min(1).max(100).safeParse(threadId) : null;
+    if (baseline || originThread?.success)
+      await tx.insert(QuoteRevisionContext, {
+        binding: route.binding, source: id, baseline, threadId: originThread?.success ? originThread.data : null
+      });
   }
   async drain(
     ctx: AgentEventContext,
@@ -337,9 +380,10 @@ export class QuoteEvents implements PluginAgentEventSource {
       let conversation: AgentEventPresentation["conversation"];
       if (options?.includeConversation) {
         const [fact] = await tx.query(
-          `SELECT snapshot->>'conversationId' AS id, snapshot->>'threadId' AS thread FROM plugin_procurement_event_fact
+          `SELECT snapshot->>'conversationId' AS id, CASE WHEN event->>'type'=$4 THEN q."threadId" ELSE snapshot->>'threadId' END AS thread
+           FROM plugin_procurement_event_fact LEFT JOIN plugin_procurement_quote_context q USING (binding, source)
            WHERE binding=$1 AND source=$2 AND event->'fact'->>'sha256'=$3`,
-          [ctx.bindingId, event.sourceEventId, event.fact.sha256]
+          [ctx.bindingId, event.sourceEventId, event.fact.sha256, type]
         );
         if (fact?.id) conversation = { conversationId: fact.id, ...(fact.thread ? { threadId: fact.thread } : {}) };
       }
@@ -448,12 +492,21 @@ export class QuoteEvents implements PluginAgentEventSource {
         return journal!.decide(tx, ctx, delivery, async (data) => {
           if (delivery.event.type === dueType)
             return decideDue(tx, ctx, delivery, c, data);
+          if (delivery.event.type === delayDecided) {
+            const fact = z.object({caseId: z.string().uuid(), requestId: z.string().uuid(), decisionId: z.string().uuid()}).parse(data)
+            const row = await tx.findOneBy(DelayDecision, { id: fact.requestId, caseId: c.id, binding: ctx.bindingId,
+              buyerId: ctx.userId, decisionId: fact.decisionId })
+            if (!row || c.status === 'completed') return {status:'blocked',reasonCode:'case_access_changed'}
+            return {status:'handled',operationKey:'decision/' + fact.decisionId, resultRef:{kind:'procurement-decision',key:row.id}}
+          }
           const f = factSchema.parse(data);
           if (f.caseId !== c.id || c.status === "completed")
             return { status: "ignored", reasonCode: "case_closed" };
           if (!f.previous) return { status: "ignored", reasonCode: "baseline" };
+          const context = await tx.findOneBy(QuoteRevisionContext, { binding: ctx.bindingId, source: delivery.event.sourceEventId });
+          const baseline = context?.baseline;
           const currentDate = date.safeParse(f.date),
-            priorDate = date.safeParse(f.previous.date);
+            priorDate = date.safeParse(baseline ?? f.previous.date);
           if (!currentDate.success || !priorDate.success)
             return { status: "blocked", reasonCode: "delivery_date_unclear" };
           if (currentDate.data <= priorDate.data)
@@ -483,11 +536,14 @@ export class QuoteEvents implements PluginAgentEventSource {
                 type: "delivery_delay",
                 severity: "high",
                 title: "报价交期推迟",
-                description: f.previous.date + " → " + f.date,
+                description: priorDate.data + " → " + currentDate.data,
                 suggestion: "核对报价修订 " + f.revision,
                 status: "pending",
               })
             );
+          if (c.delayDecisionsEnabled && baseline) {
+            await requestDelayDecision(tx, ctx, delivery, risk.id!, f, baseline, currentDate.data, context?.threadId ?? null);
+          }
           await tx.update(
             ProcurementComparisonCase,
             { id: c.id },
@@ -505,6 +561,15 @@ export class QuoteEvents implements PluginAgentEventSource {
         });
       }
     );
+    if (delivery.event.type === delayDecided && decision.status === 'handled') {
+      const row = await this.cases.manager.findOneByOrFail(DelayDecision, { id:decision.resultRef.key,
+        tenantId:ctx.tenantId, organizationId:ctx.organizationId, caseId:ctx.sourceBindingRef, buyerId:ctx.userId, binding:ctx.bindingId })
+      if (row.conversationId) {
+        if (!followUp) throw new Error('agent_follow_up_host_required')
+        await followUp.wake({conversationId:row.conversationId, threadId:row.threadId ?? undefined,
+          prompt:`The buyer's recorded disposition for quote revision ${row.revision} is ${row.state}. Report this result in the original case. No further approval or supplier contact is requested.`})
+      }
+    }
     if (delivery.event.type === dueType && decision.status === "handled") {
       // The journal decision wins the expiry/edit race. Retry the same immutable wake even if the next turn already rearmed.
       const [timer] = await this.cases.query(

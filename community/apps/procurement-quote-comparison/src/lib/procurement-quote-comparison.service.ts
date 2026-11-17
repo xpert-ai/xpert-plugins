@@ -7,6 +7,8 @@ import {
   type QuoteVersionStatus,
   type RiskQuoteFacts
 } from './delivery-check.js'
+import { configureDecisions, delayChoices } from './delivery-decision.js'
+import { DelayDecision } from './entities/delay-decision.entity.js'
 import { editFollowUp, followUpInput } from './quote-follow-up.js'
 import { QuoteEvents } from './quote-events.js'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
@@ -171,6 +173,10 @@ export class ProcurementQuoteComparisonService {
         workbenchPublication: workbenchPublication(status, deliveryCheckVersion, hasReminder, visibleReminderId)
       }
     })
+  }
+
+  setDelayDecisions(scope: ProcurementScope, caseId: string, enabled: boolean) {
+    return this.caseRepository.manager.transaction(tx => configureDecisions(tx, scope, caseId, enabled))
   }
 
   async followUp(scope: ProcurementScope, input: z.infer<typeof followUpInput>) {
@@ -399,7 +405,7 @@ export class ProcurementQuoteComparisonService {
 
     if (tx) {
       await cases.update({ id: c.id }, { supplierCount: await quotes.countBy({ caseId: c.id }) })
-      await this.quoteEvents.capture(tx, c, input, supplierQuote, scope.conversationId)
+      await this.quoteEvents.capture(tx, c, input, supplierQuote, scope.conversationId, scope.threadId)
     } else await this.updateCaseCounts(scope, input.caseId)
 
     return {
@@ -849,6 +855,15 @@ export class ProcurementQuoteComparisonService {
     return {
       item: {
         case: comparisonCase,
+        decisionManagement: this.quoteEvents && comparisonCase.createdById === scope.userId && !!scope.userId &&
+          comparisonCase.workspaceId === scope.workspaceId && !!scope.workspaceId ? {
+            enabled: comparisonCase.delayDecisionsEnabled,
+            choices: delayChoices.map(({ key }) => key),
+            requests: await this.caseRepository.manager.find(DelayDecision, {
+              where: {caseId, tenantId:scope.tenantId, organizationId:scope.organizationId!, buyerId:scope.userId},
+              select: ['id','riskId','revision','originalDate','revisedDate','version','supplier','state','decidedAt','decidedBy','replaces'],
+              order:{createdAt:'DESC'} })
+          } : null,
         documents,
         parseJobs,
         requirementItems,

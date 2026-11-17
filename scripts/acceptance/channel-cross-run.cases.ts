@@ -7,17 +7,73 @@ import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.f
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { setup, lark, larkFixture } from './event-inbox.fixture.js'
 
-test('Feishu private delivery distinguishes a provider refusal from an interrupted attempt', async () => {
+const decisionCard = {
+  title: 'Case',
+  fields: [],
+  decision: {
+    schemaVersion: 1,
+    type: 'human_decision',
+    requestVersion: 1,
+    choices: [
+      { key: 'continue', label: { en_US: 'Continue', zh_Hans: '继续' } },
+      { key: 'defer', label: { en_US: 'Defer', zh_Hans: '稍后' } }
+    ]
+  }
+}
+
+test('Feishu private sends require a message receipt and decision cards also require the original chat', async () => {
   const { LarkChannelStrategy } = await import(lark + 'lark-channel.strategy.js')
   const channel = Object.create(LarkChannelStrategy.prototype)
-  let error: unknown = { response: { status: 403, data: { code: 99991672, msg: 'permission denied' } } }
-  channel.getOrCreateLarkClient = () => ({ client: { im: { message: { create: async () => { throw error } } } } })
-  const send = () => channel.sendPrivateNotification({}, 'private-user', 'notification', randomUUID())
-  assert.deepEqual(await send(), { status: 'failed' })
-  error = new Error('connection lost after request')
-  assert.deepEqual(await send(), { status: 'unknown' })
-  error = { response: { status: 502, data: { code: 10001, msg: 'upstream unavailable' } } }
-  assert.deepEqual(await send(), { status: 'unknown' })
+  const attempt = randomUUID()
+  let response: { code: number; data?: { message_id?: string; chat_id?: string } }
+  let failure: unknown
+  const requests: Array<{ params: { receive_id_type: string }; data: {
+    receive_id: string; msg_type: string; content: string; uuid: string
+  } }> = []
+  channel.getOrCreateLarkClient = () => ({ client: { im: { message: {
+    async create(request: typeof requests[number]) {
+      requests.push(request)
+      if (failure) throw failure
+      return response
+    }
+  } } } })
+  const notify = () => channel.sendPrivateNotification({}, 'buyer', 'notification', attempt)
+  const decide = () => channel.sendPrivateDecision({}, 'buyer', decisionCard, attempt)
+  response = { code: 0, data: { message_id: 'original', chat_id: 'private-chat' } }
+  const delivered = { status: 'accepted', messageId: 'original' }
+  assert.deepEqual(await notify(), delivered)
+  assert.deepEqual(await decide(), { ...delivered, chatId: 'private-chat' })
+  assert.equal(requests.length, 2)
+  for (const request of requests) {
+    assert.equal(request.params.receive_id_type, 'open_id')
+    assert.equal(request.data.receive_id, 'buyer')
+    assert.equal(request.data.uuid, attempt)
+  }
+  assert.equal(requests[0].data.msg_type, 'text')
+  assert.deepEqual(JSON.parse(requests[0].data.content), { text: 'notification' })
+  assert.equal(requests[1].data.msg_type, 'interactive')
+  const actions = JSON.parse(requests[1].data.content).elements.at(-1).actions
+  assert.deepEqual(actions.map((button) => button.value.interactionId), [attempt, attempt])
+  assert.deepEqual(actions.map((button) => button.value.choice), ['continue', 'defer'])
+
+  response = { code: 0, data: { message_id: 'original' } }
+  assert.deepEqual(await notify(), delivered)
+  assert.deepEqual(await decide(), { status: 'unknown' })
+  for (const send of [notify, decide]) {
+    for (const data of [undefined, {}, { chat_id: 'private-chat' }]) {
+      response = { code: 0, data }
+      assert.deepEqual(await send(), { status: 'unknown' })
+    }
+    response = { code: 99991672, data: { message_id: 'original', chat_id: 'private-chat' } }
+    assert.deepEqual(await send(), { status: 'failed' })
+    failure = { response: { status: 403, data: { code: 99991672, msg: 'permission denied' } } }
+    assert.deepEqual(await send(), { status: 'failed' })
+    for (const error of [new Error('connection lost after request'), { response: { status: 502, data: { code: 10001 } } }]) {
+      failure = error
+      assert.deepEqual(await send(), { status: 'unknown' })
+    }
+    failure = undefined
+  }
 })
 
 test('Feishu directory scope denial hides an unverified private target and temporary lookup errors remain retryable', async () => {
@@ -308,3 +364,98 @@ for (const change of [
     t.diagnostic(JSON.stringify({ change, state: (await intent()).state, cardUpdates: updates, handoffs: sends }))
   })
 }
+
+test('Feishu decision inputs preserve the exact card, speaker and choice', async () => {
+  const { decisionReply } = await import(lark + 'private-decision.js')
+  const receipt = {
+    sender: { sender_type: 'user', sender_id: { open_id: 'user', union_id: 'union' } },
+    message: {
+      message_id: 'input',
+      parent_id: 'original',
+      chat_id: 'dm',
+      chat_type: 'p2p',
+      message_type: 'text',
+      content: JSON.stringify({ text: ' 不接受本次延期 ' })
+    }
+  }
+  assert.deepEqual(decisionReply(false, receipt), {
+    parentId: 'original',
+    chatId: 'dm',
+    openId: 'user',
+    unionId: 'union',
+    input: { type: 'quoted_text', text: '不接受本次延期' }
+  })
+  assert.equal(decisionReply(false, { ...receipt, message: { ...receipt.message, chat_type: 'group' } }), null)
+  assert.equal(decisionReply(false, { ...receipt, message: { ...receipt.message, parent_id: undefined } }), null)
+  assert.equal(decisionReply(false, { ...receipt, sender: { ...receipt.sender, sender_type: 'app' } }), null)
+})
+
+test('a failed private decision update leaves the same Feishu receipt available for a new worker', async (t) => {
+  const { f, source, ingress, integration, click, submitted } = await larkFixture(t)
+  const interactionId = randomUUID(), decisionId = randomUUID()
+  const action = { tag: 'button', value: { action: 'human_decision', interactionId, choice: 'continue' } }
+  await ingress.capture(integration, 'card', { ...click, action }, randomUUID(), true)
+  await source.drain(f.ctx, f.publish(source), 32)
+  const first = await f.store.claim(f.binding)
+  assert.ok(first)
+  let attempts = 0
+  const followUp = {
+    async submitPrivateDecision(reply) {
+      assert.equal(reply.parentId, click.context.open_message_id)
+      assert.deepEqual(reply.input, { type: 'button', interactionId, choice: 'continue' })
+      if (++attempts === 1) throw new Error('decision_card_update_failed')
+      return { status: 'recorded', decisionId }
+    }
+  }
+  await assert.rejects(source.handle(f.ctx, first, followUp), /decision_card_update_failed/)
+  assert.equal(await f.store.complete(first), true)
+  const [waiting] = await f.hostDb.query('SELECT state FROM agent_event_inbox WHERE id=$1', [first.receiptId])
+  assert.equal(waiting.state, 'retry_wait')
+  await f.hostDb.query('UPDATE agent_event_inbox SET due=now() WHERE id=$1', [first.receiptId])
+  const retry = await f.store.claim(f.binding)
+  assert.ok(retry)
+  assert.equal(retry.receiptId, first.receiptId)
+  assert.ok(BigInt(retry.fence) > BigInt(first.fence))
+  const decision = await source.handle(f.ctx, retry, followUp)
+  assert.deepEqual(decision.resultRef, { kind: 'buyer-decision', key: decisionId })
+  assert.equal(await f.store.complete(retry, decision), true)
+  assert.equal(await f.store.claim(f.binding), undefined)
+  assert.equal(attempts, 2)
+  assert.deepEqual(submitted, [])
+})
+
+test('Feishu patches the original private card and reports missing receipts, provider errors and transport failures', async () => {
+  const { LarkChannelStrategy } = await import(lark + 'lark-channel.strategy.js')
+  const channel = Object.create(LarkChannelStrategy.prototype)
+  const integration = { id: randomUUID() }
+  const received: string[] = []
+  let response: { code?: number } | null = { code: 0 }
+  let failure: Error | undefined
+  channel.patchInteractiveMessage = async (integrationId, messageId, card) => {
+    assert.equal(integrationId, integration.id)
+    assert.equal(messageId, 'original')
+    received.push(card.elements[0].text.content)
+    if (failure) throw failure
+    return response
+  }
+  const patch = (status) => channel.updatePrivateDecision(integration, 'original', status, '继续')
+  for (const status of ['recorded', 'already_recorded', 'stale', 'closed']) await patch(status)
+  assert.deepEqual(received, ['已记录 · 继续', '已记录 · 继续', '事项已更新，请在工作台重新确认。', '此请求已关闭。'])
+  for (const receipt of [null, {}, { code: 230001 }]) {
+    response = receipt
+    await assert.rejects(patch('recorded'), /decision_card_update_failed/)
+  }
+  failure = new Error('connection interrupted')
+  await assert.rejects(patch('recorded'), failure)
+})
+
+test('Feishu terminal decision cards open an authenticated workbench without carrying identity or action data', async () => {
+  const { privateDecisionFeedback } = await import(lark + 'private-decision.js')
+  const card = privateDecisionFeedback('stale', 'old', 'https://xpert.example/workspace?previous=1')
+  assert.match(card.elements[0].text.content, /重新确认/)
+  assert.equal(card.elements[1].actions[0].url, 'https://xpert.example/chat')
+  assert.equal(card.elements[1].actions[0].value, undefined)
+  for (const invalid of [undefined, 'bad url', 'file:///local', 'javascript:void(0)', 'https://u:p@xpert.example']) {
+    assert.equal(privateDecisionFeedback('recorded', '已接受', invalid).elements.length, 1)
+  }
+})

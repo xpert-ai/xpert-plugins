@@ -4,6 +4,7 @@ import {
   type AgentEventContext,
   type AgentEventPublisher,
   type AgentEventDelivery,
+  type AgentEventFollowUp,
   type EventDecision,
   type PluginAgentEventSource,
   runWithRequestContext
@@ -13,6 +14,7 @@ import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LarkConversationService } from './conversation.service.js'
 import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
 
+import { decisionReply } from './private-decision.js'
 import { LarkEventCardAccess } from './lark-event-card-access.service.js'
 import { translate } from './i18n.js'
 import { LarkMessageLogEntity } from './entities/lark-message-log.entity.js'
@@ -179,11 +181,21 @@ export class LarkEventSource implements PluginAgentEventSource {
     const conversationId = callback?.conversationId ?? dispatch.conversationId
     return { title: event.subject.key, fields, ...(conversationId ? { conversation: { conversationId } } : {}) }
   }
-  async handle(ctx: AgentEventContext, delivery: AgentEventDelivery): Promise<EventDecision> {
+  async handle(ctx: AgentEventContext, delivery: AgentEventDelivery, followUp?: AgentEventFollowUp): Promise<EventDecision> {
     await this.bound(ctx)
     return this.ingress.bindings.manager.transaction((tx) =>
       journal!.decide(tx, ctx, delivery, async (snapshot) => {
         const isCard = delivery.event.type === 'lark.card.action'
+        const reply = decisionReply(isCard, snapshot)
+        if (reply) {
+          const verified = snapshot && typeof snapshot === 'object' && 'verifiedDecisionChannel' in snapshot &&
+            snapshot.verifiedDecisionChannel === true
+          const result = verified ? await followUp?.submitPrivateDecision?.(reply) : undefined
+          if (result && (result.status === 'recorded' || result.status === 'already_recorded') && result.decisionId)
+            return {status:'handled', operationKey:delivery.event.sourceEventId, resultRef:{kind:'buyer-decision',key:result.decisionId}}
+          if (isCard || (result && result.status !== 'unrelated'))
+            return {status:'blocked', reasonCode:'decision_' + (result?.status ?? 'host_unavailable')}
+        }
         const operation = isCard ? 'card/' + card.parse(snapshot).context.open_message_id : delivery.event.sourceEventId
         const store = tx.getRepository(LarkEventDispatch)
         // One immutable dispatch intent per source message or original interactive card.
