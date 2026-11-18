@@ -219,7 +219,21 @@ test('JSONL refuses a replaced buffer instead of silently restarting the cursor'
       })
     }
   }
-  assert.equal(await collectJsonlActivity(context, { runner: {} }, 'qwen', true), undefined)
+  assert.deepEqual(await collectJsonlActivity(context, { runner: {} }, 'qwen', true), {
+    status: 'incomplete', reason: 'source_changed'
+  })
   assert.deepEqual(calls.at(-1).gaps, ['source_lost'])
   assert.equal(calls.at(-1).complete, true)
+})
+
+test('terminal replay pins the source even when no activity recorder is configured', async () => {
+  let page = 0
+  const context = { capabilities: { require: () => ({ request: async () => {
+    page++
+    return { sourceId: `00000000-0000-4000-8000-00000000000${page}`, events: [], positions: [],
+      next: page * 100, hasMore: page === 1, gap: false }
+  } }) } }
+  assert.deepEqual(await collectJsonlActivity(context, { runner: {} }, 'codex', true), {
+    status: 'incomplete', reason: 'source_changed'
+  })
 })

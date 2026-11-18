@@ -1,7 +1,7 @@
 /** Persist bounded public completion facts before the guest's protocol spool is cleaned. */
 export type CompletionCode = 'completed' | 'protocol_invalid' | 'missing_final_result' |
   'ambiguous_final_result' | 'permission_denied' | 'cli_error' | 'process_exit_nonzero' |
-  'process_failed' | 'missing_exit_code' | 'activity_incomplete' | 'runner_unavailable'
+  'process_failed' | 'missing_exit_code' | 'activity_incomplete' | 'activity_unavailable' | 'runner_unavailable'
 
 export interface CompletionDiagnostic {
   code: CompletionCode

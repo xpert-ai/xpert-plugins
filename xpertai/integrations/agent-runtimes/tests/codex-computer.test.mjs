@@ -243,3 +243,94 @@ test('Computer Codex cancellation preserves an already checkpointed outcome in c
   assert.equal(result.controlEvidence.outcome, 'succeeded')
   assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
 })
+
+test('Computer Codex exports a report-only selection without restarting the task', async () => {
+  const f = fixture()
+  f.request.input.delivery = { mode: 'files', reportPath: 'output/report.md' }
+  f.runner.readTaskReportFile = async (receipt, path) => {
+    assert.equal(path, 'output/report.md')
+    return { text: '# Result\nTests passed.', sha256: 'computed-by-reader' }
+  }
+  const { handle } = await f.strategy.start(f.request, f.context)
+  const result = await f.strategy.inspect(handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.report.status, 'completed')
+  assert.equal(result.result.export.status, 'completed')
+  assert.deepEqual(f.calls.find(call => typeof call === 'object'), { mode: 'files', paths: ['output/report.md'] })
+  assert.equal(f.calls.filter(call => call === 'POST').length, 1)
+})
+
+function pagedFixture() {
+  const f = fixture()
+  f.setOutput({ state: 'exited', exitCode: 0, previewTruncated: true, events: [] })
+  const request = f.runner.request
+  const page = { sourceId: '00000000-0000-4000-8000-000000000001',
+    events: [{ type: 'turn.completed' }], positions: [0], next: 100, hasMore: false, gap: false }
+  f.runner.request = async (receipt, input) => input.path.startsWith('/events/') ? page : request(receipt, input)
+  const batches = []
+  f.context.activity = {
+    readCheckpoint: async () => ({ seq: 0 }),
+    append: async batch => { batches.push(batch); return { seq: 1, sourceCursor: batch.sourceCursor } }
+  }
+  return { ...f, page, batches }
+}
+
+test('a transient final-log read failure remains collectable without cleanup or another launch', async () => {
+  const f = pagedFixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  const request = f.runner.request
+  f.runner.request = async (receipt, input) => {
+    if (input.path.startsWith('/events/')) throw Error('private transport details')
+    return request(receipt, input)
+  }
+  const pending = await f.strategy.inspect(handle, f.context)
+  assert.equal(pending.status, 'unknown')
+  assert.match(pending.error, /activity_unavailable/)
+  assert.doesNotMatch(pending.error, /private transport/)
+  assert.equal(f.calls.includes('stop'), false)
+  assert.equal(f.snapshots.some(s => s.status === 'failed'), false)
+  assert.equal(f.batches.some(b => b.complete), false)
+  f.runner.request = request
+  const recovered = await f.strategy.inspect(pending.handle, f.context)
+  assert.equal(recovered.status, 'succeeded')
+  assert.equal(recovered.error, undefined)
+  assert.equal(f.calls.filter(call => call === 'POST').length, 1)
+})
+
+test('full protocol collection is independent of public activity storage', async () => {
+  for (const storage of ['absent', 'offline']) {
+    const f = pagedFixture()
+    const { handle } = await f.strategy.start(f.request, f.context)
+    if (storage === 'absent') delete f.context.activity
+    else f.context.activity.append = async () => { throw Error('storage offline') }
+    assert.equal((await f.strategy.inspect(handle, f.context)).status, 'succeeded')
+  }
+})
+
+test('verified gaps and absent final events still fail after exit zero', async () => {
+  for (const kind of ['truncated', 'missing-final', 'invalid-page']) {
+    const f = pagedFixture()
+    const { handle } = await f.strategy.start(f.request, f.context)
+    if (kind === 'truncated') f.page.gap = true
+    if (kind === 'missing-final') f.page.events = [{ type: 'item.completed', item: { type: 'agent_message', text: 'Done!' } }]
+    if (kind === 'invalid-page') f.page.next = -1
+    const result = await f.strategy.inspect(handle, f.context)
+    assert.equal(result.status, 'failed')
+    assert.match(result.error, kind === 'missing-final' ? /missing_final_result/ : /activity_incomplete/)
+    assert.equal(result.result, undefined)
+  }
+})
+
+test('a nonzero process exit is attributed to execution even if its protocol log is unavailable', async () => {
+  const f = pagedFixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  f.setOutput({ state: 'exited', exitCode: 7, previewTruncated: true, events: [] })
+  const request = f.runner.request
+  f.runner.request = async (receipt, input) => {
+    if (input.path.startsWith('/events/')) throw Error('offline')
+    return request(receipt, input)
+  }
+  const result = await f.strategy.inspect(handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.match(result.error, /process_exit_nonzero.*7/)
+})

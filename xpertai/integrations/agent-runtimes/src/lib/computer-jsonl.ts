@@ -119,23 +119,37 @@ export async function inspectComputerJsonl(
     ...(state.startedAt ? { startedAt: state.startedAt } : {}),
     phase: state.state === 'running' ? 'working' : state.state
   }
-  const activity = context.activity
+  const terminal = state.state === 'exited' || state.state === 'failed'
+  const activity = context.activity || (terminal && state.previewTruncated)
     ? await collectJsonlActivity(
         context,
         handle,
         adapter.activityProtocol,
-        state.state === 'exited' || state.state === 'failed'
+        terminal
       )
     : undefined
   if (state.state === 'running') return { status: 'running', handle, progress }
   if (state.state === 'idle') return { status: 'unknown', handle, progress }
-  const receiptLost = activity?.gap || (!activity && state.previewTruncated)
+  const collected = activity?.status === 'collected' ? activity : undefined
+  if (activity?.status === 'unavailable' && state.previewTruncated && state.state === 'exited' && state.exitCode === 0) {
+    const diagnostic = completionFailure(
+      'activity_unavailable',
+      'CLI completion data is temporarily unavailable; retry collection without rerunning the task.'
+    ).diagnostic
+    return {
+      status: 'unknown',
+      handle: { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } },
+      progress,
+      error: `[${diagnostic.code}] ${diagnostic.message}`
+    }
+  }
+  const receiptLost = activity?.status === 'incomplete' || collected?.gap || (!collected && state.previewTruncated)
   let completion = receiptLost
     ? completionFailure(
         'activity_incomplete',
-        'CLI protocol events are incomplete; final execution cannot be verified.'
+        `CLI protocol events are incomplete${activity?.status === 'incomplete' ? ` (${activity.reason})` : ''}; final execution cannot be verified.`
       )
-    : adapter.completion(activity?.events ?? state.events)
+    : adapter.completion(collected?.events ?? state.events)
   if (state.state === 'failed')
     completion = completionFailure(
       'process_failed',
@@ -148,7 +162,7 @@ export async function inspectComputerJsonl(
       'The CLI exited without a process exit code.',
       completion.diagnostic
     )
-  else if (state.exitCode !== 0 && (completion.ok || completion.diagnostic.code === 'missing_final_result'))
+  else if (state.exitCode !== 0 && (completion.ok || ['missing_final_result', 'activity_incomplete'].includes(completion.diagnostic.code)))
     completion = completionFailure(
       'process_exit_nonzero',
       `The CLI process exited with code ${state.exitCode}.`,

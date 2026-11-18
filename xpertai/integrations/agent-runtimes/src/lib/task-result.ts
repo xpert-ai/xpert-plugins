@@ -49,8 +49,8 @@ export async function resolveTaskResult(text: string, delivery: AgentOutputDeliv
 }
 
 export function deliveryPaths(delivery: AgentOutputDelivery): string[] {
-  if (delivery.mode === 'none' || !delivery.paths) return []
-  return [...new Set([...delivery.paths, ...(delivery.reportPath ? [delivery.reportPath] : [])])]
+  if (delivery.mode === 'none') return []
+  return [...new Set([...(delivery.paths ?? []), ...(delivery.reportPath ? [delivery.reportPath] : [])])]
 }
 
 export function resultInstructions(delivery: AgentOutputDelivery): string {

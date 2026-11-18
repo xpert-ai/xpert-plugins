@@ -121,8 +121,12 @@ test('launch defaults to no delivery; only an explicit archive request reaches t
   assert.equal(received.input.delivery.mode, 'archive')
 })
 
-test('unknown artifact paths remain recoverable even when a report path is selected', () => {
-  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'output/report.md' }), [])
+test('a selected report is an explicit deliverable, with optional additional paths', () => {
+  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'archive', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'none', reportPath: 'output/report.md' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['output/report.md'], reportPath: 'output/report.md' }), ['output/report.md'])
   assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['plugin.tgz'], reportPath: 'output/report.md' }), ['plugin.tgz', 'output/report.md'])
 })
 test('bounded streaming marks reply overflow without inventing a report failure', () => {
