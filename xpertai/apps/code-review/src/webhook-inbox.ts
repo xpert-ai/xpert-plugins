@@ -1,7 +1,9 @@
+import { projectReviewEvent, compareShadow } from './review-event-shadow.js'
+import { journal } from './event-journal.js'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
-import { Repository } from 'typeorm'
+import { EntityManager, Repository } from 'typeorm'
 import { z } from 'zod/v3'
 import { ReviewDelivery, ReviewRepository, ReviewRun } from './automation-entities.js'
 import { pullEventSchema, triggerDecision, verifyWebhook, type PullEvent } from './automation-domain.js'
@@ -42,17 +44,31 @@ export class ReviewWebhookInbox {
     // No policy row lock, external authorization, raw body, signature, or credentials in this insert.
     const payload: StoredWebhook = { policyRevision: p.executionRevision, appId: application!.appId,
       integrationId: application!.integrationId ?? null, event: parsed }
-    await this.deliveries.createQueryBuilder().insert().values({ deliveryId, event, digest,
-      tenantId: p.tenantId, organizationId: p.organizationId, repositoryPolicyId: p.id, status: 'received', payload }).orIgnore().execute()
-    const saved = await this.deliveries.findOneByOrFail({ deliveryId })
-    if (saved.digest !== digest || saved.event !== event || saved.tenantId !== p.tenantId || saved.organizationId !== p.organizationId ||
-      (saved.repositoryPolicyId && saved.repositoryPolicyId !== p.id)) throw new ReviewError('delivery_payload_mismatch')
+    await this.deliveries.manager.transaction(async tx => {
+      const records = tx.getRepository(ReviewDelivery)
+      const route = await journal?.route(tx,{tenantId:p.tenantId,organizationId:p.organizationId,ref:p.id})
+      const shadow = !route?.enabled && p.settings.eventInboxShadow ? projectReviewEvent(p, parsed) : null
+      await records.createQueryBuilder().insert().values({ deliveryId, event, digest,
+        tenantId: p.tenantId, organizationId: p.organizationId, repositoryPolicyId: p.id, status: route?.enabled ? 'host_received' : 'received', payload, shadow }).orIgnore().execute()
+      const saved = await records.findOneByOrFail({ deliveryId })
+      if (saved.digest !== digest || saved.event !== event || saved.tenantId !== p.tenantId || saved.organizationId !== p.organizationId ||
+        (saved.repositoryPolicyId && saved.repositoryPolicyId !== p.id)) throw new ReviewError('delivery_payload_mismatch')
+      if (route && saved.status === 'host_received') {
+        const isPr = parsed.event === 'pull_request'
+        const subject = parsed.event === 'pull_request' ? parsed.data.pull_request.number : parsed.data.workflow_run.id
+        await journal!.capture(tx,route,{sourceEventId:deliveryId,type:'code_review.'+parsed.event,schemaVersion:1,
+          occurredAt:saved.createdAt.toISOString(),subject:{kind:isPr?'pull-request':'workflow-run',key:String(subject)}},
+          {id:saved.id,digest,payload:saved.payload},saved.id,String(saved.payload!.policyRevision))
+      }
+    })
     return p
   }
 
-  async process(p: ReviewRepository, id: string, assertOwned: AssertAutomationOwnership) {
-    const delivery = await this.deliveries.findOneBy({ id, repositoryPolicyId: p.id, tenantId: p.tenantId, organizationId: p.organizationId })
-    if (!delivery || delivery.status !== 'received' || delivery.retryAt > new Date()) return
+  async process(p: ReviewRepository, id: string, assertOwned: AssertAutomationOwnership, tx?: EntityManager) {
+    const records = tx?.getRepository(ReviewDelivery) ?? this.deliveries
+    const expected = tx ? 'host_received' : 'received'
+    const delivery = await records.findOneBy({ id, repositoryPolicyId: p.id, tenantId: p.tenantId, organizationId: p.organizationId })
+    if (!delivery || delivery.status !== expected || delivery.retryAt > new Date()) return
     try {
       const stored = envelopeSchema.parse(delivery.payload)
       const application = await this.repositories.app.config()
@@ -60,17 +76,19 @@ export class ReviewWebhookInbox {
       if (stored.policyRevision !== p.executionRevision || application.appId !== stored.appId ||
         (application.integrationId ?? null) !== stored.integrationId || (application.tenantId && application.tenantId !== p.tenantId)) {
         await assertOwned()
-        await this.deliveries.update({ id: delivery.id, status: 'received' }, { status: 'processed', payload: null, errorCode: 'webhook_binding_changed' })
+        await records.update({ id: delivery.id, status: expected }, { status: 'processed', payload: null, errorCode: 'webhook_binding_changed',
+          shadow: delivery.shadow ? { ...delivery.shadow, comparison: 'binding_changed' } : null })
         return
       }
       assertGitHubRepositoryApplication(application, p)
       if (stored.event.event === 'workflow_run') {
-        await this.workflows.receive(p, stored.event.data, delivery.deliveryId, delivery.digest, assertOwned)
+        await this.workflows.receive(p, stored.event.data, delivery.deliveryId, delivery.digest, assertOwned, tx)
       } else {
-        await this.pull(p, stored.event.data, delivery, assertOwned)
+        await this.pull(p, stored.event.data, delivery, assertOwned, tx)
       }
       await this.events.activity(p, 'event').catch(() => logger.warn('Webhook activity timestamp update failed'))
     } catch (error) {
+      if (tx) throw error
       await assertOwned()
       const code = error instanceof ReviewError ? error.code : 'webhook_processing_failed'
       await this.deliveries.update({ id: delivery.id, status: 'received' }, { attempts: delivery.attempts + 1, errorCode: code,
@@ -79,7 +97,7 @@ export class ReviewWebhookInbox {
     }
   }
 
-  private async pull(p: ReviewRepository, payload: PullEvent, delivery: ReviewDelivery, assertOwned: AssertAutomationOwnership) {
+  private async pull(p: ReviewRepository, payload: PullEvent, delivery: ReviewDelivery, assertOwned: AssertAutomationOwnership, tx?: EntityManager) {
     const execution = await this.repositories.execution(p)
     let authorizationReason: string | null = null
     if (p.settings.executionMode === 'assistant') {
@@ -91,7 +109,7 @@ export class ReviewWebhookInbox {
     }
     await assertOwned()
     // Existing webhook atomic boundary: only database work; a busy row leaves the durable inbox pending.
-    await this.deliveries.manager.transaction(async manager => {
+    await (tx ?? this.deliveries.manager).transaction(async manager => {
       const locked = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write', onLocked: 'nowait' } })
       const previous = await manager.findOneByOrFail(ReviewDelivery, { id: delivery.id })
       if (previous.status === 'processed') return
@@ -107,7 +125,8 @@ export class ReviewWebhookInbox {
         settings: locked.settings, policyRevision: locked.executionRevision,
         status: reason && ['pipeline_binding_required', 'assistant_binding_required', 'assistant_execution_unavailable'].includes(reason) ? 'needs_configuration' : reason ? 'skipped' : 'queued', reason,
         notBefore: new Date(Date.now() + (payload.action === 'synchronize' ? 30000 : 0)), finishedAt: reason ? new Date() : null }))
-      await manager.update(ReviewDelivery, { id: previous.id }, { runId: run.id, status: 'processed', payload: null, errorCode: null })
+      await manager.update(ReviewDelivery, { id: previous.id }, { runId: run.id, status: 'processed', payload: null, errorCode: null,
+        shadow: compareShadow(previous.shadow, run.operationKey, run.reason) })
       await manager.update(ReviewRepository, { id: locked.id }, { lastEventAt: new Date() })
     })
   }

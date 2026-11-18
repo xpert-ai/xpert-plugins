@@ -1,4 +1,5 @@
 {
+  "eventInboxShadow": "Compare Event Inbox decisions before switching this repository",
   "executionMode": "PR review execution mode",
   "assistant": "Current Assistant",
   "pipeline": "Project pipeline",

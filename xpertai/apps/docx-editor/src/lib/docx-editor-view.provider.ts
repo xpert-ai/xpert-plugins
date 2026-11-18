@@ -1,3 +1,4 @@
+import { WORD_VIEW_ICON } from './view-icon.js'
 import { Injectable } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -5,7 +6,6 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
-  IconDefinition,
   I18nObject,
   XpertExtensionViewManifest,
   XpertRemoteComponentEntry,
@@ -27,7 +27,6 @@ import {
   AGENT_WORKBENCH_MAIN_SLOT,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_HOST_EVENT_TOOL_NAMES,
-  DOCX_EDITOR_ICON,
   DOCX_EDITOR_PLUGIN_NAME,
   DOCX_EDITOR_PROVIDER_KEY,
   DOCX_EDITOR_REMOTE_ENTRY_KEY,
@@ -42,12 +41,6 @@ const moduleFilename = fileURLToPath(import.meta.url)
 const moduleDirname = dirname(moduleFilename)
 const requireFromHere = createRequire(moduleFilename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
-const DOCX_EDITOR_VIEW_ICON = {
-  type: 'svg',
-  value: DOCX_EDITOR_ICON,
-  alt: 'DOCX Editor'
-} satisfies IconDefinition
-const DOCX_EDITOR_VIEW_ICON_COMPAT = DOCX_EDITOR_VIEW_ICON as unknown as XpertExtensionViewManifest['icon']
 
 @Injectable()
 @ViewExtensionProvider(DOCX_EDITOR_PROVIDER_KEY)
@@ -72,7 +65,7 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           'Upload, edit, version, comment, and review .docx documents with Xpert Agent tools.',
           '上传、编辑、版本化、批注和审阅 .docx 文档，并通过 Xpert Agent 工具协作。'
         ),
-        icon: DOCX_EDITOR_VIEW_ICON_COMPAT,
+        icon: WORD_VIEW_ICON,
         hostType: context.hostType,
         slot,
         order: 40,
@@ -88,7 +81,7 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
                   enabled: true,
                   label: text('DOCX Editor', 'DOCX 文档编辑器'),
                   order: 40,
-                  icon: DOCX_EDITOR_VIEW_ICON_COMPAT
+                  icon: WORD_VIEW_ICON
                 }
               }
             }

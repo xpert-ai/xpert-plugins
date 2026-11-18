@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.remote.json",
+  "include": ["worker/**/*.tsx", "src/core/**/*.ts", "src/lib/ai-schema.ts", "remote/canvas/PptxShapeContent.tsx"]
+}

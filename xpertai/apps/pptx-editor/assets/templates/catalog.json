@@ -1,0 +1,2371 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/dataelement/dsh-desktop",
+    "commit": "bbc7494aa9ed1cda0b89888264d7ee74a26ec50e"
+  },
+  "templates": [
+    {
+      "id": "dsh-course-workshop",
+      "category": "academic",
+      "names": {
+        "en": "Course Workshop",
+        "zh": "Course Workshop"
+      },
+      "description": "固定学习目标边栏、概念图、实例与自测；用于培训、课程和工作坊。",
+      "palette": {
+        "background": "F7F4EB",
+        "surface": "E5EBDD",
+        "text": "243F35",
+        "muted": "70766B",
+        "accent": "447A62",
+        "secondary": "E5EBDD"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "PingFang SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "Microsoft YaHei",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Sans CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "125dfcc72990862b3e2e69ba8132ee9402050d946d28268380eda500b1bb6ad2",
+          "bytes": 55708,
+          "nativeObjects": 354,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "a1f79ed8175ea49e221f587472d02baa4f3fed4d44f0e3d80a436696b343c5e7",
+          "bytes": 57071,
+          "nativeObjects": 354,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "课程封面",
+          "family": "cover",
+          "description": "课程封面；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "From guided practice to independent work",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Give each moment a distinct purpose",
+          "family": "grid",
+          "description": "Three schematic frames with distinct content and intent",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Define what independent work looks like",
+          "family": "table",
+          "description": "Three criteria across three levels of observable competence",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Show how the judgment develops",
+          "family": "process",
+          "description": "Alternating milestone notes around a continuous argument timeline",
+          "density": "medium"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "课程总结",
+          "family": "closing",
+          "description": "课程总结；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-monochrome",
+      "category": "academic",
+      "names": {
+        "en": "Monochrome",
+        "zh": "极简研究"
+      },
+      "description": "极简研究 · Monochrome",
+      "palette": {
+        "background": "FAFADF",
+        "text": "1A1A16",
+        "accent": "1A1A16",
+        "surface": "F2F2D2",
+        "secondary": "5E5E54",
+        "muted": "5E5E54"
+      },
+      "fonts": {
+        "en": {
+          "title": "Helvetica Neue",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Jost"
+      },
+      "variants": {
+        "en": {
+          "sha256": "360592cb6572b994a7bd36e5bb4a0df3a2cf111ae3c886b419de2a3392c466b7",
+          "bytes": 56286,
+          "nativeObjects": 367,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "1ff94078bd6bf932f5c585d6b52893777327c0e6ab114ed92a1793d68c20eeb6",
+          "bytes": 57315,
+          "nativeObjects": 367,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Understand the moments that matter",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Define what independent work looks like",
+          "family": "table",
+          "description": "Three criteria across three levels of observable competence",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-blue-professional",
+      "category": "business",
+      "names": {
+        "en": "Blue Professional",
+        "zh": "蓝色商务"
+      },
+      "description": "蓝色商务 · Blue Professional",
+      "palette": {
+        "background": "FDFAE7",
+        "text": "111111",
+        "accent": "1E2BFA",
+        "surface": "E9E8E0",
+        "secondary": "6B6B6B",
+        "muted": "6B6B6B"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Space Grotesk"
+      },
+      "variants": {
+        "en": {
+          "sha256": "af5cc44230631a3bbdf0644b45cf4b3055f770c7ae60fcf45c4d36b41547eea5",
+          "bytes": 54883,
+          "nativeObjects": 365,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "4c37811bb9bc3be19c78b59e5b9146f77cb9d34aa63dbf1d981277138df5ea62",
+          "bytes": 56154,
+          "nativeObjects": 365,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Executive synthesis",
+          "family": "insights",
+          "description": "Asymmetric thesis, one dominant metric and three evidence rows",
+          "density": "high"
+        },
+        {
+          "number": 3,
+          "name": "Market segmentation",
+          "family": "data",
+          "description": "Proportional market bar, direct legend and opportunity sizing",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Stacked trend and interpretation",
+          "family": "data",
+          "description": "Stacked columns on a common scale with a derived contribution callout",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Opportunity matrix",
+          "family": "comparison",
+          "description": "Two-axis market map, sized markers and a separate decision rationale",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Profit bridge",
+          "family": "data",
+          "description": "Editable waterfall with sequential baselines and a reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Customer journey",
+          "family": "process",
+          "description": "Sequential journey with action, touchpoint and per-stage success measure",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Service architecture",
+          "family": "process",
+          "description": "Three operating layers with horizontal handoffs and vertical feedback",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Annotated case comparison",
+          "family": "comparison",
+          "description": "Asymmetric intervention narrative with paired before/after evidence",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Dependency roadmap",
+          "family": "process",
+          "description": "Timed workstreams, named owners and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Decision table",
+          "family": "comparison",
+          "description": "Four criteria across three options, highlighted recommendation and next gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-neo-grid-bold",
+      "category": "business",
+      "names": {
+        "en": "Neo-Grid Bold",
+        "zh": "荧光网格"
+      },
+      "description": "荧光网格 · Neo-Grid Bold",
+      "palette": {
+        "background": "F5F4EF",
+        "text": "0A0A0A",
+        "accent": "E6FF3D",
+        "surface": "ECECE8",
+        "secondary": "8A8A85",
+        "muted": "8A8A85"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial Black",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Space Grotesk"
+      },
+      "variants": {
+        "en": {
+          "sha256": "9d3ea24edba361e506c35e3ee0fa9da2c810e1c8d3e34c873eb39e082a534ba5",
+          "bytes": 58849,
+          "nativeObjects": 491,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "2f4d726fbbb35471caa2b565d0bd61d18b8d018a969d219ea2189f1d5ec02e56",
+          "bytes": 59895,
+          "nativeObjects": 491,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Find the next repeatable growth loop",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Follow one cohort through the funnel",
+          "family": "data",
+          "description": "A single cohort with explicit conversion counts and an overall rate",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Design around explicit boundaries",
+          "family": "process",
+          "description": "Three layers, nine native nodes, horizontal handoffs and vertical dependencies",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "curated-swiss-signal-grid",
+      "category": "consulting",
+      "names": {
+        "en": "Swiss Signal Grid",
+        "zh": "Swiss Signal Grid"
+      },
+      "description": "原创瑞士信号网格模板，适合管理层数据汇报、市场洞察、风险集中度、经营模式比较与进入决策。",
+      "palette": {
+        "background": "F5F3EE",
+        "surface": "FFFFFF",
+        "text": "111111",
+        "muted": "6E6D68",
+        "accent": "E52333",
+        "secondary": "CBC8C0"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "PingFang SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "Microsoft YaHei",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Sans CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "91419349e31f6c205e658d640e8d644e5b46e67888f3b823a60f8128920066ac",
+          "bytes": 70081,
+          "nativeObjects": 352,
+          "repairedObjectIds": [
+            {
+              "part": "ppt/slides/slide7.xml",
+              "from": "8",
+              "to": "13"
+            }
+          ]
+        },
+        "zh": {
+          "sha256": "96e93cbfb746d13757fdad4178177c27da5ad02ab58bfd6c66c06fe88342beab",
+          "bytes": 72938,
+          "nativeObjects": 352,
+          "repairedObjectIds": [
+            {
+              "part": "ppt/slides/slide7.xml",
+              "from": "8",
+              "to": "13"
+            }
+          ]
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Reference page 1",
+          "family": "cover",
+          "description": "Raster-indexed page 1: 7 measured visual regions across 11 occupied landmark cells; dense density; cover composition.",
+          "density": "dense"
+        },
+        {
+          "number": 2,
+          "name": "Reference page 2",
+          "family": "grid",
+          "description": "Raster-indexed page 2: 7 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 3,
+          "name": "Reference page 3",
+          "family": "grid",
+          "description": "Raster-indexed page 3: 8 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 4,
+          "name": "Reference page 4",
+          "family": "grid",
+          "description": "Raster-indexed page 4: 9 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 5,
+          "name": "Reference page 5",
+          "family": "grid",
+          "description": "Raster-indexed page 5: 10 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 6,
+          "name": "Reference page 6",
+          "family": "grid",
+          "description": "Raster-indexed page 6: 9 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 7,
+          "name": "Reference page 7",
+          "family": "grid",
+          "description": "Raster-indexed page 7: 7 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 8,
+          "name": "Reference page 8",
+          "family": "grid",
+          "description": "Raster-indexed page 8: 7 measured visual regions across 14 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 9,
+          "name": "Reference page 9",
+          "family": "grid",
+          "description": "Raster-indexed page 9: 8 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 10,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Reference page 10",
+          "family": "grid",
+          "description": "Raster-indexed page 10: 9 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        }
+      ]
+    },
+    {
+      "id": "dsh-cartesian",
+      "category": "consulting",
+      "names": {
+        "en": "Cartesian",
+        "zh": "理性简报"
+      },
+      "description": "理性简报 · Cartesian",
+      "palette": {
+        "background": "EDE8E0",
+        "text": "1A1A1A",
+        "accent": "8A8178",
+        "surface": "E2DBD1",
+        "secondary": "5A5A5A",
+        "muted": "5A5A5A"
+      },
+      "fonts": {
+        "en": {
+          "title": "Georgia",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "Songti SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Georgia",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Playfair Display"
+      },
+      "variants": {
+        "en": {
+          "sha256": "46f0c369e6e7802ddd23a5310e2fc340f96c0193c89bff3b610b384552d8829b",
+          "bytes": 56898,
+          "nativeObjects": 389,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "0c93e9024bdd9fab5154eb9f1a205cd9c71a361a587ba952454ab9acdecc2331",
+          "bytes": 58233,
+          "nativeObjects": 389,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Turn uncertainty into a decision",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-signal",
+      "category": "consulting",
+      "names": {
+        "en": "Signal",
+        "zh": "深蓝决策"
+      },
+      "description": "深蓝决策 · Signal",
+      "palette": {
+        "background": "1C2644",
+        "text": "E2DCD0",
+        "accent": "C8A870",
+        "surface": "232F55",
+        "secondary": "8A96A8",
+        "muted": "8A96A8"
+      },
+      "fonts": {
+        "en": {
+          "title": "Georgia",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "Songti SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Georgia",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Source Serif 4"
+      },
+      "variants": {
+        "en": {
+          "sha256": "dd9a35747814d9e5c89993741cfc9f593f38aad5db6830b7325734cfc50725ab",
+          "bytes": 56781,
+          "nativeObjects": 394,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "e84670bb52a4f013dab451da729bce70f40bb3180777bddf3c60f777cb3203bd",
+          "bytes": 58103,
+          "nativeObjects": 394,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Turn uncertainty into a decision",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-editorial-notebook",
+      "category": "editorial",
+      "names": {
+        "en": "Editorial Notebook",
+        "zh": "Editorial Notebook"
+      },
+      "description": "原创的双栏论述、边注、证据条和决策矩阵；用于研究、观点与业务叙事。",
+      "palette": {
+        "background": "F8F8F6",
+        "surface": "EDEBE5",
+        "text": "252320",
+        "muted": "76716A",
+        "accent": "A86043",
+        "secondary": "EDEBE5"
+      },
+      "fonts": {
+        "en": {
+          "title": "Georgia",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "Songti SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "Songti SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "SimSun",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Serif CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "22ec110eda42b2cf862c5dd357beade4c7bd6cf6daa5c9e15e919827efc41a71",
+          "bytes": 56520,
+          "nativeObjects": 371,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "e0bdc1e0a8747ca6f0566347bf1afcd1cba8ebdb93843085cf4dc01f19fd5b4c",
+          "bytes": 58090,
+          "nativeObjects": 371,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "手记封面",
+          "family": "cover",
+          "description": "手记封面；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "A judgment worth revisiting",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Show how the judgment develops",
+          "family": "process",
+          "description": "Alternating milestone notes around a continuous argument timeline",
+          "density": "medium"
+        },
+        {
+          "number": 5,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "行动收尾",
+          "family": "closing",
+          "description": "行动收尾；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-soft-editorial",
+      "category": "editorial",
+      "names": {
+        "en": "Soft Editorial",
+        "zh": "柔和编辑部"
+      },
+      "description": "柔和编辑部 · Soft Editorial",
+      "palette": {
+        "background": "F2EEDF",
+        "text": "2A241B",
+        "accent": "E1A4C2",
+        "surface": "D6DD63",
+        "secondary": "E8C9B6",
+        "muted": "E8C9B6"
+      },
+      "fonts": {
+        "en": {
+          "title": "Georgia",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "Songti SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Georgia",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Cormorant Garamond"
+      },
+      "variants": {
+        "en": {
+          "sha256": "5f70b7f77ba12e9c9360a94550705d8747faf57b6529ac7151c7fe2706d495c0",
+          "bytes": 56356,
+          "nativeObjects": 371,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "341bc1590c8bb979ce0c7d8b54986ac47c9b083a6e2cb5581bb183713291edba",
+          "bytes": 57745,
+          "nativeObjects": 371,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "A judgment worth revisiting",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Show how the judgment develops",
+          "family": "process",
+          "description": "Alternating milestone notes around a continuous argument timeline",
+          "density": "medium"
+        },
+        {
+          "number": 8,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Give each moment a distinct purpose",
+          "family": "grid",
+          "description": "Three schematic frames with distinct content and intent",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-broadside",
+      "category": "promotion",
+      "names": {
+        "en": "Broadside",
+        "zh": "橙黑宣言"
+      },
+      "description": "橙黑宣言 · Broadside",
+      "palette": {
+        "background": "111111",
+        "text": "F0ECE5",
+        "accent": "E85D26",
+        "surface": "282826",
+        "secondary": "888880",
+        "muted": "888880"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial Black",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Barlow"
+      },
+      "variants": {
+        "en": {
+          "sha256": "16481272c3cce5a4169b6d3438d022f42e29a647932fe9c38396caaa33316cb5",
+          "bytes": 51449,
+          "nativeObjects": 247,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "80132d1a91b13abcfc4c6b85563779919e842b63b54280fff9fa552effe69529",
+          "bytes": 52478,
+          "nativeObjects": 247,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Editorial thesis",
+          "family": "insights",
+          "description": "Oversized chapter numeral against a compact operating thesis",
+          "density": "high"
+        },
+        {
+          "number": 3,
+          "name": "Evidence spread",
+          "family": "data",
+          "description": "One editorial statistic and a ranked breakdown on a cream field",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Operating model contrast",
+          "family": "comparison",
+          "description": "Big numerical contrast with aligned ownership and workflow differences",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Learning feedback loop",
+          "family": "process",
+          "description": "Four-step closed loop with cycle time and an ownership annotation",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Conversion staircase",
+          "family": "data",
+          "description": "Proportional descending bars, direct counts and a quantified bottleneck",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Effort and impact map",
+          "family": "comparison",
+          "description": "Prioritization scatter linked by letters to an action register",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Campaign storyboard",
+          "family": "agenda",
+          "description": "Three narrative beats with oversized sequence numbers and a specific audience action",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Case results poster",
+          "family": "comparison",
+          "description": "Single dominant before/after result with trial scope and duration",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Launch schedule",
+          "family": "process",
+          "description": "Staggered six-week timeline with a conditional expansion gate",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Performance scorecard",
+          "family": "data",
+          "description": "Aligned metric table with actual/target values and native bullet bars",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-playful",
+      "category": "promotion",
+      "names": {
+        "en": "Playful",
+        "zh": "杏色创意"
+      },
+      "description": "杏色创意 · Playful",
+      "palette": {
+        "background": "F0C8A0",
+        "text": "1A1A1A",
+        "accent": "1A1A1A",
+        "surface": "E8B88E",
+        "secondary": "F7DEC6",
+        "muted": "F7DEC6"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial Black",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Syne"
+      },
+      "variants": {
+        "en": {
+          "sha256": "afe7072854807e83a7a07195028afce95250332a92c48aba3f96d0a5eb6ade93",
+          "bytes": 56210,
+          "nativeObjects": 375,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "a91f8e18e475b6e53deaee7f54b0c6710fc31e883c00586d6362ff501fa0fbb5",
+          "bytes": 57331,
+          "nativeObjects": 375,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Make the idea easier to try",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Give each moment a distinct purpose",
+          "family": "grid",
+          "description": "Three schematic frames with distinct content and intent",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Follow one cohort through the funnel",
+          "family": "data",
+          "description": "A single cohort with explicit conversion counts and an overall rate",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-sakura-chroma",
+      "category": "promotion",
+      "names": {
+        "en": "Sakura Chroma",
+        "zh": "复古彩带"
+      },
+      "description": "复古彩带 · Sakura Chroma",
+      "palette": {
+        "background": "F1E6CB",
+        "text": "3A2516",
+        "accent": "E54489",
+        "surface": "E5D6B0",
+        "secondary": "F09131",
+        "muted": "F09131"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial Narrow",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Arial",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Big Shoulders Display"
+      },
+      "variants": {
+        "en": {
+          "sha256": "7fcc6880db65b678c51973157179da50eae21614b0d95f9395e9b45486e55937",
+          "bytes": 56102,
+          "nativeObjects": 357,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "9f89c663b5e1cea828d2ee34f754101f6aad26cdc982fafd4d63224cee78363e",
+          "bytes": 57246,
+          "nativeObjects": 357,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Design a campaign people can follow",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Give each moment a distinct purpose",
+          "family": "grid",
+          "description": "Three schematic frames with distinct content and intent",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Follow one cohort through the funnel",
+          "family": "data",
+          "description": "A single cohort with explicit conversion counts and an overall rate",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Show how the judgment develops",
+          "family": "process",
+          "description": "Alternating milestone notes around a continuous argument timeline",
+          "density": "medium"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "curated-modular-logistics-system",
+      "category": "work",
+      "names": {
+        "en": "Modular Logistics System",
+        "zh": "Modular Logistics System"
+      },
+      "description": "原创模块化物流经营模板，适合跨境履约、供应链、市场进入、能力建设与管理层行动汇报。",
+      "palette": {
+        "background": "F2F2EE",
+        "surface": "FFFFFF",
+        "text": "202224",
+        "muted": "60666A",
+        "accent": "FFD400",
+        "secondary": "AEB4B5"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "PingFang SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "Microsoft YaHei",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Sans CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "af60baa434e5b9af8777014c69d399cf1ed077f90a74ae5953691507b9e3cf05",
+          "bytes": 69311,
+          "nativeObjects": 459,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "e6ca423f4d166f7d27aa007c9736f07ec15258f8f1a992899ab580d850a649c8",
+          "bytes": 72059,
+          "nativeObjects": 459,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Reference page 1",
+          "family": "cover",
+          "description": "Raster-indexed page 1: 11 measured visual regions across 15 occupied landmark cells; dense density; cover composition.",
+          "density": "dense"
+        },
+        {
+          "number": 2,
+          "name": "Reference page 2",
+          "family": "grid",
+          "description": "Raster-indexed page 2: 7 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 3,
+          "name": "Reference page 3",
+          "family": "grid",
+          "description": "Raster-indexed page 3: 9 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 4,
+          "name": "Reference page 4",
+          "family": "grid",
+          "description": "Raster-indexed page 4: 8 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 5,
+          "name": "Reference page 5",
+          "family": "grid",
+          "description": "Raster-indexed page 5: 8 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 6,
+          "name": "Reference page 6",
+          "family": "grid",
+          "description": "Raster-indexed page 6: 7 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 7,
+          "name": "Reference page 7",
+          "family": "grid",
+          "description": "Raster-indexed page 7: 9 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 8,
+          "name": "Reference page 8",
+          "family": "image-led",
+          "description": "Raster-indexed page 8: 9 measured visual regions across 16 occupied landmark cells; dense density; image-led composition.",
+          "density": "dense"
+        },
+        {
+          "number": 9,
+          "name": "Reference page 9",
+          "family": "grid",
+          "description": "Raster-indexed page 9: 6 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 10,
+          "name": "Follow the flow across the network",
+          "family": "process",
+          "description": "Editable directed network with forward and return flow",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Make the handoff order visible",
+          "family": "process",
+          "description": "Four lifelines with ordered request and response arrows",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Reference page 10",
+          "family": "grid",
+          "description": "Raster-indexed page 10: 8 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        }
+      ]
+    },
+    {
+      "id": "curated-nordic-operating-report",
+      "category": "work",
+      "names": {
+        "en": "Nordic Operating Report",
+        "zh": "Nordic Operating Report"
+      },
+      "description": "原创北欧年度经营报告模板，适合管理层经营复盘、国际扩张、跨境履约、市场进入、能力建设与行动计划。",
+      "palette": {
+        "background": "F3F0EA",
+        "surface": "FFFFFF",
+        "text": "0B2A3A",
+        "muted": "657882",
+        "accent": "42C7E7",
+        "secondary": "E8B8A8"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "PingFang SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "Microsoft YaHei",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Sans CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "636a1323e1b0277c3f23e2bb09211533f48e2b0942c9fc41d2d03134377a5d9d",
+          "bytes": 74174,
+          "nativeObjects": 358,
+          "repairedObjectIds": [
+            {
+              "part": "ppt/slides/slide7.xml",
+              "from": "8",
+              "to": "12"
+            }
+          ]
+        },
+        "zh": {
+          "sha256": "3d8ad975fa956cedfe47a6601a4fd7826a66494cf247de57ee5b2d259e5fa07d",
+          "bytes": 77271,
+          "nativeObjects": 358,
+          "repairedObjectIds": [
+            {
+              "part": "ppt/slides/slide7.xml",
+              "from": "8",
+              "to": "12"
+            }
+          ]
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Reference page 1",
+          "family": "cover",
+          "description": "Raster-indexed page 1: 4 measured visual regions across 16 occupied landmark cells; dense density; cover composition.",
+          "density": "dense"
+        },
+        {
+          "number": 2,
+          "name": "Reference page 2",
+          "family": "grid",
+          "description": "Raster-indexed page 2: 6 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 3,
+          "name": "Reference page 3",
+          "family": "grid",
+          "description": "Raster-indexed page 3: 5 measured visual regions across 14 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 4,
+          "name": "Reference page 4",
+          "family": "grid",
+          "description": "Raster-indexed page 4: 7 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 5,
+          "name": "Reference page 5",
+          "family": "grid",
+          "description": "Raster-indexed page 5: 6 measured visual regions across 12 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 6,
+          "name": "Reference page 6",
+          "family": "grid",
+          "description": "Raster-indexed page 6: 7 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 7,
+          "name": "Reference page 7",
+          "family": "grid",
+          "description": "Raster-indexed page 7: 7 measured visual regions across 15 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 8,
+          "name": "Reference page 8",
+          "family": "grid",
+          "description": "Raster-indexed page 8: 7 measured visual regions across 12 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 9,
+          "name": "Reference page 9",
+          "family": "grid",
+          "description": "Raster-indexed page 9: 10 measured visual regions across 16 occupied landmark cells; dense density; grid composition.",
+          "density": "dense"
+        },
+        {
+          "number": 10,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Reference page 10",
+          "family": "image-led",
+          "description": "Raster-indexed page 10: 7 measured visual regions across 16 occupied landmark cells; dense density; image-led composition.",
+          "density": "dense"
+        }
+      ]
+    },
+    {
+      "id": "dsh-editorial-forest",
+      "category": "work",
+      "names": {
+        "en": "Editorial Forest",
+        "zh": "森林季刊"
+      },
+      "description": "森林季刊 · Editorial Forest",
+      "palette": {
+        "background": "2E4A2A",
+        "text": "EFE7D4",
+        "accent": "E89CB1",
+        "surface": "3A5A36",
+        "secondary": "E6DCC4",
+        "muted": "E6DCC4"
+      },
+      "fonts": {
+        "en": {
+          "title": "Georgia",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "Songti SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "en": {
+            "title": "Georgia",
+            "body": "Arial"
+          },
+          "zh": {
+            "macOS": {
+              "serif": "Songti SC",
+              "sans": "PingFang SC"
+            },
+            "Windows": {
+              "serif": "SimSun",
+              "sans": "Microsoft YaHei"
+            },
+            "Linux": {
+              "serif": "Noto Serif CJK SC",
+              "sans": "Noto Sans CJK SC"
+            }
+          }
+        },
+        "upstreamTitle": "Source Serif 4"
+      },
+      "variants": {
+        "en": {
+          "sha256": "074ddfc4c9471d70624a4408fa42a38d509a1e288aef6ec5ef769efd4062baa7",
+          "bytes": 57158,
+          "nativeObjects": 402,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "d9fe4f98bde6e15b2140e6e1fb9717e64a12150fa497678bf242cb7b00d5faf6",
+          "bytes": 58506,
+          "nativeObjects": 402,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "Cover",
+          "family": "cover",
+          "description": "Cover",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "A more resilient operating cycle",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Reconcile the benefit with the cost",
+          "family": "data",
+          "description": "Sequential contribution waterfall with an explicitly reconciled net change",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Separate the record from the explanation",
+          "family": "quote",
+          "description": "Interview excerpt, observation, competing explanation and next check",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Locate the friction along the journey",
+          "family": "process",
+          "description": "Four stages aligned across actions and independent outcome measures",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "Design around explicit boundaries",
+          "family": "process",
+          "description": "Three layers, nine native nodes, horizontal handoffs and vertical dependencies",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "Closing",
+          "family": "closing",
+          "description": "Closing",
+          "density": "medium"
+        }
+      ]
+    },
+    {
+      "id": "dsh-engineering-blueprint",
+      "category": "work",
+      "names": {
+        "en": "Engineering Blueprint",
+        "zh": "Engineering Blueprint"
+      },
+      "description": "纸张底色、工程网格、流程盒和反馈路径；用于架构评审、技术方案及执行计划。",
+      "palette": {
+        "background": "F0EAE0",
+        "surface": "E7E0D4",
+        "text": "252824",
+        "muted": "68665F",
+        "accent": "B5392A",
+        "secondary": "E7E0D4"
+      },
+      "fonts": {
+        "en": {
+          "title": "Arial",
+          "body": "Arial"
+        },
+        "zh": {
+          "title": "PingFang SC",
+          "body": "PingFang SC"
+        },
+        "fallbacks": {
+          "zh": {
+            "macOS": {
+              "title": "PingFang SC",
+              "body": "PingFang SC"
+            },
+            "Windows": {
+              "title": "Microsoft YaHei",
+              "body": "Microsoft YaHei"
+            },
+            "Linux": {
+              "title": "Noto Sans CJK SC",
+              "body": "Noto Sans CJK SC"
+            }
+          }
+        }
+      },
+      "variants": {
+        "en": {
+          "sha256": "25604ba5831cf922a2e553d9f27e46f005438dcde5c9a404f36b2b8d32d68cdb",
+          "bytes": 64156,
+          "nativeObjects": 925,
+          "repairedObjectIds": []
+        },
+        "zh": {
+          "sha256": "c70258121136d0f87fd47f87e598527522ea0428a330c80bb28238076b3aa001",
+          "bytes": 65703,
+          "nativeObjects": 925,
+          "repairedObjectIds": []
+        }
+      },
+      "layouts": [
+        {
+          "number": 1,
+          "name": "架构封面",
+          "family": "cover",
+          "description": "架构封面；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        },
+        {
+          "number": 2,
+          "name": "Make the system easier to reason about",
+          "family": "insights",
+          "description": "Asymmetric argument with three supporting evidence rows",
+          "density": "medium"
+        },
+        {
+          "number": 3,
+          "name": "Design around explicit boundaries",
+          "family": "process",
+          "description": "Three layers, nine native nodes, horizontal handoffs and vertical dependencies",
+          "density": "high"
+        },
+        {
+          "number": 4,
+          "name": "Make the handoff order visible",
+          "family": "process",
+          "description": "Four lifelines with ordered request and response arrows",
+          "density": "high"
+        },
+        {
+          "number": 5,
+          "name": "Trace the question to testable branches",
+          "family": "process",
+          "description": "Three-branch hypothesis tree with six testable leaves",
+          "density": "high"
+        },
+        {
+          "number": 6,
+          "name": "Read the trend and investigate the pause",
+          "family": "data",
+          "description": "Labeled six-point trend with common scale and a separate interpretation",
+          "density": "high"
+        },
+        {
+          "number": 7,
+          "name": "Choose the next move with evidence",
+          "family": "comparison",
+          "description": "Two-axis decision map with direct labels and a recommended next step",
+          "density": "high"
+        },
+        {
+          "number": 8,
+          "name": "Design the test before reading the result",
+          "family": "comparison",
+          "description": "One hypothesis with comparison, measure and a predeclared decision rule",
+          "density": "high"
+        },
+        {
+          "number": 9,
+          "name": "A small intervention, a measurable change",
+          "family": "comparison",
+          "description": "Intervention narrative beside paired before and after comparisons",
+          "density": "high"
+        },
+        {
+          "number": 10,
+          "name": "Connect each measure to a response",
+          "family": "table",
+          "description": "Actual, target and response aligned across four measures",
+          "density": "high"
+        },
+        {
+          "number": 11,
+          "name": "Sequence the work around a decision gate",
+          "family": "process",
+          "description": "Four timed workstreams and a decision gate",
+          "density": "high"
+        },
+        {
+          "number": 12,
+          "name": "执行结论",
+          "family": "closing",
+          "description": "执行结论；以可编辑文本和矢量形状组织信息。",
+          "density": "medium"
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import {
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult, deliveryPaths } from './task-result.js'
+import { deliveryPaths, outputDelivery, resolveTaskResult } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
@@ -70,7 +70,7 @@ export async function startComputerJsonl(
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
   await runner.request(receipt, {
     method: 'POST', path: '/task',
-    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt)) }
+    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt), typeof runner.readTaskReportFile === 'function') }
   })
   return { status: 'running' as const, handle }
 }
@@ -189,10 +189,17 @@ export async function inspectComputerJsonl(
           }`
         }
   if (observation.status === 'succeeded' && completion.ok) {
-    observation.result = {
-      ...(await resolveTaskResult(completion.text, delivery, runner.readTaskReportFile
-        ? (path) => runner.readTaskReportFile(receipt, path) : undefined)),
-      data: { workingDirectory: receipt.workingDirectory }
+    try {
+      observation.result = {
+        ...(await resolveTaskResult(completion.text, delivery, runner.readTaskReportFile
+          ? (reference) => runner.readTaskReportFile(receipt, reference) : undefined)),
+        data: { workingDirectory: receipt.workingDirectory }
+      }
+    } catch {
+      observation = {
+        status: 'failed', handle, progress,
+        error: '[task_result_invalid] The runtime result could not be processed.'
+      }
     }
   }
   if (observation.result && delivery.mode !== 'none') {
@@ -207,7 +214,7 @@ export async function inspectComputerJsonl(
       observation.result.export = {
         mode: delivery.mode,
         status: 'failed',
-        error: paths.length ? 'artifact_collection_failed: recover delivery without rerunning the task.' : 'delivery_selection_required: select the exact file paths to collect.'
+        error: 'Requested files could not be exported. Inspect the workspace.'
       }
     }
   }

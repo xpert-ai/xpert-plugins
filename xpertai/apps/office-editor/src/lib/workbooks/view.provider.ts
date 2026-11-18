@@ -6,6 +6,7 @@ import { AGENT_WORKBENCH_SLOT } from '@xpert-ai/contracts'
 import type { XpertResolvedViewHostContext, XpertExtensionViewManifest, XpertViewQuery, XpertViewActionRequest, XpertRemoteComponentViewSchema } from '@xpert-ai/contracts'
 import { OfficeWorkbookService, workbookScope } from './service.js'
 import { WORKBOOK_VIEW, WORKBOOK_VIEW_PROVIDER, WORKBOOK_ENTRY, WORKBOOK_PROVIDER } from './model.js'
+import { WORKBOOK_VIEW_ICON } from './view-icon.js'
 
 import { workbookSubmission } from './core.js'
 
@@ -23,7 +24,7 @@ export class OfficeWorkbookView implements IXpertViewExtensionProvider {
   private view(key: string) { if (key !== WORKBOOK_VIEW) throw new BadRequestException('office.view_unavailable') }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || slot !== AGENT_WORKBENCH_SLOT) return []
-    return [{ key: WORKBOOK_VIEW, title: label('Workbook', '工作簿'), hostType: 'agent', slot, refreshable: false,
+    return [{ key: WORKBOOK_VIEW, title: label('Workbook', '工作簿'), icon: WORKBOOK_VIEW_ICON, hostType: 'agent', slot, refreshable: false,
       activation: { projectResource: true }, workbench: { fixed: true, openMode: 'on-demand' },
       source: { provider: WORKBOOK_VIEW_PROVIDER, plugin: '@xpert-ai/plugin-office-editor' },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,

@@ -1,3 +1,5 @@
+import { DOCX_AI } from './lib/native/ai-service.js'
+import { DOCX_VIEW_PROVIDER } from './lib/native/constants.js'
 import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
@@ -52,6 +54,7 @@ const plugin: DocxEditorXpertPlugin = {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [
+          DOCX_AI,
           DOCX_EDITOR_FEATURE,
           DOCX_EDITOR_WORKBENCH_CAPABILITY,
           DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
@@ -145,14 +148,15 @@ const plugin: DocxEditorXpertPlugin = {
           ]
         },
         runtime: {
-          middlewareProviders: [DOCX_EDITOR_MIDDLEWARE_NAME],
-          viewProviders: [DOCX_EDITOR_PROVIDER_KEY],
+          middlewareProviders: [DOCX_EDITOR_MIDDLEWARE_NAME, DOCX_AI],
+          viewProviders: [DOCX_EDITOR_PROVIDER_KEY, DOCX_VIEW_PROVIDER],
           templateProviders: [DOCX_EDITOR_TEMPLATE_PROVIDER_KEY]
         }
       },
       xpert: {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities: [
+          DOCX_AI,
           DOCX_EDITOR_FEATURE,
           DOCX_EDITOR_WORKBENCH_CAPABILITY,
           DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,

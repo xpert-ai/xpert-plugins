@@ -160,9 +160,6 @@
       "path": "./middlewares/view-image"
     },
     {
-      "path": "./middlewares/file-memory"
-    },
-    {
       "path": "./models/siliconflow"
     },
     {
@@ -368,6 +365,9 @@
     },
     {
       "path": "./apps/pptx-editor"
+    },
+    {
+      "path": "./apps/pdf-viewer"
     }
   ]
 }

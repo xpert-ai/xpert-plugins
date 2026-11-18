@@ -11,6 +11,7 @@ import type { PptxDeck, PptxShape } from '../src/core/pptx-types'
 import { createSlideCopy, createTextBoxShape, createPresetShape, createTableShape, paragraphsForShapeText, moveShapeLayer } from '../src/core/pptx-editor-model.utils'
 import { t, useLocale } from './i18n'
 import { useCollaboration } from './collaboration'
+import { TemplateLibrary } from './template-library'
 
 export function Editor({ source }: { source: Source }) {
   useLocale()
@@ -18,6 +19,7 @@ export function Editor({ source }: { source: Source }) {
   const [index, setIndex] = useState(0), [selected, select] = useState<string | null>(null)
   const [navigation, setNavigation] = useState(true), [grid, setGrid] = useState(false)
   const [notes, setNotes] = useState(false), [properties, setProperties] = useState(false)
+  const [templates, setTemplates] = useState(false)
   const [zoom, setZoom] = useState('fit'), [size, setSize] = useState({ width: 900, height: 650 })
   const [present, setPresent] = useState<number | null>(null), [confirmReload, setConfirmReload] = useState(false)
   const stage = useRef<HTMLDivElement>(null), imageInput = useRef<HTMLInputElement>(null)
@@ -103,10 +105,14 @@ export function Editor({ source }: { source: Source }) {
     if (canEdit && selected && ['Delete','Backspace'].includes(event.key)) { event.preventDefault(); changeShape({deleted:true}); select(null) }
   }}>
     <Toolbar editable={Boolean(doc.info?.canWrite)} busy={doc.busy} dirty={doc.dirty} canUndo={doc.canUndo} canRedo={doc.canRedo} zoom={zoom} onZoom={setZoom}
+      onTemplates={() => setTemplates(true)}
       onAdd={add} onUndo={() => {doc.travel('undo');select(null)}} onRedo={() => {doc.travel('redo');select(null)}}
       onSave={() => void doc.save().catch(() => undefined)} onDownload={() => void doc.download().catch(doc.fail)}
       onReload={() => doc.dirty ? setConfirmReload(true) : void doc.load()}
       onNavigation={() => setNavigation(v => !v)} onGrid={() => setGrid(v => !v)} onProperties={() => setProperties(v => !v)} onPresent={start => setPresent(start ? 0 : index)}/>
+    <Dialog open={templates} onOpenChange={setTemplates}><DialogContent className="ppt-template-dialog" aria-describedby={undefined}>
+      <DialogTitle className="sr-only">{t('templates.title')}</DialogTitle><TemplateLibrary onOpened={() => setTemplates(false)}/>
+    </DialogContent></Dialog>
     <div className="flex min-h-0 flex-1 gap-3 overflow-hidden px-3 pb-3">
       {navigation && !grid && <aside className="ppt-navigation flex shrink-0 flex-col bg-background" aria-label={t('ppt.navigation')}>
         <div className="flex items-center justify-between p-3 text-sm text-muted-foreground"><span>{t('ppt.slides',{count:deck.slides.length})}</span>

@@ -10,7 +10,7 @@ import { z } from 'zod/v3'
 import { ContentResourcesRuntimeCapability, ContentEditorsRuntimeCapability, supportsContentModel, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { denied, type SpaceActor } from './domain.js'
 
-export const catalogQuery = z.object({ parentId: z.string().uuid().optional(), typeId: z.string().min(1).max(200).optional(), search: z.string().max(200).optional(), deleted: z.boolean().optional(), offset: z.number().int().min(0).default(0) }).strict()
+export const catalogQuery = z.object({ parentId: z.string().uuid().optional(), typeId: z.string().min(1).max(200).optional(), search: z.string().max(200).optional(), deleted: z.boolean().optional(), offset: z.number().int().min(0).default(0), cursor: z.string().max(1000).optional() }).strict()
 export const catalogCreate = z.object({ parentId: z.string().uuid().nullable().optional(), providerKey: z.string().min(1).max(200), implementationKey: z.string().min(1).max(200), templateId: z.string().min(1).max(200).optional(), requestId: z.string().uuid(), title: z.string().trim().min(1).max(200) }).strict()
 
 export const catalogLifecycle = z.object({ contentId: z.string().uuid(), expectedRevision: z.string().min(1), action: z.enum(['trash', 'restore']) }).strict()
@@ -36,7 +36,14 @@ export class SpaceCatalog {
   setPreference(actor: SpaceActor, input: { contentId: string; scope: 'resource' | 'project' | 'organization'; editorKey: string | null; expectedRevision: number }) {
     return this.runtime.require(ContentEditorsRuntimeCapability).setPreference({ ...this.scope(actor), ...input })
   }
-  async types(actor: SpaceActor) { return (await this.api.types(this.scope(actor))).filter(type => type.creatable !== false) }
+  async types(actor: SpaceActor) {
+    const scope = this.scope(actor)
+    const [types, editors] = await Promise.all([this.api.types(scope), this.runtime.require(ContentEditorsRuntimeCapability).list(scope)])
+    // A file type can be browsable without supporting catalog.create. Keep creation
+    // eligibility separate from navigation, using registered models rather than labels.
+    return types.filter(type => type.creatable !== false || editors.some(editor => editor.kind === 'file'
+      && editor.resourceType?.typeId === type.typeId && editor.resourceType.modelId === type.modelId))
+  }
   async attach(actor: SpaceActor, contentId: string, parentId: string | null) {
     const space = await this.spaces.workspace(actor)
     await this.api.get({ ...this.scope(actor), contentId })
@@ -48,12 +55,13 @@ export class SpaceCatalog {
     const space = await this.spaces.workspace(actor)
     if (input.parentId) await this.parent(actor, space.id, input.parentId)
     const placements = await this.placements.findBy({ ...scoped(actor), spaceId: space.id })
-    const page = await this.api.list({ ...scope, ...input, limit: 50, excludedProviderKeys: ['spaces'],
+    const page = await this.api.list({ ...scope, ...input, discovery: 'indexed', limit: 50, excludedProviderKeys: ['spaces'],
       ...(input.parentId ? { contentIds: placements.filter(p => p.parentId === input.parentId).map(p => p.contentId) } : {}) })
-    const editors = await this.runtime.require(ContentEditorsRuntimeCapability).list(scope)
+    const [editors, types] = await Promise.all([this.runtime.require(ContentEditorsRuntimeCapability).list(scope), this.api.types(scope)])
     // Choices are derived from the same compatibility predicate as the platform resolver.
     // Opening still reauthorizes and resolves; this list is not an access grant.
     return { ...page, items: page.items.map(item => ({ ...item,
+      icon: item.presentation?.type?.icon ?? types.find(type => type.typeId === item.typeId && type.modelId === item.modelId)?.icon,
       parentId: placements.find(p => p.contentId === item.contentId)?.parentId ?? null,
       placementVersion: placements.find(p => p.contentId === item.contentId)?.version ?? 0,
       compatibleEditors: editors.filter(editor => editor.kind === 'resource' && supportsContentModel(editor, item, 'view'))

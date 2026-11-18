@@ -4,6 +4,14 @@ import type { ProcurementRiskSeverity } from '../types.js'
 @Entity('plugin_procurement_risk_item')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementRiskItem {
+  @Index({ unique: true })
+  @Column({ type: 'varchar', nullable: true })
+  eventOperationKey?: string
+
+  /** Version 1 enables verified workbench publication. Older risks retain NULL until their history is known. */
+  @Column({ type: 'integer', nullable: true })
+  deliveryCheckVersion?: number
+
   @PrimaryGeneratedColumn('uuid')
   id?: string
 

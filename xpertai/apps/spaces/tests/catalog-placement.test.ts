@@ -10,6 +10,7 @@ function fixture() {
   let current: SpaceResourcePlacement | null = null, locked = false, canWrite = true
   const calls: object[] = []
   const catalog = {
+    types: async () => [],
     get: async () => ({ canWrite }),
     list: async (input: object) => { calls.push(input); return { items: [{ contentId: 'resource', canWrite }], hasMore: false } }
   }
@@ -39,7 +40,7 @@ test('placement moves use independent CAS without changing native content; folde
   assert.equal(moved.version, 1)
   await assert.rejects(f.service.move(f.actor, { contentId: 'resource', parentId: null, expectedVersion: 0 }), /version_conflict/)
   await f.service.list(f.actor, { parentId: 'folder', offset: 50 })
-  assert.deepEqual(f.calls[0], { actor: f.actor, projectId: 'project', assistantId: undefined, parentId: 'folder', offset: 50, limit: 50, excludedProviderKeys: ['spaces'], contentIds: ['resource'] })
+  assert.deepEqual(f.calls[0], { actor: f.actor, projectId: 'project', assistantId: undefined, parentId: 'folder', offset: 50, discovery: 'indexed', limit: 50, excludedProviderKeys: ['spaces'], contentIds: ['resource'] })
   const restored = await f.service.move(f.actor, { contentId: 'resource', parentId: null, expectedVersion: 1 })
   assert.equal(restored.version, 2)
 })
@@ -49,4 +50,24 @@ test('placement rejects read-only resources and destinations belonging to anothe
   await assert.rejects(f.service.move(f.actor, { contentId: 'resource', parentId: 'foreign', expectedVersion: 0 }), /access_denied/)
   f.reader()
   await assert.rejects(f.service.move(f.actor, { contentId: 'resource', parentId: null, expectedVersion: 0 }), /access_denied/)
+})
+
+test('native file categories remain discoverable without catalog creation or Office installed', async () => {
+  const actor = { tenantId: 'tenant', organizationId: 'org', userId: 'member', projectId: 'project' }
+  const word = { typeId: 'document', modelId: 'docx_editor.ooxml', creatable: false }
+  const office = { typeId: 'document', modelId: 'office-editor.document' }
+  const pdf = { typeId: 'xpert.pdf', modelId: 'pdf.native', creatable: false }
+  const unrelated = { typeId: 'document', modelId: 'unavailable.document', creatable: false }
+  const generic = { typeId: 'xpert.file', modelId: 'spaces.file', creatable: false }
+  let types = [word, office, pdf, unrelated, generic]
+  const scope = { actor, projectId: 'project', assistantId: undefined }
+  const service = new SpaceCatalog({ require: (key: unknown) => key === ContentResourcesRuntimeCapability
+    ? { catalog: { types: async (input: object) => { assert.deepEqual(input, scope); return types } } }
+    : { list: async (input: object) => { assert.deepEqual(input, scope); return [
+      { kind: 'file', resourceType: word }, { kind: 'file', resourceType: pdf },
+      { kind: 'resource', resourceType: generic }
+    ] } } } as never, {} as never, {} as never, {} as never)
+  assert.deepEqual(await service.types(actor), [word, office, pdf])
+  types = [word, pdf, unrelated, generic]
+  assert.deepEqual(await service.types(actor), [word, pdf])
 })

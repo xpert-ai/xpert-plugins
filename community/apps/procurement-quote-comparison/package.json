@@ -30,16 +30,20 @@
   },
   "files": [
     "dist",
+    "migrations/*.sql",
+    "remote/locales/*.json",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:ui": "corepack pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "corepack pnpm run build:ui && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "test": "tsc -p tsconfig.spec.json --noEmit"
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "procurement"
     }
   },
   "dependencies": {
@@ -51,8 +55,8 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.37.0 || 3.36.0-workbench-decision.1",
+    "@xpert-ai/plugin-sdk": "^3.37.0 || 3.36.0-workbench-decision.1",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -65,8 +69,10 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "0.28.1",
+    "@xpert-ai/contracts": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-workbench-decision.1.tgz",
+    "@xpert-ai/plugin-sdk": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-workbench-decision.1.tgz",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",

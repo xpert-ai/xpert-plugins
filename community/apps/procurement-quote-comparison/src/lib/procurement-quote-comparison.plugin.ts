@@ -1,3 +1,8 @@
+import { QuoteEventRoute, QuoteEventFact, QuoteEventParse, QuoteRevisionContext } from './event-journal.js'
+import { DelayDecision, DelayDecisionInput } from './entities/delay-decision.entity.js'
+import { DeliveryCheck, DeliveryCheckReceipt } from './delivery-check.js'
+import { QuoteFollowUp } from './quote-follow-up.js'
+import { QuoteEvents } from './quote-events.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -17,6 +22,15 @@ import { ProcurementQuoteComparisonService } from './procurement-quote-compariso
 import { ProcurementQuoteComparisonViewProvider } from './procurement-quote-comparison-view.provider.js'
 
 export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
+  QuoteEventRoute,
+  QuoteEventFact,
+  QuoteEventParse,
+  QuoteRevisionContext,
+  QuoteFollowUp,
+  DeliveryCheck,
+  DeliveryCheckReceipt,
+  DelayDecision,
+  DelayDecisionInput,
   ProcurementComparisonCase,
   ProcurementSourceDocument,
   ProcurementParseJob,
@@ -32,6 +46,7 @@ export const PROCUREMENT_QUOTE_COMPARISON_ENTITIES = [
   imports: [TypeOrmModule.forFeature(PROCUREMENT_QUOTE_COMPARISON_ENTITIES)],
   entities: PROCUREMENT_QUOTE_COMPARISON_ENTITIES,
   providers: [
+    QuoteEvents,
     ProcurementQuoteComparisonService,
     ProcurementQuoteComparisonMiddleware,
     ProcurementQuoteComparisonViewProvider

@@ -1,3 +1,5 @@
+import { ReviewEventRoute, ReviewEventFact } from './event-journal.js'
+import { ReviewEventSource } from './review-event-source.js'
 import 'reflect-metadata'
 import { createRequire } from 'node:module'
 import { TypeOrmModule } from '@nestjs/typeorm'
@@ -40,6 +42,7 @@ const packageJson = createRequire(import.meta.url)('../package.json') as {
   }
 }
 const entities = [
+  ReviewEventRoute, ReviewEventFact,
   ReviewEventSubscription,
   WorkflowDiagnosis,
   Review,
@@ -57,6 +60,7 @@ const entities = [
   controllers: [GitHubWebhook],
   providers: [
     CodeReviewCapability,
+    ReviewEventSource,
     ReviewEvents,
     CodeReviewGitHubTrigger,
     WorkflowDiagnostics,

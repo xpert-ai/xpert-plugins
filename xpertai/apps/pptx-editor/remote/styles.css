@@ -23,6 +23,8 @@ html, body, #root { width: 100%; height: 100%; margin: 0; min-height: 0; overflo
 /* Page-preview controls take their height from authored slide aspect ratios. */
 .ppt-thumbnail { height: auto; white-space: normal; }
 .ppt-present { width: 96vw; max-width: 96vw; height: 92vh; }
+.ppt-template-dialog { width: 96vw; max-width: 1400px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+.ppt-template-dialog > section { min-height: 0; flex: 1; }
 @media (max-width: 640px) {
   .ppt-navigation { width: 136px; }
   .ppt-toolbar { gap: 6px; padding: 8px; }

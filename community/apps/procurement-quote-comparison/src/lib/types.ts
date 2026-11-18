@@ -15,13 +15,20 @@ export type ProcurementParseJobStatus = 'queued' | 'running' | 'succeeded' | 'fa
 export type ProcurementMatchStatus = 'exact' | 'similar' | 'spec_mismatch' | 'quantity_mismatch' | 'missing' | 'uncertain'
 export type ProcurementRiskSeverity = 'low' | 'medium' | 'high'
 
+/** Host-provided identity and resource scope for a procurement tool or workbench request. */
 export interface ProcurementScope {
+  /** Inbox receipt for an authorized wake. Interactive workbench requests omit it. */
+  readonly eventReceiptId?: string
+  /** Host-authored message ID shared by retries of the same quote extraction turn. */
+  readonly inputMessageId?: string
+  agentKey?: string | null
   tenantId: string
   organizationId?: string | null
   workspaceId?: string | null
   projectId?: string | null
   userId?: string | null
   assistantId?: string | null
+  threadId?: string | null
   conversationId?: string | null
 }
 
@@ -104,6 +111,7 @@ export interface SupplierQuoteItemInput {
 }
 
 export interface SaveSupplierQuoteExtractionInput {
+  quoteSeriesId?: string
   caseId: string
   documentId?: string
   supplierName: string

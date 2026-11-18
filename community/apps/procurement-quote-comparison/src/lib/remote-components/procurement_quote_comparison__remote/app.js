@@ -3,6 +3,7 @@
   const VERSION = 1
   const h = React.createElement
   let instanceId = null
+  let lastInit = null
   let requestSequence = 0
   const pending = new Map()
 
@@ -106,7 +107,8 @@
       window.__procurementSetContext = (nextContext) => {
         setContext(nextContext)
         setData(nextContext.payload || null)
-        setTimeout(() => reload(null, nextContext), 0)
+        const caseId = nextContext.initialQuery?.selectionId || null
+        setTimeout(() => reload(caseId, nextContext), 0)
       }
       window.__procurementHandleHostEvent = () => {
         reload()
@@ -130,6 +132,11 @@
     React.useEffect(() => {
       busyRef.current = busy
     }, [busy])
+
+    const waitingForRun = hasQueuedFollowUp(data?.item)
+    React.useEffect(() => {
+      if (selectedCaseId && waitingForRun && !autoRefreshRef.current) startAutoRefresh(selectedCaseId, dataRef.current)
+    }, [selectedCaseId, waitingForRun])
 
     React.useEffect(() => {
       reportResize()
@@ -268,7 +275,7 @@
       }
     }
 
-    async function runAction(actionKey) {
+    async function runAction(actionKey, followUp) {
       if (!selectedCaseId) return
       const detail = data && data.item
       const configuredXpertId = xpertId || (detail && detail.case && detail.case.xpertId) || ''
@@ -277,11 +284,7 @@
         const response = await executeAction(
           actionKey,
           selectedCaseId,
-          {
-            caseId: selectedCaseId,
-            xpertId: configuredXpertId,
-            maxConcurrency: 2
-          },
+          followUp || { caseId: selectedCaseId, xpertId: configuredXpertId, maxConcurrency: 2 },
           { caseId: selectedCaseId }
         )
         const result = getResponsePayload(response)
@@ -626,6 +629,11 @@
           h(
             'section',
             { className: 'proc-panel proc-risk-panel' },
+            detail.seriesReviews?.length ? h(ProcurementFollowUp.SeriesReviews, {
+              reviews: detail.seriesReviews, caseId: item.id, closed: item.status === 'completed', busy, runAction
+            }) : null,
+            detail.decisionManagement ? h(ProcurementFollowUp.Decisions, { management: detail.decisionManagement,
+              closed: item.status === 'completed', busy, runAction }) : null,
             panelHeader('风险异常', `${risks.length} 项风险`),
             risks.length
               ? risks.map((risk) =>
@@ -635,7 +643,10 @@
                   statusPill(risk.severity),
                   h('strong', null, displayText(risk.title)),
                   h('p', null, displayText(risk.description)),
-                  risk.suggestion ? h('p', { className: 'xui-muted' }, displayText(risk.suggestion)) : null
+                  risk.suggestion ? h('p', { className: 'xui-muted' }, displayText(risk.suggestion)) : null,
+                  risk.followUp && !detail.decisionManagement?.requests.some(request =>
+                    request.riskId === risk.id && ['pending','accepted','renegotiate'].includes(request.state))
+                    ? h(ProcurementFollowUp.Controls, { risk, busy, closed: item.status === 'completed', submit: input => runAction('change_follow_up', input) }) : null
                 )
             )
               : h('div', { className: 'proc-empty-state compact' }, h('span', null, '暂无风险项'))
@@ -913,9 +924,13 @@
     return labels[status] || status || '-'
   }
 
+  function hasQueuedFollowUp(detail) {
+    return detail?.risks?.some((risk) => risk.followUp?.wakeStatus === 'queued') === true
+  }
+
   function shouldKeepAutoRefresh(detail) {
     if (!detail || typeof detail !== 'object') return false
-    if (hasActiveStatus(detail.documents)) return true
+    if (hasActiveStatus(detail.documents) || hasQueuedFollowUp(detail)) return true
 
     const caseStatus = detail.case && detail.case.status
     if (caseStatus === 'parsing' && !hasParsedWorkbenchOutputs(detail)) {
@@ -1183,10 +1198,15 @@
     if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) return
 
     if (message.type === 'init') {
+      if (event.source !== parent || typeof message.instanceId !== 'string') return
+      if (typeof message.locale === 'string') ProcurementFollowUp.i18n.setLocale(message.locale)
       instanceId = message.instanceId
       if (window.XpertRemoteUI && typeof window.XpertRemoteUI.applyTheme === 'function') {
         window.XpertRemoteUI.applyTheme(message.theme)
       }
+      const identity = JSON.stringify([instanceId, message.manifest, message.payload, message.initialQuery])
+      if (identity === lastInit) return
+      lastInit = identity
       if (window.__procurementSetContext) {
         window.__procurementSetContext({
           manifest: message.manifest,

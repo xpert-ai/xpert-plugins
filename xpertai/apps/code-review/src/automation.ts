@@ -1,3 +1,4 @@
+import { visibleReviewRuns } from './review-run-visibility.js'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, LessThanOrEqual, MoreThan, MoreThanOrEqual, Repository, type EntityManager } from 'typeorm'
@@ -72,16 +73,7 @@ export class Automation {
     return recovered
   }
   visibleQuery(s: Scope, repositories: ReviewRepository[]) {
-    return this.runs.createQueryBuilder('run')
-      .where('run."tenantId" = :tenantId AND run."organizationId" = :organizationId', s)
-      .andWhere('run."repositoryPolicyId" IN (:...repositoryIds)', { repositoryIds: repositories.map(p => p.id).concat('00000000-0000-0000-0000-000000000000') })
-      // A newly shared repository must not expose its historical private runs.
-      .andWhere(`(run."evidenceUserId" = :evidenceUserId OR (run."evidenceUserId" IS NULL AND run."organizationShared" = false AND run."repositoryPolicyId" IN (:...ownedIds)) OR (run."organizationShared" = true AND run."assistantId" = :sharedAssistantId AND :organizationEvidence = true) OR
-        (run.settings->>'visibility' = 'project' AND run.settings->'pipeline'->>'projectId' = :projectId))`, {
-        evidenceUserId: s.userId, organizationEvidence: false, sharedAssistantId: s.assistantId,
-        ownedIds: repositories.filter(p => p.userId === s.userId && p.assistantId === s.assistantId).map(p => p.id).concat('00000000-0000-0000-0000-000000000000'),
-        projectId: s.runtime?.projectId ?? null
-      })
+    return visibleReviewRuns(this.runs, {...s, projectId:s.runtime?.projectId}, repositories)
   }
   async overview(s: Scope, page = 1, status?: RunStatus) {
     const repositories = await this.repositories.list(s)
@@ -233,7 +225,9 @@ export class Automation {
     if (successor) await this.asAssistant(p, () => this.enqueueStep(p, successor!, delay))
   }
   private async finish(manager: EntityManager, run: ReviewRun, status: RunStatus, reason: string | null = null) {
-    await manager.update(ReviewRun, { id: run.id }, { status, reason, finishedAt: new Date() })
+    await manager.update(ReviewRun, { id: run.id }, { status, reason, finishedAt: new Date(),
+      ...((status === 'completed' || status === 'published') && run.evidenceUserId && !run.outputMessageId ? { outputPending: true } : {})
+    })
   }
   private async stop(manager: EntityManager, p: ReviewRepository, run: ReviewRun, status: RunStatus, reason: string, assertOwned: AssertAutomationOwnership) {
     await assertOwned()

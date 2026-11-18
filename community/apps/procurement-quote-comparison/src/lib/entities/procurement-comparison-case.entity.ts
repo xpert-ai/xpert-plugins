@@ -50,6 +50,9 @@ export class ProcurementComparisonCase {
   @Column({ type: 'text', nullable: true })
   description?: string
 
+  @Column({ type: 'boolean', default: false })
+  delayDecisionsEnabled!: boolean
+
   @Column({ type: 'varchar', default: 'draft' })
   status?: ProcurementComparisonStatus
 

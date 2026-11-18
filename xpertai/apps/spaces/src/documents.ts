@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { SpaceAccess } from './access.js'
 import { Space, SpaceItem } from './entities.js'
 import { denied, scoped, type SpaceActor } from './domain.js'
-import { contentCoverage, coveredByContent, type ContentPathCoverage } from './content-coverage.js'
+import { coveredByContent, type ContentPathCoverage } from './content-coverage.js'
 
 export const contentHash = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')
 export const safeName = (name: string) => name.replace(/[\\/\u0000-\u001f]/gu, '_').replace(/^\.+/u, '_').slice(0, 180) || 'Untitled'
@@ -30,20 +30,12 @@ export class SpaceDocuments {
     return { actor, projectId: space.projectId }
   }
   async resourceCoverage(actor: SpaceActor, space: Space) {
-    const catalog = this.runtime.require(ContentResourcesRuntimeCapability).catalog
-    const coverage: ContentPathCoverage[] = []
-    for (const deleted of [false, true]) {
-      let offset = 0
-      for (;;) {
-        const page = await catalog.list({ ...this.scope(actor, space), assistantId: actor.assistantId,
-          excludedProviderKeys: ['spaces'], deleted, offset, limit: 100 })
-        coverage.push(...contentCoverage(page.items))
-        if (!page.hasMore) break
-        offset += page.items.length
-        if (!page.items.length) throw new Error('spaces.invalid_catalog_page')
-      }
-    }
-    return coverage
+    return this.runtime.require(ContentResourcesRuntimeCapability).catalog.coverage({
+      ...this.scope(actor, space), assistantId: actor.assistantId, excludedProviderKeys: ['spaces'] })
+  }
+  refreshResources(actor: SpaceActor, space: Space) {
+    return this.runtime.require(ContentResourcesRuntimeCapability).catalog.refresh({
+      ...this.scope(actor, space), assistantId: actor.assistantId, excludedProviderKeys: ['spaces'] })
   }
   async path(actor: SpaceActor, item: SpaceItem) {
     const parent = item.parentId ? await this.access.items.findOneByOrFail({ ...scoped(actor), id: item.parentId }) : null

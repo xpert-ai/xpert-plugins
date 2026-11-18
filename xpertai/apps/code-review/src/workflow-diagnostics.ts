@@ -1,3 +1,5 @@
+import { compareShadow } from './review-event-shadow.js'
+import type { EntityManager as EventTransaction } from 'typeorm'
 // Invariants: reserve quota and stable execution handles before dispatch; require a bound finalizer for success.
 // GitHub run attempts and PR versions have separate records. No source code is executed during diagnosis.
 import { Inject, Injectable } from '@nestjs/common'
@@ -33,7 +35,7 @@ export class WorkflowDiagnostics {
     return this.context.resolve<AgentMiddlewareRuntimeServiceApi>(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
       .createScopedApi(reviewRuntimeScope(s)).capabilities!.require(AssistantTaskRuntimeCapability)
   }
-  async receive(p: ReviewRepository, input: z.infer<typeof workflowEventSchema>, deliveryId: string, digest: string, assertOwned: AssertAutomationOwnership = async () => undefined) {
+  async receive(p: ReviewRepository, input: z.infer<typeof workflowEventSchema>, deliveryId: string, digest: string, assertOwned: AssertAutomationOwnership = async () => undefined, tx?: EventTransaction) {
     let listening = true
     try { await this.events.assertListening(await this.repositories.execution(p)) }
     catch (error) {
@@ -41,7 +43,7 @@ export class WorkflowDiagnostics {
       listening = false
     }
     await assertOwned()
-    await this.records.manager.transaction(async manager => {
+    await (tx ?? this.records.manager).transaction(async manager => {
       const policy = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write', onLocked: 'nowait' } })
       const previous = await manager.findOneBy(ReviewDelivery, { deliveryId })
       if (previous) { if (previous.digest !== digest) throw new ReviewError('delivery_payload_mismatch'); if (previous.status === 'processed') return }
@@ -53,7 +55,8 @@ export class WorkflowDiagnostics {
       if (!run) run = await manager.save(WorkflowDiagnosis, manager.create(WorkflowDiagnosis, { ...ownership(p), organizationShared: policy.ownership === 'assistant', repositoryPolicyId: policy.id,
         operationKey, policyRevision: policy.executionRevision, settings: policy.settings, ref, status: reason ? 'skipped' : 'queued', reason,
         finishedAt: reason ? new Date() : null }))
-      if (previous) await manager.update(ReviewDelivery, { id: previous.id }, { runId: run.id, status: 'processed', payload: null, errorCode: null })
+      if (previous) await manager.update(ReviewDelivery, { id: previous.id }, { runId: run.id, status: 'processed', payload: null, errorCode: null,
+        shadow: compareShadow(previous.shadow, run.operationKey, run.reason) })
       else await manager.save(ReviewDelivery, manager.create(ReviewDelivery, { deliveryId, event: 'workflow_run', digest,
         tenantId: policy.tenantId, organizationId: policy.organizationId, runId: run.id, status: 'processed' }))
       await manager.update(ReviewRepository, { id: policy.id }, { lastEventAt: new Date() })

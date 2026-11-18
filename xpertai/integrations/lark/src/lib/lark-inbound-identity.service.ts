@@ -4,6 +4,8 @@ import {
 	getErrorMessage,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
+	USER_PERMISSION_SERVICE_TOKEN,
+	type UserPermissionService,
 	type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { BadRequestException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common'
@@ -51,12 +53,15 @@ export class LarkInboundIdentityService {
 		return this._integrationPermissionService
 	}
 
-	async readIntegration(integrationId: string): Promise<IIntegration<TIntegrationLarkOptions>> {
-		const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationLarkOptions>>(
+	findIntegration(integrationId: string) {
+		return this.integrationPermissionService.read<IIntegration<TIntegrationLarkOptions>>(
 			integrationId,
 			{ relations: ['tenant'] }
 		)
+	}
 
+	async readIntegration(integrationId: string): Promise<IIntegration<TIntegrationLarkOptions>> {
+		const integration = await this.findIntegration(integrationId)
 		if (!integration) {
 			throw new BadRequestException(`Integration ${integrationId} not found`)
 		}
@@ -111,6 +116,13 @@ export class LarkInboundIdentityService {
 		}
 
 		return this.createResolvedIdentity(integration, unionId, creatorUser, null)
+	}
+
+	/** Read the current mapping for a privileged card action, including after a queue delay or unlink. */
+	async readCurrentCardActor(integration: IIntegration<TIntegrationLarkOptions>, unionId: string): Promise<IUser | null> {
+		const users = this.pluginContext.resolve<UserPermissionService>(USER_PERMISSION_SERVICE_TOKEN)
+		const user = await users.read<IUser>({ tenantId: integration.tenantId, thirdPartyId: unionId })
+		return user ? this.createResolvedIdentity(integration, unionId, user, user).requestUser : null
 	}
 
 	async resolveUserForEvent(
