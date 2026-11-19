@@ -1,0 +1,30 @@
+{
+  "name": "supplier-delivery-followup",
+  "sourceRoot": "apps/supplier-delivery-followup/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "pnpm run build",
+        "cwd": "apps/supplier-delivery-followup"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run test",
+        "cwd": "apps/supplier-delivery-followup"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run typecheck",
+        "cwd": "apps/supplier-delivery-followup"
+      }
+    }
+  }
+}
