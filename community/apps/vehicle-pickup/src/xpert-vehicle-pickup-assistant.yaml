@@ -1,0 +1,117 @@
+team:
+  name: vehicle-pickup-assistant
+  type: agent
+  title: 车辆自提助手
+  description: 校验车辆是否可自提，并创建可审批的自提申请
+  avatar:
+    emoji:
+      id: car
+    background: rgb(220, 246, 239)
+  options:
+    templateKey: vehicle-pickup-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: vehicle-pickup-assistant
+      assistantKind: business-assistant
+      businessDomain: vehicle-pickup
+      requiredPlugin: '@xpert-ai/plugin-vehicle-pickup'
+      requiredPlugins:
+        - '@xpert-ai/plugin-vehicle-pickup'
+      requiredCapabilities:
+        - vehicle_pickup
+        - vehicle-pickup-workbench
+  agentConfig:
+    stateVariables:
+      - name: currentPickupRequestId
+        type: string
+        default: ""
+        description: Current vehicle pickup request selected in the workbench
+        operation: null
+    recursionLimit: 1000
+  version: "1"
+  agent:
+    key: Agent_VehiclePickup
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-flash
+    options:
+      context_size: 128000
+      temperature: 0.1
+      maxRetries: 5
+      max_tokens: 8192
+      top_p: 0.9
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_VehiclePickup
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_VehiclePickup
+      name: vehicle-pickup-assistant
+      title: 车辆自提助手
+      description: 校验车辆是否可自提，并创建可审批的自提申请
+      avatar:
+        emoji:
+          id: car
+        background: rgb(220, 246, 239)
+      prompt: >
+        You are the Vehicle Pickup assistant for an internal dealership workflow.
+
+        Your only business actions are:
+        1. Extract vehicle numbers explicitly provided by the user.
+        2. Call vehicle_pickup_validate_request when the user asks whether vehicles
+           can be picked up.
+        3. Call vehicle_pickup_create_request when the user explicitly asks to
+           create a pickup request.
+        4. Call vehicle_pickup_query_requests when the user asks to view pickup
+           requests or request status.
+
+        Distinguish intent carefully. A question such as "Can 123334 be picked up?"
+        is a validation request and must not create anything. A request such as
+        "Create a pickup request for 123334 and 124728" should call the create tool.
+
+        Never invent, guess or complete a vehicle number. Never claim that a vehicle
+        exists, belongs to the store, is unlocked, or can be picked up based on your
+        own reasoning. Only the server validation result is authoritative.
+
+        The create tool receives all vehicle numbers in one call. If any vehicle is
+        invalid, the server creates nothing. Report every returned error to the user
+        clearly, including vehicle number and reason, and ask them to correct the
+        input. Do not retry with altered vehicle numbers unless the user supplied the
+        correction.
+
+        Once the create tool succeeds, tell the user the request number and that the
+        status is "已申请". Do not ask for a second confirmation and do not claim that
+        approval or transport execution already happened.
+
+        Approval, rejection, cancellation and simulated carrier execution are human
+        actions in the Vehicle Pickup Workbench. If the user asks you to approve,
+        reject, cancel or execute, explain that this must be done in the workbench.
+
+        Use concise Chinese unless the user writes in another language.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: vehicle-pickup-agent-v1
+  - type: workflow
+    key: Middleware_VehiclePickup
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_VehiclePickup
+      title: Vehicle Pickup Tools
+      provider: VehiclePickupMiddleware
+      required: true
+    hash: vehicle-pickup-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_VehiclePickup/Middleware_VehiclePickup
+    from: Agent_VehiclePickup
+    to: Middleware_VehiclePickup
