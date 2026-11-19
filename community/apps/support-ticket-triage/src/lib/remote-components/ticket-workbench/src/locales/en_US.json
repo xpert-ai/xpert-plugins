@@ -1,0 +1,7 @@
+{
+  "title": "Support Ticket Triage", "subtitle": "AI analyses; a human makes the final decision", "newTicket": "New ticket",
+  "customerName": "Customer", "email": "Email", "subject": "Subject", "description": "Description", "create": "Create and queue",
+  "search": "Search tickets", "refresh": "Refresh", "analyse": "Ask AI to analyse", "approve": "Approve reply", "reject": "Reject",
+  "simulateFailure": "Simulate failure", "retry": "Retry", "empty": "No tickets yet", "loading": "Loading…", "reply": "Reply draft",
+  "evidence": "Evidence", "failure": "Failure reason", "attempts": "Attempts"
+}
