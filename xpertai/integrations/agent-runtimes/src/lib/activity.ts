@@ -49,6 +49,8 @@ const codex = z
         type: z.string(),
         text: z.string().optional(),
         command: z.string().optional(),
+        server: z.string().optional(),
+        tool: z.string().optional(),
         aggregated_output: z.string().optional(),
         exit_code: z.number().int().nullable().optional(),
         status: z.string().optional(),
@@ -75,6 +77,17 @@ export function jsonlActivities(
       const id = `codex:${item.id}`
       if (item.type === 'agent_message' && item.text)
         items.push({ id, content: { kind: 'message', text: limit(item.text)! } })
+      // MCP arguments/results may contain login credentials or session state.
+      // Project only public call identity and lifecycle, independent of the tool's domain.
+      if (item.type === 'mcp_tool_call' && item.server && item.tool)
+        items.push({
+          id,
+          content: {
+            kind: 'tool',
+            name: limit(`${item.server}/${item.tool}`)!,
+            status: item.status === 'completed' ? 'succeeded' : item.status === 'failed' ? 'failed' : 'running'
+          }
+        })
       if (item.type === 'command_execution' && item.command)
         items.push({
           id,
