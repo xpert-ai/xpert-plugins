@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" width="1000" height="620">
+  <rect width="1000" height="620" fill="#f8fafc" rx="8"/>
+  <!-- Header -->
+  <rect x="20" y="20" width="960" height="50" fill="#ffffff" stroke="#e2e8f0" rx="6"/>
+  <text x="40" y="52" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">💬 智能客诉工单助手 (ChatKit 对话视图)</text>
+
+  <!-- Message 1: User -->
+  <rect x="380" y="90" width="600" height="65" fill="#2563eb" rx="8"/>
+  <text x="400" y="115" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" fill="#ffffff">帮我分析这条客户投诉并生成回复草稿：</text>
+  <text x="400" y="137" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" fill="#ffffff">“刚充值了 199 元会员但是权益一直没到账，客服也没人理，赶紧给我退款！”</text>
+
+  <!-- Message 2: Agent (Tool Call Box) -->
+  <rect x="20" y="175" width="700" height="360" fill="#ffffff" stroke="#e2e8f0" rx="8"/>
+  
+  <!-- Tool Execution Badge -->
+  <rect x="40" y="195" width="280" height="26" fill="#f1f5f9" stroke="#cbd5e1" rx="4"/>
+  <text x="50" y="212" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="bold" fill="#475569">⚙️ Tool Call: ticket_analyze_and_draft</text>
+  <text x="250" y="212" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" fill="#16a34a">✓ Success</text>
+
+  <!-- Structured Insights -->
+  <text x="40" y="245" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">已完成智能客诉分析并提取核心意图：</text>
+  
+  <rect x="40" y="255" width="660" height="60" fill="#f8fafc" stroke="#e2e8f0" rx="6"/>
+  <text x="55" y="278" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">• 业务分类：【账单纠纷】(billing)   • 紧急程度：【P1 级 (涉及资损)】</text>
+  <text x="55" y="298" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#334155">• 用户情绪：【😡 负面焦急】   • 诉求核心：充值199元权益未到账，要求退款</text>
+
+  <!-- Reply Suggestion -->
+  <text x="40" y="335" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">拟定的安抚与解决方案回复建议：</text>
+  <rect x="40" y="345" width="660" height="85" fill="#eff6ff" stroke="#bfdbfe" rx="6"/>
+  <text x="55" y="368" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#1e40af">“尊敬的用户您好，非常抱歉给您带来不便！针对您充值 199 元会员权益延迟的问题，</text>
+  <text x="55" y="388" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#1e40af">专员已为您加急核验支付流水。系统将在核实后 1 小时内补发权益或根据您的意愿</text>
+  <text x="55" y="408" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#1e40af">原路退回款项。请您放心，我们定竭诚为您跟进保障权益！”</text>
+
+  <!-- Prompt to Workbench -->
+  <rect x="40" y="445" width="660" height="65" fill="#f0fdf4" stroke="#bbf7d0" rx="6"/>
+  <text x="55" y="470" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#166534">💡 人工审核与工作台协同提示：</text>
+  <text x="55" y="492" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" fill="#166534">已在右侧【智能工单工作台】生成待审核工单草稿。您可以直接微调回复内容，或点击‘确认归档’进行持久化保存。</text>
+
+  <!-- Input Bar -->
+  <rect x="20" y="555" width="960" height="45" fill="#ffffff" stroke="#cbd5e1" rx="6"/>
+  <text x="35" y="582" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" fill="#94a3b8">向助手提问，或要求调整回复措辞...</text>
+</svg>

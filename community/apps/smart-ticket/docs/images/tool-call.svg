@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" width="1000" height="620">
+  <rect width="1000" height="620" fill="#0f172a" rx="8"/>
+  <!-- Top Bar -->
+  <rect x="20" y="20" width="960" height="50" fill="#1e293b" stroke="#334155" rx="6"/>
+  <text x="40" y="52" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="bold" fill="#f8fafc">🔍 智能体工具调用详情与报文审查 (Tool Call Execution Inspector)</text>
+
+  <!-- Left: Tool Invocation Meta & Input -->
+  <rect x="20" y="90" width="460" height="510" fill="#1e293b" stroke="#334155" rx="6"/>
+  <text x="40" y="125" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="#38bdf8">📥 工具调用输入 (Tool Arguments)</text>
+  
+  <rect x="40" y="140" width="420" height="70" fill="#0f172a" stroke="#334155" rx="4"/>
+  <text x="55" y="165" font-family="monospace" font-size="12" fill="#94a3b8">Tool Name: <tspan fill="#38bdf8">ticket_analyze_and_draft</tspan></text>
+  <text x="55" y="188" font-family="monospace" font-size="12" fill="#94a3b8">Middleware: <tspan fill="#34d399">SmartTicketMiddleware</tspan></text>
+
+  <text x="40" y="240" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#f8fafc">入参 JSON 报文:</text>
+  <rect x="40" y="250" width="420" height="320" fill="#0f172a" stroke="#334155" rx="4"/>
+  <text x="55" y="280" font-family="monospace" font-size="12" fill="#f8fafc">{</text>
+  <text x="75" y="305" font-family="monospace" font-size="12" fill="#e2e8f0">  <tspan fill="#f43f5e">"rawContent"</tspan>: <tspan fill="#a7f3d0">"我们在支付购买企业版时，</tspan></text>
+  <text x="75" y="325" font-family="monospace" font-size="12" fill="#a7f3d0">    微信支付扣款了 999 元，但是系统</tspan></text>
+  <text x="75" y="345" font-family="monospace" font-size="12" fill="#a7f3d0">    提示订单失败，请尽快退款或补发会员！"</tspan>,</text>
+  <text x="75" y="375" font-family="monospace" font-size="12" fill="#e2e8f0">  <tspan fill="#f43f5e">"simulateFailure"</tspan>: <tspan fill="#60a5fa">false</tspan></text>
+  <text x="55" y="405" font-family="monospace" font-size="12" fill="#f8fafc">}</text>
+
+  <!-- Right: Tool Execution Output Result -->
+  <rect x="500" y="90" width="480" height="510" fill="#1e293b" stroke="#334155" rx="6"/>
+  <text x="520" y="125" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="#34d399">📤 工具执行输出结果 (Tool Execution Result)</text>
+  
+  <rect x="520" y="140" width="440" height="430" fill="#0f172a" stroke="#334155" rx="4"/>
+  <text x="535" y="170" font-family="monospace" font-size="12" fill="#f8fafc">{</text>
+  <text x="555" y="195" font-family="monospace" font-size="12" fill="#e2e8f0">  <tspan fill="#f43f5e">"success"</tspan>: <tspan fill="#34d399">true</tspan>,</text>
+  <text x="555" y="220" font-family="monospace" font-size="12" fill="#e2e8f0">  <tspan fill="#f43f5e">"ticket"</tspan>: {</text>
+  <text x="575" y="245" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"id"</tspan>: <tspan fill="#a7f3d0">"ticket_c4a89e1b2f0a"</tspan>,</text>
+  <text x="575" y="270" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"title"</tspan>: <tspan fill="#a7f3d0">"【账单纠纷】我们在支付购买企业版时..."</tspan>,</text>
+  <text x="575" y="295" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"category"</tspan>: <tspan fill="#60a5fa">"billing"</tspan>,</text>
+  <text x="575" y="320" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"priority"</tspan>: <tspan fill="#f59e0b">"P1"</tspan>,</text>
+  <text x="575" y="345" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"sentiment"</tspan>: <tspan fill="#f43f5e">"negative_urgent"</tspan>,</text>
+  <text x="575" y="370" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"status"</tspan>: <tspan fill="#a7f3d0">"pending_review"</tspan>,</text>
+  <text x="575" y="395" font-family="monospace" font-size="12" fill="#e2e8f0">    <tspan fill="#f43f5e">"suggestedReply"</tspan>: <tspan fill="#a7f3d0">"尊敬的用户您好，非常抱歉给您带来财务方面的不便..."</tspan></text>
+  <text x="555" y="420" font-family="monospace" font-size="12" fill="#e2e8f0">  },</text>
+  <text x="555" y="445" font-family="monospace" font-size="12" fill="#e2e8f0">  <tspan fill="#f43f5e">"message"</tspan>: <tspan fill="#a7f3d0">"客诉分析完成并已生成草稿工单。请引导用户在工单工作台核对并确认归档。"</tspan></text>
+  <text x="535" y="470" font-family="monospace" font-size="12" fill="#f8fafc">}</text>
+  
+  <rect x="520" y="580" width="440" height="20" fill="none"/>
+</svg>
