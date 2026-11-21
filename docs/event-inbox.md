@@ -103,6 +103,6 @@ export const eventTypes = [
 
 ## 验证接入
 
-1. 使用所属工作区锁文件构建三个插件，运行 dist-first 生命周期检查。采购比价锁定 `3.36.0-workbench-decision.1`，通过 `platform.view.workbench-decision` 提交工作台决定。Code Review 和飞书锁定 `3.36.0-outbox.5`。部署主机需要支持本版 SDK、Contracts、事件模块和通知模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
+1. 使用所属工作区锁文件构建三个插件，运行 dist-first 生命周期检查。采购比价锁定 `3.36.0-workbench-decision.1`，通过 `platform.view.workbench-decision` 提交工作台决定。Code Review 和飞书锁定 `3.36.0-decisions.8`。部署主机需要支持本版 SDK、Contracts、事件模块和通知模块。[快照来源与复建](../packages/event-inbox-sdk-snapshot/README.md) · [生命周期检查](../plugin-dev-harness/README.md)
 2. 在独立 PostgreSQL 验收库验证正常输入、同一事实重投、切回或多实例恢复、越权拒绝。核对回执 ID 和实际领域写入数。Code Review 可先启用仓库规则中的影子比对，核实旧路径与新路径的决定，再按仓库切流。[跨插件场景](../scripts/acceptance/event-inbox.test.ts)
 3. 在工作台和两个个人入口选择同一回执，核对类型、分类、结果和会话。在另一个无权账户、无会话引用和历史描述缺失的情况下，分别验证数据权限、动作隐藏和“未分类”回退。

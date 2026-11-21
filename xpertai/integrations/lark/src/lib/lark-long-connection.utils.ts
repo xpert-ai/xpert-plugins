@@ -21,8 +21,6 @@ const UNRECOVERABLE_PATTERNS = [
 	'not available',
 	'not support',
 	'deleted',
-	'callback/ws/endpoint',
-	'endpoint',
 	'code: 99991663',
 	'code: 99991661',
 	'code: 20001',

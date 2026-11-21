@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const snapshots = new Map([
-  ['9a163315bb7c314783a0b2a758ad6365a7b210bc415cbb5c342d20d0c41cc08e', '3.36.0-outbox.5'],
+  ['80ba53bdd8d1ba9d98d208ebcf7aaafe5e9dbdf98a447f2ddddc5c281722eff3', '3.36.0-decisions.8'],
   ['ff5ddd346ee76c1712dc5eb48a1fc6d3ccbe1b8980b2d6c7aeca11a29dc37be0', '3.36.0-workbench-decision.1']
 ])
 const [checkout, destination] = process.argv.slice(2)
