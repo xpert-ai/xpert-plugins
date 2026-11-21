@@ -5,10 +5,11 @@ import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
+import { text } from 'node:stream/consumers'
 const require = createRequire(`${process.argv[2]}/package.json`)
 const { chromium } = require('playwright-core')
 const server = spawn(process.execPath, [fileURLToPath(new URL('./workbench-host.cjs', import.meta.url))], {
-  env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe']
+  env: { ...process.env, PORT: '0', DASHBOARD_FIXTURE_HTML: 'true' }, stdio: ['ignore', 'pipe', 'pipe']
 })
 let browser, page
 try {
@@ -301,6 +302,26 @@ try {
   await view.getByRole('combobox', { name: '版本历史', exact: true }).filter({ hasText: '版本 3' }).waitFor()
   assert.deepEqual((await state()).links, sharedState.links)
   if (process.argv[3]) await page.screenshot({ path: process.argv[3], fullPage: true })
+  const report = {
+    ...example, id: '44444444-4444-4444-8444-444444444444', title: 'Download fixture', charts: [], tables: [],
+    presentation: {
+      type: 'html',
+      html: `<html><body><a id="export" download="sales.csv">Download sales</a>
+        <script>document.getElementById('export').href = URL.createObjectURL(new Blob(['region,total\\neast,120'], {type:'text/csv'}))</script>
+        </body></html>`
+    }
+  }
+  await view.getByRole('button', { name: '导入定义', exact: true }).click()
+  await view.getByLabel('看板定义', { exact: true }).fill(JSON.stringify(report))
+  await view.getByRole('button', { name: '保存', exact: true }).click()
+  const reportFrame = view.frameLocator('iframe[title="Download fixture"]')
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 10000 }),
+    reportFrame.getByRole('link', { name: 'Download sales' }).click()
+  ])
+  assert.equal(await view.locator('iframe[title="Download fixture"]').getAttribute('sandbox'), 'allow-scripts allow-downloads')
+  assert.equal(download.suggestedFilename(), 'sales.csv')
+  assert.equal(await text(await download.createReadStream()), 'region,total\neast,120')
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'search and keyboard selection', 'compact responsive header', 'loading without layout shift', 'reopen current version', 'team share enable/copy/pin/reopen/revoke', 'resource card selection', 'historical version selection', 'idempotent init preserves local editing', 'navigation dismisses old share/publication dialogs', 'stale default listing cannot replace card selection'] }))
 } catch (error) {
