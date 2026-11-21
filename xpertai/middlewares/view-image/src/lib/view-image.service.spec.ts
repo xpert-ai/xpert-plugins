@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/contracts', () => ({
+  ModelFeature: { VISION: 'vision' },
   getToolCallIdFromConfig: jest.fn((config) => config?.configurable?.tool_call_id)
 }))
 
@@ -466,6 +467,10 @@ describe('ViewImageService', () => {
     expect(backend.downloadFiles).toHaveBeenCalledWith(['chart.png'])
     expect(prepared.request.messages).toHaveLength(3)
     expect(prepared.request.messages[2]).toBeInstanceOf(HumanMessage)
+    expect(prepared.request.requirements?.features).toEqual(['vision'])
+    expect(prepared.request.messages[2].content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'image_url', image_url: expect.objectContaining({ detail: 'high' }) })
+    ]))
   })
 
   it('rejects unsupported image types', async () => {
@@ -610,5 +615,6 @@ describe('ViewImageService', () => {
 
     expect(prepared.request.messages).toHaveLength(3)
     expect(prepared.request.messages[2]).toBeInstanceOf(HumanMessage)
+    expect(prepared.request.requirements?.features).toEqual(['vision'])
   })
 })
