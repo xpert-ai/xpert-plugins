@@ -12,9 +12,9 @@
 ## 用演示数据制作
 
 1. 读取主技能及 `../README.md`。确认当前 ChatKit 项目已选定，用户明确要求演示数据。
-2. 读取 `demo.csv`，以 SandboxFile 工具写入当前项目的 `live-dashboard-examples/regional-sales/demo-v1.csv`。如果已存在，先读内容；不同则使用新文件名，不覆盖。`demo.json` 是同一数据的替代输入，使用时 reader 应为 `{"format":"json","rowsPath":[]}`，列 path 保持相同。
-3. 按共享制作流程注册实际文件并取得当前 source / discovery / bindingPayload；不要把文件路径放进 Binding payload。
-4. 基于 `query.json`，使用发现结果的 datasetId、revision 和 contractHash 构造查询。预览全部、至少两个筛选值，逐项比对 `expected.json`。输出字段 id 必须与本样例列 key 一致；logicalType/nullable/unit 必须与发现结果一致。
+2. 调用 `analytics_definition_register`，只传 `{"exampleId":"regional-sales"}`。在当前项目使用配方自带的 CSV 和字段定义。
+3. 若用户要求按区域汇总销售额，将登记回执中的 `preparedQuery.previewRequest` 原样传给 `dashboard_preview_binding`。配方按 `region` 分组，对 `amount` 求和，金额单位为 CNY。按其他口径制作时从回执中的 `binding` 开始。
+4. 若需要可筛选的区域明细，基于 `query.json`，使用发现结果的 datasetId、revision 和 contractHash 构造查询。预览全部、至少两个筛选值，逐项比对 `expected.json`。输出字段 id 必须与本样例列 key 一致；logicalType/nullable/unit 必须与发现结果一致。
 5. 读取 `dashboard-create.json`，将 previewIds 替换为本次预览凭证，图表/table 的 datasetId 替换为预览返回值，再调用 dashboard_create。
 6. 检查成功保存回执，报告看板及草稿修订；打开看板核对筛选、刷新与项目归属。保存失败不得宣布完成，发布仍需人工确认。
 

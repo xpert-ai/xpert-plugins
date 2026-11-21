@@ -12,8 +12,8 @@
 ## 用演示数据制作
 
 1. 读取主技能及 `../README.md`。确认当前 ChatKit 项目已选定，用户明确要求演示数据。
-2. 读取 `demo.csv`，以 SandboxFile 工具写入当前项目的 `live-dashboard-examples/production-quality/demo-v1.csv`。如果已存在，先读内容；不同则使用新文件名，不覆盖。`demo.json` 是同一数据的替代输入，使用时 reader 应为 `{"format":"json","rowsPath":[]}`，列 path 保持相同。
-3. 按共享制作流程注册实际文件并取得当前 source / discovery / bindingPayload；不要把文件路径放进 Binding payload。
+2. 调用 `analytics_definition_register`，只传 `{"exampleId":"production-quality"}`。在当前项目使用配方自带的 CSV 和字段定义。
+3. 使用返回的 source 和 versionId 进行发现与预览。
 4. 基于 `query.json`，使用发现结果的 datasetId、revision 和 contractHash 构造查询。预览全部、至少两个筛选值，逐项比对 `expected.json`。输出字段 id 必须与本样例列 key 一致；logicalType/nullable/unit 必须与发现结果一致。
 5. 读取 `dashboard.html`，仅使用本次唯一的完整 Dataset Binding。保留注释中的数据与生命周期约束。调用 dashboard_libraries，写入当前项目文件，再使用本次 previewIds、query.json 的 controls 和 libraries:["echarts"] 调用 dashboard_create_html。
 6. 检查成功保存回执，报告看板及草稿修订，结束制作；不要为了确认保存而再调用 dashboard_open/update。用户通过回执卡片打开看板核对筛选、刷新与项目归属。保存失败不得宣布完成，发布仍需人工确认。

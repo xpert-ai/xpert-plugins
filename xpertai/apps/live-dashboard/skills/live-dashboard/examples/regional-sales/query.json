@@ -41,5 +41,53 @@
       "type": "string",
       "defaultValue": null
     }
-  ]
+  ],
+  "summary": {
+    "key": "sales-by-region",
+    "description": "Sum sales amount by region (CNY), all regions.",
+    "payloadFields": {
+      "select": [
+        "region",
+        "total_sales"
+      ],
+      "groupBy": [
+        "region"
+      ],
+      "aggregates": [
+        {
+          "key": "total_sales",
+          "operation": "sum",
+          "column": "amount"
+        }
+      ],
+      "orderBy": [
+        {
+          "column": "total_sales",
+          "direction": "desc"
+        }
+      ]
+    },
+    "grain": [
+      "region"
+    ],
+    "fields": [
+      {
+        "id": "region",
+        "sourceField": "region",
+        "label": "区域",
+        "logicalType": "string",
+        "role": "dimension",
+        "nullable": false
+      },
+      {
+        "id": "amount",
+        "sourceField": "total_sales",
+        "label": "销售额合计",
+        "logicalType": "decimal",
+        "role": "measure",
+        "nullable": true,
+        "unit": "CNY"
+      }
+    ]
+  }
 }

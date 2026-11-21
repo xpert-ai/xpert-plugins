@@ -22,7 +22,7 @@ test('assistant template contributes editable shortcuts without middleware name 
   const dsl = JSON.parse(dashboardAssistantTemplate.dslContent)
   const agent = dsl.nodes.find(node => node.type === 'agent')
   assert.equal(dsl.team.agent.key, agent.key)
-  assert.deepEqual(dsl.nodes.filter(node => node.type === 'workflow').map(node => node.entity.provider).sort(), ['LiveDashboard', 'SandboxFile', 'skillsMiddleware'])
+  assert.deepEqual(dsl.nodes.filter(node => node.type === 'workflow').map(node => node.entity.provider).sort(), ['LiveDashboard', 'ProjectMiddleware', 'SandboxFile', 'skillsMiddleware'])
   for (const node of dsl.nodes.filter(node => node.type === 'workflow')) {
     assert.equal(node.entity.required, true)
     assert.ok(dsl.connections.some(connection => connection.from === agent.key && connection.to === node.key))
