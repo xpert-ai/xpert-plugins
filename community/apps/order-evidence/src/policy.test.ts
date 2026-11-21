@@ -13,6 +13,7 @@ import { STEPS, refs } from "./definition.js";
 import { fixture, documentsFor } from "./fixture.js";
 import { validateStageEvidence, type PriorEvidence } from "./policy.js";
 import { OrderService, digest, owner } from "./service.js";
+import { OrderRulesService } from "./improvement/rules.service.js";
 import { configSchema, resultSchema, finalizeSchema } from "./model.js";
 const c: ProjectPipelineOperationContext = {
   actor: {
@@ -53,6 +54,10 @@ const service = () =>
     new DataSource({ type: "postgres" }),
     new DefaultRuntimeCapabilityRegistry(),
     configSchema.parse({}),
+    new OrderRulesService(
+      new DataSource({ type: "postgres" }),
+      new DefaultRuntimeCapabilityRegistry(),
+    ),
   );
 describe("order decision boundaries", () => {
   it("requires a native human decision at every stage before advancement", () => {

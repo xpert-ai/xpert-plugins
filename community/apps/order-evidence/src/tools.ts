@@ -43,7 +43,7 @@ export class OrderTools {
         scenario: demoScenarioSchema
           .optional()
           .describe(
-            "Synthetic demo pack: standard runs the complete evidence flow; requirements_missing demonstrates the missing-evidence Router. Omit for standard.",
+            "Synthetic demo pack: standard runs the full flow; requirements_missing demonstrates the Router; next_order_adoption starts an independent next order, requiring and pinning a human-published aftercare method. Omit for standard.",
           ),
       })
       .strict(),

@@ -1,6 +1,7 @@
 import { z } from "zod/v3";
 import { routingFactsSchema, type DemoScenario } from "./routing.js";
 import type { Step } from "./definition.js";
+import { factsSchema } from "./improvement/rule.js";
 export const documentSchema = z
   .object({
     id: z.string(),
@@ -33,6 +34,8 @@ export const snapshotSchema = z
     dataLabel: z.string(),
     improvementSuggested: z.boolean(),
     routingFacts: routingFactsSchema.optional(),
+    aftercareFacts: factsSchema.optional(),
+    adoptPublishedMethod: z.boolean().optional(),
     documents: z.array(documentSchema),
   })
   .strict();
@@ -206,6 +209,32 @@ export function documentsFor(snapshot: Snapshot, step: Step) {
 
 export function fixtureFor(scenario: DemoScenario): Snapshot {
   const snapshot = snapshotSchema.parse(structuredClone(fixture));
+  if (scenario === "next_order_adoption") {
+    const next = snapshotSchema.parse(
+      JSON.parse(
+        JSON.stringify(snapshot)
+          .replaceAll("1201", "1202")
+          .replaceAll("SN-DEMO", "SN-NEXT"),
+      ),
+    );
+    next.version = "next-order-demo-v1";
+    next.adoptPublishedMethod = true;
+    next.aftercareFacts = {
+      productFamily: "M200",
+      availableEvidence: ["service_report"],
+    };
+    next.documents = next.documents.filter(
+      (document) => document.kind !== "inspection",
+    );
+    const service = next.documents.find(
+      (document) => document.kind === "service",
+    )!;
+    service.facts = [
+      "新订单设备报修称疑似进水；只有报修描述，运行工况、拆检、复现实验均未取得。",
+      "本条为独立后续订单的合成输入。不能从上一单推断本单根因。",
+    ];
+    return next;
+  }
   if (scenario === "requirements_missing") {
     snapshot.version += "-requirements-missing";
     snapshot.documents = snapshot.documents.filter(

@@ -18,7 +18,11 @@ import {
   refs,
   operationRef,
 } from "./definition.js";
-export function configuration(assistants: Record<string, string> = {}) {
+export function configuration(
+  assistants: Record<string, string> = {},
+  methodAdoption = false,
+) {
+  const version = methodAdoption ? "1.2.0" : "1.1.0";
   const output = (nodeKey: string, port = "result") => ({
     from: "node_output",
     nodeKey,
@@ -79,7 +83,21 @@ export function configuration(assistants: Record<string, string> = {}) {
           },
           { from: `check-${s.key}`, to: `wait-${s.key}`, outcome: "hold" },
         ]
-      : [{ from: s.key, to: `approve-${s.key}` }]),
+      : methodAdoption && s.key === "aftercare"
+        ? [
+            { from: s.key, to: "check-adopted-method" },
+            {
+              from: "check-adopted-method",
+              to: "approve-aftercare",
+              outcome: "proceed",
+            },
+            {
+              from: "check-adopted-method",
+              to: "wait-aftercare-evidence",
+              outcome: "hold",
+            },
+          ]
+        : [{ from: s.key, to: `approve-${s.key}` }]),
     {
       from: `approve-${s.key}`,
       to: `record-${s.key}-approved`,
@@ -97,8 +115,10 @@ export function configuration(assistants: Record<string, string> = {}) {
     schemaVersion: 1,
     template: {
       key: `${ARTIFACT_NAMESPACE}.order_lifecycle`,
-      version: "1.1.0",
-      title: "一张订单 · 人与 Assistants 协作",
+      version,
+      title: methodAdoption
+        ? "下一单 · 采用已发布方法并验证补证路线"
+        : "一张订单 · 人与 Assistants 协作",
       executionAuthority: "platform",
       projectTypes: [PROJECT_TYPE],
       subjectResolverRef: refs.subject,
@@ -135,6 +155,28 @@ export function configuration(assistants: Record<string, string> = {}) {
       })),
       nodes: [
         ...nodes,
+        ...(methodAdoption
+          ? [
+              {
+                key: "check-adopted-method",
+                label: "已发布方法 · 售后证据齐备？",
+                kind: "router",
+                stageKey: "aftercare",
+                policyRef: refs.methodRoute,
+                outcomes: ["proceed", "hold"],
+                unmatched: "block",
+                inputBindings: { analysis: output("aftercare") },
+              },
+              {
+                key: "wait-aftercare-evidence",
+                label: "下一单已采用 · 等待工况 / 拆检 / 实验补证",
+                kind: "terminal",
+                stageKey: "aftercare",
+                outcome: "needs_aftercare_evidence",
+                disposition: "await_new_subject",
+              },
+            ]
+          : []),
         ...routingStages.flatMap((stage) => [
           {
             key: `check-${stage}`,
@@ -207,7 +249,7 @@ export function configuration(assistants: Record<string, string> = {}) {
       },
     },
     binding: {
-      templateRef: `${ARTIFACT_NAMESPACE}.order_lifecycle@1.1.0`,
+      templateRef: `${ARTIFACT_NAMESPACE}.order_lifecycle@${version}`,
       roleBindings: {
         human: { kind: "human", selectionKey: "configured-approvers" },
       },
@@ -270,12 +312,13 @@ export const descriptors: ProjectPipelineExtensionDescriptor[] = [
     outcomes: ["proceed", "hold"],
   })),
   { kind: "policy", ref: refs.route, outcomes: ["change", "monitor"] },
+  { kind: "policy", ref: refs.methodRoute, outcomes: ["proceed", "hold"] },
   { kind: "policy", ref: refs.approval, outcomes: ["approved", "rejected"] },
 ];
 @Injectable()
 @ProjectPipelineContributor(ARTIFACT_NAMESPACE)
 export class OrderContribution {
   readonly key = ARTIFACT_NAMESPACE;
-  readonly configurations = [configuration()];
+  readonly configurations = [configuration(), configuration({}, true)];
   readonly descriptors = descriptors;
 }

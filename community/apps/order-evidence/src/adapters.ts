@@ -195,7 +195,18 @@ export class QualityRouter {
     return this.service.businessRoute(c, "quality");
   }
 }
+@Injectable()
+@Adapter("policy", refs.methodRoute)
+export class AdoptedMethodRouter {
+  readonly kind = "policy";
+  readonly ref = refs.methodRoute;
+  constructor(private readonly service: OrderService) {}
+  evaluate(context: ProjectPipelineOperationContext) {
+    return this.service.methodRoute(context);
+  }
+}
 export const ADAPTERS = [
+  AdoptedMethodRouter,
   RequirementsRouter,
   SupplyRouter,
   QualityRouter,

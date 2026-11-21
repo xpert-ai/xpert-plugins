@@ -14,6 +14,7 @@ import {
 } from "./routing.js";
 import { configuration } from "./configuration.js";
 import { OrderService } from "./service.js";
+import { OrderRulesService } from "./improvement/rules.service.js";
 import { configSchema } from "./model.js";
 
 describe("evidence-based business routes", () => {
@@ -123,6 +124,10 @@ describe("evidence-based business routes", () => {
       new DataSource({ type: "postgres" }),
       new DefaultRuntimeCapabilityRegistry(),
       configSchema.parse({}),
+      new OrderRulesService(
+        new DataSource({ type: "postgres" }),
+        new DefaultRuntimeCapabilityRegistry(),
+      ),
     );
     const context: ProjectPipelineOperationContext = {
       actor: {

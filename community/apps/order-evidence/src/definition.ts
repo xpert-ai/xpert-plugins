@@ -48,6 +48,14 @@ export const ROLES = [
   { key: "aftercare", title: "售后 Assistant", emoji: "🔧", color: "#F9E7E1" },
 ] as const;
 export type Role = (typeof ROLES)[number]["key"];
+export const CAPABILITY_ROLE = {
+  key: "capability",
+  title: "能力维护 Assistant",
+  emoji: "🧩",
+  color: "#DEF2ED",
+} as const;
+export const ALL_ROLES = [...ROLES, CAPABILITY_ROLE] as const;
+export type AssistantRole = Role | "capability";
 export const STEPS = [
   {
     key: "contract",
@@ -105,9 +113,10 @@ export const STEPS = [
   },
 ] as const;
 export type Step = (typeof STEPS)[number]["key"];
-export const templateKey = (role: Role) => `order-evidence-${role}`;
-export const agentKey = (role: Role) => `Agent_${role}`;
-export const middleware = (role: Role) => `${ARTIFACT_NAMESPACE}_${role}`;
+export const templateKey = (role: AssistantRole) => `order-evidence-${role}`;
+export const agentKey = (role: AssistantRole) => `Agent_${role}`;
+export const middleware = (role: AssistantRole) =>
+  `${ARTIFACT_NAMESPACE}_${role}`;
 export const refs = {
   subject: `${ARTIFACT_NAMESPACE}.case@1`,
   evidence: `${ARTIFACT_NAMESPACE}.evidence@1`,
@@ -115,5 +124,6 @@ export const refs = {
   route: `${ARTIFACT_NAMESPACE}.route@1`,
   approval: `${ARTIFACT_NAMESPACE}.approval@1`,
   decision: `${ARTIFACT_NAMESPACE}.decision@1`,
+  methodRoute: `${ARTIFACT_NAMESPACE}.method_route@1`,
 } as const;
 export const operationRef = (step: Step) => `${ARTIFACT_NAMESPACE}.${step}@1`;

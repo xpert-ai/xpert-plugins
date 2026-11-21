@@ -7,7 +7,9 @@ import {
 } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, IsNull } from "typeorm";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { digest } from "./digest.js";
+export { digest } from "./digest.js";
 import { z } from "zod/v3";
 import {
   ProjectAccessRuntimeCapability,
@@ -59,24 +61,12 @@ import {
 } from "./routing.js";
 import { validateStageEvidence } from "./policy.js";
 import { configuration } from "./configuration.js";
-function canonical(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
-  return (
-    "{" +
-    Object.entries(value)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => JSON.stringify(k) + ":" + canonical(v))
-      .join(",") +
-    "}"
-  );
-}
+import { OrderRulesService } from "./improvement/rules.service.js";
+import { evidenceLabels } from "./improvement/rule.js";
 const caseConfig = (e: OrderCase) =>
   configSchema.parse(JSON.parse(e.bindingsJson));
 const workContext = (w: OrderWork): ProjectPipelineAssistantContext =>
   JSON.parse(w.contextJson);
-export const digest = (v: unknown) =>
-  createHash("sha256").update(canonical(v)).digest("hex");
 export const owner = (c: ProjectPipelineContext) => ({
   tenantId: c.actor.tenantId,
   organizationId: z.string().uuid().parse(c.actor.organizationId),
@@ -106,6 +96,7 @@ export class OrderService {
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
     readonly runtime: RuntimeCapabilityRegistry,
     @Inject(CONFIG) readonly config: Config,
+    private readonly rules: OrderRulesService,
   ) {}
   async root(c: ProjectPipelineContext, id?: string) {
     const access = await this.runtime
@@ -187,6 +178,30 @@ export class OrderService {
         projectId: c.projectId,
         instanceId: e.instanceId,
       };
+    const persistedSnapshot = snapshotSchema.parse(JSON.parse(e.snapshotJson));
+    if (persistedSnapshot.adoptPublishedMethod) {
+      if (!persistedSnapshot.aftercareFacts)
+        throw new ConflictException("next_order_facts_required");
+      const adopted = await this.rules.pin(
+        owner(c),
+        e.id,
+        persistedSnapshot.aftercareFacts,
+        c.actor.userId,
+      );
+      const sourceDigest = digest({
+        snapshot: persistedSnapshot,
+        method: adopted.version,
+      });
+      if (!e.bindingId) {
+        await repo.update(
+          { ...owner(c), id: e.id, bindingId: IsNull() },
+          { sourceDigest },
+        );
+        e = await this.root(c);
+      }
+      if (e.sourceDigest !== sourceDigest)
+        throw new ConflictException("pinned_method_subject_mismatch");
+    }
     const commands = this.runtime.require(
       ProjectPipelineCommandsRuntimeCapability,
     );
@@ -195,7 +210,10 @@ export class OrderService {
       (
         await commands.configure(c, {
           requestId: e.id,
-          configuration: configuration(e.assistants),
+          configuration: configuration(
+            e.assistants,
+            !!persistedSnapshot.adoptPublishedMethod,
+          ),
         })
       ).bindingId;
     await repo.update(
@@ -360,6 +378,8 @@ export class OrderService {
       .parse(w.step);
     const documents = documentsFor(snapshot, step);
     const previous = await this.previous(c, e, workContext(w));
+    const adopted =
+      step === "aftercare" ? await this.rules.read(owner(c), e.id) : null;
     return {
       step,
       routingFacts: snapshot.routingFacts,
@@ -370,10 +390,20 @@ export class OrderService {
       dataLabel: snapshot.dataLabel,
       documents,
       previous,
+      adoptedMethod: adopted
+        ? {
+            version: adopted.adoption.version,
+            rule: adopted.adoption.rule,
+            result: adopted.adoption.decision,
+            publicationReceiptId: adopted.publication.receipt.receiptId,
+            responsibility:
+              "按已发布并固定的方法核对证据；根因和工程更改仍由人类确认。",
+          }
+        : null,
       sourceEvidenceIds: documents.map((d) => d.id),
       humanResponsibility: STEPS.find((s) => s.key === step)!.human,
       scope:
-        "本地合成演示夹具；本插件未接入 SAP 或 Data Xpert 查询，不代表生产交易或下一单验证结果。",
+        "本地合成业务资料；平台工作、方法发布与采用记录实际持久化，不代表 SAP 生产交易、现场试验或故障率改善。",
       alreadyFinalized: w.result,
     };
   }
@@ -393,6 +423,20 @@ export class OrderService {
     const documents = documentsFor(snapshot, step);
     const previous = await this.previous(c, e, workContext(w));
     validateStageEvidence(step, snapshot, input.evidenceIds, previous);
+    const adopted =
+      step === "aftercare" ? await this.rules.read(owner(c), e.id) : null;
+    const appliedMethod = adopted
+      ? {
+          version: adopted.adoption.version.version,
+          hash: adopted.adoption.version.hash,
+          publicationReceiptId: adopted.publication.receipt.receiptId,
+          outcome: adopted.adoption.decision.outcome,
+          missingEvidence: adopted.adoption.decision.missingEvidence,
+        }
+      : undefined;
+    const methodSummary = adopted
+      ? `已采用方法 ${adopted.adoption.version.version}：${adopted.adoption.decision.label}。${adopted.adoption.decision.missingEvidence.length ? "缺少：" + adopted.adoption.decision.missingEvidence.map((kind) => evidenceLabels[kind]).join("、") + "。" : ""}\n`
+      : "";
     const result = resultSchema.parse({
       caseId: e.id,
       roundId: workContext(w).work.roundId,
@@ -400,7 +444,8 @@ export class OrderService {
       nodeKey: step,
       inputDigest: workContext(w).work.inputDigest,
       revision: w.revision,
-      summary: input.assessment,
+      summary: methodSummary + input.assessment,
+      ...(appliedMethod ? { appliedMethod } : {}),
       improvementSuggested:
         step === "aftercare" && snapshot.improvementSuggested,
       evidenceIds: input.evidenceIds,
@@ -417,6 +462,8 @@ export class OrderService {
       .findOneByOrFail({ ...owner(c), id: w.id });
     if (saved.resultDigest !== hash)
       throw new ConflictException("immutable_finalization_conflict");
+    if (adopted)
+      await this.rules.recordUse(owner(c), e.id, w.executionId, hash);
     this.debug("finalized", step);
     return {
       status: "business_accepted",
@@ -514,6 +561,35 @@ export class OrderService {
     return {
       status: "decided" as const,
       outcome: analysis.improvementSuggested ? "change" : "monitor",
+      evidence:
+        c.inputs.analysis?.kind === "evidence" ? [c.inputs.analysis.value] : [],
+    };
+  }
+  async methodRoute(c: ProjectPipelineOperationContext) {
+    const e = await this.pinned(c),
+      proposal = await this.input(c, "analysis");
+    const adopted = await this.rules.read(owner(c), e.id);
+    if (
+      !adopted ||
+      proposal.nodeKey !== "aftercare" ||
+      proposal.appliedMethod?.hash !== adopted.adoption.version.hash ||
+      proposal.appliedMethod.publicationReceiptId !==
+        adopted.publication.receipt.receiptId ||
+      proposal.appliedMethod.outcome !== adopted.adoption.decision.outcome
+    )
+      throw new ConflictException("published_method_result_required");
+    if (
+      !["request_evidence", "human_review"].includes(
+        adopted.adoption.decision.outcome,
+      )
+    )
+      throw new ConflictException("method_outside_authorized_review_route");
+    return {
+      status: "decided" as const,
+      outcome:
+        adopted.adoption.decision.outcome === "request_evidence"
+          ? "hold"
+          : "proceed",
       evidence:
         c.inputs.analysis?.kind === "evidence" ? [c.inputs.analysis.value] : [],
     };

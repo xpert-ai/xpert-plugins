@@ -1,5 +1,5 @@
 import type { PluginMarketplaceContribution } from "@xpert-ai/contracts";
-import { ICON, ROLES, templateKey, agentKey } from "./definition.js";
+import { ICON, ALL_ROLES, templateKey, agentKey } from "./definition.js";
 
 export const APP_COVER = "./assets/brand/order-evidence-cover-zh-v1.png";
 
@@ -27,9 +27,9 @@ export const app = {
     scope: "organization",
     assistantTemplateKey: templateKey("coordinator"),
     assistantSuite: {
-      version: "1",
+      version: "2",
       coordinatorAgentKey: agentKey("coordinator"),
-      roles: ROLES.filter((r) => r.key !== "coordinator").map((r) => ({
+      roles: ALL_ROLES.filter((r) => r.key !== "coordinator").map((r) => ({
         key: r.key,
         templateKey: templateKey(r.key),
         primaryAgentKey: agentKey(r.key),
@@ -59,6 +59,17 @@ export const app = {
       developer: "XpertAI",
       screenshots: [APP_COVER],
       features: [
+        {
+          key: "governed-method-improvement",
+          title: text(
+            "Evaluate, publish, adopt",
+            "候选评测、人工发布、下一单采用",
+          ),
+          description: text(
+            "Prepare a method candidate from approved after-sales evidence; check independent synthetic cases; a configured human publishes, and the next order explicitly pins and applies the released version.",
+            "从人类已确认的售后证据提出方法候选，核对独立合成样例；能力负责人发布后，下一单明确采用固定版本并记录执行结果。",
+          ),
+        },
         {
           key: "specialist-assistants",
           title: text("Six specialist roles", "六个专业角色"),

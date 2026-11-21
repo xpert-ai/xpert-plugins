@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-order-evidence",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "一张订单的全流程证据：六个专业 Assistant 与人工批准",
   "author": "XpertAI",
   "license": "AGPL-3.0",
@@ -29,7 +29,8 @@
         "order_evidence.procurement",
         "order_evidence.production",
         "order_evidence.quality",
-        "order_evidence.aftercare"
+        "order_evidence.aftercare",
+        "order_evidence.capability"
       ],
       "marketplace": {
         "screenshots": [
@@ -79,7 +80,7 @@
               "scope": "organization",
               "assistantTemplateKey": "order-evidence-coordinator",
               "assistantSuite": {
-                "version": "1",
+                "version": "2",
                 "coordinatorAgentKey": "Agent_coordinator",
                 "roles": [
                   {
@@ -135,6 +136,15 @@
                       "en_US": "aftercare",
                       "zh_Hans": "售后 Assistant"
                     }
+                  },
+                  {
+                    "key": "capability",
+                    "templateKey": "order-evidence-capability",
+                    "primaryAgentKey": "Agent_capability",
+                    "title": {
+                      "en_US": "capability",
+                      "zh_Hans": "能力维护 Assistant"
+                    }
                   }
                 ]
               },
@@ -168,6 +178,17 @@
                   "./assets/brand/order-evidence-cover-zh-v1.png"
                 ],
                 "features": [
+                  {
+                    "key": "governed-method-improvement",
+                    "title": {
+                      "en_US": "Evaluate, publish, adopt",
+                      "zh_Hans": "候选评测、人工发布、下一单采用"
+                    },
+                    "description": {
+                      "en_US": "Prepare a method candidate from approved after-sales evidence; check independent synthetic cases; a configured human publishes, and the next order explicitly pins and applies the released version.",
+                      "zh_Hans": "从人类已确认的售后证据提出方法候选，核对独立合成样例；能力负责人发布后，下一单明确采用固定版本并记录执行结果。"
+                    }
+                  },
                   {
                     "key": "specialist-assistants",
                     "title": {
@@ -265,7 +286,8 @@
           "order_evidence_procurement",
           "order_evidence_production",
           "order_evidence_quality",
-          "order_evidence_aftercare"
+          "order_evidence_aftercare",
+          "order_evidence_capability"
         ]
       }
     },
@@ -282,7 +304,8 @@
         "order_evidence.procurement",
         "order_evidence.production",
         "order_evidence.quality",
-        "order_evidence.aftercare"
+        "order_evidence.aftercare",
+        "order_evidence.capability"
       ],
       "marketplace": {
         "screenshots": [
@@ -332,7 +355,7 @@
               "scope": "organization",
               "assistantTemplateKey": "order-evidence-coordinator",
               "assistantSuite": {
-                "version": "1",
+                "version": "2",
                 "coordinatorAgentKey": "Agent_coordinator",
                 "roles": [
                   {
@@ -388,6 +411,15 @@
                       "en_US": "aftercare",
                       "zh_Hans": "售后 Assistant"
                     }
+                  },
+                  {
+                    "key": "capability",
+                    "templateKey": "order-evidence-capability",
+                    "primaryAgentKey": "Agent_capability",
+                    "title": {
+                      "en_US": "capability",
+                      "zh_Hans": "能力维护 Assistant"
+                    }
                   }
                 ]
               },
@@ -421,6 +453,17 @@
                   "./assets/brand/order-evidence-cover-zh-v1.png"
                 ],
                 "features": [
+                  {
+                    "key": "governed-method-improvement",
+                    "title": {
+                      "en_US": "Evaluate, publish, adopt",
+                      "zh_Hans": "候选评测、人工发布、下一单采用"
+                    },
+                    "description": {
+                      "en_US": "Prepare a method candidate from approved after-sales evidence; check independent synthetic cases; a configured human publishes, and the next order explicitly pins and applies the released version.",
+                      "zh_Hans": "从人类已确认的售后证据提出方法候选，核对独立合成样例；能力负责人发布后，下一单明确采用固定版本并记录执行结果。"
+                    }
+                  },
                   {
                     "key": "specialist-assistants",
                     "title": {
@@ -518,7 +561,8 @@
           "order_evidence_procurement",
           "order_evidence_production",
           "order_evidence_quality",
-          "order_evidence_aftercare"
+          "order_evidence_aftercare",
+          "order_evidence_capability"
         ]
       }
     }

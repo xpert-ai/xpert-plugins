@@ -27,6 +27,8 @@ export const configSchema = z
       })
       .strict()
       .optional(),
+    maintenanceAssistantId: z.string().uuid().optional(),
+    capabilityPublishers: z.array(z.string().uuid()).min(1).optional(),
     debug: z.boolean().default(false),
   })
   .strict();
@@ -46,6 +48,16 @@ export const resultSchema = z
     decisionActorId: z.string().optional(),
     proposalDigest: z.string().optional(),
     receipt: z.string().optional(),
+    appliedMethod: z
+      .object({
+        version: z.string(),
+        hash: z.string(),
+        publicationReceiptId: z.string(),
+        outcome: z.string(),
+        missingEvidence: z.array(z.string()),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type Result = z.infer<typeof resultSchema>;

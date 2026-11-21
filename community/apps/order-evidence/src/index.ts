@@ -10,7 +10,7 @@ import {
   PACKAGE_METADATA,
   LEVEL,
   ICON,
-  ROLES,
+  ALL_ROLES,
   middleware,
 } from "./definition.js";
 import { templates } from "./templates.js";
@@ -18,10 +18,24 @@ import { OrderService } from "./service.js";
 import { OrderContribution } from "./configuration.js";
 import { ADAPTERS } from "./adapters.js";
 import { OrderTools } from "./tools.js";
+import { IMPROVEMENT_ENTITIES } from "./improvement/entities.js";
+import { OrderRulesService } from "./improvement/rules.service.js";
+import { OrderImprovementService } from "./improvement/source.service.js";
+import { OrderImprovementTools } from "./improvement/tools.js";
+import { OrderMethodEvolution } from "./improvement/evolution.js";
 @XpertServerPlugin({
-  imports: [TypeOrmModule.forFeature(ENTITIES)],
-  entities: ENTITIES,
-  providers: [OrderService, OrderContribution, ...ADAPTERS, OrderTools],
+  imports: [TypeOrmModule.forFeature([...ENTITIES, ...IMPROVEMENT_ENTITIES])],
+  entities: [...ENTITIES, ...IMPROVEMENT_ENTITIES],
+  providers: [
+    OrderRulesService,
+    OrderService,
+    OrderContribution,
+    ...ADAPTERS,
+    OrderTools,
+    OrderImprovementService,
+    OrderImprovementTools,
+    OrderMethodEvolution,
+  ],
 })
 export class OrderPluginModule {}
 
@@ -45,10 +59,12 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
           types: ["business-app", "assistant-template"],
           capabilities: [
             "project.tasks",
-            ...ROLES.map((r) => "order_evidence." + r.key),
+            ...ALL_ROLES.map((r) => "order_evidence." + r.key),
           ],
           marketplace: { screenshots: [APP_COVER], contents: [app] },
-          runtime: { middlewareProviders: ROLES.map((r) => middleware(r.key)) },
+          runtime: {
+            middlewareProviders: ALL_ROLES.map((r) => middleware(r.key)),
+          },
         },
       ]),
     ),

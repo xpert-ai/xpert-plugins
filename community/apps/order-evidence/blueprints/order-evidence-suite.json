@@ -3,9 +3,16 @@
   "key": "order-evidence",
   "plugin": {
     "name": "@xpert-ai/plugin-order-evidence",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "roles": [
+    {
+      "key": "capability",
+      "templateKey": "order-evidence-capability",
+      "name": "order-demo-capability",
+      "title": "能力维护 Assistant",
+      "primaryAgentKey": "Agent_capability"
+    },
     {
       "key": "contract",
       "templateKey": "order-evidence-contract",
@@ -61,7 +68,8 @@
       "procurement",
       "production",
       "quality",
-      "aftercare"
+      "aftercare",
+      "capability"
     ]
   }
 }

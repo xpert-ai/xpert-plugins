@@ -79,5 +79,9 @@ export function evaluateBusinessRoute(
     ? "proceed"
     : "hold";
 }
-export const demoScenarioSchema = z.enum(["standard", "requirements_missing"]);
+export const demoScenarioSchema = z.enum([
+  "standard",
+  "requirements_missing",
+  "next_order_adoption",
+]);
 export type DemoScenario = z.infer<typeof demoScenarioSchema>;
