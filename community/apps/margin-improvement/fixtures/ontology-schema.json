@@ -1,0 +1,236 @@
+{
+  "cubes": [
+    {
+      "fact": {
+        "type": "table",
+        "table": {
+          "name": "performance",
+          "schema": "margin_demo_20261120"
+        }
+      },
+      "name": "OperatingMargin",
+      "caption": "经营毛利",
+      "measures": [
+        {
+          "name": "ActualMargin",
+          "column": "actual_margin",
+          "caption": "实际毛利率（%）",
+          "aggregator": "avg"
+        },
+        {
+          "name": "BudgetMargin",
+          "column": "budget_margin",
+          "caption": "预算毛利率（%）",
+          "aggregator": "avg"
+        },
+        {
+          "name": "Revenue",
+          "column": "revenue",
+          "caption": "收入（元）",
+          "aggregator": "sum"
+        },
+        {
+          "name": "MaterialCost",
+          "column": "material_cost",
+          "caption": "材料成本（元）",
+          "aggregator": "sum"
+        },
+        {
+          "name": "BudgetCost",
+          "column": "budget_cost",
+          "caption": "预算成本（元）",
+          "aggregator": "sum"
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "Period",
+          "hierarchies": [
+            {
+              "name": "Period",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Period",
+                  "column": "period"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Stage",
+          "hierarchies": [
+            {
+              "name": "Stage",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Stage",
+                  "column": "stage"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Product",
+          "hierarchies": [
+            {
+              "name": "Product",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Product",
+                  "column": "product"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Plant",
+          "hierarchies": [
+            {
+              "name": "Plant",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Plant",
+                  "column": "plant"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "defaultMeasure": "ActualMargin"
+    },
+    {
+      "fact": {
+        "type": "table",
+        "table": {
+          "name": "purchase_facts",
+          "schema": "margin_demo_20261120"
+        }
+      },
+      "name": "PurchaseFacts",
+      "caption": "采购核实",
+      "measures": [
+        {
+          "name": "Quantity",
+          "column": "quantity",
+          "aggregator": "sum"
+        },
+        {
+          "name": "ActualPrice",
+          "column": "actual_price",
+          "aggregator": "avg"
+        },
+        {
+          "name": "BudgetPrice",
+          "column": "budget_price",
+          "aggregator": "avg"
+        },
+        {
+          "name": "ExcessCost",
+          "column": "excess_cost",
+          "aggregator": "sum"
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "PurchaseOrder",
+          "hierarchies": [
+            {
+              "name": "PurchaseOrder",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "PurchaseOrder",
+                  "column": "po"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Period",
+          "hierarchies": [
+            {
+              "name": "Period",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Period",
+                  "column": "period"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Product",
+          "hierarchies": [
+            {
+              "name": "Product",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Product",
+                  "column": "product"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Plant",
+          "hierarchies": [
+            {
+              "name": "Plant",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Plant",
+                  "column": "plant"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Supplier",
+          "hierarchies": [
+            {
+              "name": "Supplier",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Supplier",
+                  "column": "supplier"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Material",
+          "hierarchies": [
+            {
+              "name": "Material",
+              "hasAll": true,
+              "levels": [
+                {
+                  "name": "Material",
+                  "column": "material"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "defaultMeasure": "ExcessCost"
+    }
+  ]
+}

@@ -58,6 +58,9 @@ cannot hide a broken commit. It rejects dependencies pointing outside the
 repository or at untracked local files. Use published SDK/contracts versions;
 keep experiments against an adjacent platform checkout out of committed manifests.
 
+For explicit development against built packages from a local Xpert checkout, see
+the [local platform package linking guide](docs/local-platform-packages.md).
+
 The `Release Dependencies` workflow runs the same offline frozen-lockfile check,
 installs the locked dependencies, and builds the community plugins on PRs and
 merge-queue results. Configure both `Frozen dependencies (xpertai)`
