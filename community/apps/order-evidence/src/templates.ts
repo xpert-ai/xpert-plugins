@@ -1,4 +1,5 @@
 import { stringify } from "yaml";
+import { roleAvatar } from "./avatars.js";
 import type { XpertTemplateContribution } from "@xpert-ai/plugin-sdk";
 import {
   NAME,
@@ -13,15 +14,7 @@ export const templates: XpertTemplateContribution[] = ROLES.map((r, index) => {
   const coordinator = r.key === "coordinator",
     specialist = r.key !== "coordinator";
   const key = agentKey(r.key);
-  const avatar = {
-    emoji: {
-      id: r.key,
-      unified: [...r.emoji]
-        .map((c) => c.codePointAt(0)!.toString(16))
-        .join("-"),
-    },
-    background: r.color,
-  };
+  const avatar = roleAvatar(r.key);
   const description = coordinator
     ? "启动订单项目的原生流水线，协调六个专业 Assistant 与人工关口。"
     : `${r.title}关联当前订单证据、形成建议并等待人类负责人的决定。`;
@@ -59,7 +52,7 @@ export const templates: XpertTemplateContribution[] = ROLES.map((r, index) => {
       title: r.title,
       description,
       avatar,
-      version: "1",
+      version: "2",
       options: {
         templateKey: templateKey(r.key),
         workspaceScope: { mode: "project-required", projectType: PROJECT_TYPE },
@@ -155,6 +148,6 @@ export const templates: XpertTemplateContribution[] = ROLES.map((r, index) => {
     primaryAgentKey: key,
     dependencies: { plugins: [NAME] },
     releaseNotes:
-      "原生订单 Project Pipeline，六个带头像的专业 Assistant 与六个人工确认点。",
+      "七位 Assistant 更新企业人物头像；业务批准仍由配置的人类负责人决定。",
   };
 });

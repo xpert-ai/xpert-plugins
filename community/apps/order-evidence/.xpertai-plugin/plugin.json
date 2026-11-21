@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-order-evidence",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "一张订单的全流程证据：六个专业 Assistant 与人工批准",
   "author": "XpertAI",
   "license": "AGPL-3.0",

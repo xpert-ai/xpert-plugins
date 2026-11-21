@@ -14,7 +14,19 @@ assert.equal(configuration().template.executionAuthority, "platform");
 for (const t of plugin.templates) {
   const d = parse(t.dslContent);
   assert.deepEqual(d.team.avatar, t.avatar);
-  assert.match(t.avatar.emoji.unified, /^[0-9a-f]+(?:-[0-9a-f]+)*$/i);
+  assert.match(t.avatar.url, /^data:image\/jpeg;base64,/);
+  const portrait = Buffer.from(t.avatar.url.split(",")[1], "base64");
+  assert.equal(portrait.subarray(0, 3).toString("hex"), "ffd8ff");
+  assert(portrait.length > 0 && portrait.length <= 128 * 1024);
+  assert.deepEqual(
+    portrait,
+    fs.readFileSync(
+      new URL(
+        `../assets/avatars/${t.primaryAgentKey.replace("Agent_", "")}-v1.jpg`,
+        import.meta.url,
+      ),
+    ),
+  );
   assert(d.team.agentConfig.recursionLimit >= 80);
   assert.deepEqual(d.team.features.opener.questions, t.startPrompts);
   const primary = d.nodes.find((n) => n.key === t.primaryAgentKey);

@@ -3,7 +3,7 @@
   "key": "order-evidence",
   "plugin": {
     "name": "@xpert-ai/plugin-order-evidence",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "roles": [
     {
