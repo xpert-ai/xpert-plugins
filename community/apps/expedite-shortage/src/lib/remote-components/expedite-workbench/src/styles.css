@@ -1,0 +1,9 @@
+/* 本插件只保留最基础的页面样式；组件外观来自 shadcn（主题变量由宿主下发），布局用 Tailwind 工具类。 */
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}

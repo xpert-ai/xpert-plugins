@@ -1,0 +1,12 @@
+/* 只为本插件界面里用到的 Tailwind 布局类生成 CSS；shadcn 组件自身的样式来自 @xpert-ai/plugin-shadcn-ui/style.css。
+   颜色全部映射到 shadcn 主题变量，而这些变量又由宿主下发的 --xui-* 主题值决定（明暗主题自动跟随）。
+   写法参考 community/apps/material-identity-governance/scripts/tailwind.css（AGPL-3.0）。 */
+@import "tailwindcss" source(none);
+@source "../src/lib/remote-components/**/*.tsx";
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border); --color-card: var(--card); --color-destructive: var(--destructive);
+}

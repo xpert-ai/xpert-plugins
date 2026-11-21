@@ -1,0 +1,79 @@
+{
+  "name": "@xpert-ai/plugin-expedite-shortage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Expedite-order shortage analysis Agentic App: the server computes BOM shortages, the Assistant proposes actions, and planners confirm them in a Workbench view.",
+  "author": "Ze-loong",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/apps/expedite-shortage"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
+  "scripts": {
+    "build:remote": "node scripts/build-remote.mjs",
+    "build": "node scripts/clean-dist.mjs && pnpm build:remote && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm verify:dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
+    "test": "vitest run",
+    "verify:dist": "node scripts/build-remote.mjs --check && node scripts/copy-assets.mjs --check"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "expedite_shortage"
+    }
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.26.2",
+    "@xpert-ai/plugin-sdk": "^3.26.2",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/typeorm": "11.0.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^22.17.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@xpert-ai/contracts": "3.26.2",
+    "@xpert-ai/plugin-sdk": "3.26.2",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "^0.27.0",
+    "pg": "^8.16.3",
+    "pg-mem": "^3.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "tailwindcss": "^4.3.3",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "zod": "3.25.67"
+  }
+}

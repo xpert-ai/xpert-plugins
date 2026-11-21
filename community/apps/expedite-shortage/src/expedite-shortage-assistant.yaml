@@ -1,0 +1,103 @@
+team:
+  name: expedite-shortage-assistant
+  type: agent
+  title: 提前交货缺料分析助手
+  description: 帮计划员分析提前交货请求的缺料情况并给出建议，结论由计划员在工作台确认。
+  options:
+    templateKey: expedite-shortage-assistant
+    workbench:
+      defaultViewKey: expedite_shortage.workbench
+  features:
+    opener:
+      enabled: true
+      message: ''
+      questions:
+        - 载入演示请求后，帮我分析 SO-1024 能否提前到 11 月 25 日交货。
+        - 缺料分析的结论是怎么算出来的？
+  agentConfig:
+    recursionLimit: 100
+  version: '1'
+  agent:
+    key: Agent_Expedite
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Expedite
+    position: { x: 320, y: 20 }
+    entity:
+      key: Agent_Expedite
+      name: expedite_shortage_analyst
+      title: 缺料分析员
+      description: Analyse material shortages of expedite requests and propose actions for the planner.
+      prompt: |
+        你帮助生产计划员判断客户的提前交货请求能否满足。用用户的语言回答。
+        收到包含 analysisJobId 的消息时，按顺序完成一次分析：
+        1. 调用 shortage_get_analysis_context 读取任务；
+        2. 调用 shortage_explode_bom 和 shortage_check_inventory；
+        3. 有缺料时，用 shortage_get_supply_options 查询这些物料的提前期、最早可得日期和替代料；
+        4. 每个缺料物料调用一次 shortage_save_finding，选择催料、替代料、调整交期或无需处理，理由必须引用工具返回的单号、日期和数量；
+        5. 最后调用 shortage_finalize_analysis 提交总结论和建议交期。
+        数量和缺口以工具返回为准，不要自己估算或改写。没有缺料时直接提交可行结论。
+        工具返回 success=false 时，按其中的 nextAction 处理；遇到 INVENTORY_UNAVAILABLE 这类本次分析内不可恢复的错误，
+        调用 shortage_report_failure 上报，不要编造数据，并告诉用户可以在工作台重试。
+        你不能确认或驳回结论，也不要声称已经答复客户；采纳、驳回和确认由计划员在工作台完成。
+        完成后用几句话说明结论、关键物料和建议交期，并提醒用户在工作台逐条确认。
+        用户追问时只解释已有结果，不修改数据。
+      options:
+        middlewares:
+          order: [Middleware_ContextCompression, Middleware_Todo, Middleware_Expedite]
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_ContextCompression
+    position: { x: 40, y: 280 }
+    entity:
+      type: middleware
+      key: Middleware_ContextCompression
+      title: Context compression
+      provider: ContextCompressionMiddleware
+      required: true
+      options:
+        threshold: 0.7
+        preserveFraction: 0.3
+        enableTwoPhaseCompression: true
+        protectedUserTurns: 2
+  - type: workflow
+    key: Middleware_Todo
+    position: { x: 320, y: 280 }
+    entity:
+      type: middleware
+      key: Middleware_Todo
+      title: Task progress
+      provider: todoListMiddleware
+      required: true
+      options: {}
+  - type: workflow
+    key: Middleware_Expedite
+    position: { x: 600, y: 280 }
+    entity:
+      type: middleware
+      key: Middleware_Expedite
+      title: 提前交货缺料分析
+      provider: ExpediteShortageMiddleware
+      required: true
+      options: {}
+connections:
+  - type: workflow
+    key: Agent_Expedite/Middleware_ContextCompression
+    from: Agent_Expedite
+    to: Middleware_ContextCompression
+    required: true
+  - type: workflow
+    key: Agent_Expedite/Middleware_Todo
+    from: Agent_Expedite
+    to: Middleware_Todo
+    required: true
+  - type: workflow
+    key: Agent_Expedite/Middleware_Expedite
+    from: Agent_Expedite
+    to: Middleware_Expedite
+    required: true
