@@ -1,0 +1,287 @@
+{
+  "model": "qwen3.8:latest",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "startedAt": "2026-11-17T02:36:50.953Z",
+  "images": "code-drawn illustrations, not photographs",
+  "warmup": {
+    "httpStatus": 200,
+    "ms": 206
+  },
+  "intake": [
+    {
+      "file": "leak.png",
+      "recognitionMs": 1012,
+      "afterRecognition": {
+        "title": "示意图：管道接头滴水到地面",
+        "status": "suggested",
+        "suggestion": {
+          "categoryId": "plumbing",
+          "reason": "A tap/valve fixture is shown dripping a steady stream of water droplets that pool on the floor, indicating an active leak.",
+          "model": "qwen3.8:latest",
+          "promptSource": {
+            "type": "default"
+          }
+        },
+        "confirmedCategoryId": null,
+        "failureCode": null
+      },
+      "personConfirmed": "plumbing",
+      "agreed": true,
+      "finalStatus": "confirmed"
+    },
+    {
+      "file": "shapes.png",
+      "recognitionMs": 806,
+      "afterRecognition": {
+        "title": "示意图：几何图形，没有设施问题",
+        "status": "suggested",
+        "suggestion": {
+          "categoryId": "unclear",
+          "reason": "The image contains only abstract geometric shapes (a red circle, blue square, and green triangle) with no facility, equipment, or defect visible, so no problem category can be assigned.",
+          "model": "qwen3.8:latest",
+          "promptSource": {
+            "type": "default"
+          }
+        },
+        "confirmedCategoryId": null,
+        "failureCode": null
+      },
+      "personConfirmed": "unclear",
+      "agreed": true,
+      "finalStatus": "confirmed"
+    },
+    {
+      "file": "crack.png",
+      "recognitionMs": 1472,
+      "afterRecognition": {
+        "title": "示意图：墙面一条裂缝",
+        "status": "suggested",
+        "suggestion": {
+          "categoryId": "surfaces",
+          "reason": "A jagged, branching crack runs vertically down a plain wall surface, matching the 'cracks' definition under surfaces.",
+          "model": "qwen3.8:latest",
+          "promptSource": {
+            "type": "default"
+          }
+        },
+        "confirmedCategoryId": null,
+        "failureCode": null
+      },
+      "personConfirmed": "surfaces",
+      "agreed": true,
+      "finalStatus": "confirmed"
+    }
+  ],
+  "acceptance": {
+    "status": "reviewed",
+    "metrics": {
+      "a": {
+        "total": 3,
+        "correct": 3,
+        "completed": 3,
+        "valid": 3,
+        "failed": 0,
+        "meanLatencyMs": 1199
+      },
+      "b": {
+        "total": 3,
+        "correct": 3,
+        "completed": 3,
+        "valid": 3,
+        "failed": 0,
+        "meanLatencyMs": 1285
+      }
+    },
+    "verdict": "tie",
+    "activePromptAfter": {
+      "text": "先观察可见物体与损坏，再选择类别。区分水相关问题与表面破损，不推测照片中看不到的故障；证据不足时选择 unclear。",
+      "source": {
+        "type": "adopted",
+        "runId": "6e8e7e2b-b7e9-4ff5-b10c-321cae69abb0",
+        "variant": "b"
+      },
+      "runTitle": "本地模型：采用候选提示词"
+    },
+    "cells": [
+      {
+        "sample": "示意图：管道接头滴水到地面",
+        "variant": "a",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 1022,
+            "output": {
+              "categoryId": "plumbing",
+              "reason": "A tap/valve fixture is shown dripping a steady stream of water droplets that pool on the floor, indicating an active leak."
+            }
+          }
+        ]
+      },
+      {
+        "sample": "示意图：管道接头滴水到地面",
+        "variant": "b",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 1235,
+            "output": {
+              "categoryId": "plumbing",
+              "reason": "A tap/faucet fixture is shown dripping a stream of water droplets that pool on the floor, indicating an active leak."
+            }
+          }
+        ]
+      },
+      {
+        "sample": "示意图：几何图形，没有设施问题",
+        "variant": "b",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 1246,
+            "output": {
+              "categoryId": "unclear",
+              "reason": "The image contains only abstract geometric shapes (a red circle, blue square, and green triangle) on a white background, with no physical object, damage, or fault visible to assign to any maintenance category."
+            }
+          }
+        ]
+      },
+      {
+        "sample": "示意图：几何图形，没有设施问题",
+        "variant": "a",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 861,
+            "output": {
+              "categoryId": "unclear",
+              "reason": "The image contains only abstract geometric shapes (a red circle, blue square, and green triangle) with no facility, equipment, or defect visible, so no problem category can be assigned."
+            }
+          }
+        ]
+      },
+      {
+        "sample": "示意图：墙面一条裂缝",
+        "variant": "a",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 1714,
+            "output": {
+              "categoryId": "surfaces",
+              "reason": "A jagged, branching crack runs vertically down a plain wall surface, matching the 'cracks' definition under surfaces."
+            }
+          }
+        ]
+      },
+      {
+        "sample": "示意图：墙面一条裂缝",
+        "variant": "b",
+        "attempts": [
+          {
+            "status": "succeeded",
+            "failureCode": null,
+            "latencyMs": 1374,
+            "output": {
+              "categoryId": "surfaces",
+              "reason": "A jagged, branching crack runs vertically across a plain wall surface, consistent with surface cracking damage."
+            }
+          }
+        ]
+      }
+    ],
+    "activePromptAfterTie": {
+      "text": "判断照片中的设施问题，选择最可能的类别。",
+      "source": {
+        "type": "default"
+      },
+      "runTitle": null
+    }
+  },
+  "adoption": {
+    "status": "reviewed",
+    "metrics": {
+      "a": {
+        "total": 3,
+        "correct": 3,
+        "completed": 3,
+        "valid": 3,
+        "failed": 0,
+        "meanLatencyMs": 1155
+      },
+      "b": {
+        "total": 3,
+        "correct": 3,
+        "completed": 3,
+        "valid": 3,
+        "failed": 0,
+        "meanLatencyMs": 1116.6666666666667
+      }
+    },
+    "verdict": "b",
+    "activePromptAfter": {
+      "text": "先观察可见物体与损坏，再选择类别。区分水相关问题与表面破损，不推测照片中看不到的故障；证据不足时选择 unclear。",
+      "source": {
+        "type": "adopted",
+        "runId": "6e8e7e2b-b7e9-4ff5-b10c-321cae69abb0",
+        "variant": "b"
+      },
+      "runTitle": "本地模型：采用候选提示词"
+    }
+  },
+  "nextCase": {
+    "recognitionMs": 975,
+    "title": "验收之后的新受理单",
+    "status": "suggested",
+    "suggestion": {
+      "categoryId": "plumbing",
+      "reason": "A tap/faucet fixture is shown dripping a stream of water droplets that pool on the floor, indicating an active leak.",
+      "model": "qwen3.8:latest",
+      "promptSource": {
+        "type": "adopted",
+        "runId": "6e8e7e2b-b7e9-4ff5-b10c-321cae69abb0",
+        "variant": "b"
+      }
+    },
+    "confirmedCategoryId": null,
+    "failureCode": null
+  },
+  "failureAndRetry": {
+    "afterFailure": {
+      "title": "模型连不上时的受理单",
+      "status": "failed",
+      "suggestion": null,
+      "confirmedCategoryId": null,
+      "failureCode": "model_call_failed"
+    },
+    "canRetry": true,
+    "canConfirmAnyway": true,
+    "afterRetry": {
+      "title": "模型连不上时的受理单",
+      "status": "suggested",
+      "suggestion": {
+        "categoryId": "surfaces",
+        "reason": "A jagged, branching crack runs vertically across a plain wall surface, consistent with surface cracking damage.",
+        "model": "qwen3.8:latest",
+        "promptSource": {
+          "type": "adopted",
+          "runId": "6e8e7e2b-b7e9-4ff5-b10c-321cae69abb0",
+          "variant": "b"
+        }
+      },
+      "confirmedCategoryId": null,
+      "failureCode": null
+    }
+  },
+  "restore": {
+    "cases": 5,
+    "identical": true,
+    "activePromptIdentical": true
+  },
+  "modelClientsCreated": 18,
+  "finishedAt": "2026-11-17T02:37:11.211Z"
+}
