@@ -1,5 +1,12 @@
 # @xpert-ai/plugin-office-editor
 
+## 0.7.1
+
+### Patch Changes
+
+- b62ddf3: Use the shared Excel and PowerPoint file-type artwork for document Views and include its attribution in published packages.
+- eb37fd1: Expose a theme-aware spreadsheet icon for the collaborative workbook view so host workbench tabs can distinguish workbooks from other document types.
+
 ## 0.7.0
 
 ### Minor Changes

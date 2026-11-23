@@ -1,5 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pptx-editor",
   "artifactNamespace": "pptx_editor",
-  "sandboxActions": "./dist/sandbox-actions/pptx-cover/action.json"
+  "sandboxActions": "./dist/sandbox-actions/pptx-cover/action.json",
+  "version": "0.2.0"
 }
