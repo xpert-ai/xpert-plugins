@@ -1,5 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pdf-viewer",
   "artifactNamespace": "pdf_viewer",
-  "level": "system"
+  "level": "system",
+  "version": "0.2.0"
 }

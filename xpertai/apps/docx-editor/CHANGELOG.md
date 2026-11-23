@@ -1,5 +1,15 @@
 # @xpert-ai/plugin-docx-editor
 
+## 0.6.0
+
+### Minor Changes
+
+- f6394c6: Add native DOCX project-file editing, conflict-safe saves, Assistant creation and targeted edits, enterprise content-control templates, and resource cards. Add a read-only PDF viewer with local rendering assets, navigation, text search, and original download for both hosts and collaboration spaces.
+
+### Patch Changes
+
+- eac2822: Align the SDK and contracts requirements with the existing organization/personal application scope configuration. Fix ESM test configuration and dependency transformation while retaining the separate TypeScript check, so clean installs can build and validate the DOCX Editor without local SDK links.
+
 ## 0.5.7
 
 ### Patch Changes

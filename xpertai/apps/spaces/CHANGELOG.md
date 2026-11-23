@@ -1,5 +1,16 @@
 # @xpert-ai/plugin-spaces
 
+## 0.5.0
+
+### Minor Changes
+
+- a5500f9: Load the library through indexed, server-paginated file and resource streams with stable merged ordering. Reconcile sources separately, load folders on demand, scroll the whole sidebar, and show declared resource icons and file-format icons. Requires a host SDK with catalog refresh and coverage capabilities.
+
+### Patch Changes
+
+- b62ddf3: Keep native document categories discoverable independently of creation support, and filter registered file types before pagination while preserving folder placement and access boundaries.
+- 0f62360: Require the published SDK and Contracts 3.37.2 release for indexed content discovery, resource coverage, refresh operations, and artifact type icons. Align development dependencies with that supported host contract so clean builds use the same interfaces as Spaces.
+
 ## 0.4.0
 
 ### Minor Changes

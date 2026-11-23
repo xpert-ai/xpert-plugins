@@ -1,5 +1,12 @@
 # @xpert-ai/plugin-code-review
 
+## 0.7.1
+
+### Patch Changes
+
+- 0da7ea0: Align Code Review and Lark with the versioned Event Inbox decision contracts. Keep transient Lark endpoint timeouts retryable while preserving permanent credential failures.
+- ac07096: Build Code Review and Lark against the published Xpert Plugin SDK and Contracts 3.38.0 for Event Inbox decisions. Both plugins support hosts with SDK and Contracts versions matching `^3.37.0`.
+
 ## 0.7.0
 
 ### Minor Changes

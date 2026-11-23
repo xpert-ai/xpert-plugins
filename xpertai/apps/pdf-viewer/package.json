@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pdf-viewer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-only native PDF preview for project files and collaboration spaces.",
   "license": "AGPL-3.0",
   "type": "module",
