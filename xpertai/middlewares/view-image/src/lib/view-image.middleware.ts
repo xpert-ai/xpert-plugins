@@ -1,5 +1,6 @@
 import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
+import { isToolMessage } from '@langchain/core/messages'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -56,6 +57,14 @@ export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<Vie
       wrapModelCall: async (request, handler) => {
         const backend = getSandboxBackend(request.runtime)
         if (!backend) {
+          // Do not report a successful read and silently send no pixels.
+          for (let index = request.messages.length - 1; index >= 0; index--) {
+            const message = request.messages[index]
+            if (!isToolMessage(message)) break
+            if (message.name === 'view_image' && message.status !== 'error') {
+              throw new Error('Sandbox backend is not available to attach the requested image. No visual inspection occurred.')
+            }
+          }
           return handler(request)
         }
 

@@ -849,7 +849,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 					organizationId: integration.organizationId
 				},
 				handlers,
-				{ includeCardAction: true }
+				{ includeCardAction: true, verifiedDecisionChannel: true }
 			)
 
 			const client = this.larkChannel.createWSClientFromConfig(integration.options, {

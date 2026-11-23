@@ -65,6 +65,7 @@ import {
   type CollaborationPresenceStore
 } from '@xpert-ai/plugin-sdk/collaboration-client'
 import { createTranslator } from './i18n'
+import { canvasTranslationAssetUrls } from './tldraw-translations'
 import { injectStyles } from './styles'
 import { canvasWorkbenchDebug } from './debug-logger'
 import type { CanvasDebugObject } from './debug-logger'
@@ -117,7 +118,7 @@ import {
 } from './collaboration'
 
 const canvasOnlineFontAssetUrls = createTldrawOnlineFontAssetUrls()
-const canvasTldrawAssetUrls = Object.freeze({ fonts: canvasOnlineFontAssetUrls })
+const canvasTldrawAssetUrls = Object.freeze({ fonts: canvasOnlineFontAssetUrls, translations: canvasTranslationAssetUrls })
 
 type DocumentItem = RemotePayloadObject & {
   id: string

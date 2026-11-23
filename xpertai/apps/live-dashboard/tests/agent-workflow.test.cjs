@@ -3,13 +3,13 @@ const assert = require('node:assert/strict')
 const { randomUUID } = require('node:crypto')
 const { DashboardMiddleware } = require('../dist/lib/middleware.js')
 const example = require('../examples/postgres-sales.json')
-const context = { xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }
+const context = { projectId: 'project', xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }
 function draft() {
   const { id, schema, bindings, ...input } = structuredClone(example)
   const { id: bindingId, operation, contractVersion, payload, parameters, ...binding } = bindings[0]
   return { input: { ...input, previewIds: ['missing'] }, binding: { ...binding, payloadJson: JSON.stringify(payload), parameters: parameters.map(({ controlId, ...p }) => p) } }
 }
-function setup(options) {
+function setup(options, additionalContext = {}) {
   const calls = []; let denied = false
   const saved = { artifactId: randomUUID(), versionId: randomUUID(), versionNumber: 1, manifest: structuredClone(example) }
   const service = {
@@ -27,10 +27,83 @@ function setup(options) {
     async writeRuntimeBuffer(input) { files.set(input.path, input.buffer) },
     async readRuntimeBuffer(path) { if (!files.has(path)) throw new Error('WORKSPACE_FILE_NOT_FOUND'); return { buffer: files.get(path) } }
   }) } } }
-  const strategy = new DashboardMiddleware(service), middleware = strategy.createMiddleware(options, runtimeContext)
+  const strategy = new DashboardMiddleware(service), middleware = strategy.createMiddleware(options, { ...runtimeContext, ...additionalContext })
   const invoke = (name, input, config) => middleware.tools.find(t => t.name === name).invoke(input, config)
   return { middleware, service, calls, files, saved, invoke, revoke: () => { denied = true }, another: () => strategy.createMiddleware({}, context) }
 }
+test('a successful preview from another source or an older version cannot save the selected bundled example', async () => {
+  const pinned = { kind: 'definition', definitionId: randomUUID(), versionId: randomUUID() }
+  const files = {
+    resolveRuntimeReference: async () => ({ catalog: 'projects', projectId: 'project' }),
+    readBuffer: async () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }) },
+    writeRuntimeBuffer: async () => {}
+  }
+  const runtime = {
+    catalog: async () => [{ providerId: 'file.table', connectionKey: 'files' }],
+    register: async () => ({ source: pinned, providerId: 'file.table' })
+  }
+  const s = setup({}, { projectId: 'project', workspaceId: 'workspace',
+    runtime: { capabilities: { require: c => c.id === 'platform.workspace.files' ? files : runtime } } })
+  const { input, binding } = draft()
+  const canonical = { ...structuredClone(example.bindings[0]), providerId: 'file.table', source: pinned, parameters: [],
+    payload: { datasetId: 'dataset', revision: 'v1', contractHash: 'a'.repeat(64), select: ['region', 'amount'] } }
+  s.service.discover = async () => ({ items: [{ id: 'dataset', metadata: { binding: canonical } }], queryContract: { operation: 'query', contractVersion: 1, payloadSchema: {} } })
+  const registered = JSON.parse(await s.invoke('analytics_definition_register', { exampleId: 'regional-sales' }))
+  assert.deepEqual(registered.binding.source, pinned)
+  assert.deepEqual(registered.binding.payload, canonical.payload)
+  assert.deepEqual(registered.preparedQuery.previewRequest, { exampleQuery: 'regional-sales/sales-by-region' })
+  const receipt = JSON.parse(await s.invoke('dashboard_preview_binding', registered.preparedQuery.previewRequest))
+  const summary = JSON.parse(receipt.bindingJson)
+  assert.deepEqual(summary.source, pinned)
+  assert.equal(summary.payload.contractHash, canonical.payload.contractHash)
+  assert.equal(summary.payload.datasetId, 'dataset')
+  assert.deepEqual(summary.payload.groupBy, ['region'])
+  assert.deepEqual(summary.payload.aggregates, [{ key: 'total_sales', operation: 'sum', column: 'amount' }])
+  assert.equal(summary.output.fields[1].sourceField, 'total_sales')
+  await assert.rejects(s.invoke('dashboard_preview_binding', { exampleQuery: 'unknown' }), /DASHBOARD_EXAMPLE_QUERY_UNAVAILABLE/)
+  for (const source of [binding.source, { ...pinned, versionId: randomUUID() }, pinned]) {
+    const preview = JSON.parse(await s.invoke('dashboard_preview', { binding: { ...binding, source, providerId: 'file.table' } }))
+    const create = s.invoke('dashboard_create', { ...input, previewIds: [preview.previewId] })
+    if (source === pinned) assert.equal(JSON.parse(await create).dashboard.artifactId, 'saved')
+    else await assert.rejects(create, /DASHBOARD_EXAMPLE_SOURCE_REQUIRED/)
+  }
+  assert.equal(s.calls.filter(call => call[0] === 'save').length, 1)
+})
+
+test('an unbound dashboard exposes the same tools and reports a missing Project only when invoked', async () => {
+  const unbound = setup({}, { projectId: undefined }), bound = setup()
+  const { convertToOpenAITool } = require('@langchain/core/utils/function_calling')
+  assert.deepEqual(unbound.middleware.tools.map(t => convertToOpenAITool(t)), bound.middleware.tools.map(t => convertToOpenAITool(t)))
+  for (const [name, args] of [['dashboard_list_sources', {}], ['analytics_definition_register', { exampleId: 'regional-sales' }]]) {
+    const call = { type: 'tool_call', id: 'call', name, args }
+    const result = await unbound.invoke(name, call)
+    assert.equal(result.status, 'error')
+    assert.equal(result.tool_call_id, 'call')
+    assert.equal(JSON.parse(result.content).code, 'PROJECT_REQUIRED')
+  }
+  const traces = []
+  for await (const event of unbound.middleware.tools.find(t => t.name === 'dashboard_list_sources')
+    .streamEvents({ type: 'tool_call', name: 'dashboard_list_sources', args: {}, id: 'blocked' }, { version: 'v2' })) {
+    if (event.event === 'on_tool_start' || event.event === 'on_tool_end') traces.push(event)
+  }
+  assert.deepEqual(traces.map(t => t.event), ['on_tool_start', 'on_tool_end'])
+  assert.ok(traces.every(t => t.metadata.internal === true))
+  assert.equal(unbound.calls.length, 0)
+  assert.equal(unbound.files.size, 0)
+  assert.deepEqual(await unbound.middleware.wrapToolCall({ toolCall: { name: 'ordinary_tool' } }, () => 'ordinary result'), 'ordinary result')
+  assert.equal(JSON.parse(await bound.invoke('dashboard_list_sources', {})).code, undefined)
+})
+
+test('an unbound monitor reports the missing project before reading a published dashboard', async () => {
+  const { DashboardMonitorMiddleware } = require('../dist/lib/monitor')
+  const middleware = new DashboardMonitorMiddleware({}, {}).createMiddleware({}, { ...context, projectId: undefined })
+  for (const [name, args] of [['dashboard_list_published', {}], ['dashboard_inspect', { artifactId: randomUUID() }]]) {
+    const result = await middleware.tools.find(t => t.name === name).invoke({ type: 'tool_call', id: name, name, args })
+    assert.equal(result.status, 'error')
+    assert.equal(JSON.parse(result.content).code, 'PROJECT_REQUIRED')
+  }
+})
+
 for (const [label, options] of [
   ['omitted options from a legacy host', undefined],
   ['explicit empty options', {}],
@@ -247,7 +320,8 @@ test('mistyped source/provider pairs receive exact listed choices without queryi
   const request = { kind: 'inspect', datasetId: 'sales' }
   await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: JSON.stringify(request) })
   assert.deepEqual(s.calls, [['discover', { tenantId: context.tenantId, organizationId: context.organizationId,
-    userId: context.userId, hostType: 'agent', hostId: context.xpertId, slots: [] },
+    userId: context.userId, hostType: 'agent', hostId: context.xpertId, slots: [],
+    runtimeScope: { projectId: 'project', conversationId: null, dataScopeKey: 'project:project', workspaceFiles: { catalog: 'projects', scopeId: 'project', projectId: 'project' } } },
     { source: binding.source, providerId: binding.providerId, request }]])
 })
 

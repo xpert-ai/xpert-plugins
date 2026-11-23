@@ -34,7 +34,8 @@
       "exclude": [
         "apps/spaces/*",
         "apps/markdown-editor/*",
-        "apps/pptx-editor/*"
+        "apps/pptx-editor/*",
+        "apps/pdf-viewer/*"
       ]
     },
     {
@@ -54,7 +55,8 @@
       "include": [
         "apps/spaces/*",
         "apps/markdown-editor/*",
-        "apps/pptx-editor/*"
+        "apps/pptx-editor/*",
+        "apps/pdf-viewer/*"
       ],
       "options": {
         "typecheck": {

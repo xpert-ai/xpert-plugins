@@ -50,6 +50,27 @@ test('discovery exposes current typed previews and native query contracts, witho
   await assert.rejects(f.provider.discover({ datasetId: 'sales' }, f.context), /revoked/)
 })
 
+test('single-dataset discovery exposes an executable binding and distinct safe diagnostics for a bad regional-sales preview', async () => {
+  const f = fixture()
+  const [dataset] = (await f.provider.discover({}, f.context)).items
+  const binding = dataset.metadata.binding
+  assert.equal(f.state.reads, 0)
+  assert.equal(binding.payload.contractHash, f.query.contractHash)
+  assert.deepEqual(binding.payload.select, ['region', 'amount'])
+  assert.equal(dataset.metadata.preview, undefined)
+  const check = code => error => error.diagnostic?.code === code && error.diagnostic.stage === 'validation'
+  const payload = { ...binding.payload, select: ['region','total_sales'], groupBy: ['region'],
+    aggregates: [{ key: 'total_sales', operation: 'sum', column: 'sales_amount' }] }
+  await assert.rejects(f.provider.discover(payload, f.context), check('FILE_DATASET_DISCOVERY_REQUEST_INVALID'))
+  await assert.rejects(f.provider.execute({ ...binding, payload: { ...payload, contractHash: '0'.repeat(64) } }, {}, f.context), check('FILE_DATASET_CONTRACT_CHANGED'))
+  await assert.rejects(f.provider.execute({ ...binding, payload }, {}, f.context), check('FILE_DATASET_COLUMN_UNAVAILABLE'))
+  payload.aggregates[0].column = 'amount'
+  await assert.rejects(f.provider.execute({ ...binding, payload }, {}, f.context), check('FILE_DATASET_OUTPUT_CONTRACT_INVALID'))
+  const result = await f.provider.execute({ ...binding, payload, output: { ...binding.output, grain: ['region'],
+    fields: [binding.output.fields[0], { ...binding.output.fields[1], id: 'total_sales', sourceField: 'total_sales', nullable: true }] } }, {}, f.context)
+  assert.equal(result.rows.length, 2)
+})
+
 test('group disclosure requires project management, not merely readable file metadata', async () => {
   const f = fixture()
   await assert.rejects(f.provider.authorizeGroupSharing(f.binding, f.context), /SHARING_UNAVAILABLE/)

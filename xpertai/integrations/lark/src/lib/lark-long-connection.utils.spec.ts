@@ -12,4 +12,10 @@ describe('classifyLongConnectionError', () => {
 			).recoverable
 		).toBe(false)
 	})
+
+	it('keeps credential failures unrecoverable even when the endpoint message also mentions a timeout', () => {
+		expect(
+			classifyLongConnectionError(new Error('callback/ws/endpoint: invalid app secret after timeout')).recoverable
+		).toBe(false)
+	})
 })

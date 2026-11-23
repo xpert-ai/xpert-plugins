@@ -1,4 +1,5 @@
 import { LarkEventDispatch, LarkEventIngress } from './lark-event-ingress.js'
+import { LarkEventCardAccess } from './lark-event-card-access.service.js'
 import { LarkEventSource } from './lark-event-source.js'
 import { LarkEventRoute, LarkEventFact } from './event-journal.js'
 import chalk from 'chalk'
@@ -60,7 +61,7 @@ import { LarkMessageHistorySchemaService } from './lark-message-history-schema.s
   entities: [LarkEventRoute, LarkEventFact, LarkEventDispatch, LarkConversationBindingEntity, LarkTriggerBindingEntity, LarkMessageLogEntity, LarkMessageFileEntity],
   controllers: [LarkHooksController],
   providers: [
-    LarkEventIngress, LarkEventSource,
+    LarkEventIngress, LarkEventSource, LarkEventCardAccess,
     LarkConversationService,
     LarkConversationBindingSchemaService,
     LarkContextToolService,

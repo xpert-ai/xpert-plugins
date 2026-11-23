@@ -35,17 +35,19 @@
     "assets",
     "skills",
     "README.md",
+    "LICENSE.chatkit-icons",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
     "test:migration": "node --test scripts/test-uuid-migration.mjs",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && node scripts/build-native.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts src/lib/docx-editor-artifact-viewer.service.spec.ts src/lib/docx-editor-runtime-import.spec.ts && TS_NODE_PROJECT=tsconfig.jest.json jest --config jest.config.ts --runInBand && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && TS_NODE_TRANSPILE_ONLY=true node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts src/lib/docx-editor-artifact-viewer.service.spec.ts src/lib/docx-editor-runtime-import.spec.ts && TS_NODE_PROJECT=tsconfig.jest.json jest --config jest.config.ts --runInBand && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check && node --test tests/*.test.mjs",
+    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check && tsc -p tsconfig.remote.json",
     "verify:package-output": "node scripts/verify-package-output.mjs",
-    "prepack": "pnpm run build && pnpm run verify:package-output && node ../../scripts/verify-app-configs.mjs docx-editor"
+    "prepack": "pnpm run build && pnpm run verify:dist && pnpm run verify:package-output && node ../../scripts/verify-app-configs.mjs docx-editor",
+    "verify:dist": "node scripts/build-native.mjs --check"
   },
   "xpert": {
     "plugin": {
@@ -69,15 +71,22 @@
     "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.12.0",
     "prosemirror-view": "^1.41.6",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@docx-editor.dev/core": "2.23.0",
+    "@docx-editor.dev/react": "2.23.0",
+    "@docx-editor.dev/fonts": "2.23.0",
+    "@docx-editor.dev/i18n": "2.23.0",
+    "jszip": "^3.10.1",
+    "fast-xml-parser": "^5.3.7",
+    "socket.io-client": "^4.8.1"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.18.0",
-    "@xpert-ai/plugin-sdk": "^3.18.0",
+    "@xpert-ai/contracts": "^3.36.0",
+    "@xpert-ai/plugin-sdk": "^3.36.0",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -93,9 +102,9 @@
     "@swc/jest": "~0.2.38",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "3.18.0",
+    "@xpert-ai/contracts": "3.36.0",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "3.18.0",
+    "@xpert-ai/plugin-sdk": "3.36.0",
     "esbuild": "^0.27.0",
     "jest": "^30.0.2",
     "react": "^18.3.1",
@@ -103,9 +112,23 @@
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.24",
     "typescript": "^5.9.2",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "vite": "^7.3.0",
+    "@tailwindcss/vite": "^4.3.2",
+    "tailwindcss": "^4.3.2"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "build"
+        ]
+      }
+    }
   }
 }

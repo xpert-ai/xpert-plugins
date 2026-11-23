@@ -1,3 +1,4 @@
+import { WORKBOOK_VIEW_ICON } from './workbooks/view-icon.js'
 import { Injectable } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -5,7 +6,6 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
-  IconDefinition,
   I18nObject,
   XpertExtensionViewManifest,
   XpertRemoteComponentEntry,
@@ -26,7 +26,6 @@ import {
   AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
   OFFICE_EDITOR_FEATURE,
-  OFFICE_EDITOR_ICON,
   OFFICE_EDITOR_MIDDLEWARE_NAME,
   OFFICE_EDITOR_PLUGIN_NAME,
   OFFICE_EDITOR_PROVIDER_KEY,
@@ -49,12 +48,6 @@ const moduleFilename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(moduleFilename)
 const requireFromHere = createRequire(moduleFilename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
-const OFFICE_EDITOR_VIEW_ICON = {
-  type: 'svg',
-  value: OFFICE_EDITOR_ICON,
-  alt: 'Office Editor'
-} satisfies IconDefinition
-const OFFICE_EDITOR_VIEW_ICON_COMPAT = OFFICE_EDITOR_VIEW_ICON as unknown as XpertExtensionViewManifest['icon']
 
 @Injectable()
 @ViewExtensionProvider(OFFICE_EDITOR_PROVIDER_KEY)
@@ -79,7 +72,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
           'Build and edit Univer-native spreadsheets, documents, and presentations with Agents and humans.',
           '通过 Agent 与人工协作创建和编辑 Univer 原生电子表格、文档和演示稿。'
         ),
-        icon: OFFICE_EDITOR_VIEW_ICON_COMPAT,
+        icon: WORKBOOK_VIEW_ICON,
         hostType: context.hostType,
         slot,
         order: 42,
@@ -96,7 +89,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
                   enabled: true,
                   label: text('Office Editor', 'Office 协作编辑器'),
                   order: 42,
-                  icon: OFFICE_EDITOR_VIEW_ICON_COMPAT
+                  icon: WORKBOOK_VIEW_ICON
                 }
               }
             }

@@ -339,5 +339,8 @@
   "artifact.referenceAccess": "Project and source access required",
   "artifact.trashReference": "Move the reference “{{title}}” to trash? The original artifact and its existing share links remain unchanged.",
   "artifact.restoreReference": "Restore the reference “{{title}}”? Viewing still requires access to both the project and the source.",
-  "artifact.copyDenied": "This artifact type does not allow project copies. Add a reference instead."
+  "artifact.copyDenied": "This artifact type does not allow project copies. Add a reference instead.",
+  "folder.expand": "Expand {{title}}",
+  "folder.collapse": "Collapse {{title}}",
+  "library.syncing": "Checking for new content…"
 }

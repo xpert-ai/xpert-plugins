@@ -8,7 +8,7 @@ type ToolbarProps = {
   editable: boolean; busy: boolean; dirty: boolean; canUndo: boolean; canRedo: boolean; zoom: string;
   onZoom(value: string): void; onAdd(kind: 'slide' | 'text' | 'image' | 'shape' | 'table'): void;
   onUndo(): void; onRedo(): void; onSave(): void; onDownload(): void; onReload(): void;
-  onNavigation(): void; onGrid(): void; onProperties(): void; onPresent(fromStart: boolean): void
+  onNavigation(): void; onGrid(): void; onProperties(): void; onPresent(fromStart: boolean): void; onTemplates(): void
 }
 export function Toolbar(p: ToolbarProps) {
   const tools = [
@@ -21,6 +21,7 @@ export function Toolbar(p: ToolbarProps) {
     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" aria-label={t('ppt.fileMenu')}><PanelsTopLeft/><ChevronDown/></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="start"><DropdownMenuItem onSelect={p.onNavigation}><PanelLeft/>{t('ppt.navigation')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onGrid}><Grid2X2/>{t('ppt.grid')}</DropdownMenuItem><DropdownMenuSeparator/>
+        <DropdownMenuItem onSelect={p.onTemplates} disabled={p.busy}><PanelsTopLeft/>{t('templates.title')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onReload} disabled={p.busy}><RefreshCw/>{t('ppt.reload')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onDownload} disabled={p.busy}><Download/>{t('ppt.download')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
     {p.editable && <div className="flex items-center gap-1 border-r pr-2">{tools.map(({key,label,Icon}) =>

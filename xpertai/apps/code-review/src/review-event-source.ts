@@ -1,12 +1,14 @@
 import { visibleReviewRuns } from './review-run-visibility.js'
 import { Injectable, ForbiddenException } from '@nestjs/common'
 import {
+  type AgentOutputSource,
   type AgentEventContext,
   type AgentEventDelivery,
   type AgentEventPublisher,
   type PluginAgentEventSource,
   type EventDecision
 } from '@xpert-ai/plugin-sdk'
+import { IsNull, LessThanOrEqual, Not } from 'typeorm'
 import { z } from 'zod/v3'
 import { Reviews } from './backend.js'
 import { ReviewDelivery, ReviewRun } from './automation-entities.js'
@@ -107,6 +109,48 @@ export class ReviewEventSource implements PluginAgentEventSource {
       .andWhere('(w."userId" = :actor OR w."organizationShared")', { actor: ctx.userId })
     return { runs, workflows }
   }
+  get outputs(): AgentOutputSource {
+    return {
+      kinds: [{ key: 'code_review.result', label: { en_US: 'Code review result', zh_Hans: '代码评审结果' } }],
+      listPending: async (ctx, limit) => {
+        const { runs } = await this.results(ctx)
+        const rows = await runs.andWhere({ evidenceUserId: ctx.userId, outputPending: true, outputAvailableAt: LessThanOrEqual(new Date()) })
+          .andWhere("run.status IN ('completed','published') AND run.\"finishedAt\" IS NOT NULL")
+          .orderBy('run.finishedAt', 'ASC').addOrderBy('run.id', 'ASC').take(limit).getMany()
+        return rows.map(r => ({ schemaVersion: 1, kind: 'code_review.result', key: r.id,
+          revision: r.headSha, recipientId: ctx.userId, publishedAt: r.finishedAt!.toISOString() }))
+      },
+      acknowledge: async (ctx, ref, messageId) => {
+        const policy = await this.repository(ctx)
+        const where = { id: ref.key, tenantId: ctx.tenantId, organizationId: ctx.organizationId,
+          evidenceUserId: ctx.userId, repositoryPolicyId: policy.id, headSha: ref.revision }
+        const repo = this.repositories.records.manager.getRepository(ReviewRun)
+        const result = await repo.update({ ...where, outputPending: true }, { outputPending: false, outputMessageId: messageId })
+        if (!result.affected && !(await repo.existsBy({ ...where, outputMessageId: messageId }))) return 'conflict'
+      },
+      defer: async (ctx, ref, retryAt) => {
+        const policy = await this.repository(ctx)
+        await this.repositories.records.manager.update(ReviewRun, {
+          id: ref.key, tenantId: ctx.tenantId, organizationId: ctx.organizationId, repositoryPolicyId: policy.id,
+          headSha: ref.revision, evidenceUserId: ctx.userId, outputPending: true,
+          outputAvailableAt: retryAt ? LessThanOrEqual(new Date()) : Not(IsNull())
+        }, { outputAvailableAt: retryAt ? new Date(retryAt) : null })
+      },
+      resolveForRecipient: async (ctx, ref) => {
+        if (ref.kind !== 'code_review.result' || ref.recipientId !== ctx.userId) return { status: 'forbidden' }
+        const { runs } = await this.results(ctx)
+        const run = await runs.andWhere({ id: ref.key, evidenceUserId: ctx.userId, headSha: ref.revision }).getOne()
+        if (!run) return { status: 'forbidden' }
+        if (!['completed','published'].includes(run.status)) return { status: 'superseded' }
+        const presentation = await this.presentDecision(ctx, { status: 'handled', operationKey: run.operationKey,
+          resultRef: { kind: 'review-run', key: run.id } }, { includeConversation: true })
+        return { status: 'visible', title: ('PR #' + run.number + ' · ' + run.title).slice(0,240),
+          fields: presentation?.result?.fields.map(({ label, value }) => ({ label, value: value.slice(0, 4000) })),
+          ...(presentation?.conversation ? { conversation: presentation.conversation } : {}) }
+      }
+    }
+  }
+
   async searchTitles(ctx: AgentEventContext, term: string) {
     const { runs, workflows } = await this.results(ctx)
     const [pr, wf] = await Promise.all([
@@ -130,6 +174,9 @@ export class ReviewEventSource implements PluginAgentEventSource {
     decision: EventDecision | null,
     options?: { includeConversation: boolean }
   ) {
+    return this.presentDecision(ctx, decision, options)
+  }
+  private async presentDecision(ctx: AgentEventContext, decision: EventDecision | null, options?: { includeConversation: boolean }) {
     if (decision?.status !== 'handled' || !decision.resultRef) return null
     const { runs, workflows } = await this.results(ctx)
     const target = { id: decision.resultRef.key, operationKey: decision.operationKey }

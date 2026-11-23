@@ -1,5 +1,6 @@
 jest.mock('@xpert-ai/contracts', () => {
   return {
+    ModelFeature: { VISION: 'vision' },
     getToolCallIdFromConfig: jest.fn((config) => config?.configurable?.tool_call_id)
   }
 })
@@ -239,6 +240,7 @@ describe('ViewImageMiddleware', () => {
     )
 
     const forwardedRequest = handler.mock.calls[0][0]
+    expect(forwardedRequest.requirements.features).toContain('vision')
     expect(forwardedRequest.systemMessage).toEqual(
       new SystemMessage({
         content: expect.stringContaining('sandbox workspace root')
@@ -259,6 +261,17 @@ describe('ViewImageMiddleware', () => {
         })
       ])
     )
+  })
+
+  it('does not silently drop a successful image read when the model runtime loses its sandbox', async () => {
+    const { middleware } = createSubject()
+    const handler = jest.fn()
+    const request = createRequest([
+      new AIMessage({ content: '', tool_calls: [{ id: 'image', name: 'view_image', args: { path: 'proof.png' } }] }),
+      new ToolMessage({ content: 'Loaded image', name: 'view_image', tool_call_id: 'image', status: 'success' })
+    ], createBackend(), { runtime: { configurable: {} } })
+    await expect(middleware.wrapModelCall?.(request as any, handler)).rejects.toThrow('No visual inspection occurred')
+    expect(handler).not.toHaveBeenCalled()
   })
 
   it('injects images even when the current runtime has no copilot model', async () => {

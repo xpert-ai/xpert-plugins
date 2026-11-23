@@ -22,6 +22,12 @@ export class PptxFiles {
       sequence: 'sequence' in file ? file.sequence : undefined, collaboration: 'collaboration' in file && file.collaboration === true,
       mimeType: PPTX_MIME, contentBase64: file.buffer.toString('base64') }
   }
+  /** Internal rendering input. Provider authorization is repeated even for cached covers. */
+  async previewSource(input: PptxFileInput) {
+    const { file } = await this.source(input)
+    await this.format.validateFile(file.buffer)
+    return file.buffer
+  }
   async session(input: PptxFileInput) {
     const { api } = await this.source(input)
     if (!('source' in input)) throw new ForbiddenException('pptx.collaboration_unavailable')

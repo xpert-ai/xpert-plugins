@@ -1,0 +1,570 @@
+{
+  "name": "@xpert-ai/plugin-order-evidence",
+  "version": "0.3.0",
+  "description": "一张订单的全流程证据：六个专业 Assistant 与人工批准",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "level": "tenant",
+  "artifactNamespace": "order_evidence",
+  "assets": {
+    "screenshots": [
+      "./assets/brand/order-evidence-cover-zh-v1.png"
+    ]
+  },
+  "targetApps": [
+    "xpert",
+    "data-xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "business-app",
+        "assistant-template"
+      ],
+      "capabilities": [
+        "project.tasks",
+        "order_evidence.coordinator",
+        "order_evidence.contract",
+        "order_evidence.engineering",
+        "order_evidence.procurement",
+        "order_evidence.production",
+        "order_evidence.quality",
+        "order_evidence.aftercare",
+        "order_evidence.capability"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/brand/order-evidence-cover-zh-v1.png"
+        ],
+        "contents": [
+          {
+            "type": "app",
+            "name": "order-evidence",
+            "displayName": {
+              "en_US": "Order Evidence",
+              "zh_Hans": "订单全流程证据"
+            },
+            "description": {
+              "en_US": "Order evidence, six specialist Assistants and accountable human decisions.",
+              "zh_Hans": "围绕一张订单关联业务证据，组织六个专业助手与人类负责人协作。"
+            },
+            "icon": {
+              "type": "emoji",
+              "value": "🏭",
+              "background": "#DEF2ED"
+            },
+            "color": "#0F766E",
+            "tags": [
+              "manufacturing",
+              "order-evidence",
+              "project-pipeline"
+            ],
+            "projectTypes": [
+              {
+                "key": "order",
+                "title": {
+                  "en_US": "Manufacturing Order Project",
+                  "zh_Hans": "制造业订单项目"
+                },
+                "icon": {
+                  "type": "emoji",
+                  "value": "🏭",
+                  "background": "#DEF2ED"
+                },
+                "binding": {
+                  "kind": "project"
+                }
+              }
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "order-evidence-coordinator",
+              "assistantSuite": {
+                "version": "2",
+                "coordinatorAgentKey": "Agent_coordinator",
+                "roles": [
+                  {
+                    "key": "contract",
+                    "templateKey": "order-evidence-contract",
+                    "primaryAgentKey": "Agent_contract",
+                    "title": {
+                      "en_US": "contract",
+                      "zh_Hans": "合同 Assistant"
+                    }
+                  },
+                  {
+                    "key": "engineering",
+                    "templateKey": "order-evidence-engineering",
+                    "primaryAgentKey": "Agent_engineering",
+                    "title": {
+                      "en_US": "engineering",
+                      "zh_Hans": "工程 Assistant"
+                    }
+                  },
+                  {
+                    "key": "procurement",
+                    "templateKey": "order-evidence-procurement",
+                    "primaryAgentKey": "Agent_procurement",
+                    "title": {
+                      "en_US": "procurement",
+                      "zh_Hans": "采购 Assistant"
+                    }
+                  },
+                  {
+                    "key": "production",
+                    "templateKey": "order-evidence-production",
+                    "primaryAgentKey": "Agent_production",
+                    "title": {
+                      "en_US": "production",
+                      "zh_Hans": "计划 Assistant"
+                    }
+                  },
+                  {
+                    "key": "quality",
+                    "templateKey": "order-evidence-quality",
+                    "primaryAgentKey": "Agent_quality",
+                    "title": {
+                      "en_US": "quality",
+                      "zh_Hans": "质量 Assistant"
+                    }
+                  },
+                  {
+                    "key": "aftercare",
+                    "templateKey": "order-evidence-aftercare",
+                    "primaryAgentKey": "Agent_aftercare",
+                    "title": {
+                      "en_US": "aftercare",
+                      "zh_Hans": "售后 Assistant"
+                    }
+                  },
+                  {
+                    "key": "capability",
+                    "templateKey": "order-evidence-capability",
+                    "primaryAgentKey": "Agent_capability",
+                    "title": {
+                      "en_US": "capability",
+                      "zh_Hans": "能力维护 Assistant"
+                    }
+                  }
+                ]
+              },
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Order Evidence",
+                  "zh_Hans": "订单全流程证据"
+                },
+                "description": {
+                  "en_US": "Governed manufacturing demonstration",
+                  "zh_Hans": "制造业订单证据演示"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "One order. Connected collaboration.",
+                  "zh_Hans": "一张订单，贯通协作。"
+                },
+                "longDescription": {
+                  "en_US": "Connect contract, engineering, procurement, production, quality and after-sales evidence around one manufacturing order. A coordinator and six specialist Assistants work through four explicit Routers and six human decisions in a native Project Pipeline.",
+                  "zh_Hans": "围绕一张制造业订单关联合同、工程、采购、计划、质量与售后证据。一个协调者与六个专业 Assistant 通过四个 Router 和六个人工决定节点，在原生项目流水线中推进工作。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/order-evidence-cover-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "governed-method-improvement",
+                    "title": {
+                      "en_US": "Evaluate, publish, adopt",
+                      "zh_Hans": "候选评测、人工发布、下一单采用"
+                    },
+                    "description": {
+                      "en_US": "Prepare a method candidate from approved after-sales evidence; check independent synthetic cases; a configured human publishes, and the next order explicitly pins and applies the released version.",
+                      "zh_Hans": "从人类已确认的售后证据提出方法候选，核对独立合成样例；能力负责人发布后，下一单明确采用固定版本并记录执行结果。"
+                    }
+                  },
+                  {
+                    "key": "specialist-assistants",
+                    "title": {
+                      "en_US": "Six specialist roles",
+                      "zh_Hans": "六个专业角色"
+                    },
+                    "description": {
+                      "en_US": "Separate specialist work across contract, engineering, procurement, production planning, quality and after-sales.",
+                      "zh_Hans": "合同、工程、采购、计划、质量与售后 Assistant 各自审阅证据、提出建议。"
+                    }
+                  },
+                  {
+                    "key": "evidence-routing",
+                    "title": {
+                      "en_US": "Evidence-based routing",
+                      "zh_Hans": "按证据条件路由"
+                    },
+                    "description": {
+                      "en_US": "Four Routers check requirements, supply readiness, quality evidence and follow-up improvement; missing evidence blocks progression.",
+                      "zh_Hans": "四个 Router 检查要求资料、供应条件、质量证据与后续改进；条件不足时等待补证。"
+                    }
+                  },
+                  {
+                    "key": "human-accountability",
+                    "title": {
+                      "en_US": "Accountable human decisions",
+                      "zh_Hans": "人类负责关键决定"
+                    },
+                    "description": {
+                      "en_US": "Configured responsible users confirm each stage against the exact recommendation version.",
+                      "zh_Hans": "配置的责任人逐阶段确认准确版本的建议，能力使用权与业务批准权分开。"
+                    }
+                  },
+                  {
+                    "key": "evidence-traceability",
+                    "title": {
+                      "en_US": "Traceable evidence and history",
+                      "zh_Hans": "证据与履历可追溯"
+                    },
+                    "description": {
+                      "en_US": "Retain evidence versions, Assistant work and human decisions in the order Project.",
+                      "zh_Hans": "在订单项目中保留证据版本、Assistant 工作与人工决定，便于复核和追溯。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Order requirement clarification",
+                    "zh_Hans": "订单要求澄清"
+                  },
+                  {
+                    "en_US": "BOM and supply readiness review",
+                    "zh_Hans": "BOM 与物料齐套复核"
+                  },
+                  {
+                    "en_US": "Quality release and after-sales improvement review",
+                    "zh_Hans": "质量放行与售后改进复核"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Access follows organization, workspace and Project permissions. This demo uses synthetic business snapshots and local decisions; it does not call SAP or Data Xpert or create production transactions.",
+                  "zh_Hans": "访问遵循组织、工作空间及项目权限。当前演示使用合成业务快照与本地决定记录，不调用 SAP 或 Data Xpert，不产生生产交易。"
+                },
+                "initializationSummary": {
+                  "en_US": "Prepare a dedicated workspace and publish the coordinator and six specialists. Before running a Project, bind the published role members and assign authorized human approvers for each stage.",
+                  "zh_Hans": "准备专用工作空间并发布协调者与六个专业 Assistant。运行项目前，需绑定已发布的角色成员，并为各阶段配置具备权限的人类批准人。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Check an available primary model.",
+                    "zh_Hans": "检查可用主模型。"
+                  },
+                  {
+                    "en_US": "Create the dedicated application workspace.",
+                    "zh_Hans": "创建应用专用工作空间。"
+                  },
+                  {
+                    "en_US": "Install and publish seven Assistant roles.",
+                    "zh_Hans": "安装并发布七个 Assistant 角色。"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          }
+        ]
+      },
+      "runtime": {
+        "middlewareProviders": [
+          "order_evidence_coordinator",
+          "order_evidence_contract",
+          "order_evidence_engineering",
+          "order_evidence_procurement",
+          "order_evidence_production",
+          "order_evidence_quality",
+          "order_evidence_aftercare",
+          "order_evidence_capability"
+        ]
+      }
+    },
+    "data-xpert": {
+      "types": [
+        "business-app",
+        "assistant-template"
+      ],
+      "capabilities": [
+        "project.tasks",
+        "order_evidence.coordinator",
+        "order_evidence.contract",
+        "order_evidence.engineering",
+        "order_evidence.procurement",
+        "order_evidence.production",
+        "order_evidence.quality",
+        "order_evidence.aftercare",
+        "order_evidence.capability"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/brand/order-evidence-cover-zh-v1.png"
+        ],
+        "contents": [
+          {
+            "type": "app",
+            "name": "order-evidence",
+            "displayName": {
+              "en_US": "Order Evidence",
+              "zh_Hans": "订单全流程证据"
+            },
+            "description": {
+              "en_US": "Order evidence, six specialist Assistants and accountable human decisions.",
+              "zh_Hans": "围绕一张订单关联业务证据，组织六个专业助手与人类负责人协作。"
+            },
+            "icon": {
+              "type": "emoji",
+              "value": "🏭",
+              "background": "#DEF2ED"
+            },
+            "color": "#0F766E",
+            "tags": [
+              "manufacturing",
+              "order-evidence",
+              "project-pipeline"
+            ],
+            "projectTypes": [
+              {
+                "key": "order",
+                "title": {
+                  "en_US": "Manufacturing Order Project",
+                  "zh_Hans": "制造业订单项目"
+                },
+                "icon": {
+                  "type": "emoji",
+                  "value": "🏭",
+                  "background": "#DEF2ED"
+                },
+                "binding": {
+                  "kind": "project"
+                }
+              }
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "order-evidence-coordinator",
+              "assistantSuite": {
+                "version": "2",
+                "coordinatorAgentKey": "Agent_coordinator",
+                "roles": [
+                  {
+                    "key": "contract",
+                    "templateKey": "order-evidence-contract",
+                    "primaryAgentKey": "Agent_contract",
+                    "title": {
+                      "en_US": "contract",
+                      "zh_Hans": "合同 Assistant"
+                    }
+                  },
+                  {
+                    "key": "engineering",
+                    "templateKey": "order-evidence-engineering",
+                    "primaryAgentKey": "Agent_engineering",
+                    "title": {
+                      "en_US": "engineering",
+                      "zh_Hans": "工程 Assistant"
+                    }
+                  },
+                  {
+                    "key": "procurement",
+                    "templateKey": "order-evidence-procurement",
+                    "primaryAgentKey": "Agent_procurement",
+                    "title": {
+                      "en_US": "procurement",
+                      "zh_Hans": "采购 Assistant"
+                    }
+                  },
+                  {
+                    "key": "production",
+                    "templateKey": "order-evidence-production",
+                    "primaryAgentKey": "Agent_production",
+                    "title": {
+                      "en_US": "production",
+                      "zh_Hans": "计划 Assistant"
+                    }
+                  },
+                  {
+                    "key": "quality",
+                    "templateKey": "order-evidence-quality",
+                    "primaryAgentKey": "Agent_quality",
+                    "title": {
+                      "en_US": "quality",
+                      "zh_Hans": "质量 Assistant"
+                    }
+                  },
+                  {
+                    "key": "aftercare",
+                    "templateKey": "order-evidence-aftercare",
+                    "primaryAgentKey": "Agent_aftercare",
+                    "title": {
+                      "en_US": "aftercare",
+                      "zh_Hans": "售后 Assistant"
+                    }
+                  },
+                  {
+                    "key": "capability",
+                    "templateKey": "order-evidence-capability",
+                    "primaryAgentKey": "Agent_capability",
+                    "title": {
+                      "en_US": "capability",
+                      "zh_Hans": "能力维护 Assistant"
+                    }
+                  }
+                ]
+              },
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Order Evidence",
+                  "zh_Hans": "订单全流程证据"
+                },
+                "description": {
+                  "en_US": "Governed manufacturing demonstration",
+                  "zh_Hans": "制造业订单证据演示"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "One order. Connected collaboration.",
+                  "zh_Hans": "一张订单，贯通协作。"
+                },
+                "longDescription": {
+                  "en_US": "Connect contract, engineering, procurement, production, quality and after-sales evidence around one manufacturing order. A coordinator and six specialist Assistants work through four explicit Routers and six human decisions in a native Project Pipeline.",
+                  "zh_Hans": "围绕一张制造业订单关联合同、工程、采购、计划、质量与售后证据。一个协调者与六个专业 Assistant 通过四个 Router 和六个人工决定节点，在原生项目流水线中推进工作。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/order-evidence-cover-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "governed-method-improvement",
+                    "title": {
+                      "en_US": "Evaluate, publish, adopt",
+                      "zh_Hans": "候选评测、人工发布、下一单采用"
+                    },
+                    "description": {
+                      "en_US": "Prepare a method candidate from approved after-sales evidence; check independent synthetic cases; a configured human publishes, and the next order explicitly pins and applies the released version.",
+                      "zh_Hans": "从人类已确认的售后证据提出方法候选，核对独立合成样例；能力负责人发布后，下一单明确采用固定版本并记录执行结果。"
+                    }
+                  },
+                  {
+                    "key": "specialist-assistants",
+                    "title": {
+                      "en_US": "Six specialist roles",
+                      "zh_Hans": "六个专业角色"
+                    },
+                    "description": {
+                      "en_US": "Separate specialist work across contract, engineering, procurement, production planning, quality and after-sales.",
+                      "zh_Hans": "合同、工程、采购、计划、质量与售后 Assistant 各自审阅证据、提出建议。"
+                    }
+                  },
+                  {
+                    "key": "evidence-routing",
+                    "title": {
+                      "en_US": "Evidence-based routing",
+                      "zh_Hans": "按证据条件路由"
+                    },
+                    "description": {
+                      "en_US": "Four Routers check requirements, supply readiness, quality evidence and follow-up improvement; missing evidence blocks progression.",
+                      "zh_Hans": "四个 Router 检查要求资料、供应条件、质量证据与后续改进；条件不足时等待补证。"
+                    }
+                  },
+                  {
+                    "key": "human-accountability",
+                    "title": {
+                      "en_US": "Accountable human decisions",
+                      "zh_Hans": "人类负责关键决定"
+                    },
+                    "description": {
+                      "en_US": "Configured responsible users confirm each stage against the exact recommendation version.",
+                      "zh_Hans": "配置的责任人逐阶段确认准确版本的建议，能力使用权与业务批准权分开。"
+                    }
+                  },
+                  {
+                    "key": "evidence-traceability",
+                    "title": {
+                      "en_US": "Traceable evidence and history",
+                      "zh_Hans": "证据与履历可追溯"
+                    },
+                    "description": {
+                      "en_US": "Retain evidence versions, Assistant work and human decisions in the order Project.",
+                      "zh_Hans": "在订单项目中保留证据版本、Assistant 工作与人工决定，便于复核和追溯。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Order requirement clarification",
+                    "zh_Hans": "订单要求澄清"
+                  },
+                  {
+                    "en_US": "BOM and supply readiness review",
+                    "zh_Hans": "BOM 与物料齐套复核"
+                  },
+                  {
+                    "en_US": "Quality release and after-sales improvement review",
+                    "zh_Hans": "质量放行与售后改进复核"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Access follows organization, workspace and Project permissions. This demo uses synthetic business snapshots and local decisions; it does not call SAP or Data Xpert or create production transactions.",
+                  "zh_Hans": "访问遵循组织、工作空间及项目权限。当前演示使用合成业务快照与本地决定记录，不调用 SAP 或 Data Xpert，不产生生产交易。"
+                },
+                "initializationSummary": {
+                  "en_US": "Prepare a dedicated workspace and publish the coordinator and six specialists. Before running a Project, bind the published role members and assign authorized human approvers for each stage.",
+                  "zh_Hans": "准备专用工作空间并发布协调者与六个专业 Assistant。运行项目前，需绑定已发布的角色成员，并为各阶段配置具备权限的人类批准人。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Check an available primary model.",
+                    "zh_Hans": "检查可用主模型。"
+                  },
+                  {
+                    "en_US": "Create the dedicated application workspace.",
+                    "zh_Hans": "创建应用专用工作空间。"
+                  },
+                  {
+                    "en_US": "Install and publish seven Assistant roles.",
+                    "zh_Hans": "安装并发布七个 Assistant 角色。"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          }
+        ]
+      },
+      "runtime": {
+        "middlewareProviders": [
+          "order_evidence_coordinator",
+          "order_evidence_contract",
+          "order_evidence_engineering",
+          "order_evidence_procurement",
+          "order_evidence_production",
+          "order_evidence_quality",
+          "order_evidence_aftercare",
+          "order_evidence_capability"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "@xpert-ai/plugin-order-evidence",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "一张订单的全流程证据：六个专业 Assistant 与人工批准",
+  "license": "AGPL-3.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "blueprints",
+    "fixtures",
+    "README.md",
+    "docs",
+    "assets",
+    ".xpertai-plugin"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/manifest.mjs --write",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "verify:dist": "node scripts/verify-dist.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "order_evidence"
+    }
+  },
+  "dependencies": {
+    "yaml": "2.9.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.37.2",
+    "@xpert-ai/plugin-sdk": "^3.37.2",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67",
+    "@langchain/core": ">=0.3.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/typeorm": "11.0.0",
+    "@xpert-ai/contracts": "3.37.2",
+    "@xpert-ai/plugin-sdk": "3.37.2",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67",
+    "@langchain/core": "0.3.72",
+    "@types/node": "^22.17.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "reflect-metadata": "^0.2.2"
+  }
+}

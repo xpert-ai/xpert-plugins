@@ -35,6 +35,7 @@
     "skills",
     "migrations",
     "README.md",
+    "LICENSE.chatkit-icons",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {

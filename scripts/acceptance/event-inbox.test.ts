@@ -1,141 +1,17 @@
+import { DataSource } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
 import assert from 'node:assert/strict'
 import { createHmac, randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { test, type TestContext } from 'node:test'
-import { DataSource, Table, fixture, url } from '../../xpertai/apps/code-review/tests/automation-db.fixture.js'
+import { readFile } from 'node:fs/promises'
+import { test } from 'node:test'
+import { setup, domainDatabase, captureViewReceipt, larkFixture, procurement, lark } from './event-inbox.fixture.js'
+import './procurement-cross-run.cases.js'
+import './channel-cross-run.cases.js'
+import './buyer-decisions.cases.js'
 import { ReviewEventSource } from '../../xpertai/apps/code-review/src/review-event-source.js'
 import { Review } from '../../xpertai/apps/code-review/src/entity.js'
 import { WorkflowDiagnosis } from '../../xpertai/apps/code-review/src/workflow-entity.js'
 import { parsePullUrl } from '../../xpertai/apps/code-review/src/domain.js'
 import { ReviewDelivery } from '../../xpertai/apps/code-review/src/automation-entities.js'
-
-// Run with the integration packages built and a dedicated PostgreSQL URL. Never select an existing tenant.
-const host = process.env.XPERT_EVENT_HOST_ROOT
-if (!url || !host) throw new Error('Set XPERT_EVENT_HOST_ROOT and XPERT_PIPELINE_TEST_DATABASE_URL')
-const storeModule = pathToFileURL(path.join(host, 'packages/server-ai/src/agent-event/agent-event.store.ts')).href
-const procurement = '../../community/apps/procurement-quote-comparison/dist/lib/'
-const lark = '../../xpertai/integrations/lark/dist/lib/'
-
-// Optional hand-off to the platform browser suite. Only these disposable database scenarios call it.
-async function captureViewReceipt(f: Awaited<ReturnType<typeof setup>>, source: any, state: string, category: string) {
-  const directory = process.env.XPERT_EVENT_VIEW_EVIDENCE_DIR
-  if (!directory) return
-  const [row] = await f.hostDb.query(
-    'SELECT * FROM agent_event_inbox WHERE binding=$1 AND state=$2 ORDER BY seq DESC LIMIT 1',
-    [f.binding.id, state]
-  )
-  const display = source.eventTypes.find(
-    (d: any) => d.type === row.event.type && d.schemaVersion === row.event.schemaVersion
-  )?.display
-  assert.equal(display.category.key, category)
-  const projection = await source.describe?.(f.ctx, row.event, row.decision)
-  const data = {
-    id: row.id,
-    type: row.event.type,
-    schemaVersion: row.event.schemaVersion,
-    display,
-    state: row.state,
-    subject: row.event.subject.key,
-    title: projection?.title ?? row.event.subject.key,
-    assistantId: f.ctx.xpertId,
-    assistant: source.key,
-    occurredAt: row.event.occurredAt,
-    receivedAt: row.receivedAt,
-    sourceEventId: row.sourceEventId,
-    attempt: row.attempt,
-    decision: row.decision,
-    fields: projection?.fields,
-    result: projection?.result,
-    canRetry: false
-  }
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  await writeFile(path.join(directory, category + '.json'), JSON.stringify(data), { mode: 0o600 })
-}
-
-async function setup(t: TestContext, adapter: string) {
-  const f = await fixture(t)
-  const { AgentEventStore } = await import(storeModule)
-  // Use the host tables installed by schema-sync. Each scenario owns a fresh tenant in the dedicated test database.
-  const hostDb = await new DataSource({
-    type: 'postgres',
-    url,
-    extra: { options: '-c search_path=public' }
-  }).initialize()
-  const { tenantId, organizationId } = f.p
-  try {
-    await hostDb.transaction(async (tx) => {
-      await tx.query('INSERT INTO tenant(id,name) VALUES ($1,$2)', [tenantId, 'Event Inbox acceptance'])
-      await tx.query(
-        `INSERT INTO organization(id,"tenantId",name,currency,"defaultValueDateType")
-         VALUES ($1,$2,$3,'USD','TODAY')`,
-        [organizationId, tenantId, 'Event Inbox acceptance']
-      )
-    })
-  } catch (error) {
-    await hostDb.destroy()
-    throw error
-  }
-  t.after(async () => {
-    try {
-      await hostDb.query('DELETE FROM tenant WHERE id=$1', [tenantId])
-    } finally {
-      await hostDb.destroy()
-    }
-  })
-  const ctx = {
-    bindingId: randomUUID(),
-    bindingRevision: 1,
-    sourceBindingRef: f.p.id,
-    xpertId: f.p.assistantId,
-    tenantId: f.p.tenantId,
-    organizationId: f.p.organizationId,
-    workspaceId: f.p.workspaceId,
-    projectId: f.p.settings.pipeline!.projectId,
-    userId: f.p.userId,
-    signal: new AbortController().signal
-  }
-  const [binding] = await hostDb.query(
-    `INSERT INTO agent_event_binding(id,"tenantId","organizationId","workspaceId","xpertId",
-    "userId","projectId",plugin,adapter,"sourceBindingRef","publishedAt",revision,state)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,'acceptance',$8,$9,now(),1,'enabled') RETURNING *`,
-    [
-      ctx.bindingId,
-      ctx.tenantId,
-      ctx.organizationId,
-      ctx.workspaceId,
-      ctx.xpertId,
-      ctx.userId,
-      ctx.projectId,
-      adapter,
-      ctx.sourceBindingRef
-    ]
-  )
-  const store = new AgentEventStore(hostDb)
-  const publish = (source: any) => ({
-    publish: (event: any) => store.publish(binding, source, event)
-  })
-  const consume = async (source: any, status: string) => {
-    const claim = await store.claim(binding)
-    assert(claim)
-    const decision = await source.handle(ctx, claim)
-    assert.equal(decision.status, status)
-    // Simulate a lost T4 commit. The next worker must recover the original business result.
-    await hostDb.query("UPDATE agent_event_partition SET expires=now()-interval '1 second' WHERE id=$1", [
-      claim.partition
-    ])
-    const retry = await store.claim(binding)
-    assert(retry)
-    assert.equal(retry.receiptId, claim.receiptId)
-    assert(BigInt(retry.fence) > BigInt(claim.fence))
-    assert.equal(await store.complete(claim, decision), false)
-    assert.deepEqual(await source.handle(ctx, retry), decision)
-    assert.equal(await store.complete(retry, decision), true)
-    return decision
-  }
-  return { ...f, ctx, binding, hostDb, store, publish, consume }
-}
 
 test('Code Review: signed delivery, shared receipt, recovered review run, per-binding rollback', async (t) => {
   const f = await setup(t, 'code_review.github')
@@ -314,28 +190,10 @@ test('Code Review: failed workflow and skipped workflow match legacy shadows; ch
   assert.equal((await deliveries.findOneByOrFail({ deliveryId: pending })).shadow?.comparison, 'binding_changed')
 })
 
-async function domainDatabase(f: Awaited<ReturnType<typeof setup>>, entities: any[]) {
-  // Use the same schema as the host receipts and TypeORM metadata for this built plugin.
-  const db = new DataSource({ ...f.db.options, entities })
-  await db.initialize()
-  try {
-    const runner = db.createQueryRunner()
-    try {
-      for (const entity of entities) await runner.createTable(Table.create(db.getMetadata(entity), db.driver))
-    } finally {
-      await runner.release()
-    }
-  } catch (error) {
-    await db.destroy()
-    throw error
-  }
-  return db
-}
-
 test('Procurement: actual extraction service, baseline then a delayed revision and exactly one risk', async (t) => {
   const f = await setup(t, 'procurement.quote')
   const e = await import(procurement + 'entities/index.js')
-  const { QuoteEventRoute, QuoteEventFact, QuoteEventParse } = await import(procurement + 'event-journal.js')
+  const { QuoteEventParse } = await import(procurement + 'event-journal.js')
   const { QuoteEvents } = await import(procurement + 'quote-events.js')
   const { ProcurementQuoteComparisonService } = await import(procurement + 'procurement-quote-comparison.service.js')
   const entities = [
@@ -349,7 +207,8 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
     e.ProcurementRiskItem,
     e.ProcurementRecommendation
   ]
-  const db = await domainDatabase(f, [...entities, QuoteEventRoute, QuoteEventFact, QuoteEventParse])
+  const { PROCUREMENT_QUOTE_COMPARISON_ENTITIES } = await import(procurement + 'procurement-quote-comparison.plugin.js')
+  const db = await domainDatabase(f, PROCUREMENT_QUOTE_COMPARISON_ENTITIES)
   try {
     const source = new QuoteEvents(db.getRepository(entities[0]))
     const service = new ProcurementQuoteComparisonService(...entities.map((cls) => db.getRepository(cls)), source)
@@ -410,6 +269,118 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
       (await db.getRepository(e.ProcurementRiskItem).findOneByOrFail({ id: decision.resultRef.key })).type,
       'delivery_delay'
     )
+    await t.test(
+      'agent deadlines survive the originating turn, resume its branch, rearm and suppress obsolete wakes',
+      async () => {
+        const { ProcurementQuoteComparisonMiddleware } = await import(
+          procurement + 'procurement-quote-comparison.middleware.js'
+        )
+        const threadId = randomUUID()
+        const context = { ...scope, conversationId: revisedIn, threadId, agentKey: 'buyer' }
+        const middleware = new ProcurementQuoteComparisonMiddleware(service).createMiddleware({}, context)
+        const tool = (await middleware).tools.find((entry: { name: string }) => entry.name === 'procurement_follow_up')
+        const riskId = decision.resultRef.key
+        const caseId = input.caseId
+        assert((await service.listFollowUpRisks(context, caseId)).some((r: { riskId: string }) => r.riskId === riskId))
+        const call = async (action: string, options = {}) =>
+          JSON.parse(await tool.invoke({ riskId, caseId, action, ...options }))
+        const deadline = () => new Date(Date.now() + 3_600_000).toISOString()
+        const expire = () =>
+          db.query('UPDATE plugin_procurement_follow_up SET "dueAt"=now() WHERE "riskId"=$1', [riskId])
+        const scan = () => source.drain(f.ctx, f.publish(source), 32)
+        assert.equal((await call('inspect')).version, 0)
+        await call('set', { expectedVersion: 0, dueAt: deadline() })
+        await scan()
+        assert.equal(await f.store.claim(f.binding), undefined)
+        await assert.rejects(call('cancel', { expectedVersion: 0 }), /follow_up_version_changed/)
+        await assert.rejects(
+          service.followUp({ ...context, userId: randomUUID() }, { caseId, riskId, action: 'inspect' }),
+          /case_access_changed/
+        )
+        await expire()
+        await Promise.all([scan(), new QuoteEvents(db.getRepository(entities[0])).drain(f.ctx, f.publish(source), 32)])
+        let due = await f.store.claim(f.binding)
+        assert(due)
+        await call('set', { expectedVersion: 1, dueAt: deadline() })
+        const skipped = await source.handle(f.ctx, due, { wake: () => assert.fail('superseded wake') })
+        assert.equal(skipped.status, 'ignored')
+        await f.store.complete(due, skipped)
+        await expire()
+        await scan()
+        due = await f.store.claim(f.binding)
+        assert(due)
+        // The decision commits before chat admission. A busy retry and buyer cancellation do not retract the wake.
+        await assert.rejects(
+          source.handle(f.ctx, due, {
+            wake: async () => {
+              throw new Error('thread_busy')
+            }
+          }),
+          /thread_busy/
+        )
+        assert.equal((await call('inspect')).wakeStatus, 'queued')
+        const cancelled = await call('cancel', { expectedVersion: 2 })
+        assert.equal(cancelled.state, 'cancelled')
+        assert.equal(cancelled.wakeStatus, 'queued')
+        const wake = {
+          wake: async (target: { threadId: string; conversationId: string; agentKey: string; prompt: string }) => {
+            assert.equal(target.agentKey, 'buyer')
+            assert.equal(target.conversationId, revisedIn)
+            assert.equal(target.threadId, threadId)
+            assert(target.prompt.includes(riskId))
+            const fresh = await call('inspect')
+            assert.equal(fresh.state, 'cancelled')
+            assert.equal(fresh.wakeStatus, 'queued')
+            assert.equal(fresh.deliveryDate, '2026-12-03')
+          }
+        }
+        const handled = await source.handle(f.ctx, due, wake)
+        assert.equal(handled.status, 'handled')
+        assert.equal((await call('inspect')).wakeStatus, 'started')
+        assert.equal((await call('inspect')).state, 'cancelled')
+        await call('set', { expectedVersion: 3, dueAt: deadline() })
+        // Simulate loss of the host ACK after the agent already rearmed. Admission has its own dedupe regression.
+        assert.deepEqual(
+          await source.handle(f.ctx, due, {
+            wake: async (target: { threadId: string }) => assert.equal(target.threadId, threadId)
+          }),
+          handled
+        )
+        await f.store.complete(due, handled)
+        assert.deepEqual(
+          (await source.describe(f.ctx, due.event, handled, { includeConversation: true })).conversation,
+          { conversationId: revisedIn, threadId }
+        )
+        await captureViewReceipt(f, source, 'handled', 'procurement')
+        await expire()
+        await scan()
+        const rearmed = await f.store.claim(f.binding)
+        assert(rearmed && rearmed.receiptId !== due.receiptId)
+        await assert.rejects(
+          source.handle(f.ctx, rearmed, {
+            wake: async () => {
+              throw new Error('thread_busy')
+            }
+          }),
+          /thread_busy/
+        )
+        await source.handle(f.ctx, due, { wake: async () => {} })
+        assert.equal((await call('inspect')).wakeStatus, 'queued')
+        const reply = await call('reply', { expectedVersion: 4, replyNote: 'Supplier confirmed delivery' })
+        assert.equal(reply.state, 'answered')
+        const retried = await source.handle(f.ctx, rearmed, {
+          wake: async () => {
+            assert.equal((await call('inspect')).state, 'answered')
+          }
+        })
+        await f.store.complete(rearmed, retried)
+        assert.equal((await call('inspect')).wakeStatus, 'started')
+        assert.equal((await call('inspect')).replyNote, 'Supplier confirmed delivery')
+        await expire()
+        await scan()
+        assert.equal(await f.store.claim(f.binding), undefined)
+      }
+    )
     const secondDocument = await service.registerSourceDocument(scope, {
       caseId: input.caseId,
       name: 'Quote amendment',
@@ -446,6 +417,30 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
       (await db.getRepository(e.ProcurementRiskItem).findOneByOrFail({ id: older.resultRef.key })).description,
       '2026-12-03 → 2026-12-04'
     )
+    await t.test('cancelling before scan, closing a case, or rolling back capture suppresses the waiting deadline', async () => {
+      const task = {caseId:input.caseId,riskId:newer.resultRef.key}
+      const owner = {...scope,conversationId:revisedIn}
+      const edit = (action:string,expectedVersion:number) => service.followUp(owner,{...task,action,expectedVersion,
+        ...(action==='set'? {dueAt:new Date(Date.now()+3600000).toISOString()}: {})})
+      const expire = () => db.query('UPDATE plugin_procurement_follow_up SET "dueAt"=now() WHERE "riskId"=$1',[task.riskId])
+      const scan = async () => {await source.drain(f.ctx,f.publish(source),32);assert.equal(await f.store.claim(f.binding),undefined)}
+      await edit('set',0)
+      await edit('cancel',1)
+      await expire()
+      await scan()
+      await edit('set',2)
+      await expire()
+      await db.getRepository(entities[0]).update(task.caseId,{status:'completed'})
+      await scan()
+      assert.equal((await edit('inspect',3)).state,'superseded')
+      await db.getRepository(entities[0]).update(task.caseId,{status:'reviewing'})
+      await edit('set',4)
+      await source.configure(f.ctx,false)
+      await expire()
+      await scan()
+      await source.configure(f.ctx,true)
+      await scan()
+    })
     await service.saveRiskItems(scope, {
       caseId: input.caseId,
       risks: [
@@ -523,81 +518,81 @@ test('Procurement: actual extraction service, baseline then a delayed revision a
   }
 })
 
-async function larkFixture(t: TestContext) {
-  const f = await setup(t, 'lark.inbound')
-  const { LarkEventIngress, LarkEventDispatch } = await import(lark + 'lark-event-ingress.js')
-  const { LarkEventSource } = await import(lark + 'lark-event-source.js')
-  const { LarkTriggerBindingEntity } = await import(lark + 'entities/lark-trigger-binding.entity.js')
-  const { LarkEventFact, LarkEventRoute } = await import(lark + 'event-journal.js')
-  const { LarkMessageLogEntity } = await import(lark + 'entities/lark-message-log.entity.js')
-  const db = await domainDatabase(f, [LarkTriggerBindingEntity, LarkEventDispatch, LarkEventFact, LarkEventRoute, LarkMessageLogEntity])
-  t.after(() => db.destroy())
-  const bindings = db.getRepository(LarkTriggerBindingEntity)
-  const integration = {
-    id: f.ctx.sourceBindingRef,
-    tenantId: f.ctx.tenantId,
-    organizationId: f.ctx.organizationId
+test('Lark: serialized dispatch can arrive on another instance after enqueue acknowledgement, with competing and replayed jobs', async (t) => {
+  const { f, db, source, ingress, integration, msg, conversation, cards, LarkEventDispatch } = await larkFixture(t)
+  const { submitLarkEventHandoff } = await import(lark + 'handoff/lark-event-dispatch-context.js')
+  const replica = await new DataSource(db.options).initialize()
+  t.after(() => replica.destroy())
+  const store = db.getRepository(LarkEventDispatch)
+  const scope = { ...f.ctx, integrationId: integration.id, chatId: 'chat', scopeKey: 'chat' }
+  let job: string
+  conversation.handleMessage = async (_message, ctx) => { job = JSON.stringify(ctx.eventDispatchRefs) }
+  async function enqueue(messageId: string) {
+    await ingress.capture(integration, 'message', { ...msg, message: { ...msg.message, message_id: messageId } })
+    await source.drain(f.ctx, f.publish(source), 32)
+    const receipt = await f.consume(source, 'handled')
+    await source.drain(f.ctx, f.publish(source), 32)
+    const intent = await store.findOneByOrFail({ id: receipt.resultRef.key })
+    assert.equal(intent.state, 'submitted')
+    assert.equal(intent.handoffRunId, null)
+    const refs = JSON.parse(job)
+    assert.deepEqual(refs, [{ id: intent.id, binding: intent.binding, revision: intent.revision, xpertId: f.ctx.xpertId, ownerId: f.ctx.userId }])
+    return refs
   }
-  await bindings.save({
-    ...integration,
-    integrationId: integration.id,
-    xpertId: f.ctx.xpertId,
-    createdById: f.ctx.userId
+
+  const refs = await enqueue('private-message')
+  const conversationId = randomUUID()
+  let sends = 0
+  const send = async (runId: string) => {
+    sends++
+    assert.equal(runId, 'lark-chat-event-' + refs[0].id)
+    return conversationId
+  }
+  await assert.rejects(submitLarkEventHandoff(replica.manager, refs, { ...scope, xpertId: randomUUID() }, cards, send), /scope_changed/)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, [{ ...refs[0], ownerId: randomUUID() }], scope, cards, send), /scope_changed/)
+  await assert.rejects(submitLarkEventHandoff(db.manager, refs, scope, cards, async () => {
+    throw new Error('temporary error preparing the message')
+  }), /temporary error/)
+  assert.equal((await store.findOneByOrFail({ id: refs[0].id })).handoffRunId, null)
+  // Leave the first worker inside its external send while another connection retries the same job.
+  let release!: () => void, started!: () => void
+  const sending = new Promise<void>((resolve) => { started = resolve })
+  const ack = new Promise<void>((resolve) => { release = resolve })
+  const work = submitLarkEventHandoff(db.manager, refs, scope, cards, async (runId: string, beforeSend: () => Promise<void>) => {
+    await beforeSend()
+    started()
+    await ack
+    return send(runId)
   })
-  const ingress = new LarkEventIngress(bindings)
-  const submitted: string[] = []
-  const dispatchedTo = randomUUID()
-  const { larkEventDispatch } = await import(lark + 'handoff/lark-event-dispatch-context.js')
-  const channel = {
-    parseInboundMessage: () => ({ chatType: 'p2p' }),
-    parseCardAction: () => ({})
+  try {
+    await Promise.race([sending, work.then(() => { throw new Error('worker did not claim the job') })])
+    await submitLarkEventHandoff(replica.manager, refs, scope, cards, send)
+    assert.equal(sends, 0)
+  } finally {
+    release()
+    await work
   }
-  const conversation = {
-    getLatestConversationBindingByChatId: async () => ({
-      ...f.ctx,
-      scopeKey: 'chat'
-    }),
-    getActiveMessage: async () => ({
-      thirdPartyMessage: { messageId: 'original' }
-    }),
-    handleMessage: async () => {
-      const intent = larkEventDispatch.getStore()!
-      await intent.record(intent.runId, dispatchedTo)
-      submitted.push('message')
-    },
-    handleCardAction: async () => {
-      submitted.push('card')
-    }
+  await submitLarkEventHandoff(replica.manager, refs, scope, cards, send)
+  assert.equal(sends, 1)
+  assert.equal((await store.findOneByOrFail({ id: refs[0].id })).conversationId, conversationId)
+
+  const uncertain = await enqueue('acknowledgement-lost')
+  let attempts = 0
+  const lostAck = async (_runId: string, beforeSend: () => Promise<void>) => {
+    await beforeSend()
+    attempts++
+    throw new Error('acknowledgement lost after send')
   }
-  const identity = {
-    resolveInboundIdentityForEvent: async (_i: any, d: any) => ({
-      mappedUser: {
-        id: d.event.operator?.open_id === 'other' ? 'other' : f.ctx.userId
-      },
-      requestUser: { id: f.ctx.userId, tenantId: f.ctx.tenantId }
-    })
-  }
-  const source = new LarkEventSource(ingress, channel, conversation, identity, {
-    resolve: () => ({ read: async () => integration })
-  })
-  const msg = {
-    message: {
-      message_id: 'msg-1',
-      chat_id: 'chat',
-      message_type: 'text',
-      content: '{"text":"验收"}',
-      chat_type: 'p2p'
-    },
-    sender: { sender_id: { open_id: 'owner' } }
-  }
-  const click = {
-    operator: { open_id: 'owner' },
-    context: { open_chat_id: 'chat', open_message_id: 'original' },
-    action: { tag: 'button', value: { action: 'confirm' } }
-  }
-  await source.configure(f.ctx, true)
-  return { f, db, source, ingress, integration, msg, click, conversation, submitted, dispatchedTo, identity, channel, LarkEventIngress, LarkEventDispatch, LarkEventSource, LarkTriggerBindingEntity, LarkEventFact, LarkMessageLogEntity }
-}
+  await assert.rejects(submitLarkEventHandoff(db.manager, uncertain, scope, cards, lostAck), /acknowledgement lost/)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, uncertain, scope, cards, lostAck), /outcome_unknown/)
+  assert.equal(attempts, 1)
+  assert.equal((await store.findOneByOrFail({ id: uncertain[0].id })).state, 'outcome_unknown')
+
+  const stale = await enqueue('binding-changed-in-queue')
+  await source.configure({ ...f.ctx, bindingRevision: f.ctx.bindingRevision + 1 }, false)
+  await assert.rejects(submitLarkEventHandoff(replica.manager, stale, scope, cards, send), /scope_changed/)
+  assert.equal(sends, 1)
+})
 
 test('Lark: duplicate callback, message intent, authorized and competing card actions', async (t) => {
   const { f, db, source, ingress, integration, msg, click, conversation, submitted, dispatchedTo, LarkEventDispatch, LarkEventFact, LarkMessageLogEntity } = await larkFixture(t)
@@ -670,7 +665,7 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   await receive(envelope)
   await ingress.capture(integration, 'message', msg)
   await ingress.capture(integration, 'card', click, 'click-1')
-  await ingress.capture(integration, 'card', { ...click, operator: { open_id: 'other' } }, 'click-2')
+  await ingress.capture(integration, 'card', { ...click, operator: { open_id: 'other', union_id: 'union-other' } }, 'click-2')
   await source.drain(f.ctx, f.publish(source), 32)
   await f.consume(source, 'handled')
   await f.consume(source, 'handled')
@@ -694,13 +689,17 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   for (const row of rows) {
     const result = await source.describe(f.ctx, row.event, row.decision, { includeConversation: true })
     if (row.event.type === 'lark.message.received') assert.deepEqual(result?.conversation, { conversationId: dispatchedTo })
-    else assert.equal(result, null)
+    else if (row.decision.status === 'handled') {
+      assert.equal(result?.fields[0].value, 'unknown')
+      assert.equal(result?.conversation, undefined)
+    } else assert.equal(result, null)
   }
   const inbound = rows.find((r: any) => r.event.type === 'lark.message.received')
   const intent = await intents.findOneByOrFail({ kind: 'message' })
   await intents.update(intent.id, { conversationId: null })
   const describeInbound = () => source.describe(f.ctx, inbound.event, inbound.decision, { includeConversation: true })
-  assert.equal(await describeInbound(), null)
+  assert.equal((await describeInbound())?.fields[0].value, 'unknown')
+  assert.equal((await describeInbound())?.conversation, undefined)
   const log = await db.getRepository(LarkMessageLogEntity).save({
     tenantId: f.ctx.tenantId, organizationId: f.ctx.organizationId, integrationId: integration.id,
     xpertId: f.ctx.xpertId, scopeKey: 'chat', direction: 'outbound', status: 'sent',
@@ -708,7 +707,8 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
   })
   assert.deepEqual((await describeInbound())?.conversation, { conversationId: dispatchedTo })
   await db.getRepository(LarkMessageLogEntity).update(log.id, { status: 'failed' })
-  assert.equal(await describeInbound(), null)
+  assert.equal((await describeInbound())?.fields[0].value, 'failed')
+  assert.equal((await describeInbound())?.conversation, undefined)
   const cardIntent = await intents.findOneByOrFail({ kind: 'card' })
   await db.query(
     `UPDATE plugin_lark_event_dispatch SET state='started',"updatedAt"=now()-interval '6 minutes' WHERE id=$1`,
@@ -721,7 +721,7 @@ test('Lark: duplicate callback, message intent, authorized and competing card ac
 
 for (const change of ['rollback', 'pause'] as const) {
   test(`Lark: a second instance can ${change} while message and card dispatches are pending`, async (t) => {
-    const { f, db, source, ingress, integration, msg, click, identity, channel, conversation, submitted,
+    const { f, db, source, ingress, integration, msg, click, identity, cards, LarkEventCardAccess, channel, conversation, submitted,
       LarkEventDispatch, LarkEventSource, LarkEventIngress, LarkTriggerBindingEntity } = await larkFixture(t)
     await ingress.capture(integration, 'message', msg)
     await ingress.capture(integration, 'card', click, 'click-1')
@@ -734,19 +734,18 @@ for (const change of ['rollback', 'pause'] as const) {
     const replicaDb = new DataSource(db.options)
     await replicaDb.initialize()
     t.after(() => replicaDb.destroy())
-    const plugin = { resolve: () => ({ read: async () => integration }) }
     let releaseWorker!: () => void, signalReady!: () => void
     const gate = new Promise<void>((resolve) => { releaseWorker = resolve })
     const ready = new Promise<void>((resolve) => { signalReady = resolve })
-    const worker = new LarkEventSource(ingress, channel, conversation, {
-      resolveInboundIdentityForEvent: async (...args: Parameters<typeof identity.resolveInboundIdentityForEvent>) => {
-        signalReady()
-        await gate
-        return identity.resolveInboundIdentityForEvent(...args)
-      }
-    }, plugin)
+    const workerIdentity = Object.create(identity)
+    workerIdentity.findIntegration = async (id) => {
+      signalReady()
+      await gate
+      return identity.findIntegration(id)
+    }
+    const worker = new LarkEventSource(ingress, channel, conversation, workerIdentity, new LarkEventCardAccess(workerIdentity, conversation))
     const replica = new LarkEventSource(new LarkEventIngress(replicaDb.getRepository(LarkTriggerBindingEntity)),
-      channel, conversation, identity, plugin)
+      channel, conversation, identity, cards)
     const next = change === 'rollback' ? f.ctx : { ...f.ctx, bindingRevision: f.ctx.bindingRevision + 1 }
     const work = worker.drain(f.ctx, f.publish(worker), 32)
     try {
@@ -871,7 +870,7 @@ test(
     const channel = new LarkChannelStrategy(plugin, new LarkCapabilityService(), ingress)
     const phrase = 'Event Inbox P0 ' + randomUUID().slice(0, 8)
     const submitted: string[] = []
-    let sender = '',
+    let senderUnionId = '',
       original = '',
       chat = '',
       updated = false
@@ -879,12 +878,12 @@ test(
       getLatestConversationBindingByChatId: async (_: string, id: string) =>
         id === chat ? { ...f.ctx, scopeKey: 'self-chat' } : null,
       getActiveMessage: async () => ({
-        thirdPartyMessage: { messageId: original }
+        thirdPartyMessage: { id: original, messageId: 'platform-message' }
       }),
       handleMessage: async (message: any) => {
         if (message.chatType !== 'private' || message.content.trim() !== phrase || original)
           throw Error('unexpected_test_message')
-        sender = message.senderId
+        senderUnionId = message.raw?.sender?.sender_id?.union_id ?? ''
         chat = message.chatId
         const sent = await channel.sendCard(
           { integration, chatId: chat },
@@ -921,12 +920,15 @@ test(
     }
     // This transport test binds only the sender of its random challenge. Organization membership is tested separately.
     const identity = {
-      resolveInboundIdentityForEvent: async (_: any, d: any) => ({
-        mappedUser: d.event.operator?.open_id === sender && sender ? { id: f.ctx.userId } : null,
+      findIntegration: async () => integration,
+      readCurrentCardActor: async (_integration, unionId) =>
+        senderUnionId && unionId === senderUnionId ? { id: f.ctx.userId, tenantId: f.ctx.tenantId } : null,
+      resolveInboundIdentityForEvent: async () => ({
         requestUser: { id: f.ctx.userId, tenantId: f.ctx.tenantId }
       })
     }
-    const source = new LarkEventSource(ingress, channel, conversation, identity, plugin)
+    const { LarkEventCardAccess } = await import(lark + 'lark-event-card-access.service.js')
+    const source = new LarkEventSource(ingress, channel, conversation, identity, new LarkEventCardAccess(identity, conversation))
     await source.configure(f.ctx, true)
     const ws = channel.createWSClientFromConfig(options)
     try {

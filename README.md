@@ -2,6 +2,8 @@
 
 This is the source code repository for plugins on the [XpertAI platform](https://github.com/xpert-ai/xpert). The `xpertai/` folder contains officially maintained plugin projects. Partners or community contributors can create independent project folders in the root directory according to their company or organization, and maintain their own plugin code within. For plugin development and release processes, please refer to the official documentation: <https://xpertai.cn/docs/plugin/>.
 
+To publish typed events, display their results in the Event Inbox, and link back to a conversation, see the [Event Inbox plugin guide](docs/event-inbox.md).
+
 ## Repository Structure
 
 - `xpertai/`: Official plugin projects, managed with the Nx build tool for multiple plugin packages.
@@ -55,6 +57,9 @@ the staged Git snapshot, so an unstaged lockfile fix or existing `node_modules`
 cannot hide a broken commit. It rejects dependencies pointing outside the
 repository or at untracked local files. Use published SDK/contracts versions;
 keep experiments against an adjacent platform checkout out of committed manifests.
+
+For explicit development against built packages from a local Xpert checkout, see
+the [local platform package linking guide](docs/local-platform-packages.md).
 
 The `Release Dependencies` workflow runs the same offline frozen-lockfile check,
 installs the locked dependencies, and builds the community plugins on PRs and

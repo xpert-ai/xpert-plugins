@@ -1,3 +1,4 @@
+import { EXAMPLE_SOURCE_GUIDANCE, exampleSummaryQuery } from './bundled-example-source'
 import { AnalysisEvidenceService, captureEvidenceSchema } from './evidence/evidence.service'
 import { AnalysisEvidenceTransfers } from './evidence/evidence-transfers'
 import { evidenceConvertSchema } from './evidence/evidence-view.provider'
@@ -7,7 +8,7 @@ import { instantiateSchema } from './library/execution-contract'
 import { Optional } from '@nestjs/common'
 import { DashboardSaveRequests, saveRequestSchema, waitSaveRequestSchema } from './save-requests'
 import { boundedMap } from './bounded-map'
-import { dashboardRuntimeContext } from './runtime-context'
+import { dashboardProjectTools, dashboardRuntimeContext } from './runtime-context'
 import { createDefinitionTools, DEFINITION_GUIDANCE } from './definition-tools'
 import { sameAnalyticsResource } from './analytics-source'
 import { analyticsSourceKey } from '@xpert-ai/plugin-sdk/analytics'
@@ -32,6 +33,7 @@ import { dashboardStateSchema, editingSession, selectionFromConfig } from './edi
 import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { createFilterEvidence, filterTestSchema } from './filter-evidence'
 import { dashboardSaveEvidence } from './save-evidence'
+import { dashboardDelivery } from './dashboard-delivery'
 import { emitDashboardCard } from './resource-card'
 import { dashboardIcon } from './dashboard-icon'
 import { createPreviewRetryGuard } from './preview-retry'
@@ -45,7 +47,7 @@ const providerOptionSchema = {
   'x-ui': { component: 'remoteSelect', selectUrl: '/api/live-dashboard/provider-options' }
 } satisfies JsonSchemaObjectType['properties'][string]
 
-export const DASHBOARD_GUIDANCE = `When asked which dashboards are available, use platform resource_search with typeId "xpert.live-dashboard" and omit query to enumerate this conversation's Project content and accepted group shares. Follow nextCursor until null; dashboard_list only lists dashboards authored in the current Project and an empty result does not mean there are no shared dashboards. ResourceAssistant must be enabled for discovery and navigation; if absent, explain that capability is unavailable rather than declaring the shared directory empty. When the user asks to open, show or display an existing dashboard, prefer the platform resource_open tool with the requested title. It opens the authorized Workbench resource or asks the user to select a match. In groups it uses accepted shared references; never switch to the source Project or use dashboard_open merely to show a shared dashboard. dashboard_open reads source content for editing and may prepare an editing file; it is not the UI navigation tool. For an explicitly selected library template or task, read its recipe and use dashboard_instantiate_template with the declared arguments. Follow the returned save request until succeeded before reporting a saved dashboard; do not regenerate the layout unless requested. For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt or a succeeded template save request with a dashboard receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
+export const DASHBOARD_GUIDANCE = `When asked which dashboards are available, use platform resource_search with typeId "xpert.live-dashboard" and omit query to enumerate this conversation's Project content and accepted group shares. Follow nextCursor until null; dashboard_list only lists dashboards authored in the current Project and an empty result does not mean there are no shared dashboards. ResourceAssistant must be enabled for discovery and navigation; if absent, explain that capability is unavailable rather than declaring the shared directory empty. When the user asks to open, show or display an existing dashboard, prefer the platform resource_open tool with the requested title. It opens the authorized Workbench resource or asks the user to select a match. In groups it uses accepted shared references; never switch to the source Project or use dashboard_open merely to show a shared dashboard. dashboard_open reads source content for editing and may prepare an editing file; it is not the UI navigation tool. For an explicitly selected library template or task, read its recipe and use dashboard_instantiate_template with the declared arguments. Follow the returned save request until succeeded before reporting a saved dashboard; do not regenerate the layout unless requested. For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard using an existing governed source, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, read live-dashboard using the exact SKILL.md path in the Available Skills list. Read relevant references relative to that entry. If the skill is absent, report it as unavailable; never construct a path from the skill name. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt or a succeeded template save request with a dashboard receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
 @AgentMiddlewareStrategy('LiveDashboard')
 export class DashboardMiddleware implements IAgentMiddlewareStrategy {
@@ -74,6 +76,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()
     const discovering = new Map<string, Promise<AnalyticsDiscoveryResult['queryContract']>>()
+    const exampleSources = new Map<string, string | undefined>()
+    const exampleQueries = new Map<string, AnalyticsBinding>()
     let listedSources: Awaited<ReturnType<DashboardService['sources']>> | undefined
     const assertSourceSelection = (input: Pick<AnalyticsBinding, 'source' | 'providerId'>) => {
       if (listedSources && !listedSources.some(source => sameAnalyticsResource(source.source, input.source) && source.providers.some(provider => provider.id === input.providerId)))
@@ -120,6 +124,12 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return binding
       })
     const validateFinal = (manifest: DashboardManifest, requirePreviews: boolean, changedBindingIds?: string[]) => {
+      if (exampleSources.size) {
+        const used = new Set(manifest.bindings.map(binding => analyticsSourceKey(binding.source)))
+        for (const source of exampleSources.values()) {
+          if (!source || !used.has(source)) throw new Error('DASHBOARD_EXAMPLE_SOURCE_REQUIRED: use the exact source and version returned by analytics_definition_register for the selected example.')
+        }
+      }
       const allowedProviders = options.allowedFinalProviders
       if (allowedProviders && manifest.bindings.some(binding => !allowedProviders.includes(binding.providerId)))
         throw new Error(`DASHBOARD_PROVIDER_REQUIRED: final bindings must use ${allowedProviders.join(', ')}`)
@@ -179,6 +189,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       // Platform execution scope and request context occupy different runtime fields.
       beforeAgent: (state, runtime) => editing.restore(state, { live_dashboard: selectionFromConfig(runtime) }),
       wrapToolCall: async (request, handler) => {
+        if (!context.projectId) return handler(request)
         const name = request.toolCall.name
         const args = request.toolCall.args
         observing = name === 'dashboard_wait_request'
@@ -204,6 +215,12 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         }
         return result
       }, wrapModelCall: async (request, handler) => {
+      if (!context.projectId) {
+        const content = request.systemMessage?.content ?? ''
+        const guidance = 'Dashboard operations require a Project. For a request to discuss or explain metrics, answer directly and stop after the discussion; do not prepare samples, run previews or request a Project for a future dashboard. Naming a dashboard or mentioning an example is context, not a request to create it now. When the user asks to start making or editing the dashboard, select a Project before starting that work.'
+        return handler({ ...request, systemMessage: new SystemMessage({ content: typeof content === 'string'
+          ? content + '\n\n' + guidance : [...content, { type: 'text', text: guidance }] }) })
+      }
       if (previewRetries.exhausted) {
         const summary = previewRetries.summary + (evidence.pending ? ` Unsaved Workspace files: ${JSON.stringify(evidence.pendingPaths)}.` : '')
         const result = await handler({ ...request, tools: [], toolChoice: 'none', systemMessage: new SystemMessage({ content: [
@@ -215,13 +232,25 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }
       const exhausted = (observing ? modelCalls : ++modelCalls) > options.maxModelCalls
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
+      const delivery = dashboardDelivery(request.messages)
       const result = await handler({ ...request, ...(evidence.pending || activeRequests.size ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
         ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
-        { type: 'text', text: `Current dashboard authoring limit: ${this.service.maxBindings} Bindings (storage maximum 64). Shared charts may reuse one Binding; independent filter-option queries count too. Preview in batches, preserving each receipt and filter check.\n` + DASHBOARD_GUIDANCE + '\n' + ANALYSIS_SCENE_GUIDANCE + (editing.current() ? `\nCurrent editing target: ${JSON.stringify(editing.current())}. Continue this Artifact with dashboard_open/update unless the user explicitly requests a new independent dashboard.` : '') + '\n' + DEFINITION_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + HTML_QUERY_ROUNDS + '\n' + EDITING_GUIDANCE + (activeRequests.size ? `\nDurable save requests pending: ${JSON.stringify([...activeRequests])}. Keep calling dashboard_wait_request with the returned requestId and cursor until terminal. Do not resubmit or claim saved before a dashboard receipt. On a later conversation use dashboard_get_request to recover.` : '') + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
+        { type: 'text', text: `Current dashboard authoring limit: ${this.service.maxBindings} Bindings (storage maximum 64). Shared charts may reuse one Binding; independent filter-option queries count too. Preview in batches, preserving each receipt and filter check.\n` + EXAMPLE_SOURCE_GUIDANCE + '\n' + DASHBOARD_GUIDANCE + '\n' + ANALYSIS_SCENE_GUIDANCE + (editing.current() ? `\nCurrent editing target: ${JSON.stringify(editing.current())}. Use this identity for requested edits. A selected dashboard alone requires no tool call.` : '') + (delivery ? '\n' + delivery.guidance : '') + '\n' + DEFINITION_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + HTML_QUERY_ROUNDS + '\n' + EDITING_GUIDANCE + (activeRequests.size ? `\nDurable save requests pending: ${JSON.stringify([...activeRequests])}. Keep calling dashboard_wait_request with the returned requestId and cursor until terminal. Do not resubmit or claim saved before a dashboard receipt. On a later conversation use dashboard_get_request to recover.` : '') + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
       ] }) })
       if ((evidence.pending || activeRequests.size) && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
+      const verified = delivery?.verifiedDraft
+      if (verified && !evidence.pending && !activeRequests.size && result?.tool_calls?.length &&
+          result.tool_calls.every(({ name, args }) => name === 'dashboard_open' && !args.versionId &&
+            (args.artifactId ?? editing.current()?.artifactId) === verified.artifactId &&
+            (args.artifactId || !editing.current()?.versionId))) {
+        // Some models request the same read even after seeing its result. The card and revision are already verified.
+        const content = typeof result.content === 'string' ? result.content :
+          result.content.map(part => part.type === 'text' && typeof part.text === 'string' ? part.text : '').join('')
+        return new AIMessage({ content: content.trim() || [verified.title, `Draft r${verified.draftRevision}`].filter(Boolean).join(' · '),
+          id: result.id, usage_metadata: result.usage_metadata, response_metadata: result.response_metadata })
+      }
       return result
-    }, tools: [
+    }, tools: dashboardProjectTools(context.projectId, [
       ...(this.evidenceSnapshots ? [tool(async input => JSON.stringify(await this.evidenceSnapshots!.capture(scope, input)), {
         name: 'dashboard_capture_evidence', schema: captureEvidenceSchema,
         description: 'Capture immutable evidence from an explicitly selected published dashboard version and exact controls. Preserves data types, units, completeness, certification and cell citations. Use a UUID requestId; retry unknown outcomes with the same request. Changed sources require a new snapshot; never overwrite existing reports.'
@@ -278,7 +307,30 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const controls = Object.fromEntries(binding.parameters.map(parameter => [parameter.controlId, parameter.defaultValue ?? null]))
         return this.service.preview(scope, { binding, controls })
       }, runId, () => RequestContext.getLanguageCode() ?? 'en'),
-      ...createDefinitionTools(context, () => { listedSources = undefined }),
+      ...createDefinitionTools(context, () => { listedSources = undefined }, async (id, receipt) => {
+        exampleSources.set(id, receipt && analyticsSourceKey(receipt.source))
+        if (!receipt) {
+          for (const key of exampleQueries.keys()) if (key.startsWith(id + '/')) exampleQueries.delete(key)
+          return
+        }
+        const input = { source: receipt.source, providerId: receipt.providerId }
+        const listing = await discover({ ...input, request: {} })
+        const [dataset] = listing.items
+        if (listing.items.length !== 1) throw new Error('DASHBOARD_EXAMPLE_DATASET_UNAVAILABLE')
+        const metadataSchema = z.object({ binding: analyticsBindingSchema })
+        let parsed = metadataSchema.safeParse(dataset.metadata)
+        if (!parsed.success && dataset.inspectRequest) {
+          const inspected = await discover({ ...input, request: dataset.inspectRequest })
+          parsed = metadataSchema.safeParse(inspected.items.find(item => item.id === dataset.id)?.metadata)
+        }
+        if (!parsed.success || !sameAnalyticsResource(parsed.data.binding.source, receipt.source) || parsed.data.binding.providerId !== receipt.providerId)
+          throw new Error('DASHBOARD_EXAMPLE_BINDING_UNAVAILABLE')
+        const binding = parsed.data.binding
+        const query = await exampleSummaryQuery(id, binding)
+        if (!query) return { binding }
+        exampleQueries.set(query.key, query.binding)
+        return { binding, preparedQuery: { description: query.description, previewRequest: { exampleQuery: query.key } } }
+      }),
       tool(async () => JSON.stringify({ libraries: (await bundledLibraries()).map(({ source, ...lock }) => lock),
         online: { enabled: true, ...DASHBOARD_NETWORK_POLICY,
           usage: 'Network access is temporarily unrestricted for functional acceptance: CDN scripts/styles/fonts, external images, CSS imports and fetch/XHR are available, subject to browser CORS and mixed-content rules. Tailwind CDN is supported. Use exact versions when possible. Business data from platform sources must still use window.xpertLiveArtifact and saved Bindings; never embed credentials.' },
@@ -304,7 +356,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         listedSources = await this.service.sources(scope)
         return JSON.stringify(listedSources)
       }, {
-        name: 'dashboard_list_sources', description: 'List authorized analytics sources and versioned providers. Start here; IDs must come from this list.',
+        name: 'dashboard_list_sources', description: 'List registered analytics sources and versioned providers. For an explicitly named bundled demo, call analytics_definition_register with exampleId first; these names do not identify skill recipes.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
@@ -318,9 +370,18 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return preview(binding)
       }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover to inspect business metadata or repair invalid queries. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
         schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
-      tool(async ({ bindingJson }: { bindingJson: string }) => preview(analyticsBindingSchema.parse(parseJsonInput(bindingJson, 'bindingJson'))), {
-        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. When editing an existing dashboard, copy dashboard_open.bindings[], preserve binding.id and existing parameters[].controlId, and change only the requested query/parameters. Binding ID is independent of output.datasetId. Serialize the complete Binding (also supported: discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input, which derives binding.id from output.datasetId. Automatically discovers the source/provider query contract when absent in this run. Returns a current-run previewId for dashboard_create or dashboard_update; include every intended changed/new Binding receipt and matching controls in the same save.',
-        schema: z.object({ bindingJson: z.string().min(2).max(200000) }).strict(), verboseParsingErrors: true,
+      tool(async ({ bindingJson, exampleQuery }) => {
+        if (bindingJson !== undefined && exampleQuery === undefined)
+          return preview(analyticsBindingSchema.parse(parseJsonInput(bindingJson, 'bindingJson')))
+        if (exampleQuery !== undefined && bindingJson === undefined) {
+          const binding = exampleQueries.get(exampleQuery)
+          if (binding) return preview(binding)
+          throw new Error('DASHBOARD_EXAMPLE_QUERY_UNAVAILABLE: register the named example in this run and use its returned previewRequest.')
+        }
+        throw new Error('Supply exactly one of bindingJson or exampleQuery.')
+      }, {
+        name: 'dashboard_preview_binding', description: 'For a matching registered bundled sample query, use its exact previewRequest (exampleQuery only). Otherwise preview a complete canonical AnalyticsBinding returned by another tool. When editing an existing dashboard, copy dashboard_open.bindings[], preserve binding.id and existing parameters[].controlId, and change only the requested query/parameters. Binding ID is independent of output.datasetId. Serialize the complete Binding (also supported: discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input, which derives binding.id from output.datasetId. Automatically discovers the source/provider query contract when absent in this run. Returns a current-run previewId for dashboard_create or dashboard_update; include every intended changed/new Binding receipt and matching controls in the same save.',
+        schema: z.object({ bindingJson: z.string().min(2).max(200000).optional(), exampleQuery: z.string().min(1).max(128).optional() }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),
       tool(async (input: z.infer<typeof createToolSchema>, config) => save(input, config), { name: 'dashboard_create', description: 'Save a standard chart/table dashboard from previewId receipts. For custom HTML use dashboard_create_html. Fields and defaults must match previewed parameters. Returns a saved Artifact receipt after current access/data revalidation.',
@@ -339,7 +400,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }, { name: 'dashboard_create_html', description: 'Save custom HTML from a Workspace path together with run-local preview receipts and controls in one persistent draft (human publication is separate). Requires real data preview; does not accept query payloads or cached rows.',
         schema: createHtmlToolSchema, verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Save HTML dashboard', zh_Hans: '保存自由样式看板' } } })
-    ] }
+    ]) }
   }
 }
 function previewKey(binding: AnalyticsBinding, controls: Record<string, AnalyticsValue>) {

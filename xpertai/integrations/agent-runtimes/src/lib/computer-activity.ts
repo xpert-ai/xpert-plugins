@@ -19,23 +19,38 @@ function parseCursor(value?: string) {
   }
 }
 
+type JsonlActivityCollection =
+  | { status: 'collected'; events: unknown[]; gap: boolean }
+  | { status: 'incomplete'; reason: 'source_changed' | 'invalid_page' | 'capture_limit' }
+  | { status: 'unavailable' }
+
 export async function collectJsonlActivity(
   context: AgentRuntimeContext,
   handle: AgentRuntimeHandle,
   provider: JsonlActivityProtocol,
   terminal: boolean
-) {
-  if (!handle.runner) return undefined
+): Promise<JsonlActivityCollection> {
+  if (!handle.runner) return { status: 'unavailable' }
   const runner = context.capabilities.require(AgentExecutionRunnerCapability)
   let checkpoint = await context.activity?.readCheckpoint().catch(() => undefined)
   let committed = parseCursor(checkpoint?.sourceCursor)
+  let sourceId = committed?.sourceId
   let offset = terminal ? 0 : (committed?.offset ?? 0)
   const all: unknown[] = []
   let gap = false
   try {
     for (let count = 0; count < 1000; count++) {
-      const page = pageSchema.parse(await runner.request(handle.runner, { method: 'GET', path: `/events/${offset}` }))
-      if (committed && page.sourceId !== committed.sourceId) throw Error('Activity source was replaced')
+      const parsed = pageSchema.safeParse(await runner.request(handle.runner, { method: 'GET', path: `/events/${offset}` }))
+      if (!parsed.success) {
+        await appendActivities(context, [], terminal, ['source_lost'])
+        return { status: 'incomplete', reason: 'invalid_page' }
+      }
+      const page = parsed.data
+      if (sourceId && page.sourceId !== sourceId) {
+        await appendActivities(context, [], terminal, ['source_lost'])
+        return { status: 'incomplete', reason: 'source_changed' }
+      }
+      sourceId = page.sourceId
       gap ||= page.gap
       if (terminal) all.push(...page.events)
       if (context.activity && page.next > (committed?.offset ?? 0)) {
@@ -61,14 +76,19 @@ export async function collectJsonlActivity(
       }
       if (!page.hasMore) {
         if (terminal) await appendActivities(context, [], true, gap ? ['source_truncated'] : [])
-        return { events: all, gap }
+        return { status: 'collected', events: all, gap }
       }
-      if (page.next <= offset) throw Error('Invalid activity cursor')
+      if (page.next <= offset) {
+        await appendActivities(context, [], terminal, ['source_lost'])
+        return { status: 'incomplete', reason: 'invalid_page' }
+      }
       offset = page.next
     }
     await appendActivities(context, [], terminal, ['capture_limit'])
+    return { status: 'incomplete', reason: 'capture_limit' }
   } catch {
-    await appendActivities(context, [], terminal, ['source_lost'])
+    // A transport interruption does not establish a missing protocol event. Keep the
+    // ledger open so the next inspection can recover the same source and cursor.
+    return { status: 'unavailable' }
   }
-  return undefined
 }

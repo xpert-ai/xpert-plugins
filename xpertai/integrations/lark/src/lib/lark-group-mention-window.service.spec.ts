@@ -127,12 +127,14 @@ describe('LarkGroupMentionWindowService', () => {
 
 		await service.ingest(
 			createContext({
+				eventDispatchRefs: [{ id: 'intent-1', binding: 'b', revision: 1, xpertId: 'x', ownerId: 'u' }],
 				currentInboundLogIds: ['log-1'],
 				historyBefore: '2026-07-15T08:00:00.000Z'
 			})
 		)
 		await service.ingest(
 			createContext({
+				eventDispatchRefs: [{ id: 'intent-2', binding: 'b', revision: 1, xpertId: 'x', ownerId: 'u' }],
 				currentInboundLogIds: ['log-2'],
 				historyBefore: '2026-07-15T08:00:02.000Z',
 				userId: 'user-2',
@@ -150,6 +152,7 @@ describe('LarkGroupMentionWindowService', () => {
 
 		expect(scopeQueue.add).toHaveBeenCalledTimes(1)
 		const flushed = (scopeQueue.add as jest.Mock).mock.calls[0][0]
+		expect(flushed.eventDispatchRefs.map((ref: { id: string }) => ref.id)).toEqual(['intent-1', 'intent-2'])
 		const queueOptions = (scopeQueue.add as jest.Mock).mock.calls[0][1]
 		expect(queueOptions).toEqual({
 			jobId: buildLarkInboundJobId('log-1'),

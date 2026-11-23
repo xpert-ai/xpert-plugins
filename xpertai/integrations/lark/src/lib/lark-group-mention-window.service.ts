@@ -107,6 +107,9 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			state.typingReaction = await this.createTypingReaction(context)
 		}
 
+		if (state.items.length && context.eventDispatchRefs?.length) {
+			state.baseContext.eventDispatchRefs = [...(state.baseContext.eventDispatchRefs ?? []), ...context.eventDispatchRefs]
+		}
 		state.items.push(item)
 		state.participants = this.upsertParticipant(state.participants, {
 			senderOpenId: item.senderOpenId,

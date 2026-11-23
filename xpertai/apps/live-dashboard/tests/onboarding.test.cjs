@@ -19,7 +19,7 @@ test('App links one project-required author template with runnable file and skil
   assert.deepEqual(author.dependencies.plugins, ['@xpert-ai/plugin-live-dashboard', '@xpert-ai/plugin-analytics-files'])
   assert.deepEqual(author.dependencies.skills, [{componentKey:'live-dashboard',targetAgentKey:'Agent_Dashboard'}])
   const graph = JSON.parse(author.dslContent)
-  assert.deepEqual(graph.team.options.workspaceScope, {mode:'project-required',projectType:DASHBOARD_PROJECT_TYPE})
+  assert.deepEqual(graph.team.options.workspaceScope, {mode:'project-required',onMissing:'create',projectType:DASHBOARD_PROJECT_TYPE})
   assert.equal(graph.team.features.sandbox.enabled, true)
   assert.equal(graph.team.agentConfig.recursionLimit, 300)
   assert.equal(graph.nodes.find(n=>n.entity.provider==='LiveDashboard').entity.options.maxModelCalls, 64)
@@ -32,7 +32,7 @@ test('App links one project-required author template with runnable file and skil
   assert.deepEqual(graph.team.features.opener.questions.map(item => item.label), [
     uiPrompts.regionalTitle, uiPrompts.salesTitle, uiPrompts.qualityTitle, uiPrompts.superstoreTitle, uiPrompts.realDataTitle
   ])
-  assert.ok(dashboardTemplates.find(t=>t.key==='live-dashboard-monitor'))
+  assert.deepEqual(JSON.parse(dashboardTemplates.find(t=>t.key==='live-dashboard-monitor').dslContent).team.options.workspaceScope, {mode:'project-required',projectType:DASHBOARD_PROJECT_TYPE})
 })
 
 test('catalog packages complete recipes and declared screenshot assets', () => {

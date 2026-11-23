@@ -7,6 +7,9 @@
     },
     "integration": {
         "Lark": {
+            "Delivery_unknown": "unknown",
+            "Delivery_sent": "sent",
+            "Delivery_failed": "failed",
             "HistoryContextReference": "Feishu conversation history",
             "EndConversation": "End",
             "HelpDoc": "Help",

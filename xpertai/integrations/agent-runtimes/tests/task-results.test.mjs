@@ -1,11 +1,10 @@
-import { createHash } from 'node:crypto'
-import { agentPrompt } from '../dist/lib/input.js'
 import { managedOptions } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import { RunnableLambda } from '@langchain/core/runnables'
 import assert from 'node:assert/strict'
-import { taskResult, resolveTaskResult, resultInstructions, deliveryPaths, appendReportText } from '../dist/lib/task-result.js'
+import { createHash } from 'node:crypto'
+import { taskResult, resolveTaskResult, resultInstructions, deliveryPaths, outputDelivery, appendReportText } from '../dist/lib/task-result.js'
 import { taskResourceCards, emitTaskResults } from '../dist/lib/result-cards.js'
 import { AgentInvocationMiddleware } from '../dist/lib/invocation.middleware.js'
 const items = [
@@ -27,45 +26,57 @@ const items = [
   },
   { type: 'file', id: 'report', title: 'Report', summary: 'Results', path: 'report.txt' }
 ]
-const markdown = '# 验收报告\n尚未完成部署。\n```json\n{"version":1,"summary":{}}\n```'
-test('keeps ordinary Markdown verbatim without interpreting JSON examples or verdict words', async () => {
-  const result = await resolveTaskResult(markdown, { mode: 'none' }, async () => assert.fail('unexpected file read'))
-  assert.equal(result.text, markdown)
-  assert.equal(result.items, undefined)
-  assert.equal(result.report, undefined)
-  assert.equal(resultInstructions({ mode: 'none' }), '')
-  assert.equal(agentPrompt({ prompt: 'Return the value' }), 'Return the value')
+test('ordinary text, JSON and retired envelopes stay unchanged and never select a file', async () => {
+  for (const text of ['', '中文🙂', '{"version":1,"summary":"literal JSON","items":[]}', '```xpert-task-result-file\n{"path":"secret"}\n```']) {
+    const result = await resolveTaskResult(text, { mode: 'none' }, async () => assert.fail('unrequested read'))
+    assert.equal(result.text, text)
+    assert.equal(result.items, undefined)
+    assert.equal(result.report, undefined)
+  }
 })
-test('reads only the preselected report path and keeps failed delivery separate from execution', async () => {
-  const delivery = { mode: 'none', reportPath: 'output/report.md' }
-  const sha256 = createHash('sha256').update(markdown).digest('hex')
-  const result = await resolveTaskResult('brief reply', delivery, async path => {
-    assert.equal(path, delivery.reportPath)
-    return { text: markdown, sha256 }
+test('only the caller-selected Markdown report is read verbatim and hashed', async () => {
+  const text = '# Review\n\n中文🙂 "quote" \\ path\n'
+  const result = await resolveTaskResult('model names other.md', { mode: 'none', reportPath: 'output/report.md' }, async path => {
+    assert.equal(path, 'output/report.md')
+    return { text, sha256: 'not-trusted' }
   })
-  assert.equal(result.text, markdown)
-  assert.deepEqual(result.report, { status: 'completed', path: delivery.reportPath, sha256 })
-  const failed = await resolveTaskResult('done', delivery, async () => { throw Error('secret') })
-  assert.equal(failed.text, '')
-  assert.deepEqual(failed.report, { status: 'failed', path: delivery.reportPath, code: 'report_unavailable' })
-  assert.doesNotMatch(JSON.stringify(failed), /secret/)
+  assert.equal(result.text, text)
+  assert.deepEqual(result.report, { status: 'completed', path: 'output/report.md', sha256: createHash('sha256').update(text).digest('hex') })
+  assert.deepEqual(result.export, { mode: 'none', status: 'not_requested' })
+  assert.equal(result.artifacts, undefined)
 })
-test('ordinary empty replies and artifact-only tasks do not require a report', async () => {
-  for (const text of ['', '  ']) {
-    const result = await resolveTaskResult(text, { mode: 'none' }, () => assert.fail('unexpected read'))
-    assert.deepEqual(result, { text, export: { mode: 'none', status: 'not_requested' } })
-  }
-  const result = taskResult('', { mode: 'files', paths: ['plugin.tgz'] })
-  assert.equal(result.report, undefined)
-  assert.equal(result.export.mode, 'files')
-  assert.doesNotMatch(resultInstructions({ mode: 'files', paths: ['plugin.tgz'] }), /report|Markdown|independent evidence/)
-})
-test('only explicitly selected reports reject empty or oversized file content', async () => {
-  for (const [text, code] of [['  ', 'report_empty'], ['a'.repeat(4 * 1024 * 1024 + 1), 'report_too_large']]) {
-    const result = await resolveTaskResult('', { mode: 'none', reportPath: 'report.md' }, async () => ({ text, sha256: 'ignored' }))
+test('missing, empty, oversized and unreadable reports produce safe separate delivery failures', async () => {
+  const delivery = { mode: 'none', reportPath: 'review.md' }
+  for (const [reader, code] of [[undefined, 'report_unavailable'], [async () => { throw Error('private contents') }, 'report_unavailable'], [async () => ({ text: '  ' }), 'report_empty'], [async () => ({ text: '中'.repeat(1500000) }), 'report_too_large']]) {
+    const result = await resolveTaskResult('The report passed!', delivery, reader)
     assert.equal(result.text, '')
-    assert.deepEqual(result.report, { status: 'failed', path: 'report.md', code })
+    assert.deepEqual(result.report, { status: 'failed', path: 'review.md', code })
+    assert.equal(JSON.stringify(result).includes('private contents'), false)
   }
+  assert.equal(taskResult('success claim', delivery).text, '')
+})
+test('oversized replies do not become partial evidence; limits count UTF-8 bytes', async () => {
+  assert.deepEqual(await resolveTaskResult('中文', { mode: 'none' }, undefined, 5), {
+    text: '', textTruncated: true, export: { mode: 'none', status: 'not_requested' }
+  })
+  assert.equal((await resolveTaskResult('中文', { mode: 'none' }, undefined, 6)).text, '中文')
+  assert.equal(taskResult('a'.repeat(2 * 1024 * 1024)).textTruncated, undefined)
+  assert.equal(taskResult('a'.repeat(2 * 1024 * 1024 + 1)).textTruncated, true)
+})
+test('bounded streaming marks reply overflow without inventing a report failure', () => {
+  const text = appendReportText('a'.repeat(4 * 1024 * 1024), 'overflow')
+  assert.deepEqual(taskResult(text), { text: '', textTruncated: true, export: { mode: 'none', status: 'not_requested' } })
+  assert.equal(appendReportText(text, 'later'), text)
+})
+test('instructions describe optional reports and only caller-authorized artifact selection', () => {
+  assert.doesNotMatch(resultInstructions({ mode: 'none' }), /xpert-task-result/)
+  assert.match(resultInstructions({ mode: 'none', reportPath: 'review.md' }, true), /UTF-8 Markdown/)
+  assert.match(resultInstructions({ mode: 'none', reportPath: 'review.md' }), /cannot transfer/)
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['review.md', 'code.py'], reportPath: 'review.md' }), ['review.md', 'code.py'])
+  assert.deepEqual(deliveryPaths({ mode: 'files' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'review.md' }), ['review.md'])
+  for (const path of ['../secret', '/etc/passwd', 'a//b', 'a\\b'])
+    assert.throws(() => outputDelivery({ mode: 'none', reportPath: path }))
 })
 test('result resources are stable, provider-neutral and emitted only after completion', async () => {
   const task = {
@@ -121,14 +132,13 @@ test('launch defaults to no delivery; only an explicit archive request reaches t
   assert.equal(received.input.delivery.mode, 'archive')
 })
 
-test('unknown artifact paths remain recoverable even when a report path is selected', () => {
-  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'output/report.md' }), [])
+test('a selected report is an explicit deliverable, with optional additional paths', () => {
+  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'archive', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'none', reportPath: 'output/report.md' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['output/report.md'], reportPath: 'output/report.md' }), ['output/report.md'])
   assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['plugin.tgz'], reportPath: 'output/report.md' }), ['plugin.tgz', 'output/report.md'])
-})
-test('bounded streaming marks reply overflow without inventing a report failure', () => {
-  const text = appendReportText('a'.repeat(4 * 1024 * 1024), 'overflow')
-  assert.deepEqual(taskResult(text), { text: '', textTruncated: true, export: { mode: 'none', status: 'not_requested' } })
-  assert.equal(appendReportText(text, 'later'), text)
 })
 test('a direct adapter without a file reader cannot substitute a brief final reply for a selected report', () => {
   assert.equal(taskResult('report written', { mode: 'none', reportPath: 'report.md' }).report.code, 'report_unavailable')

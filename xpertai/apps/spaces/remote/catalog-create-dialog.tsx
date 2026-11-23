@@ -12,7 +12,7 @@ export function CatalogCreateDialog({ implementation, implementations, items, in
   onClose: () => void; onDone: () => Promise<void>; run: (work: () => Promise<void>) => Promise<void>; busy: boolean
 }) {
   const label = useCatalogLabel()
-  const options = implementations.filter(option => option.typeId === implementation.typeId)
+  const options = implementations.filter(option => option.typeId === implementation.typeId && option.creatable !== false)
   const identity = (option: Implementation) => `${option.providerKey}/${option.implementationKey}`
   const [selected, setSelected] = useState(identity(implementation)), [template, setTemplate] = useState('blank')
   const active = options.find(option => identity(option) === selected) ?? implementation

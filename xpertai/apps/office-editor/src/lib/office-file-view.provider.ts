@@ -1,3 +1,4 @@
+import { WORKBOOK_VIEW_ICON } from './workbooks/view-icon.js'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod/v3'
@@ -29,7 +30,7 @@ export class OfficeFileView implements IXpertViewExtensionProvider {
   private view(key: string) { if (key !== VIEW) throw new BadRequestException('office.view_unavailable') }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || slot !== 'agent.workbench.main') return []
-    return [{ key: VIEW, title: label('Spreadsheet', '电子表格'), hostType: 'agent', slot,
+    return [{ key: VIEW, title: label('Spreadsheet', '电子表格'), icon: WORKBOOK_VIEW_ICON, hostType: 'agent', slot,
       source: { provider: 'office.files', plugin: '@xpert-ai/plugin-office-editor' }, refreshable: false,
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: 'office-file' }, dataSource: { mode: 'platform' } },

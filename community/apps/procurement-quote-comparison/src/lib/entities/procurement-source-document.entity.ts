@@ -1,6 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementDocumentExtractionStatus, ProcurementDocumentRole, ProcurementDocumentStatus } from '../types.js'
 
+import type { QuoteSeriesReview } from '../quote-series-review.js'
+
 @Entity('plugin_procurement_source_document')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementSourceDocument {
@@ -63,6 +65,9 @@ export class ProcurementSourceDocument {
 
   @Column({ type: 'text', nullable: true })
   errorMessage?: string
+
+  @Column({ type: 'jsonb', nullable: true, select: false })
+  seriesReview?: QuoteSeriesReview
 
   @CreateDateColumn()
   createdAt?: Date

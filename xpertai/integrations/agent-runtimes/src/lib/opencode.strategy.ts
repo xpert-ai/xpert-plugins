@@ -2,7 +2,7 @@ import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult, deliveryPaths } from './task-result.js'
+import { deliveryPaths, outputDelivery, resolveTaskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -120,7 +120,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       'POST',
       {
         messageID: handle.runId,
-        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner)) }]
+        parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner),
+          Boolean(runner && context.capabilities.require(AgentExecutionRunnerCapability).readTaskReportFile)) }]
       },
       context,
       handle
@@ -222,7 +223,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         const result = observation.result,
           delivery = outputDelivery(handle.metadata?.delivery)
         if (delivery.mode !== 'none') {
-          // Only an explicit selection grants file export. Report prose cannot select files.
+          // An explicit caller selection is authoritative even when the model omits a file item.
           const paths = deliveryPaths(delivery)
           try {
             if (!paths.length) throw new Error('No declared deliverables')
@@ -234,7 +235,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
             result.export = {
               mode: delivery.mode,
               status: 'failed',
-              error: paths.length ? 'artifact_collection_failed: recover delivery without rerunning the task.' : 'delivery_selection_required: select the exact file paths to collect.'
+              error: 'Requested files could not be exported. Task execution has finished; inspect the workspace.'
             }
           }
         }
@@ -353,7 +354,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
               .map((part) => part.text ?? '')
               .join(''),
             outputDelivery(handle.metadata?.delivery),
-            runner?.readTaskReportFile ? (path) => runner.readTaskReportFile(receipt, path) : undefined
+            runner?.readTaskReportFile ? (reference) => runner.readTaskReportFile(receipt, reference) : undefined,
+            2 * 1024 * 1024
           )),
           ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
         }
@@ -361,7 +363,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     } catch {
       return {
         status: 'failed', handle,
-        error: 'result_collection_failed: the execution result could not be collected.'
+        error: '[task_result_invalid] The runtime result could not be processed.'
       }
     }
   }
