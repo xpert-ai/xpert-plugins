@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "description": "Read-only native PDF preview for project files and collaboration spaces.",
   "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/pdf-viewer"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
