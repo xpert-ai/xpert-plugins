@@ -3,7 +3,7 @@ export { app } from "./app-config.js";
 import { z } from "zod/v3";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { XpertServerPlugin, type XpertPlugin } from "@xpert-ai/plugin-sdk";
-import { CONFIG, ENTITIES, configSchema, type Config } from "./model.js";
+import { CONFIG, ENTITIES, installationSchema } from "./model.js";
 import {
   NAME,
   VERSION,
@@ -39,7 +39,7 @@ import { OrderMethodEvolution } from "./improvement/evolution.js";
 })
 export class OrderPluginModule {}
 
-const plugin: XpertPlugin<z.input<typeof configSchema>> = {
+const plugin: XpertPlugin<z.input<typeof installationSchema>> = {
   meta: {
     name: NAME,
     version: VERSION,
@@ -69,14 +69,14 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
       ]),
     ),
   },
-  config: { schema: configSchema, defaults: configSchema.parse({}) },
+  config: { schema: installationSchema, defaults: installationSchema.parse({}) },
   templates,
   register(ctx) {
     return {
       module: OrderPluginModule,
       global: true,
       providers: [
-        { provide: CONFIG, useValue: configSchema.parse(ctx.config) },
+        { provide: CONFIG, useValue: installationSchema.parse(ctx.config) },
       ],
       exports: [CONFIG],
     };

@@ -3,6 +3,8 @@ import { pluginArtifactTableName } from "@xpert-ai/plugin-sdk";
 import { ARTIFACT_NAMESPACE } from "./definition.js";
 import { z } from "zod/v3";
 export const CONFIG = "ORDER_EVIDENCE_CONFIG";
+export const installationSchema = z.object({debug:z.boolean().default(false)});
+// Stored case snapshots retain the configuration used for their original run.
 export const configSchema = z
   .object({
     assistants: z

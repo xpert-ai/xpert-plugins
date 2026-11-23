@@ -1,3 +1,4 @@
+import { canPublishMethod } from "../organization-config.js";
 import {
   ConflictException,
   ForbiddenException,
@@ -207,22 +208,17 @@ export class OrderMethodEvolution
     return { valid, reasons: valid ? [] : ["baseline_or_candidate_changed"] };
   }
   async authorizePublication(op: EvolutionChangeOperation) {
+    if (op.context.actor.actorType !== "human")
+      throw new ForbiddenException("configured_human_capability_publisher_required");
     const r = await this.record(op);
-    if (
-      op.context.actor.actorType !== "human" ||
-      !this.source.orders.config.capabilityPublishers?.includes(
-        op.context.actor.actorId,
-      )
-    )
-      throw new ForbiddenException(
-        "configured_human_capability_publisher_required",
-      );
-    await this.source.orders.runtime
-      .require(ProjectAccessRuntimeCapability)
-      .assertManage({
-        actor: { ...this.identity(op), userId: op.context.actor.actorId },
-        projectId: r.projectId,
-      });
+    const request = {
+      actor: { ...this.identity(op), userId: op.context.actor.actorId },
+      projectId: r.projectId,
+      includeApplicationBindings: true,
+    };
+    const access = await this.source.orders.runtime.require(ProjectAccessRuntimeCapability).assertManage(request);
+    if (!canPublishMethod(access, op.context.actor.actorId))
+      throw new ForbiddenException("configured_human_capability_publisher_required");
   }
   async publish(op: EvolutionChangeOperation) {
     await this.authorizePublication(op);

@@ -1,3 +1,4 @@
+import { organizationConfig } from "./organization-config.js";
 import {
   ConflictException,
   ForbiddenException,
@@ -30,7 +31,7 @@ import type {
 import {
   CONFIG,
   configSchema,
-  type Config,
+  installationSchema,
   type Finalize,
   OrderCase,
   OrderWork,
@@ -95,7 +96,7 @@ export class OrderService {
     @InjectDataSource() readonly db: DataSource,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
     readonly runtime: RuntimeCapabilityRegistry,
-    @Inject(CONFIG) readonly config: Config,
+    @Inject(CONFIG) readonly config: ReturnType<typeof installationSchema.parse>,
     private readonly rules: OrderRulesService,
   ) {}
   async root(c: ProjectPipelineContext, id?: string) {
@@ -115,9 +116,8 @@ export class OrderService {
   ) {
     const snapshot = fixtureFor(scenario);
     const c = context(tool);
-    const access = await this.runtime
-      .require(ProjectAccessRuntimeCapability)
-      .assertManage(c);
+    const projects = this.runtime.require(ProjectAccessRuntimeCapability);
+    const access = await projects.assertManage(c);
     if (
       access.applicationKey !== PROJECT_TYPE.applicationKey ||
       access.projectTypeKey !== PROJECT_TYPE.projectTypeKey
@@ -125,21 +125,22 @@ export class OrderService {
       throw new ConflictException("project_type_mismatch");
     if (!tool.xpertId || !tool.agentKey)
       throw new ForbiddenException("assistant_required");
-    const bindings = configSchema.parse(this.config);
-    if (!bindings.assistants || !bindings.approvers)
-      throw new ConflictException("configure_assistants_and_human_approvers");
     const repo = this.db.getRepository(OrderCase);
     let e = await repo.findOneBy(owner(c));
     if (!e) {
+      const request = { ...c, includeApplicationBindings: true };
+      const installation = await projects.assertManage(request);
+      const { coordinatorId, config: bindings } = organizationConfig(installation);
+      if (coordinatorId !== tool.xpertId)
+        throw new ForbiddenException("organization_application_coordinator_required");
+
       // This is a direct Project type: the platform owns its lifecycle.
       // Installation configuration explicitly binds published roles; do not infer
       // roles from names, member order, or silently restore removed members.
-      if (!bindings.assistants)
-        throw new ConflictException("configure_published_role_assistants");
       const assistants: Record<string, string> = {};
       for (const role of ROLES.filter((r) => r.key !== "coordinator")) {
         const id = bindings.assistants[role.key];
-        if (!id || !access.assistantIds?.includes(id))
+        if (!id || !installation.assistantIds?.includes(id))
           throw new ConflictException(
             "published_role_project_membership_required",
           );

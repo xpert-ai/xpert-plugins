@@ -1,9 +1,20 @@
 import type { PluginMarketplaceContribution } from "@xpert-ai/contracts";
-import { ICON, ALL_ROLES, templateKey, agentKey } from "./definition.js";
+import { ICON, ROLES, ALL_ROLES, templateKey, agentKey } from "./definition.js";
 
 export const APP_COVER = "./assets/brand/order-evidence-cover-zh-v1.png";
 
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans });
+
+const organizationSetup = {
+  organizationSetup: [
+    ...ROLES.filter(role => role.key !== "coordinator").map(role => ({
+      key: role.key, kind: "members" as const,
+      label: text(role.key + " approvers", role.title.replace(" Assistant", "") + "审批人"),
+    })),
+    {key: "capabilityPublishers", kind: "members" as const, optional: true, label: text("Method publishers", "判断方法发布人（可选）")}
+  ]
+};
+
 export const app = {
   type: "app",
   name: "order-evidence",
@@ -24,6 +35,7 @@ export const app = {
     },
   ],
   appConfig: {
+    ...organizationSetup,
     scope: "organization",
     assistantTemplateKey: templateKey("coordinator"),
     assistantSuite: {
@@ -116,8 +128,8 @@ export const app = {
         "访问遵循组织、工作空间及项目权限。当前演示使用合成业务快照与本地决定记录，不调用 SAP 或 Data Xpert，不产生生产交易。",
       ),
       initializationSummary: text(
-        "Prepare a dedicated workspace and publish the coordinator and six specialists. Before running a Project, bind the published role members and assign authorized human approvers for each stage.",
-        "准备专用工作空间并发布协调者与六个专业 Assistant。运行项目前，需绑定已发布的角色成员，并为各阶段配置具备权限的人类批准人。",
+        "Initialization binds the published Assistants for this organization. Select a human approver for each stage. Existing installations can complete these selections in place.",
+        "初始化时自动绑定本组织已发布的角色，请为六个阶段分别选择审批人。已有实例可在应用详情补全配置。",
       ),
       initializationSteps: [
         text("Check an available primary model.", "检查可用主模型。"),
@@ -126,8 +138,8 @@ export const app = {
           "创建应用专用工作空间。",
         ),
         text(
-          "Install and publish seven Assistant roles.",
-          "安装并发布七个 Assistant 角色。",
+          "Publish the coordinator, six specialists and the method maintenance Assistant.",
+          "发布协调者、六个专业角色和能力维护 Assistant。",
         ),
       ],
     },

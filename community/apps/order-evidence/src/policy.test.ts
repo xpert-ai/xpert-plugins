@@ -9,11 +9,12 @@ import {
 import { checkProjectPipelineConfiguration } from "@xpert-ai/contracts";
 import { configuration, descriptors } from "./configuration.js";
 import { routingStages } from "./routing.js";
-import { STEPS, refs } from "./definition.js";
+import { PROJECT_TYPE, STEPS, refs } from "./definition.js";
 import { fixture, documentsFor } from "./fixture.js";
 import { validateStageEvidence, type PriorEvidence } from "./policy.js";
 import { OrderService, digest, owner } from "./service.js";
 import { OrderRulesService } from "./improvement/rules.service.js";
+import { OrderImprovementService } from "./improvement/source.service.js";
 import { configSchema, resultSchema, finalizeSchema } from "./model.js";
 const c: ProjectPipelineOperationContext = {
   actor: {
@@ -60,6 +61,48 @@ const service = () =>
     ),
   );
 describe("order decision boundaries", () => {
+  it("authorizes only the assigned project maintenance Assistant without requiring publishers", async () => {
+    const orders = service();
+    const maintenance = new OrderImprovementService(orders, new OrderRulesService(orders.db, orders.runtime));
+    const assistant = randomUUID();
+    const access = { ...PROJECT_TYPE, assistantIds: [assistant], applicationBindings: { roles: { capability: assistant } } };
+    const assertManage = vi.fn().mockResolvedValue(access);
+    const assertAssistant = vi.fn();
+    vi.spyOn(orders.runtime, "require").mockReturnValue({ assertManage, assertAssistant });
+    const tool = {
+      surface: "middleware" as const, tenantId: c.actor.tenantId, organizationId: c.actor.organizationId,
+      principal: { type: "user" as const, id: c.actor.userId }, projectId: c.projectId,
+      xpertId: assistant, agentKey: "Agent_capability", host: {},
+    };
+    await expect(maintenance.authorize(tool)).resolves.toEqual({ actor: c.actor, projectId: c.projectId });
+    expect(assertAssistant).toHaveBeenCalledWith({ actor: c.actor, projectId: c.projectId, assistantId: assistant });
+    await expect(maintenance.authorize({ ...tool, agentKey: "Agent_contract" })).rejects.toThrow("configured_maintenance_assistant_required");
+    assertManage.mockResolvedValue({ ...access, assistantIds: [] });
+    await expect(maintenance.authorize(tool)).rejects.toThrow("configured_maintenance_assistant_required");
+    expect(assertAssistant).toHaveBeenCalledTimes(1);
+  });
+  it("uses the original instance and coordinator when a started case is retried", async () => {
+    const coordinator = randomUUID();
+    const instanceId = randomUUID();
+    const tool = {
+      surface: "middleware" as const, tenantId: c.actor.tenantId, organizationId: c.actor.organizationId,
+      principal: { type: "user" as const, id: c.actor.userId }, projectId: c.projectId,
+      xpertId: coordinator, agentKey: "Agent_coordinator", host: {},
+    };
+    const assertManage = vi.fn().mockImplementation(async (request) => {
+      if (request.includeApplicationBindings) throw Error("installation_not_ready");
+      return { ...PROJECT_TYPE, canManage: true };
+    });
+    const findOneBy = vi.fn().mockResolvedValue({ coordinatorId: coordinator, instanceId });
+    const db = { getRepository: () => ({ findOneBy }) } as unknown as DataSource;
+    const capabilities = new DefaultRuntimeCapabilityRegistry();
+    vi.spyOn(capabilities, "require").mockReturnValue({ assertManage });
+    const subject = new OrderService(db, capabilities, { debug: false }, new OrderRulesService(db, capabilities));
+    await expect(subject.start(tool, "retry")).resolves.toMatchObject({ status: "already_started", instanceId });
+    await expect(subject.start({ ...tool, xpertId: randomUUID() }, "retry")).rejects.toThrow("case_coordinator_mismatch");
+    findOneBy.mockResolvedValue(null);
+    await expect(subject.start(tool, "new")).rejects.toThrow("installation_not_ready");
+  });
   it("requires a native human decision at every stage before advancement", () => {
     const f = configuration();
     expect(

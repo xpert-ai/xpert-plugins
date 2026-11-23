@@ -1,3 +1,4 @@
+import { maintenanceAssistantId } from "../organization-config.js";
 import {
   ConflictException,
   ForbiddenException,
@@ -92,12 +93,14 @@ export class OrderImprovementService {
   }
   async authorize(tool: XpertBusinessToolContext) {
     const c = context(tool);
+    const request = { ...c, includeApplicationBindings: true };
     const access = await this.orders.runtime
       .require(ProjectAccessRuntimeCapability)
-      .assertManage(c);
+      .assertManage(request);
+    const maintenanceId = maintenanceAssistantId(access);
     if (
-      !this.orders.config.maintenanceAssistantId ||
-      tool.xpertId !== this.orders.config.maintenanceAssistantId ||
+      !maintenanceId ||
+      tool.xpertId !== maintenanceId ||
       tool.agentKey !== "Agent_capability" ||
       !access.assistantIds?.includes(tool.xpertId)
     )
@@ -105,8 +108,6 @@ export class OrderImprovementService {
     await this.orders.runtime
       .require(ProjectAccessRuntimeCapability)
       .assertAssistant({ ...c, assistantId: tool.xpertId });
-    if (!this.orders.config.capabilityPublishers?.length)
-      throw new ConflictException("configure_capability_publishers");
     return c;
   }
   async read(tool: XpertBusinessToolContext) {

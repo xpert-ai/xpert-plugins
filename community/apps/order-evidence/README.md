@@ -27,9 +27,7 @@ corepack pnpm --filter @xpert-ai/plugin-order-evidence build
 corepack pnpm --filter @xpert-ai/plugin-order-evidence verify:dist
 ```
 
-在已验证的 Xpert 主机运行 `plugin:deploy:local --plugin-dir <本包目录> --scope tenant`，按部署回执重启 API。通过 `assistant:suite:init --profile <本包>/blueprints/order-evidence-suite.json` 安装并发布独立角色。
-
-插件配置 `assistants` 显式绑定六个已发布 Assistant ID，`approvers` 按相同角色键配置有权限的用户 ID 数组。所有角色都必须是该 Project 的成员。运行时还检查项目管理权限；只配置用户 ID 不会授予管理权。演示可由同一测试账号扮演各业务责任人，生产应配置真实职责分工。
+在已验证的 Xpert 主机运行 `plugin:deploy:local --plugin-dir <本包目录> --scope tenant`，按部署回执重启 API。在目标组织打开应用详情并初始化，平台发布套件并按角色键绑定 Assistant。在表单中为合同、工程、采购、计划、质量、售后选择本组织审批人，可另选判断方法发布人。审批时仍校验项目管理权限。已有实例在应用详情选择“补全组织配置”；已启动订单保留原审批人和证据。
 
 创建“制造业订单项目”，添加协调者及六个专业角色，向协调者发送“请启动这张 12 台电机订单的全流程证据演示”。在原生项目任务 Pipeline 查看当前证据、人工确认或退回。演示回执以 `DEMO-DECISION-` 开头。
 
@@ -53,13 +51,13 @@ corepack pnpm --filter @xpert-ai/plugin-order-evidence verify:dist
 
 构建时 `scripts/manifest.mjs` 从实际运行元数据生成 `.xpertai-plugin/plugin.json`，同步声明封面资源。`verify:dist` 检查模板关联、manifest 一致性、PNG 格式、5 MiB 限制和打包目录。部署新版插件并按回执重启后，Explore 卡片、详情页和初始化面板使用同一张封面。
 
-初始化应用不会自动完成业务数据接入、项目成员和业务批准人的配置；运行演示前仍需完成上文所列步骤。
+新项目从协调者的已发布协作关系加载角色成员。已有项目沿用当前成员配置。
 
 ## 售后方法演进与下一单采用（0.3.0）
 
 能力维护 Assistant 仅可读取所在项目中已获质量 / 工程确认的售后建议与证据版本，提交候选给原生 Agent Evolution。它没有批准、发布或工程变更权限。插件使用公开 Runtime Capability 与 Evolution Target Provider，不引入独立调度器。
 
-1. 配置 `maintenanceAssistantId` 为已发布的能力维护 Assistant ID，配置 `capabilityPublishers` 为有源项目管理权限的能力发布人。此配置与 `approvers` 业务批准人分别管理，彼此不自动授权。
+1. 能力维护 Assistant 由组织应用实例绑定；在组织配置中指定有源项目管理权限的判断方法发布人。
 2. 将能力维护 Assistant 添加到已有完整订单项目，请其读取已确认的售后证据并提交候选。`requiredEvidence` 表示判断必须检查的类别，并非当前已有资料清单；当前缺少的工况也应作为未来补证要求。
 3. 在“智能体进化 → 候选与评测”查看目标 `order_evidence.aftercare_method`。平台按冻结的 8 个独立合成样例执行同一确定性规则函数，比较基线与候选。本地实跑中，漏掉工况要求的候选为 7/8，发布被阻止；完整四类证据且保留人工确认的候选为 8/8。这里衡量规则是否符合样例，不是模型整体准确率。
 4. 授权能力负责人核对候选指纹、评测记录与范围，在原生签审页面批准并写入方法版本。R2 签审遵循宿主策略。发布结果保留不可变回执，不自动修改已有订单。

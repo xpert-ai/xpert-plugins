@@ -77,6 +77,65 @@
               }
             ],
             "appConfig": {
+              "organizationSetup": [
+                {
+                  "key": "contract",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "contract approvers",
+                    "zh_Hans": "合同审批人"
+                  }
+                },
+                {
+                  "key": "engineering",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "engineering approvers",
+                    "zh_Hans": "工程审批人"
+                  }
+                },
+                {
+                  "key": "procurement",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "procurement approvers",
+                    "zh_Hans": "采购审批人"
+                  }
+                },
+                {
+                  "key": "production",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "production approvers",
+                    "zh_Hans": "计划审批人"
+                  }
+                },
+                {
+                  "key": "quality",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "quality approvers",
+                    "zh_Hans": "质量审批人"
+                  }
+                },
+                {
+                  "key": "aftercare",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "aftercare approvers",
+                    "zh_Hans": "售后审批人"
+                  }
+                },
+                {
+                  "key": "capabilityPublishers",
+                  "kind": "members",
+                  "optional": true,
+                  "label": {
+                    "en_US": "Method publishers",
+                    "zh_Hans": "判断方法发布人（可选）"
+                  }
+                }
+              ],
               "scope": "organization",
               "assistantTemplateKey": "order-evidence-coordinator",
               "assistantSuite": {
@@ -253,8 +312,8 @@
                   "zh_Hans": "访问遵循组织、工作空间及项目权限。当前演示使用合成业务快照与本地决定记录，不调用 SAP 或 Data Xpert，不产生生产交易。"
                 },
                 "initializationSummary": {
-                  "en_US": "Prepare a dedicated workspace and publish the coordinator and six specialists. Before running a Project, bind the published role members and assign authorized human approvers for each stage.",
-                  "zh_Hans": "准备专用工作空间并发布协调者与六个专业 Assistant。运行项目前，需绑定已发布的角色成员，并为各阶段配置具备权限的人类批准人。"
+                  "en_US": "Initialization binds the published Assistants for this organization. Select a human approver for each stage. Existing installations can complete these selections in place.",
+                  "zh_Hans": "初始化时自动绑定本组织已发布的角色，请为六个阶段分别选择审批人。已有实例可在应用详情补全配置。"
                 },
                 "initializationSteps": [
                   {
@@ -266,8 +325,8 @@
                     "zh_Hans": "创建应用专用工作空间。"
                   },
                   {
-                    "en_US": "Install and publish seven Assistant roles.",
-                    "zh_Hans": "安装并发布七个 Assistant 角色。"
+                    "en_US": "Publish the coordinator, six specialists and the method maintenance Assistant.",
+                    "zh_Hans": "发布协调者、六个专业角色和能力维护 Assistant。"
                   }
                 ]
               },
@@ -352,6 +411,65 @@
               }
             ],
             "appConfig": {
+              "organizationSetup": [
+                {
+                  "key": "contract",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "contract approvers",
+                    "zh_Hans": "合同审批人"
+                  }
+                },
+                {
+                  "key": "engineering",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "engineering approvers",
+                    "zh_Hans": "工程审批人"
+                  }
+                },
+                {
+                  "key": "procurement",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "procurement approvers",
+                    "zh_Hans": "采购审批人"
+                  }
+                },
+                {
+                  "key": "production",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "production approvers",
+                    "zh_Hans": "计划审批人"
+                  }
+                },
+                {
+                  "key": "quality",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "quality approvers",
+                    "zh_Hans": "质量审批人"
+                  }
+                },
+                {
+                  "key": "aftercare",
+                  "kind": "members",
+                  "label": {
+                    "en_US": "aftercare approvers",
+                    "zh_Hans": "售后审批人"
+                  }
+                },
+                {
+                  "key": "capabilityPublishers",
+                  "kind": "members",
+                  "optional": true,
+                  "label": {
+                    "en_US": "Method publishers",
+                    "zh_Hans": "判断方法发布人（可选）"
+                  }
+                }
+              ],
               "scope": "organization",
               "assistantTemplateKey": "order-evidence-coordinator",
               "assistantSuite": {
@@ -528,8 +646,8 @@
                   "zh_Hans": "访问遵循组织、工作空间及项目权限。当前演示使用合成业务快照与本地决定记录，不调用 SAP 或 Data Xpert，不产生生产交易。"
                 },
                 "initializationSummary": {
-                  "en_US": "Prepare a dedicated workspace and publish the coordinator and six specialists. Before running a Project, bind the published role members and assign authorized human approvers for each stage.",
-                  "zh_Hans": "准备专用工作空间并发布协调者与六个专业 Assistant。运行项目前，需绑定已发布的角色成员，并为各阶段配置具备权限的人类批准人。"
+                  "en_US": "Initialization binds the published Assistants for this organization. Select a human approver for each stage. Existing installations can complete these selections in place.",
+                  "zh_Hans": "初始化时自动绑定本组织已发布的角色，请为六个阶段分别选择审批人。已有实例可在应用详情补全配置。"
                 },
                 "initializationSteps": [
                   {
@@ -541,8 +659,8 @@
                     "zh_Hans": "创建应用专用工作空间。"
                   },
                   {
-                    "en_US": "Install and publish seven Assistant roles.",
-                    "zh_Hans": "安装并发布七个 Assistant 角色。"
+                    "en_US": "Publish the coordinator, six specialists and the method maintenance Assistant.",
+                    "zh_Hans": "发布协调者、六个专业角色和能力维护 Assistant。"
                   }
                 ]
               },
