@@ -1,9 +1,20 @@
 import type { PluginMarketplaceContribution } from "@xpert-ai/contracts";
+import { analyticsSetup } from "./analytics-setup.js";
 import { ICON, ROLES, templateKey, agentKey } from "./definition.js";
 
 export const APP_COVER = "./assets/brand/margin-improvement-cover-zh-v1.png";
 
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans });
+
+const organizationSetup = {
+  analyticsSetup,
+  organizationSetup: [
+    {key:"analysisBinding", label:text("Margin analysis query","毛利分析查询"), requiredNumericFields:["actual","budget"]},
+    {key:"factsBinding", label:text("Procurement evidence query","采购事实查询")},
+    {key:"reviewBinding", label:text("Margin review query","毛利复查查询"), requiredNumericFields:["actual","budget"]}
+  ].map(field => ({...field, kind:"analytics" as const, providerId:"data-xpert.ontology"}))
+};
+
 export const app = {
   type: "app",
   name: "margin-improvement",
@@ -24,6 +35,7 @@ export const app = {
     },
   ],
   appConfig: {
+    ...organizationSetup,
     scope: "organization",
     assistantTemplateKey: templateKey("coordinator"),
     assistantSuite: {
@@ -105,8 +117,8 @@ export const app = {
         "访问遵循组织、工作空间及项目权限；Data Xpert 资源与只读动作需明确授权。内置数据为合成样本，本地回执不代表 SAP 写回或真实业务成效。",
       ),
       initializationSummary: text(
-        "Prepare a dedicated workspace and publish the coordinator and three specialist Assistants. Before running a Project, configure ontology query bindings, authorize resources and bind the published roles as Project members.",
-        "准备专用工作空间并发布协调者与三个专业 Assistant。运行项目前，需配置本体查询绑定、授权资源，并将已发布角色绑定为项目成员。",
+        "Initialization binds the published Assistants for this organization. Choose an authorized connection and model to preview the November 2026 Suzhou M200 margin, purchase facts and review. Existing installations can complete these selections in place.",
+        "初始化时自动绑定本组织的财务、采购和执行角色。选择已授权的连接和业务模型，试读 2026 年 11 月苏州一厂精密电机 M200 的毛利、采购及复查数据。已有实例可在应用详情补全配置。",
       ),
       initializationSteps: [
         text("Check an available primary model.", "检查可用主模型。"),

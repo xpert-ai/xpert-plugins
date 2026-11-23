@@ -2,12 +2,14 @@ import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { DataSource } from "typeorm";
+import { DefaultRuntimeCapabilityRegistry } from "@xpert-ai/plugin-sdk";
 import type {
   ProjectPipelineOperationContext,
   RuntimeCapabilityRegistry,
 } from "@xpert-ai/plugin-sdk";
 import { MarginService, digest } from "./service.js";
-import { configSchema, resultSchema } from "./model.js";
+import { resultSchema } from "./model.js";
+import { PROJECT_TYPE } from "./definition.js";
 import { configuration } from "./configuration.js";
 const c: ProjectPipelineOperationContext = {
   actor: {
@@ -35,9 +37,30 @@ const service = () =>
   new MarginService(
     {} as DataSource,
     runtime as unknown as RuntimeCapabilityRegistry,
-    configSchema.parse({}),
   );
 describe("governed margin workflow", () => {
+  it("uses the original instance and coordinator when a started case is retried", async () => {
+    const coordinator = randomUUID();
+    const instanceId = randomUUID();
+    const tool = {
+      surface: "middleware" as const, tenantId: c.actor.tenantId, organizationId: c.actor.organizationId,
+      principal: { type: "user" as const, id: c.actor.userId }, projectId: c.projectId,
+      xpertId: coordinator, agentKey: "Agent_coordinator", host: {},
+    };
+    const assertManage = vi.fn().mockImplementation(async (request) => {
+      if (request.includeApplicationBindings) throw Error("installation_not_ready");
+      return { ...PROJECT_TYPE, canManage: true };
+    });
+    const findOneBy = vi.fn().mockResolvedValue({ coordinatorId: coordinator, instanceId });
+    const db = { getRepository: () => ({ findOneBy }) } as unknown as DataSource;
+    const capabilities = new DefaultRuntimeCapabilityRegistry();
+    vi.spyOn(capabilities, "require").mockReturnValue({ assertManage });
+    const subject = new MarginService(db, capabilities);
+    await expect(subject.start(tool, "retry")).resolves.toMatchObject({ status: "already_started", instanceId });
+    await expect(subject.start({ ...tool, xpertId: randomUUID() }, "retry")).rejects.toThrow("case_coordinator_mismatch");
+    findOneBy.mockResolvedValue(null);
+    await expect(subject.start(tool, "new")).rejects.toThrow("installation_not_ready");
+  });
   it("uses native route, two human gates and published assistant slots", () => {
     const f = configuration();
     expect(f.template.executionAuthority).toBe("platform");

@@ -5,7 +5,8 @@ import {
 } from "@xpert-ai/plugin-sdk";
 import type { AnalyticalDataset } from "@xpert-ai/contracts";
 import { z } from "zod/v3";
-export const CONFIG = "MARGIN_IMPROVEMENT_CONFIG";
+export const installationSchema = z.object({});
+// Stored case snapshots retain the configuration used for their original run.
 export const configSchema = z
   .object({
     assistants: z

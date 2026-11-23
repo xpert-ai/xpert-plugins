@@ -40,8 +40,8 @@ flowchart LR
 1. 依照平台本地环境流程更新代码、安装依赖并验证健康状态。
 2. `pnpm build`、`pnpm test`、`pnpm verify:dist`，再通过 `plugin-dev-harness` 验证加载。
 3. 使用平台 `plugin:deploy:local` 安装，按实际 `pending_restart` 状态重启 API。
-4. 使用 `assistant:suite:init` 发布四个角色；在 Data Xpert 将所需本体资源授权给财务和采购角色，并配置当前演示者的精确只读动作策略。
-5. 经真实 discovery/query 验证后配置 `analysisBinding`、`factsBinding`、`reviewBinding`，均须采用 `data-xpert.ontology`。`actualField`、`budgetField` 指向规范化结果中的实际、预算毛利率字段；`threshold` 单位为百分点。将套件发布回执中的角色 ID 明确配置到 `assistants.finance/procurement/execution`；启动时检查项目类型和实际成员，移除的角色不会自动补回。
+4. 在目标组织的应用详情初始化，平台发布协调者、财务、采购及执行 Assistant，并绑定角色。已有实例选择“补全组织配置”。
+5. 在支持引导配置的 Bosi 中选择本组织获准使用的 Data Xpert 连接和已发布的业务模型，点击“试读查询”。检查毛利分析、采购事实、毛利复查三组样本后，点击“确认并使用组织共享分析定义”，然后安装或保存组织配置。平台复用与当前连接、模型及运行身份匹配的组织共享版本，缺少时自动创建。试读使用本组织在 Data Xpert 中已配置的本体运行身份和当前用户的读权限。本演示查询 2026 年 11 月苏州一厂精密电机 M200，已启动项目沿用启动时的查询快照。
 6. 在协调 Assistant 中创建“经营改善项目”并启动流程。在原生项目任务 Pipeline 中跟踪和批准。财务 Assistant 可在同一项目制作看板；看板保存草稿后由人决定正式发布。
 
 实例配置、安装回执、模型查询凭据与截图保存在仓库外的本地交付目录，不纳入可复用插件。

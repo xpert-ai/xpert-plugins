@@ -3,7 +3,7 @@ export { app } from "./app-config.js";
 import { z } from "zod/v3";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { XpertServerPlugin, type XpertPlugin } from "@xpert-ai/plugin-sdk";
-import { CONFIG, ENTITIES, configSchema, type Config } from "./model.js";
+import { ENTITIES, installationSchema } from "./model.js";
 import {
   NAME,
   VERSION,
@@ -24,7 +24,7 @@ import { MarginTools } from "./tools.js";
 })
 export class MarginPluginModule {}
 
-const plugin: XpertPlugin<z.input<typeof configSchema>> = {
+const plugin: XpertPlugin<z.input<typeof installationSchema>> = {
   meta: {
     name: NAME,
     version: VERSION,
@@ -51,17 +51,10 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
       ]),
     ),
   },
-  config: { schema: configSchema, defaults: configSchema.parse({}) },
+  config: { schema: installationSchema, defaults: installationSchema.parse({}) },
   templates,
-  register(ctx) {
-    return {
-      module: MarginPluginModule,
-      global: true,
-      providers: [
-        { provide: CONFIG, useValue: configSchema.parse(ctx.config) },
-      ],
-      exports: [CONFIG],
-    };
+  register() {
+    return { module: MarginPluginModule, global: true };
   },
 };
 export default plugin;

@@ -1,3 +1,4 @@
+import { organizationConfig } from "./organization-config.js";
 import {
   ConflictException,
   ForbiddenException,
@@ -27,9 +28,7 @@ import type {
   ProjectPipelineSubjectVersion,
 } from "@xpert-ai/contracts";
 import {
-  CONFIG,
   configSchema,
-  type Config,
   type Finalize,
   MarginCase,
   MarginWork,
@@ -92,7 +91,6 @@ export class MarginService {
     @InjectDataSource() readonly db: DataSource,
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
     readonly runtime: RuntimeCapabilityRegistry,
-    @Inject(CONFIG) readonly config: Config,
   ) {}
   async root(c: ProjectPipelineContext, id?: string) {
     const access = await this.runtime
@@ -106,9 +104,8 @@ export class MarginService {
   }
   async start(tool: XpertBusinessToolContext, title: string) {
     const c = context(tool);
-    const access = await this.runtime
-      .require(ProjectAccessRuntimeCapability)
-      .assertManage(c);
+    const projects = this.runtime.require(ProjectAccessRuntimeCapability);
+    const access = await projects.assertManage(c);
     if (
       access.applicationKey !== PROJECT_TYPE.applicationKey ||
       access.projectTypeKey !== PROJECT_TYPE.projectTypeKey
@@ -116,17 +113,15 @@ export class MarginService {
       throw new ConflictException("project_type_mismatch");
     if (!tool.xpertId || !tool.agentKey)
       throw new ForbiddenException("assistant_required");
-    const bindings = configSchema.parse(this.config);
-    for (const b of [
-      bindings.analysisBinding,
-      bindings.factsBinding,
-      bindings.reviewBinding,
-    ])
-      if (!b || b.providerId !== "data-xpert.ontology")
-        throw new ConflictException("configure_three_data_xpert_bindings");
     const repo = this.db.getRepository(MarginCase);
     let e = await repo.findOneBy(owner(c));
     if (!e) {
+      const request = { ...c, includeApplicationBindings: true };
+      const installation = await projects.assertManage(request);
+      const { coordinatorId, config: bindings } = organizationConfig(installation);
+      if (coordinatorId !== tool.xpertId)
+        throw new ForbiddenException("organization_application_coordinator_required");
+
       // This is a direct Project type: the platform owns its lifecycle.
       // Installation configuration explicitly binds published roles; do not infer
       // roles from names, member order, or silently restore removed members.
@@ -135,7 +130,7 @@ export class MarginService {
       const assistants: Record<string, string> = {};
       for (const role of ROLES.filter((r) => r.key !== "coordinator")) {
         const id = bindings.assistants[role.key];
-        if (!id || !access.assistantIds?.includes(id))
+        if (!id || !installation.assistantIds?.includes(id))
           throw new ConflictException(
             "published_role_project_membership_required",
           );

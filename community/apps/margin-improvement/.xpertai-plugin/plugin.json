@@ -73,6 +73,218 @@
               }
             ],
             "appConfig": {
+              "analyticsSetup": {
+                "kind": "connection-model",
+                "providerId": "data-xpert.ontology",
+                "bootstrap": {
+                  "key": "m200_synthetic_margin",
+                  "version": "1.0.0",
+                  "modes": [
+                    {
+                      "id": "demo-views",
+                      "label": {
+                        "en_US": "Read-only synthetic demo views",
+                        "zh_Hans": "插件内置的只读合成演示视图"
+                      }
+                    },
+                    {
+                      "id": "existing-tables",
+                      "label": {
+                        "en_US": "Bind existing demo tables",
+                        "zh_Hans": "绑定已有演示表"
+                      }
+                    }
+                  ],
+                  "bundle": {
+                    "format": "data-xpert.sql-model/v1",
+                    "key": "m200_synthetic_margin",
+                    "version": "1.0.0",
+                    "name": "M200 经营毛利与采购事实（合成演示）",
+                    "catalog": "margin_demo_20261120",
+                    "schema": "{\n  \"cubes\": [\n    {\n      \"fact\": {\n        \"type\": \"table\",\n        \"table\": {\n          \"name\": \"performance\",\n          \"schema\": \"margin_demo_20261120\"\n        }\n      },\n      \"name\": \"OperatingMargin\",\n      \"caption\": \"经营毛利\",\n      \"measures\": [\n        {\n          \"name\": \"ActualMargin\",\n          \"column\": \"actual_margin\",\n          \"caption\": \"实际毛利率（%）\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"BudgetMargin\",\n          \"column\": \"budget_margin\",\n          \"caption\": \"预算毛利率（%）\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"Revenue\",\n          \"column\": \"revenue\",\n          \"caption\": \"收入（元）\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"MaterialCost\",\n          \"column\": \"material_cost\",\n          \"caption\": \"材料成本（元）\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"BudgetCost\",\n          \"column\": \"budget_cost\",\n          \"caption\": \"预算成本（元）\",\n          \"aggregator\": \"sum\"\n        }\n      ],\n      \"dimensions\": [\n        {\n          \"name\": \"Period\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Period\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Period\",\n                  \"column\": \"period\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Stage\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Stage\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Stage\",\n                  \"column\": \"stage\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Product\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Product\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Product\",\n                  \"column\": \"product\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Plant\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Plant\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Plant\",\n                  \"column\": \"plant\"\n                }\n              ]\n            }\n          ]\n        }\n      ],\n      \"defaultMeasure\": \"ActualMargin\"\n    },\n    {\n      \"fact\": {\n        \"type\": \"table\",\n        \"table\": {\n          \"name\": \"purchase_facts\",\n          \"schema\": \"margin_demo_20261120\"\n        }\n      },\n      \"name\": \"PurchaseFacts\",\n      \"caption\": \"采购核实\",\n      \"measures\": [\n        {\n          \"name\": \"Quantity\",\n          \"column\": \"quantity\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"ActualPrice\",\n          \"column\": \"actual_price\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"BudgetPrice\",\n          \"column\": \"budget_price\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"ExcessCost\",\n          \"column\": \"excess_cost\",\n          \"aggregator\": \"sum\"\n        }\n      ],\n      \"dimensions\": [\n        {\n          \"name\": \"PurchaseOrder\",\n          \"hierarchies\": [\n            {\n              \"name\": \"PurchaseOrder\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"PurchaseOrder\",\n                  \"column\": \"po\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Period\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Period\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Period\",\n                  \"column\": \"period\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Product\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Product\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Product\",\n                  \"column\": \"product\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Plant\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Plant\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Plant\",\n                  \"column\": \"plant\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Supplier\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Supplier\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Supplier\",\n                  \"column\": \"supplier\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Material\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Material\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Material\",\n                  \"column\": \"material\"\n                }\n              ]\n            }\n          ]\n        }\n      ],\n      \"defaultMeasure\": \"ExcessCost\"\n    }\n  ]\n}\n",
+                    "views": "{\n  \"performance\": \"SELECT '2026-09' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(22 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1000000 AS DECIMAL(16, 2)) AS revenue, CAST(780000 AS DECIMAL(16, 2)) AS material_cost, CAST(760000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-10' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(19 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1200000 AS DECIMAL(16, 2)) AS revenue, CAST(972000 AS DECIMAL(16, 2)) AS material_cost, CAST(912000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-11' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(17 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1500000 AS DECIMAL(16, 2)) AS revenue, CAST(1245000 AS DECIMAL(16, 2)) AS material_cost, CAST(1140000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-11' AS period, 'review' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(21 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1500000 AS DECIMAL(16, 2)) AS revenue, CAST(1185000 AS DECIMAL(16, 2)) AS material_cost, CAST(1140000 AS DECIMAL(16, 2)) AS budget_cost\",\n  \"purchase_facts\": \"SELECT 'DEMO-PO-450001' AS po, '2026-11' AS period, '精密电机 M200' AS product, '苏州一厂' AS plant, '华东精密材料（演示）' AS supplier, '铜线组件' AS material, CAST(1000 AS DECIMAL(16, 2)) AS quantity, CAST(580 AS DECIMAL(16, 2)) AS actual_price, CAST(500 AS DECIMAL(16, 2)) AS budget_price, CAST(80000 AS DECIMAL(16, 2)) AS excess_cost\\nUNION ALL\\nSELECT 'DEMO-PO-450002' AS po, '2026-11' AS period, '精密电机 M200' AS product, '苏州一厂' AS plant, '苏南磁材（演示）' AS supplier, '永磁体' AS material, CAST(1000 AS DECIMAL(16, 2)) AS quantity, CAST(225 AS DECIMAL(16, 2)) AS actual_price, CAST(200 AS DECIMAL(16, 2)) AS budget_price, CAST(25000 AS DECIMAL(16, 2)) AS excess_cost\"\n}\n"
+                  }
+                },
+                "recipes": {
+                  "analysisBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "OperatingMargin",
+                    "dimensions": [
+                      "Period",
+                      "Product",
+                      "Plant"
+                    ],
+                    "measures": [
+                      "ActualMargin",
+                      "BudgetMargin"
+                    ],
+                    "legacyOutputTypes": {
+                      "Period": "string",
+                      "Product": "string",
+                      "Plant": "string",
+                      "ActualMargin": "decimal",
+                      "BudgetMargin": "decimal"
+                    },
+                    "aliases": {
+                      "actual": "ActualMargin",
+                      "budget": "BudgetMargin"
+                    },
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      },
+                      {
+                        "field": "Stage",
+                        "op": "eq",
+                        "value": "baseline"
+                      }
+                    ],
+                    "limit": 2,
+                    "singleRow": true
+                  },
+                  "factsBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "PurchaseFacts",
+                    "dimensions": [
+                      "PurchaseOrder",
+                      "Supplier",
+                      "Material"
+                    ],
+                    "measures": [
+                      "Quantity",
+                      "ActualPrice",
+                      "BudgetPrice",
+                      "ExcessCost"
+                    ],
+                    "legacyOutputTypes": {
+                      "PurchaseOrder": "string",
+                      "Supplier": "string",
+                      "Material": "string",
+                      "Quantity": "decimal",
+                      "ActualPrice": "decimal",
+                      "BudgetPrice": "decimal",
+                      "ExcessCost": "decimal"
+                    },
+                    "aliases": {},
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      }
+                    ],
+                    "limit": 100,
+                    "singleRow": false
+                  },
+                  "reviewBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "OperatingMargin",
+                    "dimensions": [
+                      "Period",
+                      "Product",
+                      "Plant"
+                    ],
+                    "measures": [
+                      "ActualMargin",
+                      "BudgetMargin"
+                    ],
+                    "legacyOutputTypes": {
+                      "Period": "string",
+                      "Product": "string",
+                      "Plant": "string",
+                      "ActualMargin": "decimal",
+                      "BudgetMargin": "decimal"
+                    },
+                    "aliases": {
+                      "actual": "ActualMargin",
+                      "budget": "BudgetMargin"
+                    },
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      },
+                      {
+                        "field": "Stage",
+                        "op": "eq",
+                        "value": "review"
+                      }
+                    ],
+                    "limit": 2,
+                    "singleRow": true
+                  }
+                }
+              },
+              "organizationSetup": [
+                {
+                  "key": "analysisBinding",
+                  "label": {
+                    "en_US": "Margin analysis query",
+                    "zh_Hans": "毛利分析查询"
+                  },
+                  "requiredNumericFields": [
+                    "actual",
+                    "budget"
+                  ],
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                },
+                {
+                  "key": "factsBinding",
+                  "label": {
+                    "en_US": "Procurement evidence query",
+                    "zh_Hans": "采购事实查询"
+                  },
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                },
+                {
+                  "key": "reviewBinding",
+                  "label": {
+                    "en_US": "Margin review query",
+                    "zh_Hans": "毛利复查查询"
+                  },
+                  "requiredNumericFields": [
+                    "actual",
+                    "budget"
+                  ],
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                }
+              ],
               "scope": "organization",
               "assistantTemplateKey": "margin-improvement-coordinator",
               "assistantSuite": {
@@ -202,8 +414,8 @@
                   "zh_Hans": "访问遵循组织、工作空间及项目权限；Data Xpert 资源与只读动作需明确授权。内置数据为合成样本，本地回执不代表 SAP 写回或真实业务成效。"
                 },
                 "initializationSummary": {
-                  "en_US": "Prepare a dedicated workspace and publish the coordinator and three specialist Assistants. Before running a Project, configure ontology query bindings, authorize resources and bind the published roles as Project members.",
-                  "zh_Hans": "准备专用工作空间并发布协调者与三个专业 Assistant。运行项目前，需配置本体查询绑定、授权资源，并将已发布角色绑定为项目成员。"
+                  "en_US": "Initialization binds the published Assistants for this organization. Choose an authorized connection and model to preview the November 2026 Suzhou M200 margin, purchase facts and review. Existing installations can complete these selections in place.",
+                  "zh_Hans": "初始化时自动绑定本组织的财务、采购和执行角色。选择已授权的连接和业务模型，试读 2026 年 11 月苏州一厂精密电机 M200 的毛利、采购及复查数据。已有实例可在应用详情补全配置。"
                 },
                 "initializationSteps": [
                   {
@@ -293,6 +505,218 @@
               }
             ],
             "appConfig": {
+              "analyticsSetup": {
+                "kind": "connection-model",
+                "providerId": "data-xpert.ontology",
+                "bootstrap": {
+                  "key": "m200_synthetic_margin",
+                  "version": "1.0.0",
+                  "modes": [
+                    {
+                      "id": "demo-views",
+                      "label": {
+                        "en_US": "Read-only synthetic demo views",
+                        "zh_Hans": "插件内置的只读合成演示视图"
+                      }
+                    },
+                    {
+                      "id": "existing-tables",
+                      "label": {
+                        "en_US": "Bind existing demo tables",
+                        "zh_Hans": "绑定已有演示表"
+                      }
+                    }
+                  ],
+                  "bundle": {
+                    "format": "data-xpert.sql-model/v1",
+                    "key": "m200_synthetic_margin",
+                    "version": "1.0.0",
+                    "name": "M200 经营毛利与采购事实（合成演示）",
+                    "catalog": "margin_demo_20261120",
+                    "schema": "{\n  \"cubes\": [\n    {\n      \"fact\": {\n        \"type\": \"table\",\n        \"table\": {\n          \"name\": \"performance\",\n          \"schema\": \"margin_demo_20261120\"\n        }\n      },\n      \"name\": \"OperatingMargin\",\n      \"caption\": \"经营毛利\",\n      \"measures\": [\n        {\n          \"name\": \"ActualMargin\",\n          \"column\": \"actual_margin\",\n          \"caption\": \"实际毛利率（%）\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"BudgetMargin\",\n          \"column\": \"budget_margin\",\n          \"caption\": \"预算毛利率（%）\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"Revenue\",\n          \"column\": \"revenue\",\n          \"caption\": \"收入（元）\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"MaterialCost\",\n          \"column\": \"material_cost\",\n          \"caption\": \"材料成本（元）\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"BudgetCost\",\n          \"column\": \"budget_cost\",\n          \"caption\": \"预算成本（元）\",\n          \"aggregator\": \"sum\"\n        }\n      ],\n      \"dimensions\": [\n        {\n          \"name\": \"Period\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Period\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Period\",\n                  \"column\": \"period\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Stage\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Stage\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Stage\",\n                  \"column\": \"stage\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Product\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Product\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Product\",\n                  \"column\": \"product\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Plant\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Plant\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Plant\",\n                  \"column\": \"plant\"\n                }\n              ]\n            }\n          ]\n        }\n      ],\n      \"defaultMeasure\": \"ActualMargin\"\n    },\n    {\n      \"fact\": {\n        \"type\": \"table\",\n        \"table\": {\n          \"name\": \"purchase_facts\",\n          \"schema\": \"margin_demo_20261120\"\n        }\n      },\n      \"name\": \"PurchaseFacts\",\n      \"caption\": \"采购核实\",\n      \"measures\": [\n        {\n          \"name\": \"Quantity\",\n          \"column\": \"quantity\",\n          \"aggregator\": \"sum\"\n        },\n        {\n          \"name\": \"ActualPrice\",\n          \"column\": \"actual_price\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"BudgetPrice\",\n          \"column\": \"budget_price\",\n          \"aggregator\": \"avg\"\n        },\n        {\n          \"name\": \"ExcessCost\",\n          \"column\": \"excess_cost\",\n          \"aggregator\": \"sum\"\n        }\n      ],\n      \"dimensions\": [\n        {\n          \"name\": \"PurchaseOrder\",\n          \"hierarchies\": [\n            {\n              \"name\": \"PurchaseOrder\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"PurchaseOrder\",\n                  \"column\": \"po\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Period\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Period\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Period\",\n                  \"column\": \"period\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Product\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Product\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Product\",\n                  \"column\": \"product\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Plant\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Plant\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Plant\",\n                  \"column\": \"plant\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Supplier\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Supplier\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Supplier\",\n                  \"column\": \"supplier\"\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"name\": \"Material\",\n          \"hierarchies\": [\n            {\n              \"name\": \"Material\",\n              \"hasAll\": true,\n              \"levels\": [\n                {\n                  \"name\": \"Material\",\n                  \"column\": \"material\"\n                }\n              ]\n            }\n          ]\n        }\n      ],\n      \"defaultMeasure\": \"ExcessCost\"\n    }\n  ]\n}\n",
+                    "views": "{\n  \"performance\": \"SELECT '2026-09' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(22 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1000000 AS DECIMAL(16, 2)) AS revenue, CAST(780000 AS DECIMAL(16, 2)) AS material_cost, CAST(760000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-10' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(19 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1200000 AS DECIMAL(16, 2)) AS revenue, CAST(972000 AS DECIMAL(16, 2)) AS material_cost, CAST(912000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-11' AS period, 'baseline' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(17 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1500000 AS DECIMAL(16, 2)) AS revenue, CAST(1245000 AS DECIMAL(16, 2)) AS material_cost, CAST(1140000 AS DECIMAL(16, 2)) AS budget_cost\\nUNION ALL\\nSELECT '2026-11' AS period, 'review' AS stage, '精密电机 M200' AS product, '苏州一厂' AS plant, CAST(21 AS DECIMAL(16, 2)) AS actual_margin, CAST(24 AS DECIMAL(16, 2)) AS budget_margin, CAST(1500000 AS DECIMAL(16, 2)) AS revenue, CAST(1185000 AS DECIMAL(16, 2)) AS material_cost, CAST(1140000 AS DECIMAL(16, 2)) AS budget_cost\",\n  \"purchase_facts\": \"SELECT 'DEMO-PO-450001' AS po, '2026-11' AS period, '精密电机 M200' AS product, '苏州一厂' AS plant, '华东精密材料（演示）' AS supplier, '铜线组件' AS material, CAST(1000 AS DECIMAL(16, 2)) AS quantity, CAST(580 AS DECIMAL(16, 2)) AS actual_price, CAST(500 AS DECIMAL(16, 2)) AS budget_price, CAST(80000 AS DECIMAL(16, 2)) AS excess_cost\\nUNION ALL\\nSELECT 'DEMO-PO-450002' AS po, '2026-11' AS period, '精密电机 M200' AS product, '苏州一厂' AS plant, '苏南磁材（演示）' AS supplier, '永磁体' AS material, CAST(1000 AS DECIMAL(16, 2)) AS quantity, CAST(225 AS DECIMAL(16, 2)) AS actual_price, CAST(200 AS DECIMAL(16, 2)) AS budget_price, CAST(25000 AS DECIMAL(16, 2)) AS excess_cost\"\n}\n"
+                  }
+                },
+                "recipes": {
+                  "analysisBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "OperatingMargin",
+                    "dimensions": [
+                      "Period",
+                      "Product",
+                      "Plant"
+                    ],
+                    "measures": [
+                      "ActualMargin",
+                      "BudgetMargin"
+                    ],
+                    "legacyOutputTypes": {
+                      "Period": "string",
+                      "Product": "string",
+                      "Plant": "string",
+                      "ActualMargin": "decimal",
+                      "BudgetMargin": "decimal"
+                    },
+                    "aliases": {
+                      "actual": "ActualMargin",
+                      "budget": "BudgetMargin"
+                    },
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      },
+                      {
+                        "field": "Stage",
+                        "op": "eq",
+                        "value": "baseline"
+                      }
+                    ],
+                    "limit": 2,
+                    "singleRow": true
+                  },
+                  "factsBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "PurchaseFacts",
+                    "dimensions": [
+                      "PurchaseOrder",
+                      "Supplier",
+                      "Material"
+                    ],
+                    "measures": [
+                      "Quantity",
+                      "ActualPrice",
+                      "BudgetPrice",
+                      "ExcessCost"
+                    ],
+                    "legacyOutputTypes": {
+                      "PurchaseOrder": "string",
+                      "Supplier": "string",
+                      "Material": "string",
+                      "Quantity": "decimal",
+                      "ActualPrice": "decimal",
+                      "BudgetPrice": "decimal",
+                      "ExcessCost": "decimal"
+                    },
+                    "aliases": {},
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      }
+                    ],
+                    "limit": 100,
+                    "singleRow": false
+                  },
+                  "reviewBinding": {
+                    "kind": "sql-cube-slice",
+                    "cube": "OperatingMargin",
+                    "dimensions": [
+                      "Period",
+                      "Product",
+                      "Plant"
+                    ],
+                    "measures": [
+                      "ActualMargin",
+                      "BudgetMargin"
+                    ],
+                    "legacyOutputTypes": {
+                      "Period": "string",
+                      "Product": "string",
+                      "Plant": "string",
+                      "ActualMargin": "decimal",
+                      "BudgetMargin": "decimal"
+                    },
+                    "aliases": {
+                      "actual": "ActualMargin",
+                      "budget": "BudgetMargin"
+                    },
+                    "filters": [
+                      {
+                        "field": "Period",
+                        "op": "eq",
+                        "value": "2026-11"
+                      },
+                      {
+                        "field": "Product",
+                        "op": "eq",
+                        "value": "精密电机 M200"
+                      },
+                      {
+                        "field": "Plant",
+                        "op": "eq",
+                        "value": "苏州一厂"
+                      },
+                      {
+                        "field": "Stage",
+                        "op": "eq",
+                        "value": "review"
+                      }
+                    ],
+                    "limit": 2,
+                    "singleRow": true
+                  }
+                }
+              },
+              "organizationSetup": [
+                {
+                  "key": "analysisBinding",
+                  "label": {
+                    "en_US": "Margin analysis query",
+                    "zh_Hans": "毛利分析查询"
+                  },
+                  "requiredNumericFields": [
+                    "actual",
+                    "budget"
+                  ],
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                },
+                {
+                  "key": "factsBinding",
+                  "label": {
+                    "en_US": "Procurement evidence query",
+                    "zh_Hans": "采购事实查询"
+                  },
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                },
+                {
+                  "key": "reviewBinding",
+                  "label": {
+                    "en_US": "Margin review query",
+                    "zh_Hans": "毛利复查查询"
+                  },
+                  "requiredNumericFields": [
+                    "actual",
+                    "budget"
+                  ],
+                  "kind": "analytics",
+                  "providerId": "data-xpert.ontology"
+                }
+              ],
               "scope": "organization",
               "assistantTemplateKey": "margin-improvement-coordinator",
               "assistantSuite": {
@@ -422,8 +846,8 @@
                   "zh_Hans": "访问遵循组织、工作空间及项目权限；Data Xpert 资源与只读动作需明确授权。内置数据为合成样本，本地回执不代表 SAP 写回或真实业务成效。"
                 },
                 "initializationSummary": {
-                  "en_US": "Prepare a dedicated workspace and publish the coordinator and three specialist Assistants. Before running a Project, configure ontology query bindings, authorize resources and bind the published roles as Project members.",
-                  "zh_Hans": "准备专用工作空间并发布协调者与三个专业 Assistant。运行项目前，需配置本体查询绑定、授权资源，并将已发布角色绑定为项目成员。"
+                  "en_US": "Initialization binds the published Assistants for this organization. Choose an authorized connection and model to preview the November 2026 Suzhou M200 margin, purchase facts and review. Existing installations can complete these selections in place.",
+                  "zh_Hans": "初始化时自动绑定本组织的财务、采购和执行角色。选择已授权的连接和业务模型，试读 2026 年 11 月苏州一厂精密电机 M200 的毛利、采购及复查数据。已有实例可在应用详情补全配置。"
                 },
                 "initializationSteps": [
                   {
