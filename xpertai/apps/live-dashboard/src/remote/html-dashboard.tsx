@@ -47,6 +47,7 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
     let sequence = 0
     const mounted = mountDashboardDocument<z.infer<typeof resultSchema>['data']>(frame, {
       html: props.manifest.presentation.html,
+      allowDownloads: true,
       dependencies,
       context: { bindingIds: manifest.bindings.map(binding => binding.id),
         defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])),
@@ -83,5 +84,5 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
     host.current = mounted
     return () => { disposed = true; inspecting.dispose(); inspector.current = null; mounted.dispose(); host.current = null }
   }, [props.artifactId, props.versionId, props.draftRevision])
-  return <iframe ref={iframe} title={props.manifest.title} sandbox="allow-scripts" className="h-full w-full border-0"/>
+  return <iframe ref={iframe} title={props.manifest.title} sandbox="allow-scripts allow-downloads" className="h-full w-full border-0"/>
 })

@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-lark
 
+## 0.4.0
+
+### Minor Changes
+
+- c20e086: Support per-repository Event Inbox migration and durable inbound Feishu messages and card actions.
+
 ## 0.3.7
 
 ### Patch Changes
