@@ -1,3 +1,4 @@
+import { certificationSchema } from './certification.schema'
 import { z } from 'zod/v3'
 import { analyticsFieldSchema } from '@xpert-ai/plugin-sdk/analytics'
 
@@ -7,7 +8,7 @@ export const sourceDatasetSchema = z.object({
   fields: z.array(z.object({ id: z.string(), label: z.string().optional() }).passthrough()), rows: z.array(z.record(scalar)),
   completeness: z.object({ truncated: z.boolean(), returnedRows: z.number(), scope: z.string(), totalAccuracy: z.string() }).passthrough(),
   freshness: z.object({ sourceFetchedAt: z.string(), executedAt: z.string().optional(), dataAsOf: z.string().optional() }),
-  provenance: z.object({ executionId: z.string(), bindingId: z.string(), providerId: z.string() }).passthrough()
+  provenance: z.object({ executionId: z.string(), bindingId: z.string(), providerId: z.string(), certification: certificationSchema.optional() }).passthrough()
 }).passthrough()
 export type SourceDataset = z.infer<typeof sourceDatasetSchema>
 /** Rendering needs the complete typed contract; inspection deliberately accepts a smaller projection. */

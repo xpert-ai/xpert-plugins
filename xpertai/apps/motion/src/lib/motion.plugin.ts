@@ -1,3 +1,5 @@
+import { MotionNarrationService } from './evidence/narration.service.js'
+import { MotionEvidenceContent, MotionEvidenceEditor } from './evidence/content.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -12,7 +14,7 @@ export const MOTION_ENTITIES = [MotionProject, MotionProjectVersion, MotionStyle
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(MOTION_ENTITIES)],
   entities: MOTION_ENTITIES,
-  providers: [MotionService, MotionMiddleware, MotionViewProvider, MotionRenderProcessor],
+  providers: [MotionNarrationService, MotionEvidenceContent, MotionEvidenceEditor, MotionService, MotionMiddleware, MotionViewProvider, MotionRenderProcessor],
   exports: [MotionService]
 })
 export class MotionPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

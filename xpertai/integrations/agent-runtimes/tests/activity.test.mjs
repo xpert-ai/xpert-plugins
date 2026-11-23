@@ -103,6 +103,28 @@ test('OpenCode isolates this run and uses stable part IDs for snapshot replaceme
   assert.equal(items[0].content.output, '42')
   assert.equal(items[0].id, 'opencode:c')
 })
+test('Codex MCP calls retain identity and terminal status without projecting credentials or results', () => {
+  const event = (type, status) => ({
+    type,
+    item: {
+      id: 'mcp-1', type: 'mcp_tool_call', server: 'browser', tool: 'fill_form', status,
+      arguments: { password: 'private-password' },
+      result: { content: [{ type: 'text', text: 'private-session-state' }] },
+      error: status === 'failed' ? { message: 'private-error-detail' } : null
+    }
+  })
+  const items = jsonlActivities('codex', [
+    event('item.started', 'in_progress'), event('item.completed', 'completed'),
+    event('item.completed', 'failed')
+  ], '0')
+  assert.deepEqual(items.map(item => item.id), ['codex:mcp-1', 'codex:mcp-1', 'codex:mcp-1'])
+  assert.deepEqual(items.map(item => item.content.status), ['running', 'succeeded', 'failed'])
+  assert.ok(items.every(item => item.content.name === 'browser/fill_form'))
+  assert.ok(!JSON.stringify(items).includes('private'))
+  assert.equal(jsonlActivities('codex', [
+    { type: 'item.completed', item: { id: 'other', type: 'unknown', server: 'browser', tool: 'click', status: 'completed' } }
+  ], '0').length, 0)
+})
 test('Activity storage failure does not replace execution results and records the gap when available', async () => {
   const calls = []
   await appendActivities(
@@ -219,7 +241,21 @@ test('JSONL refuses a replaced buffer instead of silently restarting the cursor'
       })
     }
   }
-  assert.equal(await collectJsonlActivity(context, { runner: {} }, 'qwen', true), undefined)
+  assert.deepEqual(await collectJsonlActivity(context, { runner: {} }, 'qwen', true), {
+    status: 'incomplete', reason: 'source_changed'
+  })
   assert.deepEqual(calls.at(-1).gaps, ['source_lost'])
   assert.equal(calls.at(-1).complete, true)
+})
+
+test('terminal replay pins the source even when no activity recorder is configured', async () => {
+  let page = 0
+  const context = { capabilities: { require: () => ({ request: async () => {
+    page++
+    return { sourceId: `00000000-0000-4000-8000-00000000000${page}`, events: [], positions: [],
+      next: page * 100, hasMore: page === 1, gap: false }
+  } }) } }
+  assert.deepEqual(await collectJsonlActivity(context, { runner: {} }, 'codex', true), {
+    status: 'incomplete', reason: 'source_changed'
+  })
 })

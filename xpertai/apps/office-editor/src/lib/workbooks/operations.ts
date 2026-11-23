@@ -6,15 +6,15 @@ import type { NativeWorkbook } from './model.js'
 
 /** Reuse the existing Office AI operation vocabulary, applied directly to native
  * cells. Round-tripping through XLSX here would silently lose Univer metadata. */
-export function editWorkbook(book: NativeWorkbook, operations: ExcelAutomationOperation[]) {
+export function editWorkbook(book: NativeWorkbook, operations: ExcelAutomationOperation[], sheetId: (name: string) => string = () => randomUUID()) {
   const next = structuredClone(book)
   for (const op of operations) {
     const id = next.sheetOrder.find(id => next.sheets[id].name === op.sheetName)
     if (op.type === 'create_sheet') {
       if (id || next.sheetOrder.length >= 100) throw new BadRequestException('office.workbook_sheet_names')
-      const sheetId = randomUUID()
-      next.sheetOrder.push(sheetId)
-      next.sheets[sheetId] = { id: sheetId, name: op.sheetName, rowCount: 100, columnCount: 26, cellData: {} }
+      const newId = sheetId(op.sheetName)
+      next.sheetOrder.push(newId)
+      next.sheets[newId] = { id: newId, name: op.sheetName, rowCount: 100, columnCount: 26, cellData: {} }
       continue
     }
     if (!id) throw new BadRequestException('office.sheet_not_found')

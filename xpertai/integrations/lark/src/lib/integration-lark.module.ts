@@ -1,3 +1,7 @@
+import { LarkEventDispatch, LarkEventIngress } from './lark-event-ingress.js'
+import { LarkEventCardAccess } from './lark-event-card-access.service.js'
+import { LarkEventSource } from './lark-event-source.js'
+import { LarkEventRoute, LarkEventFact } from './event-journal.js'
 import chalk from 'chalk'
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { CqrsModule } from '@nestjs/cqrs'
@@ -47,15 +51,17 @@ import { LarkMessageHistorySchemaService } from './lark-message-history-schema.s
     DiscoveryModule,
     CqrsModule,
     TypeOrmModule.forFeature([
+      LarkEventRoute, LarkEventFact, LarkEventDispatch,
       LarkConversationBindingEntity,
       LarkTriggerBindingEntity,
       LarkMessageLogEntity,
       LarkMessageFileEntity
     ])
   ],
-  entities: [LarkConversationBindingEntity, LarkTriggerBindingEntity, LarkMessageLogEntity, LarkMessageFileEntity],
+  entities: [LarkEventRoute, LarkEventFact, LarkEventDispatch, LarkConversationBindingEntity, LarkTriggerBindingEntity, LarkMessageLogEntity, LarkMessageFileEntity],
   controllers: [LarkHooksController],
   providers: [
+    LarkEventIngress, LarkEventSource, LarkEventCardAccess,
     LarkConversationService,
     LarkConversationBindingSchemaService,
     LarkContextToolService,

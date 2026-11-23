@@ -64,7 +64,7 @@ try {
     await renderer.getByRole('cell', { name: 'west', exact: true }).waitFor()
     await expect(renderer.getByRole('cell', { name: '120', exact: true })).toHaveCSS('color', dark ? 'rgb(250, 250, 250)' : 'rgb(24, 24, 27)')
     assert.equal(await renderer.locator('style[data-dashboard-theme="contrast"]').count(), 1)
-    assert.equal(await view.locator(`iframe[title="${example.title}"]`).getAttribute('sandbox'), 'allow-scripts')
+    assert.equal(await view.locator(`iframe[title="${example.title}"]`).getAttribute('sandbox'), 'allow-scripts allow-downloads')
     if (screenshots) await page.screenshot({ path: `${screenshots}/${dark ? 'dark' : 'light'}.png` })
     const after = await state()
     assert.equal(after.queries, before.queries)

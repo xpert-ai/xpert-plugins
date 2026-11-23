@@ -46,6 +46,10 @@ export class ReviewRun {
   @Column({ type: 'varchar', nullable: true }) evidenceUserId!: string | null
   @Column({ type: 'boolean', default: false }) organizationShared!: boolean
   @Column({ type: 'uuid' }) repositoryPolicyId!: string
+  @Column({ type: 'boolean', default: false }) outputPending!: boolean
+  // A null timestamp quarantines a conflicting handoff without acknowledging it.
+  @Column({ type: 'timestamptz', nullable: true, default: () => "'epoch'::timestamptz" }) outputAvailableAt!: Date | null
+  @Column({ type: 'uuid', nullable: true }) outputMessageId!: string | null
   @Column({ type: 'varchar' }) operationKey!: string
   @Column({ type: 'int' }) number!: number
   @Column({ type: 'varchar' }) headSha!: string
@@ -78,9 +82,10 @@ export class ReviewDelivery {
   @Column({ type: 'varchar', nullable: true }) tenantId!: string | null
   @Column({ type: 'varchar', nullable: true }) organizationId!: string | null
   @Column({ type: 'uuid', nullable: true }) runId!: string | null
-  @Column({ type: 'varchar' }) status!: 'received' | 'processed'
+  @Column({ type: 'varchar' }) status!: 'received' | 'host_received' | 'processed'
   @Column({ type: 'uuid', nullable: true }) repositoryPolicyId!: string | null
   @Column({ type: 'jsonb', nullable: true }) payload!: StoredWebhook | null
+  @Column({ type: 'jsonb', nullable: true }) shadow!: import('./review-event-shadow.js').ReviewEventShadow | null
   @Column({ type: 'int', default: 0 }) attempts!: number
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' }) retryAt!: Date
   @Column({ type: 'varchar', nullable: true }) errorCode!: string | null

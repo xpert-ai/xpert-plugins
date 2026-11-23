@@ -49,13 +49,19 @@ export async function convertOfficeImport(input: ConversionInput): Promise<Offic
 
 async function convertXlsx(input: ConversionInput): Promise<OfficeImportConversionResult> {
   await loadZipWithLimits(input.buffer, 'XLSX')
-  const XLSX = requireFromHere('xlsx') as any
+  const XLSX = requireFromHere('xlsx') as typeof import('xlsx')
   const workbook = XLSX.read(input.buffer, {
     type: 'buffer',
-    cellDates: true,
+    // Dates remain Excel serial inputs (including time fractions), paired with
+    // their number formats. ISO text would change arithmetic and discard times.
+    cellDates: false,
+    // SheetJS otherwise omits formula cells that have no cached <v>. Native
+    // workbooks intentionally do not persist those derived caches.
+    sheetStubs: true,
     cellFormula: true,
     cellNF: true
   })
+  if (workbook.Workbook?.WBProps?.date1904) throw new Error('office.workbook_date_system_unsupported')
   const unitId = randomUUID()
   const sheetOrder: string[] = []
   const sheets: Record<string, any> = {}
@@ -66,6 +72,8 @@ async function convertXlsx(input: ConversionInput): Promise<OfficeImportConversi
   const sheetNames = Array.isArray(workbook.SheetNames) && workbook.SheetNames.length
     ? workbook.SheetNames
     : ['Sheet1']
+  if (sheetNames.length > 100) throw new Error('Office import supports at most 100 worksheets.')
+  let importedCells = 0
   sheetNames.forEach((sheetName: string, index: number) => {
     const sheetId = randomUUID()
     const worksheet = workbook.Sheets?.[sheetName] ?? {}
@@ -75,17 +83,21 @@ async function convertXlsx(input: ConversionInput): Promise<OfficeImportConversi
     const columnCount = Math.max(range.e.c + 1, 26)
     const cellData: Record<number, Record<number, unknown>> = {}
 
-    for (let row = range.s.r; row <= range.e.r; row += 1) {
-      for (let column = range.s.c; column <= range.e.c; column += 1) {
-        const address = XLSX.utils.encode_cell({ r: row, c: column })
+    if (rowCount > 1048576 || columnCount > 16384) throw new Error('Office import worksheet dimensions exceed the supported limit.')
+    // A sparse XLSX can declare the full Excel grid as !ref. Iterate actual
+    // cells rather than spending unbounded CPU on empty coordinates.
+    for (const address of Object.keys(worksheet)) {
+        if (!/^[A-Z]+[1-9]\d*$/.test(address)) continue
+        const { r: row, c: column } = XLSX.utils.decode_cell(address)
+        if (row >= rowCount || column >= columnCount) throw new Error('Office import cell is outside the worksheet range.')
         const sourceCell = worksheet[address]
         const cell = convertXlsxCell(sourceCell)
         if (!cell) {
           continue
         }
+        if (++importedCells > 100000) throw new Error('Office import supports at most 100000 populated cells.')
         cellData[row] ??= {}
         cellData[row][column] = cell
-      }
     }
 
     const mergeData = Array.isArray(worksheet['!merges'])
@@ -307,7 +319,7 @@ function convertXlsxCell(sourceCell: any) {
   }
   const cell: Record<string, unknown> = {}
   const value = normalizeXlsxCellValue(sourceCell)
-  if (value !== undefined) {
+  if (value !== undefined && sourceCell.t !== 'z') {
     cell.v = value
   }
   if (typeof sourceCell.f === 'string' && sourceCell.f.trim()) {

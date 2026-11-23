@@ -3,7 +3,8 @@ import 'reflect-metadata'
 import { test } from 'node:test'
 import { RunnableLambda } from '@langchain/core/runnables'
 import assert from 'node:assert/strict'
-import { taskResult, resolveTaskResult, resultInstructions } from '../dist/lib/task-result.js'
+import { createHash } from 'node:crypto'
+import { taskResult, resolveTaskResult, resultInstructions, deliveryPaths, outputDelivery, appendReportText } from '../dist/lib/task-result.js'
 import { taskResourceCards, emitTaskResults } from '../dist/lib/result-cards.js'
 import { AgentInvocationMiddleware } from '../dist/lib/invocation.middleware.js'
 const items = [
@@ -25,76 +26,63 @@ const items = [
   },
   { type: 'file', id: 'report', title: 'Report', summary: 'Results', path: 'report.txt' }
 ]
-const encode = (items) => '```xpert-task-result\n' + JSON.stringify({ version: 1, summary: 'Done', items }) + '\n```'
-const reference = { version: 1, path: 'output/envelope.json', sha256: 'a'.repeat(64) }
-const fileResult = (value = reference) => '```xpert-task-result-file\n' + JSON.stringify(value) + '\n```'
-test('explicit result file preserves exact report text and existing delivery policy', async () => {
-  const summary = JSON.stringify({ verdict: 'changes_required', summary: '中文🙂 "quote" \\ path\nline' })
-  const result = await resolveTaskResult(fileResult(), { mode: 'none' }, async value => {
-    assert.deepEqual(value, reference)
-    return { version: 1, summary, items }
+test('ordinary text, JSON and retired envelopes stay unchanged and never select a file', async () => {
+  for (const text of ['', '中文🙂', '{"version":1,"summary":"literal JSON","items":[]}', '```xpert-task-result-file\n{"path":"secret"}\n```']) {
+    const result = await resolveTaskResult(text, { mode: 'none' }, async () => assert.fail('unrequested read'))
+    assert.equal(result.text, text)
+    assert.equal(result.items, undefined)
+    assert.equal(result.report, undefined)
+  }
+})
+test('only the caller-selected Markdown report is read verbatim and hashed', async () => {
+  const text = '# Review\n\n中文🙂 "quote" \\ path\n'
+  const result = await resolveTaskResult('model names other.md', { mode: 'none', reportPath: 'output/report.md' }, async path => {
+    assert.equal(path, 'output/report.md')
+    return { text, sha256: 'not-trusted' }
   })
-  assert.equal(result.text, summary)
-  assert.deepEqual(result.items, items)
+  assert.equal(result.text, text)
+  assert.deepEqual(result.report, { status: 'completed', path: 'output/report.md', sha256: createHash('sha256').update(text).digest('hex') })
   assert.deepEqual(result.export, { mode: 'none', status: 'not_requested' })
   assert.equal(result.artifacts, undefined)
 })
-test('file format is advertised only with runner support; prose and inline results do not read files', async () => {
-  assert.doesNotMatch(resultInstructions({ mode: 'none' }), /result-file submission/)
-  assert.match(resultInstructions({ mode: 'none' }, true), /result-file submission v1/)
-  for (const text of ['created output/envelope.json', encode(items)]) {
-    const result = await resolveTaskResult(text, { mode: 'none' }, async () => assert.fail('unexpected read'))
-    assert.deepEqual(result, taskResult(text))
+test('missing, empty, oversized and unreadable reports produce safe separate delivery failures', async () => {
+  const delivery = { mode: 'none', reportPath: 'review.md' }
+  for (const [reader, code] of [[undefined, 'report_unavailable'], [async () => { throw Error('private contents') }, 'report_unavailable'], [async () => ({ text: '  ' }), 'report_empty'], [async () => ({ text: '中'.repeat(1500000) }), 'report_too_large']]) {
+    const result = await resolveTaskResult('The report passed!', delivery, reader)
+    assert.equal(result.text, '')
+    assert.deepEqual(result.report, { status: 'failed', path: 'review.md', code })
+    assert.equal(JSON.stringify(result).includes('private contents'), false)
   }
+  assert.equal(taskResult('success claim', delivery).text, '')
 })
-test('invalid or unsupported explicit file submission fails without leaking data or falling back to prose', async () => {
-  let reads = 0
-  for (const text of [fileResult({ ...reference, path: '../secret' }), fileResult({ ...reference, sha256: 'bad' }),
-    fileResult({ ...reference, extra: 'secret' }), fileResult() + '\n' + fileResult(), '```xpert-task-result-file\n{broken}\n```',
-    fileResult() + '\nUnrequested trailing text']) {
-    await assert.rejects(resolveTaskResult(text, { mode: 'none' }, async () => {
-      reads++
-      return { version: 1, summary: 'must not read', items: [] }
-    }), /could not be validated/)
-  }
-  assert.equal(reads, 0)
-  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }), /could not be validated/)
-  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }, async () => {
-    throw Error('private file contents')
-  }), error => !error.message.includes('private file contents'))
-  await assert.rejects(resolveTaskResult(fileResult(), { mode: 'none' }, async () => ({ version: 1, summary: {}, items: [] })))
+test('oversized replies do not become partial evidence; limits count UTF-8 bytes', async () => {
+  assert.deepEqual(await resolveTaskResult('中文', { mode: 'none' }, undefined, 5), {
+    text: '', textTruncated: true, export: { mode: 'none', status: 'not_requested' }
+  })
+  assert.equal((await resolveTaskResult('中文', { mode: 'none' }, undefined, 6)).text, '中文')
+  assert.equal(taskResult('a'.repeat(2 * 1024 * 1024)).textTruncated, undefined)
+  assert.equal(taskResult('a'.repeat(2 * 1024 * 1024 + 1)).textTruncated, true)
 })
-test('inline output limits cannot hide an invalid file reference or promote a prose suffix into a read', async () => {
-  let reads = 0
-  const reader = async () => { reads++; return { version: 1, summary: 'must not read', items: [] } }
-  await assert.rejects(resolveTaskResult(fileResult({ ...reference, sha256: 'bad'.repeat(100) }), { mode: 'none' }, reader, 64))
-  const suffix = fileResult()
-  const result = await resolveTaskResult('Ordinary prose mentioning this example:\n' + suffix, { mode: 'none' }, reader, suffix.length)
-  assert.equal(result.text, suffix)
-  assert.equal(result.items, undefined)
-  assert.equal(reads, 0)
+test('bounded streaming marks reply overflow without inventing a report failure', () => {
+  const text = appendReportText('a'.repeat(4 * 1024 * 1024), 'overflow')
+  assert.deepEqual(taskResult(text), { text: '', textTruncated: true, export: { mode: 'none', status: 'not_requested' } })
+  assert.equal(appendReportText(text, 'later'), text)
 })
-test('explicit typed envelope is parsed without guessing prose or permitting caller-controlled URLs', () => {
-  assert.deepEqual(taskResult(encode(items)).items, items)
-  assert.deepEqual(taskResult(encode(items).replace('```xpert-task-result', '```json')).items, items)
-  assert.deepEqual(taskResult(JSON.stringify({ version: 1, summary: 'Done', items })).items, items)
-  assert.equal(taskResult('Here is the result: ' + encode(items)).items, undefined)
-  assert.equal(taskResult(JSON.stringify({ version: 2, summary: 'Done', items })).items, undefined)
-  for (const text of [
-    'fixed report.txt and all tests passed',
-    JSON.stringify({ title: 'fake', url: 'https://example.com' })
-  ])
-    assert.equal(taskResult(text).items, undefined)
-  for (const path of ['../secret', '/etc/passwd', 'a//b', 'a\\b', 'a\0b'])
-    assert.equal(taskResult(encode([{ ...items[3], path }])).items, undefined)
-  assert.equal(taskResult(encode([{ ...items[0], open: { url: 'javascript:alert(1)' } }])).items, undefined)
-  assert.equal(taskResult(encode([items[0], items[0]])).items, undefined)
+test('instructions describe optional reports and only caller-authorized artifact selection', () => {
+  assert.doesNotMatch(resultInstructions({ mode: 'none' }), /xpert-task-result/)
+  assert.match(resultInstructions({ mode: 'none', reportPath: 'review.md' }, true), /UTF-8 Markdown/)
+  assert.match(resultInstructions({ mode: 'none', reportPath: 'review.md' }), /cannot transfer/)
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['review.md', 'code.py'], reportPath: 'review.md' }), ['review.md', 'code.py'])
+  assert.deepEqual(deliveryPaths({ mode: 'files' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'review.md' }), ['review.md'])
+  for (const path of ['../secret', '/etc/passwd', 'a//b', 'a\\b'])
+    assert.throws(() => outputDelivery({ mode: 'none', reportPath: path }))
 })
 test('result resources are stable, provider-neutral and emitted only after completion', async () => {
   const task = {
     id: 'task',
     status: 'succeeded',
-    result: { ...taskResult(encode(items)), artifacts: [{ id: 'artifact', name: 'report.txt' }] }
+    result: { ...taskResult('Done'), items, artifacts: [{ id: 'artifact', name: 'report.txt' }] }
   }
   const cards = taskResourceCards(task)
   assert.equal(cards.length, 4)
@@ -142,4 +130,16 @@ test('launch defaults to no delivery; only an explicit archive request reaches t
   assert.deepEqual(received.input.delivery, { mode: 'none' })
   await tools[0].invoke({ prompt: 'Export', delivery: { mode: 'archive', paths: ['report.txt'] } }, config)
   assert.equal(received.input.delivery.mode, 'archive')
+})
+
+test('a selected report is an explicit deliverable, with optional additional paths', () => {
+  assert.deepEqual(deliveryPaths({ mode: 'files', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'archive', reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'none', reportPath: 'output/report.md' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files' }), [])
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['output/report.md'], reportPath: 'output/report.md' }), ['output/report.md'])
+  assert.deepEqual(deliveryPaths({ mode: 'files', paths: ['plugin.tgz'], reportPath: 'output/report.md' }), ['plugin.tgz', 'output/report.md'])
+})
+test('a direct adapter without a file reader cannot substitute a brief final reply for a selected report', () => {
+  assert.equal(taskResult('report written', { mode: 'none', reportPath: 'report.md' }).report.code, 'report_unavailable')
 })

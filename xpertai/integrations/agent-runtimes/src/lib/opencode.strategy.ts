@@ -2,7 +2,7 @@ import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult } from './task-result.js'
+import { deliveryPaths, outputDelivery, resolveTaskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -121,7 +121,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       {
         messageID: handle.runId,
         parts: [{ type: 'text', text: agentPrompt(withProjectWorkspaceContext(request.input, context, runner),
-          Boolean(runner && context.capabilities.require(AgentExecutionRunnerCapability).readTaskResultFile)) }]
+          Boolean(runner && context.capabilities.require(AgentExecutionRunnerCapability).readTaskReportFile)) }]
       },
       context,
       handle
@@ -224,8 +224,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
           delivery = outputDelivery(handle.metadata?.delivery)
         if (delivery.mode !== 'none') {
           // An explicit caller selection is authoritative even when the model omits a file item.
-          const paths =
-            delivery.paths ?? (result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
+          const paths = deliveryPaths(delivery)
           try {
             if (!paths.length) throw new Error('No declared deliverables')
             const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
@@ -355,7 +354,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
               .map((part) => part.text ?? '')
               .join(''),
             outputDelivery(handle.metadata?.delivery),
-            runner?.readTaskResultFile ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined,
+            runner?.readTaskReportFile ? (reference) => runner.readTaskReportFile(receipt, reference) : undefined,
             2 * 1024 * 1024
           )),
           ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
@@ -364,7 +363,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     } catch {
       return {
         status: 'failed', handle,
-        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
+        error: '[task_result_invalid] The runtime result could not be processed.'
       }
     }
   }

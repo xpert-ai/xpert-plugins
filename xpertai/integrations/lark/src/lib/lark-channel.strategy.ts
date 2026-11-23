@@ -1,5 +1,9 @@
+import { privateDecisionContent, privateDecisionFeedback } from './private-decision.js'
+import { decisionButton } from './lark-event-ingress.js'
+import type { PrivateDecisionCard } from '@xpert-ai/plugin-sdk'
+import { LarkEventIngress } from './lark-event-ingress.js'
 import * as lark from '@larksuiteoapi/node-sdk'
-import type { IIntegration, IUser } from '@xpert-ai/contracts'
+import type { IIntegration, IUser, PrivateDecisionFeedbackStatus } from '@xpert-ai/contracts'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { isEqual } from 'date-fns'
@@ -42,6 +46,7 @@ import {
 	isLarkCardActionValue,
 	LarkCardActionValue,
 	LarkMessage,
+	isPrivateDeliveryRejection,
 	parseLarkClientError,
 	TLarkConnectionMode,
 	TIntegrationLarkOptions,
@@ -84,7 +89,8 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	constructor(
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext,
-		private readonly capabilityService: LarkCapabilityService
+		private readonly capabilityService: LarkCapabilityService,
+		private readonly eventIngress?: LarkEventIngress
 	) {}
 
 	private get integrationPermissionService(): IntegrationPermissionService {
@@ -152,6 +158,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		handlers: TChatEventHandlers,
 		options?: {
 			includeCardAction?: boolean
+			verifiedDecisionChannel?: boolean
 		}
 	): lark.EventDispatcher {
 		const { integration } = ctx
@@ -166,7 +173,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 
 		dispatcher.register({
 			'im.message.receive_v1': async (data) => {
-				this.logger.verbose('im.message.receive_v1:', data)
+				this.logger.verbose('im.message.receive_v1')
 
 				const message = this.parseInboundMessage(data, ctx)
 				if (!message) {
@@ -174,6 +181,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				}
 
 				// Lark webhook callbacks should return within 3s, so we ack first and process in background.
+				if (await this.eventIngress?.capture(integration,'message',data,undefined,options?.verifiedDecisionChannel)) return true
 				this.runBackgroundEventHandler('message', async () => {
 					if (message.chatType === 'group') {
 						const botInfo = await this.getBotInfo(integration)
@@ -195,11 +203,17 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		if (includeCardAction) {
 			dispatcher.register({
 				'card.action.trigger': async (data: any) => {
-					this.logger.verbose('card.action.trigger:', data)
+					this.logger.verbose('card.action.trigger')
 
+					const value = (data.event ?? data)?.action?.value
+					if (decisionButton.safeParse(value).success) {
+						const captured = await this.eventIngress?.capture(integration,'card',data,this.getCardActionEventId(data),options?.verifiedDecisionChannel)
+						return {toast:{type:captured ? 'info' : 'error',content:captured ? '已收到，正在核对' : '请从采购工作台处理'}}
+					}
 					const action = this.parseCardAction(data, ctx)
 					if (action) {
 						// Lark webhook callbacks should return within 3s, so we ack first and process in background.
+						if (await this.eventIngress?.capture(integration,'card',data,this.getCardActionEventId(data),options?.verifiedDecisionChannel)) return {}
 						this.runBackgroundEventHandler('card action', async () => {
 							if (!(await this.claimCardActionEvent(data, integration.id))) {
 								this.logger.debug(
@@ -228,7 +242,9 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		ctx: TChatEventContext<TIntegrationLarkOptions>,
 		handlers: TChatEventHandlers
 	): (req: Request, res: Response, next?: NextFunction) => Promise<void> {
-		return lark.adaptExpress(this.createEventDispatcher(ctx, handlers), { autoChallenge: true })
+		return (req,res) => lark.adaptExpress(this.createEventDispatcher(ctx, handlers, {
+			verifiedDecisionChannel:(req as Request & {verifiedDecisionChannel?: boolean}).verifiedDecisionChannel === true
+		}), {autoChallenge:true})(req,res)
 	}
 
 	private runBackgroundEventHandler(eventName: string, handler: () => Promise<void>): void {
@@ -390,6 +406,75 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	// ==================== Outbound (Send Messages) ====================
+
+	async resolvePrivateDestination(integration: IIntegration<TIntegrationLarkOptions>, subjectId: string) {
+		const { client } = this.getOrCreateLarkClient(integration)
+		const response = await client.contact.user.get({
+			params: { user_id_type: 'union_id' },
+			path: { user_id: subjectId }
+		}).catch((error: unknown) => {
+			const rejection = parseLarkClientError(error)
+			if (rejection.code === 99991672 || rejection.error?.permission_violations?.length) return null
+			throw new Error('lark_directory_unavailable')
+		})
+		if (!response) return null
+		const user = response.data?.user
+		if (response.code !== 0 || user?.union_id !== subjectId || !user.open_id || !integration.options?.appId) return null
+		return { appId: integration.options.appId, recipient: user.open_id }
+	}
+
+	async sendPrivateDecision(
+		integration: IIntegration<TIntegrationLarkOptions>,
+		recipient: string,
+		card: PrivateDecisionCard,
+		attemptId: string
+	) {
+		const content = privateDecisionContent(card, attemptId)
+		const receipt = await this.sendPrivateMessage(integration, recipient, 'interactive', content, attemptId)
+		if (receipt.status !== 'accepted') return receipt
+		// The host binds replies to both the original card and its private chat.
+		return receipt.chatId
+			? { status: 'accepted', messageId: receipt.messageId, chatId: receipt.chatId } as const
+			: { status: 'unknown' } as const
+	}
+
+	async updatePrivateDecision(
+		integration: IIntegration<TIntegrationLarkOptions>,
+		messageId: string,
+		status: PrivateDecisionFeedbackStatus,
+		label: string
+	) {
+		if (!integration.id) throw new Error('decision_card_update_failed')
+		const content = privateDecisionFeedback(status, label, process.env.CLIENT_BASE_URL)
+		const response = await this.patchInteractiveMessage(integration.id, messageId, content)
+		if (response?.code !== 0) throw new Error('decision_card_update_failed')
+	}
+
+	async sendPrivateNotification(integration: IIntegration<TIntegrationLarkOptions>, recipient: string, text: string, attemptId: string) {
+		const receipt = await this.sendPrivateMessage(integration, recipient, 'text', { text }, attemptId)
+		return receipt.status === 'accepted' ? { status: 'accepted', messageId: receipt.messageId } as const : receipt
+	}
+
+	private async sendPrivateMessage(
+		integration: IIntegration<TIntegrationLarkOptions>,
+		recipient: string,
+		messageType: 'text' | 'interactive',
+		content: object,
+		attemptId: string
+	) {
+		const { client } = this.getOrCreateLarkClient(integration)
+		try {
+			const response = await client.im.message.create({
+				params: { receive_id_type: 'open_id' },
+				data: { receive_id: recipient, msg_type: messageType, content: JSON.stringify(content), uuid: attemptId }
+			})
+			if (response.code !== undefined && response.code !== 0) return { status: 'failed' } as const
+			const { message_id: messageId, chat_id: chatId } = response.data ?? {}
+			return messageId ? { status: 'accepted', messageId, chatId } as const : { status: 'unknown' } as const
+		} catch (error) {
+			return isPrivateDeliveryRejection(error) ? { status: 'failed' } as const : { status: 'unknown' } as const
+		}
+	}
 
 	async sendText(ctx: TChatContext, content: string): Promise<TChatSendResult> {
 		try {
@@ -837,7 +922,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				const parsed = this.parseJson(message.data.content)
 				await this.assertCardPayloadSupportedByIntegrationId(integrationId, parsed, 'createMessage')
 				this.logger.debug(
-					`[lark-outbound] interactive create integration=${integrationId} payload=${this.toLogString(parsed)}`
+					`[lark-outbound] interactive create integration=${integrationId}`
 				)
 			}
 			const client = await this.getOrCreateLarkClientById(integrationId)
@@ -916,7 +1001,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			if (parsed && parsed.text === undefined) {
 				await this.assertCardPayloadSupportedByIntegrationId(integrationId, parsed, 'patchMessage')
 				this.logger.debug(
-					`[lark-outbound] interactive patch integration=${integrationId} message=${payload.path?.message_id} payload=${this.toLogString(parsed)}`
+					`[lark-outbound] interactive patch integration=${integrationId} message=${payload.path?.message_id}`
 				)
 			}
 			const client = await this.getOrCreateLarkClientById(integrationId)

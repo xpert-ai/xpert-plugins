@@ -117,7 +117,9 @@ describe('LarkChatDispatchService', () => {
 		const service = new LarkChatDispatchService(
 			conversationService as any,
 			runStateService as any,
-			pluginContext as any
+			pluginContext as any,
+			{} as any,
+			{} as any
 		)
 
 		return {
@@ -226,6 +228,16 @@ describe('LarkChatDispatchService', () => {
 		).resolves.toEqual(expect.objectContaining({ payload: expect.any(Object) }))
 		expect(redis.eval).toHaveBeenCalledTimes(2)
 		expect(dispatchLocks.size).toBe(0)
+	})
+
+	it('uses the claimed Event Inbox run ID for the Handoff envelope and callback state', async () => {
+		mockRequestContext()
+		const { service, runStateService } = createFixture()
+		const runId = 'lark-chat-event-test'
+		const message = await service.buildDispatchMessage({ xpertId: 'xpert-1', input: 'hello', larkMessage: createLarkMessage() as any }, runId)
+		expect(message.id).toBe(runId)
+		expect(message.headers?.conversationId).toBe('conversation-1')
+		expect(runStateService.initialize).toHaveBeenCalledWith(expect.objectContaining({ sourceMessageId: runId }))
 	})
 
 	it('buildDispatchMessage uses assistant runtime principal with creator callback context', async () => {

@@ -23,6 +23,7 @@ import {
   post,
   reportResize,
   requestData,
+  requestFileAccess,
   setRuntimeText,
   startRemoteBridge
 } from './runtime'
@@ -103,6 +104,7 @@ function App() {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const dirtyRef = React.useRef(false)
   const selectedProjectIdRef = React.useRef<string | null>(null)
+  const loadSequence = React.useRef(0)
   const loadDataRef = React.useRef<((input?: LoadDataInput) => Promise<void>) | null>(null)
   const t = React.useMemo(() => createTranslator(context?.locale), [context?.locale])
 
@@ -142,6 +144,8 @@ function App() {
 
   const loadData = React.useCallback(
     async (input?: LoadDataInput) => {
+      const sequence = ++loadSequence.current
+      if (input?.projectId) selectedProjectIdRef.current = input.projectId
       setLoading(true)
       try {
         const nextProjectId = input?.projectId ?? selectedProjectIdRef.current ?? context?.initialQuery?.selectionId
@@ -163,10 +167,15 @@ function App() {
             })
           )
         )
+        if (sequence !== loadSequence.current) return
         const nextViewData = coerceViewData(payload)
         setViewData(nextViewData)
         const nextDetail = nextViewData.detail
         if (nextDetail?.item?.id) {
+          if (nextDetail.item.id !== selectedProjectIdRef.current) {
+            setActiveTab(nextDetail.item.surface === 'video' ? 'video' : 'html')
+          }
+          selectedProjectIdRef.current = nextDetail.item.id
           setSelectedProjectId(nextDetail.item.id)
           if (!dirtyRef.current || input?.forceDraftSync) {
             syncDrafts(nextDetail)
@@ -174,11 +183,12 @@ function App() {
         }
         setStatus(t('statusReady'))
       } catch (error) {
+        if (sequence !== loadSequence.current) return
         const message = getErrorMessage(error)
         setStatus(message)
         notify('error', message)
       } finally {
-        setLoading(false)
+        if (sequence === loadSequence.current) setLoading(false)
         setTimeout(reportResize, 0)
       }
     },
@@ -398,6 +408,61 @@ function App() {
     }
   }
 
+  const renderRequestRef = React.useRef<{ key: string; id: string } | null>(null)
+
+  const retryRequests = React.useRef(new Map<string, string>())
+  async function downloadExport(exportId: string) {
+    if (!detail?.item.id) return
+    setSaving(true)
+    try {
+      const grant = getResponsePayload(await requestFileAccess(exportId, detail.item.id))
+      if (!isObject(grant) || typeof grant.url !== 'string' || typeof grant.fileName !== 'string') throw new Error('Invalid file access grant')
+      const response = await fetch(grant.url, { credentials: 'include' })
+      if (!response.ok) throw new Error(`Download failed (HTTP ${response.status})`)
+      const url = URL.createObjectURL(await response.blob())
+      const link = document.createElement('a')
+      link.href = url; link.download = grant.fileName
+      document.body.append(link); link.click(); link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (error) { notify('error', getErrorMessage(error)) }
+    finally { setSaving(false) }
+  }
+
+  async function retryProduction(exportId: string) {
+    if (!selectedProject?.id || saving) return
+    setSaving(true)
+    try {
+      if (!retryRequests.current.has(exportId)) retryRequests.current.set(exportId, crypto.randomUUID())
+      await executeAction('render_production', selectedProject.id, { projectId: selectedProject.id,
+        retryOfExportId: exportId, requestId: retryRequests.current.get(exportId) }, { projectId: selectedProject.id })
+      await loadData({ projectId: selectedProject.id })
+      notify('success', t('productionRenderQueued'))
+    } catch (error) { handleError(error) } finally { setSaving(false) }
+  }
+  const pendingRenders = detail?.exports?.some(item => item.status === 'queued' || item.status === 'running')
+  React.useEffect(() => {
+    if (!pendingRenders || !selectedProjectId) return
+    const timer = setTimeout(() => void loadDataRef.current?.({ projectId: selectedProjectId }), 3000)
+    return () => clearTimeout(timer)
+  }, [pendingRenders, selectedProjectId, viewData])
+
+  const narrationRequestRef = React.useRef<{ key: string; id: string } | null>(null)
+  async function narrateEvidence() {
+    if (!selectedProject?.id || dirty) return
+    setSaving(true)
+    try {
+      const checksum = selectedProject.artifactChecksum ?? detail?.workingCopy?.artifactChecksum
+      const key = JSON.stringify([selectedProject.id, checksum])
+      if (narrationRequestRef.current?.key !== key) narrationRequestRef.current = { key, id: crypto.randomUUID() }
+      const response = await executeAction('narrate_evidence', selectedProject.id, { projectId: selectedProject.id, expectedChecksum: checksum, requestId: narrationRequestRef.current.id })
+      const data = getActionData(response)
+      const id = data && typeof data === 'object' && 'projectId' in data ? String(data.projectId) : null
+      if (id) { selectedProjectIdRef.current = id; setSelectedProjectId(id); await loadData({ projectId: id, forceDraftSync: true }) }
+      setExportsDialogOpen(true)
+      notify('success', t('narrationQueued'))
+    } catch (error) { handleError(error) } finally { setSaving(false) }
+  }
+
   async function renderProduction(quality: MotionRenderQuality, fps: 24 | 30 | 60) {
     if (!selectedProject?.id || videoEngine !== 'hyperframes') {
       return
@@ -407,11 +472,14 @@ function App() {
       const expectedChecksum = dirty
         ? await persistHyperframesComposition()
         : selectedProject.artifactChecksum ?? detail?.workingCopy?.artifactChecksum ?? null
+      const requestKey = JSON.stringify([selectedProject.id, expectedChecksum, quality, fps])
+      if (renderRequestRef.current?.key !== requestKey) renderRequestRef.current = { key: requestKey, id: crypto.randomUUID() }
       await executeAction(
         'render_production',
         selectedProject.id,
         {
           projectId: selectedProject.id,
+          requestId: renderRequestRef.current.id,
           kind: 'mp4',
           quality,
           fps,
@@ -717,6 +785,9 @@ function App() {
       <ExportsDialog
         open={exportsDialogOpen}
         exports={detail?.exports || []}
+        onRetry={retryProduction}
+        onDownload={downloadExport}
+        saving={saving}
         selectedProject={selectedProject}
         t={t}
         onOpenChange={setExportsDialogOpen}
@@ -842,6 +913,7 @@ function App() {
           onDraftChange={updateHyperframesDraft}
           onSave={() => void saveHyperframes()}
           onRender={(quality, fps) => void renderProduction(quality, fps)}
+          onNarrate={!dirty && hyperframesDraft.includes('id="evidence-narration"') && hyperframesDraft.includes('"audio":"not_generated"') ? () => void narrateEvidence() : undefined}
         />
       ) : null}
     </main>

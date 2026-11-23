@@ -113,6 +113,10 @@ export function requestData(query?: RemotePayloadObject) {
   return request('requestData', { query: query || {} })
 }
 
+export function requestFileAccess(fileKey: string, targetId: string) {
+  return request('requestFileAccess', { fileKey, targetId, purpose: 'download' })
+}
+
 export function executeAction(actionKey: string, targetId?: string | null, input?: RemotePayloadObject | null, parameters?: RemotePayloadObject | null) {
   return request('executeAction', {
     actionKey,

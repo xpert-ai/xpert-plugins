@@ -3,7 +3,7 @@
  */
 import { readFileSync } from 'node:fs'
 
-const swcJestConfig = JSON.parse(readFileSync(`${__dirname}/.spec.swcrc`, 'utf8'))
+const swcJestConfig = JSON.parse(readFileSync(new URL('./.spec.swcrc', import.meta.url), 'utf8'))
 swcJestConfig.swcrc = false
 
 export default {
@@ -19,8 +19,8 @@ export default {
     '<rootDir>/src/lib/docx-editor.middleware.spec.ts'
   ],
   transformIgnorePatterns: [
-    '<rootDir>/../../node_modules/.pnpm/(?!(lodash-es)@)',
-    'node_modules/(?!.pnpm|lodash-es/)'
+    '<rootDir>/../../node_modules/.pnpm/(?!(lodash-es|@xpert-ai\\+chatkit-types)@)',
+    'node_modules/(?!.pnpm|lodash-es/|@xpert-ai/chatkit-types/)'
   ],
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'html'],

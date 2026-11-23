@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-files",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Declarative CSV, JSON and XLSX analytics over authorized Workspace files",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
@@ -33,15 +33,15 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.26.1",
-    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.36.0",
+    "@xpert-ai/contracts": "^3.36.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.26.1",
-    "@xpert-ai/contracts": "3.26.1",
+    "@xpert-ai/plugin-sdk": "3.36.0",
+    "@xpert-ai/contracts": "3.36.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",

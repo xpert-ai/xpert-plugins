@@ -6,11 +6,12 @@ import {
   AssistantMiddlewareAccessRuntimeCapability, DefaultRuntimeCapabilityRegistry,
   type AssistantMiddlewareAccessApi
 } from '@xpert-ai/plugin-sdk'
-import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
+import type { FileContentEditorRegistration, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { SpaceAccess } from '../src/access.js'
 import { SpacesView } from '../src/view.js'
 import { SpacesMiddleware } from '../src/middleware.js'
 import { VIEW } from '../src/domain.js'
+import type { ListQuery } from '../src/list-page.js'
 
 function fixture() {
   const actor = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID(),
@@ -22,19 +23,25 @@ function fixture() {
   })
   const access = new SpaceAccess({} as never, {} as never, runtime)
   const space = { id: randomUUID(), projectId: actor.projectId, title: 'Space' }
+  const listQueries: ListQuery[] = []
+  const formatCalls: unknown[] = [], listedFormats: unknown[] = []
+  const formats: FileContentEditorRegistration[] = []
   const spaces = {
     async workspace() { businessCalls++; return space },
-    async tree() { businessCalls++; return { root: space, items: [] } },
+    async listPage(_actor: unknown, _spaceId: string, query: ListQuery, available?: FileContentEditorRegistration[]) {
+      businessCalls++; listQueries.push(query); listedFormats.push(available); return { root: space, items: [] }
+    },
     async list() { businessCalls++; return { root: space, items: [] } }
   }
   const view = new SpacesView({} as never, {} as never, {} as never, {} as never, spaces as never, {} as never,
-    {} as never, {} as never, {} as never, {} as never, access)
+    {} as never, {} as never, { list: async (actor: unknown) => { formatCalls.push(actor); return formats },
+      presentItems: async (_: unknown, items: unknown[]) => items } as never, {} as never, access)
   const context: XpertResolvedViewHostContext = { ...actor, hostType: 'agent', hostId: actor.assistantId,
     slots: [], capabilities: { features: ['spaces'] }, runtimeScope: { projectId: actor.projectId,
       conversationId: null, dataScopeKey: actor.projectId, workspaceFiles: { catalog: 'projects',
         projectId: actor.projectId, scopeId: actor.projectId } } }
   const middleware = new SpacesMiddleware({} as never, spaces as never, {} as never, {} as never, access)
-  return { actor, space, context, view, middleware, checks, businessCalls: () => businessCalls,
+  return { actor, space, context, view, middleware, checks, listQueries, formatCalls, listedFormats, formats, businessCalls: () => businessCalls,
     revoke: () => { allowed = false } }
 }
 
@@ -47,6 +54,30 @@ test('View checks once per request and rechecks revocation before accessing cont
   f.revoke()
   await assert.rejects(f.view.getViewData(f.context, VIEW, {}), /capability revoked/)
   assert.equal(f.businessCalls(), 2)
+})
+
+test('navigation presentation remains compatible with paginated View data', async () => {
+  const f = fixture(), folderId = randomUUID()
+  await f.view.getViewData(f.context, VIEW, { selectionId: folderId, pageSize: 20, parameters: { presentation: 'navigation', search: 'report' } })
+  assert.deepEqual(f.listQueries, [{ parentId: folderId, page: 1, pageSize: 20, trash: false, search: 'report' }])
+  assert.equal(f.formatCalls.length, 0)
+})
+
+test('document category passes the authorized codec registry into the native paginated query', async () => {
+  const f = fixture()
+  await f.view.getViewData(f.context, VIEW, { pageSize: 20, parameters: { typeId: 'document', search: 'Word' } })
+  assert.deepEqual(f.listQueries, [{ typeId: 'document', search: 'Word', page: 1, pageSize: 20, trash: false }])
+  assert.equal(f.formatCalls.length, 1)
+  assert.equal(f.listedFormats[0], f.formats)
+  f.revoke()
+  await assert.rejects(f.view.getViewData(f.context, VIEW, { parameters: { typeId: 'document' } }), /capability revoked/)
+  assert.equal(f.formatCalls.length, 1)
+})
+
+test('invalid list parameters return a client error before reading content', async () => {
+  const f = fixture()
+  await assert.rejects(f.view.getViewData(f.context, VIEW, { parameters: { unknownFilter: true } }), { status: 400 })
+  assert.equal(f.listQueries.length, 0)
 })
 
 test('empty state is authorized in standalone scope, including null Project context', async () => {

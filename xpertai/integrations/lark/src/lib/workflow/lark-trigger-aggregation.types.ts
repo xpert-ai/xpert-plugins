@@ -1,5 +1,5 @@
 import { defineChannelMessageType } from '@xpert-ai/plugin-sdk'
-import type { LarkGroupWindow, LarkInboundFile, LarkMessageReactionRef } from '../types.js'
+import type { LarkEventDispatchRef, LarkGroupWindow, LarkInboundFile, LarkMessageReactionRef } from '../types.js'
 
 export const LARK_TRIGGER_FLUSH_MESSAGE_TYPE = defineChannelMessageType('lark', 'trigger_flush', 1)
 
@@ -37,6 +37,7 @@ export interface LarkTriggerAggregationState {
 	integrationId: string
 	xpertId: string
 	version: number
+	eventDispatchRefs?: LarkEventDispatchRef[]
 	inputParts: string[]
 	files?: LarkInboundFile[]
 	historyContext?: string

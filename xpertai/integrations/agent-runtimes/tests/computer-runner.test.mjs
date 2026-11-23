@@ -119,40 +119,41 @@ function setup() {
   }
 }
 
-test('Computer OpenCode resolves an explicit final file once idle, checkpoints it before cleanup', async () => {
+test('Computer OpenCode reads the caller-selected report only when idle and checkpoints before cleanup', async () => {
   const f = setup()
-  const reference = { version: 1, path: 'output/result.json', sha256: 'b'.repeat(64) }
-  const summary = JSON.stringify({ verdict: 'changes_required', summary: 'Independent finding' })
-  f.runner.readTaskResultFile = async (receipt, value) => {
+  f.request.input.delivery = { mode: 'none', reportPath: 'output/review.md' }
+  const summary = '# Review\nIndependent finding'
+  f.runner.readTaskReportFile = async (receipt, path) => {
     assert.deepEqual(receipt, f.receipt)
-    assert.deepEqual(value, reference)
-    f.events.push('result-file')
-    return { version: 1, summary, items: [] }
+    assert.equal(path, 'output/review.md')
+    f.events.push('report-file')
+    return { text: summary, sha256: 'host-hash' }
   }
   const started = await f.strategy.start(f.request, f.context)
-  f.output('```xpert-task-result-file\n' + JSON.stringify(reference) + '\n```')
+  f.output('Finished')
   await f.strategy.inspect(started.handle, f.context)
-  assert.equal(f.events.includes('result-file'), false)
+  assert.equal(f.events.includes('report-file'), false)
   f.complete()
   const result = await f.strategy.inspect(started.handle, f.context)
   assert.equal(result.status, 'succeeded')
   assert.equal(result.result.text, summary)
-  assert.deepEqual(f.events.slice(-3), ['result-file', 'checkpoint', 'stop'])
+  assert.equal(result.result.report.status, 'completed')
+  assert.deepEqual(f.events.slice(-3), ['report-file', 'checkpoint', 'stop'])
   assert.equal(f.snapshots.at(-1).result.text, summary)
 })
 
-test('Computer OpenCode checkpoints a failed result-file handoff and still confirms cleanup', async () => {
+test('Computer OpenCode preserves execution completion when report delivery fails', async () => {
   const f = setup()
-  f.runner.readTaskResultFile = async () => { throw Error('private contents') }
+  f.request.input.delivery = { mode: 'none', reportPath: 'missing.md' }
+  f.runner.readTaskReportFile = async () => { throw Error('private contents') }
   const started = await f.strategy.start(f.request, f.context)
-  f.output('```xpert-task-result-file\n' + JSON.stringify({ version: 1, path: 'missing.json', sha256: 'a'.repeat(64) }) + '\n```')
   f.complete()
   const result = await f.strategy.inspect(started.handle, f.context)
-  assert.equal(result.status, 'failed')
-  assert.match(result.error, /task_result_file_invalid/)
-  assert.doesNotMatch(result.error, /private contents/)
-  assert.equal(result.result, undefined)
-  assert.equal(f.snapshots.at(-1).status, 'failed')
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, '')
+  assert.deepEqual(result.result.report, { status: 'failed', path: 'missing.md', code: 'report_unavailable' })
+  assert.equal(JSON.stringify(result).includes('private contents'), false)
+  assert.equal(f.snapshots.at(-1).status, 'succeeded')
   assert.equal(f.events.at(-1), 'stop')
 })
 
@@ -234,15 +235,7 @@ for (const fail of [false, true])
   test(`explicit delivery collects selected files; export failure=${fail} preserves execution`, async () => {
     const f = setup()
     f.request.input.delivery = { mode: 'files', paths: ['report.txt'] }
-    f.output(
-      '```xpert-task-result\n' +
-        JSON.stringify({
-          version: 1,
-          summary: 'Done',
-          items: [{ type: 'file', id: 'report', title: 'Report', summary: 'Test results', path: 'report.txt' }]
-        }) +
-        '\n```'
-    )
+    f.output('Done')
     if (fail) f.failExport()
     const started = await f.strategy.start(f.request, f.context)
     f.complete()
@@ -295,7 +288,7 @@ test('an empty artifact collection is a failed export, not a failed task or down
   assert.equal(f.events.at(-1), 'stop')
 })
 
-test('without caller paths, delivery uses only final file items', async () => {
+test('without caller paths, model file items do not authorize export', async () => {
   const f = setup()
   f.request.input.delivery = { mode: 'files' }
   f.output(
@@ -309,5 +302,6 @@ test('without caller paths, delivery uses only final file items', async () => {
   )
   const started = await f.strategy.start(f.request, f.context)
   f.complete()
-  assert.equal((await f.strategy.inspect(started.handle, f.context)).result.export.status, 'completed')
+  assert.equal((await f.strategy.inspect(started.handle, f.context)).result.export.status, 'failed')
+  assert.equal(f.events.includes('artifacts'), false)
 })

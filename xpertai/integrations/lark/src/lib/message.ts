@@ -90,6 +90,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.chatContext.larkChannel
   }
 
+  get eventDispatchRefs() {
+    return this.chatContext.eventDispatchRefs
+  }
+
   get integrationId() {
     return this.chatContext.integrationId
   }

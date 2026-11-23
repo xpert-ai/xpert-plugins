@@ -37,3 +37,5 @@ node plugin-dev-harness/dist/index.js \
   --workspace ./community/apps/procurement-quote-comparison \
   --plugin @xpert-ai/plugin-procurement-quote-comparison
 ```
+
+When a supplied quote series conflicts with the case records, the assistant lists the candidate original quotes. In the procurement workbench, the case buyer selects **Confirm series and save** for the intended quote. Confirmation saves the original document and extracted terms together. Repeating that confirmation returns the recorded result.

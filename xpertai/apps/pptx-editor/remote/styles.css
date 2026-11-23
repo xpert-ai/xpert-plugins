@@ -1,0 +1,32 @@
+@import 'tailwindcss' source(none);
+@source './**/*.{ts,tsx}';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+}
+html, body, #root { width: 100%; height: 100%; margin: 0; min-height: 0; overflow: hidden; }
+*, ::before, ::after { box-sizing: border-box; border-color: var(--border, var(--xui-color-border, #e4e4e7)); }
+.ppt-editor { background: color-mix(in srgb, var(--background) 96%, var(--foreground) 4%); }
+.ppt-toolgroup { padding: 5px; border: 1px solid var(--border); border-radius: 999px; background: var(--background); box-shadow: 0 4px 18px #00000006; }
+.ppt-toolgroup button, .ppt-toolgroup [role=combobox] { border-radius: 999px; }
+.ppt-navigation { width: clamp(170px, 19vw, 260px); border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 6px 20px #00000004; }
+.ppt-navigation .ppt-thumbnail { padding: 12px 8px; border-radius: 16px; }
+.ppt-navigation .ppt-thumbnail[aria-pressed=true] { color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--background)); }
+.ppt-navigation .ppt-thumbnail > span:last-child { box-shadow: 0 3px 10px #0000000c; }
+/* Page-preview controls take their height from authored slide aspect ratios. */
+.ppt-thumbnail { height: auto; white-space: normal; }
+.ppt-present { width: 96vw; max-width: 96vw; height: 92vh; }
+.ppt-template-dialog { width: 96vw; max-width: 1400px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+.ppt-template-dialog > section { min-height: 0; flex: 1; }
+@media (max-width: 640px) {
+  .ppt-navigation { width: 136px; }
+  .ppt-toolbar { gap: 6px; padding: 8px; }
+  .ppt-toolgroup { flex-wrap: wrap; max-width: 100%; border-radius: 18px; }
+}

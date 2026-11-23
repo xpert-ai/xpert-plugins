@@ -17,12 +17,13 @@ type Props = { artifactId: string; versionId: string; disabled: boolean; t: Retu
 
 /** Each version owns its selection. No analysis consent is carried across version changes. */
 export function GroupAnalysisPolicy({ artifactId, versionId, disabled, t, onChange }: Props) {
+  const [execution, setExecution] = React.useState<'viewer_permissions' | 'delegated_results'>('viewer_permissions')
   const [mode, setMode] = React.useState<'view' | 'bindings' | 'explore'>('view')
   const [datasets, setDatasets] = React.useState<Dataset[]>([]), [selected, setSelected] = React.useState<ResourceAnalysisPolicy['datasets']>([])
   const [busy, setBusy] = React.useState(false), [failed, setFailed] = React.useState(false), [details, setDetails] = React.useState(false), [limit, setLimit] = React.useState('50')
   React.useEffect(() => {
     let active = true
-    setMode('view'); setSelected([]); setDatasets([]); setFailed(false); setBusy(true)
+    setMode('view'); setExecution('viewer_permissions'); setSelected([]); setDatasets([]); setFailed(false); setBusy(true)
     const assertScope = captureViewScope()
     requestHost('invokeClientCommand', { commandKey: 'artifact.use-grants.manage', payload: {
       actionKey: 'group-grant-analysis-options', input: { artifactId, versionId }
@@ -31,13 +32,13 @@ export function GroupAnalysisPolicy({ artifactId, versionId, disabled, t, onChan
     return () => { active = false }
   }, [artifactId, versionId])
   React.useEffect(() => {
-    const policy = mode === 'view' ? undefined : { mode, datasets: selected, allowDetails: mode === 'bindings' || details, maxRows: Number(limit) }
+    const policy = mode === 'view' ? undefined : { mode, execution, datasets: selected, allowDetails: mode === 'bindings' || details, maxRows: Number(limit) }
     const validFilters = selected.every(scope => scope.filters.every(filter => {
       const field = datasets.find(dataset => dataset.key === scope.key)?.fields.find(field => field.id === filter.field)
       return field && filter.values.every(value => isResourceAnalysisFilterValue(field.logicalType, value))
     }))
     onChange(policy, mode === 'view' || (!busy && !failed && resourceAnalysisPolicySchema.safeParse(policy).success && validFilters))
-  }, [mode, selected, datasets, details, limit, busy, failed, onChange])
+  }, [mode, execution, selected, datasets, details, limit, busy, failed, onChange])
   const update = (key: string, patch: Partial<ResourceAnalysisPolicy['datasets'][number]>) =>
     setSelected(items => items.map(item => item.key === key ? { ...item, ...patch } : item))
   return <section className="grid gap-3 border-t pt-3">
@@ -46,7 +47,12 @@ export function GroupAnalysisPolicy({ artifactId, versionId, disabled, t, onChan
         <SelectItem value="view">{t.analysisViewOnly}</SelectItem><SelectItem value="bindings">{t.analysisBindings}</SelectItem><SelectItem value="explore">{t.analysisExplore}</SelectItem>
       </SelectContent></Select></label>
     {mode !== 'view' && <>
-      <p className="text-sm text-muted-foreground">{t.analysisAudienceHint}</p>
+      <label className="grid gap-2 text-sm">{t.analysisExecution}<Select disabled={disabled} value={execution} onValueChange={value => setExecution(z.enum(['viewer_permissions', 'delegated_results']).parse(value))}>
+        <SelectTrigger aria-label={t.analysisExecution}><SelectValue/></SelectTrigger><SelectContent>
+          <SelectItem value="viewer_permissions">{t.analysisViewerPermissions}</SelectItem>
+          <SelectItem value="delegated_results">{t.analysisDelegatedResults}</SelectItem>
+        </SelectContent></Select></label>
+      <p className="text-sm text-muted-foreground">{execution === 'delegated_results' ? t.analysisDelegatedHint : t.analysisAudienceHint}</p>
       {busy && <p role="status" className="text-sm text-muted-foreground">{t.loading}</p>}
       {failed && <p role="alert" className="text-sm text-destructive">{t.analysisUnavailable}</p>}
       <div className="grid max-h-72 gap-3 overflow-y-auto">{datasets.map(dataset => {

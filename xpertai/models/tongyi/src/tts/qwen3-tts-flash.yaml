@@ -33,11 +33,20 @@ model_properties:
     - mode: "Nofish"
       name: "不吃鱼"
       language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
-  word_limit: 512
-  audio_type: 'mp3'
+  word_limit: 600
+  audio_type: 'wav'
   max_workers: 5
+# Default mainland deployment price. Other deployment regions require an organization pricing override.
 pricing:
-  input: '0.8'
-  output: '0'
-  unit: '0.0001'
-  currency: RMB
+  type: usage
+  rules:
+    - id: qwen3-tts-flash-mainland-input
+      version: "2026-11-12"
+      effective_from: "2026-11-12T00:00:00+08:00"
+      unit: character
+      unit_size: 10000
+      unit_price: 0.8
+      currency: RMB
+      charge_type: paid
+      component: input
+      source_url: https://help.aliyun.com/zh/model-studio/model-pricing

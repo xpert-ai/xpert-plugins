@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod/v3'
 import { analyticsBindingObjectSchema, analyticsFieldSchema } from '@xpert-ai/plugin-sdk/analytics'
-import type { JSONValue } from '@xpert-ai/contracts'
+import type { AnalyticsBinding, JSONValue } from '@xpert-ai/contracts'
 
 // Optional on legacy responses; schema authoring requires explicit declarations.
 export const dataXpertResultColumnSchema = analyticsFieldSchema
@@ -39,5 +39,7 @@ export function createDataXpertOutput(datasetId: string, columns: z.output<typeo
     }
   })
   // Column roles do not establish row uniqueness or business aggregation grain.
-  return dataXpertOutputSchema.parse({ datasetId, fields, grain: [] })
+  const output: AnalyticsBinding['output'] = {datasetId, fields, grain: []}
+  dataXpertOutputSchema.parse(output)
+  return output
 }

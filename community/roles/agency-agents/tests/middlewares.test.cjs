@@ -25,7 +25,7 @@ test('each template connects the ClawXpert middleware set, including exactly one
     }
     assert.deepEqual(detail.dependencies.plugins, entry.dependencies.plugins)
     if (locale === entry.defaultLocale) assert.deepEqual(detail.dependencies, entry.dependencies)
-    assert.equal(detail.dependencies.plugins.length, 6)
+    assert.equal(detail.dependencies.plugins.length, 5)
     assert.deepEqual(draft.team.features.sandbox, { enabled: true, provider: 'nsjail' })
     assert.equal(draft.team.agentConfig.recursionLimit, 1000)
     assert.equal(agent.entity.options.vision.enabled, true)
@@ -41,7 +41,7 @@ test('templates have independent middleware options and bundled role skill resou
   const second = JSON.parse(provider.resolveTemplate(undefined, entry.key).dslContent)
   assert.equal(second.team.agent.options.middlewares.order.length, 12)
   assert.equal(second.nodes.find((node) => node.type === 'workflow').entity.required, true)
-  assert.equal(provider.listTemplates()[0].dependencies.plugins.length, 6)
+  assert.equal(provider.listTemplates()[0].dependencies.plugins.length, 5)
   const manifest = JSON.parse(readFileSync(join(__dirname, '../.xpertai-plugin/plugin.json')))
   assert.equal(manifest.skills, './dist/skills')
   assert.equal(existsSync(join(__dirname, '../dist/skills')), true)

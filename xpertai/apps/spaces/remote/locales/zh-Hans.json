@@ -339,5 +339,8 @@
   "artifact.referenceAccess": "需要项目与来源权限",
   "artifact.trashReference": "将引用“{{title}}”移入回收站？原始成果和已有分享链接会保留。",
   "artifact.restoreReference": "恢复引用“{{title}}”？查看仍需同时拥有项目与来源权限。",
-  "artifact.copyDenied": "此成果类型不允许复制到项目，请使用添加引用。"
+  "artifact.copyDenied": "此成果类型不允许复制到项目，请使用添加引用。",
+  "folder.expand": "展开 {{title}}",
+  "folder.collapse": "收起 {{title}}",
+  "library.syncing": "正在检查新增内容…"
 }

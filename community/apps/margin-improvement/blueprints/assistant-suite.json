@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "xpert-assistant-suite@1",
+  "key": "margin-improvement",
+  "plugin": {
+    "name": "@xpert-ai/plugin-margin-improvement",
+    "version": "0.1.0"
+  },
+  "roles": [
+    {
+      "key": "finance",
+      "templateKey": "margin-improvement-finance",
+      "name": "margin-demo-finance",
+      "title": "财务分析 Assistant",
+      "primaryAgentKey": "Agent_finance"
+    },
+    {
+      "key": "procurement",
+      "templateKey": "margin-improvement-procurement",
+      "name": "margin-demo-procurement",
+      "title": "采购核实 Assistant",
+      "primaryAgentKey": "Agent_procurement"
+    },
+    {
+      "key": "execution",
+      "templateKey": "margin-improvement-execution",
+      "name": "margin-demo-execution",
+      "title": "受控执行 Assistant",
+      "primaryAgentKey": "Agent_execution"
+    }
+  ],
+  "orchestrator": {
+    "key": "coordinator",
+    "templateKey": "margin-improvement-coordinator",
+    "name": "margin-demo-coordinator",
+    "title": "经营改善协调 Assistant",
+    "primaryAgentKey": "Agent_coordinator",
+    "externalRoleKeys": [
+      "finance",
+      "procurement",
+      "execution"
+    ]
+  }
+}

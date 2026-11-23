@@ -22,15 +22,32 @@ const querySchemaRequestSchema = z.object({
 }).strict()
 /** Trusted DataSource configuration; never merge it with payloads, controls or discovery requests. */
 const optionsSchema = z.object({
-  baseUrl: z.string().url(), audience: z.string().min(1),
+  resourceId: z.string().min(1).max(160).optional(), baseUrl: z.string().url(), audience: z.string().min(1),
   assistantCode: z.string().min(1), assistantXpertId: z.string().uuid(), workspaceId: z.string().uuid()
 }).strict()
+
+function assertModel(options: DataXpertClientContext['options'], resourceId:string) {
+  if (options.resourceId !== undefined && options.resourceId !== resourceId) throw Error('DATAX_MODEL_UNAVAILABLE')
+}
+
+const certificationSchema = z.discriminatedUnion('status', [
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('legacy_unverified') }).strict(),
+  z.object({ kind: z.literal('business_metric'), subjectId: z.string().min(1).max(160),
+    verifiedAt: z.string().datetime(), status: z.literal('verified'),
+    definitionHash: z.string().regex(/^[a-f0-9]{64}$/),
+    dependency: z.object({ id: z.string().min(1).max(160), version: z.number().int().nonnegative() }).strict(),
+    certifiedBy: z.string().min(1).max(160), certifiedAt: z.string().datetime() }).strict()
+])
+
 const responseSchema = z.object({
   effect: z.object({ version: z.literal(2), kind: z.enum(['rows', 'series', 'entity']),
     columns: z.array(dataXpertResultColumnSchema),
     rows: z.array(z.record(scalar)),
     summary: z.object({ rowCount: z.number().int().nonnegative(), returnedRowCount: z.number().int().nonnegative(), truncated: z.boolean() }) }),
-  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false)
+  fetchedAt: z.string().datetime(), executionId: z.string(), auditRef: z.string(), fromCache: z.literal(false),
+  sourceVersion: z.string().min(1).max(256).optional(),
+  certification: certificationSchema.optional()
 })
 
 @Injectable()
@@ -42,43 +59,173 @@ export class DataXpertAnalyticsClient {
    */
   async authorizeGroupSharing(binding: AnalyticsBinding, context: DataXpertClientContext) {
     const payload = dataXpertPayloadSchema.parse(binding.payload)
+    assertModel(context.options, payload.resourceId)
     const response = await this.request('authorize-group-sharing', context, {
-      binding: { id: binding.id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode,
-        target: payload.target, params: payload.params }, maxRows: 1
+      binding: {
+        id: binding.id,
+        resourceId: payload.resourceId,
+        actionTypeCode: payload.actionTypeCode,
+        target: payload.target,
+        params: payload.params
+      },
+      maxRows: 1
     })
-    z.object({ authorized: z.literal(true) }).strict().parse(await boundedJson(response))
+    z.object({ authorized: z.literal(true) })
+      .strict()
+      .parse(await boundedJson(response))
   }
   async discover(request: JSONValue, context: DataXpertClientContext): Promise<AnalyticsDiscoveryResult> {
     const importing = importTargetRequest.safeParse(request)
-    if (importing.success) return discoverImportTargets(importing.data, browse => this.discover(browse, context))
+    if (importing.success) return discoverImportTargets(importing.data, (browse) => this.discover(browse, context))
     if (request && typeof request === 'object' && !Array.isArray(request) && request.kind === 'query-schema') {
       const parsed = querySchemaRequestSchema.parse(request)
       const datasetId = createDataXpertDatasetId(parsed.payload, parsed.datasetId)
       const result = await this.query(datasetId, parsed.payload, parsed.parameters, context)
       return analyticsDiscoveryResultSchema.parse({
-        items: [{ id: datasetId, name: datasetId, kind: 'dataset',
-          metadata: { payload: parsed.payload, output: createDataXpertOutput(datasetId, result.effect.columns) } }],
+        items: [
+          {
+            id: datasetId,
+            name: datasetId,
+            kind: 'dataset',
+            metadata: { payload: parsed.payload, output: createDataXpertOutput(datasetId, result.effect.columns) }
+          }
+        ],
         queryContract: dataXpertQueryContract
       })
     }
-    const empty = request && typeof request === 'object' && !Array.isArray(request) && Object.keys(request).length === 0
+    const empty =
+      request && typeof request === 'object' && !Array.isArray(request) && Object.keys(request).length === 0
     const parsed = dataXpertDiscoveryRequestSchema.parse(empty ? { kind: 'resources' } : request)
+    if (parsed.kind !== 'resources') assertModel(context.options, parsed.resourceId)
     const response = await this.request('discover', context, { request: parsed })
-    const result = z.object({ items: z.array(z.unknown()),
-      nextRequest: json.optional() }).strict().parse(await boundedJson(response))
-    return analyticsDiscoveryResultSchema.parse({ ...result,  queryContract: dataXpertQueryContract })
+    const result = z
+      .object({ items: z.array(z.unknown()), nextRequest: json.optional() })
+      .strict()
+      .parse(await boundedJson(response))
+    const page = analyticsDiscoveryResultSchema.parse({ ...result, queryContract: dataXpertQueryContract })
+    if (parsed.kind === 'resources' && context.options.resourceId !== undefined)
+      page.items = page.items.filter((item) => item.id === context.options.resourceId)
+    return page
   }
-  private async request(endpoint: 'query' | 'discover' | 'authorize-group-sharing', context: DataXpertClientContext, body: Record<string, JSONValue>) {
+  async managementRequest(
+    connection: { baseUrl: string; audience: string }, actor: DataXpertClientContext['actor'],
+    signal: AbortSignal, path: string, method = 'GET', body?: unknown
+  ): Promise<unknown> {
+    const base = new URL(connection.baseUrl)
+    if (!['https:', 'http:'].includes(base.protocol) || base.username || base.password || base.search || base.hash ||
+        !/^\/[a-z0-9]/.test(path) || path.includes('..')) throw Error('DATAX_URL_INVALID')
+    signal.throwIfAborted()
+    const session = await this.runtime.require(ActorTokenRuntimeFactoryCapability).createScopedApi(actor)
+      .getToken({ audience: connection.audience })
+    const res = await fetch(base.href.replace(/\/$/, '') + path, {
+      method, signal, redirect: 'error', headers: { authorization: 'Bearer ' + session.token,
+        'organization-id': actor.organizationId, 'content-type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    })
+    if (!res.ok) throw Error('DATAX_MANAGEMENT_HTTP_' + res.status)
+    return res.status === 204 ? null : boundedJson(res)
+  }
+
+  async effectiveSetupIdentity(
+    connection: { baseUrl: string; audience: string },
+    actor: DataXpertClientContext['actor'],
+    signal: AbortSignal,
+    prefetchOrganizationReader = false
+  ) {
+    const token = await this.runtime
+      .require(ActorTokenRuntimeFactoryCapability)
+      .createScopedApi(actor)
+      .getToken({ audience: connection.audience })
+    const base = connection.baseUrl.replace(/\/$/, '') + '/assistant-management'
+    const readIdentity = async (path: string) => {
+      const response = await fetch(base + path, {
+        signal,
+        redirect: 'error',
+        headers: { Authorization: 'Bearer ' + token.token, 'organization-id': actor.organizationId }
+      })
+      if (response.status === 404 && path.startsWith('/effective/')) throw Error('DATAX_ORGANIZATION_READER_MISSING')
+      if (!response.ok) throw Error('DATAX_ORGANIZATION_IDENTITY_UNAVAILABLE')
+      return boundedJson(response)
+    }
+    const identity = z.object({
+      configured: z.literal(true),
+      tenantId: z.literal(actor.tenantId),
+      organizationId: z.literal(actor.organizationId),
+      workspaceId: z.string().uuid(),
+      xpertId: z.string().uuid()
+    })
+    const readerCode = 'analytics-reader-' + actor.organizationId
+    const readCustom = () => readIdentity('/effective/' + encodeURIComponent(readerCode))
+    const prefetched = prefetchOrganizationReader ? Promise.allSettled([readCustom()]) : undefined
+    const builtIn = await readIdentity('/ontology/effective')
+    const existing = identity.extend({ sourceScope: z.literal('organization') }).safeParse(builtIn)
+    if (existing.success)
+      return {
+        assistantCode: existing.data.xpertId,
+        assistantXpertId: existing.data.xpertId,
+        workspaceId: existing.data.workspaceId
+      }
+    if (!z.object({ sourceScope: z.literal('none'), configured: z.literal(false) }).safeParse(builtIn).success)
+      throw Error('DATAX_ORGANIZATION_IDENTITY_UNAVAILABLE')
+    // Data Xpert assistant codes are unique within a tenant. The organization-specific
+    // reader is explicitly provisioned and Data Xpert checks its resource grants on every read.
+    const cached = prefetched ? (await prefetched)[0] : undefined
+    if (cached?.status === 'rejected') throw cached.reason
+    const resolved = cached ? cached.value : await readCustom()
+    if (z.object({ configured: z.literal(false) }).safeParse(resolved).success) throw Error('DATAX_ORGANIZATION_READER_MISSING')
+    const reader = identity.extend({
+      code: z.literal(readerCode),
+      scopeType: z.literal('organization'),
+      allowed: z.literal(true),
+      enabled: z.literal(true),
+      resourceIds: z.array(z.string().min(1)).min(1)
+    }).safeParse(resolved)
+    if (!reader.success) throw Error('DATAX_ORGANIZATION_IDENTITY_UNAVAILABLE')
+    return {
+      assistantCode: reader.data.code,
+      assistantXpertId: reader.data.xpertId,
+      workspaceId: reader.data.workspaceId
+    }
+  }
+  previewApplicationQuery(
+    key: string,
+    payload: z.output<typeof dataXpertPayloadSchema>,
+    ctx: DataXpertClientContext
+  ) {
+    return this.query(key, payload, {}, ctx)
+  }
+  private async request(
+    endpoint: 'query' | 'discover' | 'authorize-group-sharing',
+    context: DataXpertClientContext,
+    body: Record<string, JSONValue>
+  ) {
     context.signal.throwIfAborted()
     const options = optionsSchema.parse(context.options)
     const base = new URL(options.baseUrl)
-    if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw new Error('DATAX_URL_INVALID')
-    const token = await this.runtime.require(ActorTokenRuntimeFactoryCapability).createScopedApi(context.actor).getToken({ audience: options.audience })
+    if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash)
+      throw new Error('DATAX_URL_INVALID')
+    const token = await this.runtime
+      .require(ActorTokenRuntimeFactoryCapability)
+      .createScopedApi(context.actor)
+      .getToken({ audience: options.audience })
     context.signal.throwIfAborted()
     const response = await fetch(`${base.href.replace(/\/$/, '')}/agent-workbench/analytics/${endpoint}`, {
-      method: 'POST', redirect: 'error', signal: context.signal,
-      headers: { Authorization: `Bearer ${token.token}`, 'Content-Type': 'application/json', 'organization-id': context.actor.organizationId },
-      body: JSON.stringify({ assistant: { code: options.assistantCode, xpertId: options.assistantXpertId, workspaceId: options.workspaceId }, ...body })
+      method: 'POST',
+      redirect: 'error',
+      signal: context.signal,
+      headers: {
+        Authorization: `Bearer ${token.token}`,
+        'Content-Type': 'application/json',
+        'organization-id': context.actor.organizationId
+      },
+      body: JSON.stringify({
+        assistant: {
+          code: options.assistantCode,
+          xpertId: options.assistantXpertId,
+          workspaceId: options.workspaceId
+        },
+        ...body
+      })
     })
     if (!response.ok) {
       const error = await readAnalyticsHttpError(response, context.signal, context.deadlineAt)
@@ -87,19 +234,47 @@ export class DataXpertAnalyticsClient {
     }
     return response
   }
-  async execute(binding: AnalyticsBinding, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext): Promise<AnalyticsProviderResult> {
+  async execute(
+    binding: AnalyticsBinding,
+    parameters: Record<string, AnalyticsValue>,
+    context: DataXpertClientContext
+  ): Promise<AnalyticsProviderResult> {
     const payload = dataXpertPayloadSchema.parse(binding.payload)
     const result = await this.query(binding.id, payload, parameters, context)
-    return { columns: result.effect.columns, rows: result.effect.rows,
-      completeness: { returnedRows: result.effect.summary.returnedRowCount, totalRows: result.effect.summary.rowCount,
-        totalAccuracy: result.effect.summary.truncated ? 'unknown' : 'exact', scope: result.effect.summary.truncated ? 'page' : 'full_query_result',
-        truncated: result.effect.summary.truncated }, sourceFetchedAt: result.fetchedAt,
-      upstreamExecutionId: result.executionId, auditRef: result.auditRef }
+    return {
+      columns: result.effect.columns,
+      rows: result.effect.rows,
+      completeness: {
+        returnedRows: result.effect.summary.returnedRowCount,
+        totalRows: result.effect.summary.rowCount,
+        totalAccuracy: result.effect.summary.truncated ? 'unknown' : 'exact',
+        scope: result.effect.summary.truncated ? 'page' : 'full_query_result',
+        truncated: result.effect.summary.truncated
+      },
+      sourceFetchedAt: result.fetchedAt,
+      upstreamExecutionId: result.executionId,
+      auditRef: result.auditRef,
+      sourceVersion: result.sourceVersion,
+      ...(result.certification ? { certification: result.certification } : {})
+    }
   }
-  private async query(id: string, payload: z.output<typeof dataXpertPayloadSchema>, parameters: Record<string, AnalyticsValue>, context: DataXpertClientContext) {
+  private async query(
+    id: string,
+    payload: z.output<typeof dataXpertPayloadSchema>,
+    parameters: Record<string, AnalyticsValue>,
+    context: DataXpertClientContext
+  ) {
+    assertModel(context.options, payload.resourceId)
     const response = await this.request('query', context, {
-      binding: { id, resourceId: payload.resourceId, actionTypeCode: payload.actionTypeCode, target: payload.target,
-        params: bindParameters(payload.params, payload.parameterPaths, parameters) }, maxRows: context.maxRows })
+      binding: {
+        id,
+        resourceId: payload.resourceId,
+        actionTypeCode: payload.actionTypeCode,
+        target: payload.target,
+        params: bindParameters(payload.params, payload.parameterPaths, parameters)
+      },
+      maxRows: context.maxRows
+    })
     return responseSchema.parse(await boundedJson(response))
   }
 }

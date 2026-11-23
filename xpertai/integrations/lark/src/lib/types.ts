@@ -283,6 +283,13 @@ export interface LarkError {
  * Parse Lark SDK/Axios mixed error payloads, including nested array shapes like:
  * [[axiosError, larkErrorBody]]
  */
+export function isPrivateDeliveryRejection(error: unknown): boolean {
+  const response = isRecord(error) && isRecord(error.response) ? error.response : undefined
+  const status = response?.status
+  if (typeof status === 'number' && (status === 408 || status >= 500)) return false
+  return parseLarkClientError(error).code > 0
+}
+
 export function parseLarkClientError(error: unknown): LarkError {
   const payload = findLarkErrorPayload(error)
   if (!payload) {
@@ -485,7 +492,17 @@ export type LarkMessageReactionRef = {
 
 export const LARK_TYPING_REACTION_EMOJI_TYPE = 'Typing'
 
+// Trusted Event Inbox references carried by serialized jobs, including merged message windows.
+export type LarkEventDispatchRef = {
+	id: string
+	binding: string
+	revision: number
+	xpertId: string
+	ownerId: string
+}
+
 export type ChatLarkContext<T = any> = {
+	eventDispatchRefs?: LarkEventDispatchRef[]
 	tenant: ITenant
 	tenantId?: string
 	organizationId: string

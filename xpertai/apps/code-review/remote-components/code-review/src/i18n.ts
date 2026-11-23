@@ -101,8 +101,6 @@ export const messages = {
   pinOnly: ["Pinned only", "只看置顶"],
   reviewNoHistory: ["No other runs are available.", "暂无其他运行记录。"],
 
-  enableRepositoryPipeline: ['Matching PR events consume model usage and save evidence in the selected Project. Only the Project approval gate can authorize GitHub publication. Historical private reviews stay private.', '匹配的 PR 事件将消耗模型额度，审查依据保存在所选项目中。发布到 GitHub 需要通过项目流水线的人工确认；历史私有记录保持不变。'],
-  saveRepositoryPipeline: ['Save the Project binding and keep automation paused. Pending work using the previous policy stops; historical private records stay private.', '保存项目绑定并保持自动审查暂停。使用旧策略的待处理任务将停止，历史私有记录保持不变。'],
   repositoryPipeline: ['Project review pipeline', '项目审查流水线'],
   repositoryPipelineHelp: ['Choose a review template and its Assistants here. Saving binds the configuration to this Project; matching PR events use it automatically.', '在此选择审查模板与执行智能体。保存规则时绑定到当前项目，后续匹配的 PR 事件自动使用该配置。'],
   chooseProjectFirst: ['Select a Project in Bosi, then configure its review pipeline.', '请先在 Bosi 中选择项目，再配置审查流水线。'],
@@ -113,7 +111,6 @@ export const messages = {
   configureProjectPipeline: ['Configure Project pipelines', '配置项目流水线'],
   unboundRepository: ['Choose a review template before enabling automation.', '开启自动审查前，请选择审查模板。'],
   viewReviewPipeline: ['Open review pipeline', '查看审查流水线'],
-  projectGateHelp: ['Publication is confirmed in the Project pipeline. Trial runs cannot publish.', '请在项目流水线中确认发布；试审不能发布。'],
   "operationFailedRefreshAndTryAgain": [
     "Operation failed. Refresh and try again.",
     "操作失败，请刷新后重试。"

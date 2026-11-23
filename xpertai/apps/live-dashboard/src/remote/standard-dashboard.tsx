@@ -26,5 +26,5 @@ export function StandardDashboard({ html, manifest, inspect, onInspect, onExit }
     return () => { observer.disconnect(); mounted.dispose(); host.current = undefined }
   }, [html, manifest.id, manifest.visualTheme])
   React.useEffect(() => { host.current?.setEnabled(inspect) }, [inspect])
-  return <iframe ref={frame} title={manifest.title} sandbox="allow-scripts" className="h-full w-full border-0"/>
+  return <iframe ref={frame} title={manifest.title} sandbox="allow-scripts allow-downloads" className="h-full w-full border-0"/>
 }

@@ -2,7 +2,7 @@ import { fileAuthoring } from './authoring'
 import { BadRequestException, ForbiddenException, HttpException, Inject } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue } from '@xpert-ai/contracts'
-import { AnalyticsProvider, ProjectAccessRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+import { AnalyticsProvider, AnalyticsProviderError, ProjectAccessRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AnalyticsQueryProvider, type AnalyticsProviderContext, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { MAX_BYTES, MAX_ROWS, PROVIDER, discoverySchema, jsonSchema, optionsSchema, payloadSchema, type FileDataset } from './schema'
 import { outputColumns, validateOutput } from './query'
@@ -14,6 +14,13 @@ const instructions = `Use an inspected dataset's bindingPayload and columns. Nev
 const queryContract: AnalyticsDiscoveryResult['queryContract'] = { operation: 'query', contractVersion: 1,
   payloadSchema: jsonSchema(payloadSchema), instructions: instructions + ' metadata.binding is a complete canonical Binding; bindingPayload alone is only its payload, not a Binding. Start from metadata.binding and preserve its envelope. Raw rows do not promise uniqueness; keep grain:[] unless verified, or group first and declare the grouping field IDs as grain.' }
 
+const queryDiagnostics = new Map([
+  ['FILE_DATASET_DISCOVERY_REQUEST_INVALID', 'For discovery use an empty object or the returned inspectRequest. Pass query payloads to preview.'],
+  ['FILE_DATASET_CONTRACT_CHANGED', 'Read the current dataset binding from discovery and copy its revision and contractHash before previewing.'],
+  ['FILE_DATASET_COLUMN_UNAVAILABLE', 'Use column keys from the current dataset binding. Aggregate inputs use source column keys and aggregate outputs use their aliases.'],
+  ['FILE_DATASET_OUTPUT_CONTRACT_INVALID', 'Match each output sourceField, logical type and nullability to the selected column or aggregate alias.']
+])
+
 @AnalyticsProvider(PROVIDER)
 export class FileAnalyticsProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
@@ -24,6 +31,21 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
   readonly configuration = { kind: 'definition' as const, connection: 'workspace-files' as const, schema: jsonSchema(optionsSchema) }
   validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+
+  /** Reauthorize the exact file and hash its current bytes on every cache hit.
+   * This saves parsing/aggregation, not the authorized source read; mtime is not a proof. */
+  async authorizeResultReuse(binding: AnalyticsBinding, _parameters: Record<string, AnalyticsValue>, context: AnalyticsProviderContext) {
+    return this.guarded(async () => {
+      const query = payloadSchema.parse(binding.payload), { datasets } = optionsSchema.parse(context.options)
+      const definition = datasets.find(dataset => dataset.id === query.datasetId)
+      if (!definition || query.revision !== definition.revision || query.contractHash !== contractHash(definition))
+        throw new Error('FILE_DATASET_CONTRACT_CHANGED')
+      validateOutput(binding, outputColumns(definition, query))
+      const { buffer } = await this.read(definition, context)
+      await this.file(definition, context)
+      return { sourceVersion: `${query.contractHash}:${hash(buffer)}` }
+    })
+  }
 
   /**
    * Only a manager of the exact source Project may delegate a current declared file dataset.
@@ -69,12 +91,17 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
     try { return await run() } catch (error) {
       if (error instanceof HttpException) throw error
       const code = error instanceof Error && /^FILE_DATASET_[A-Z_]+(?:: [A-Za-z][A-Za-z0-9_]*)?$/.test(error.message) ? error.message : 'FILE_DATASET_INVALID'
+      const guidance = queryDiagnostics.get(code)
+      if (guidance) throw new AnalyticsProviderError({ schema: 'xpert.analytics.diagnostic', version: 1,
+        stage: 'validation', retryable: false, code, message: guidance })
       throw new BadRequestException({ code: code.split(':')[0], message: code })
     }
   }
   async discover(request: JSONValue, context: AnalyticsProviderContext): Promise<AnalyticsDiscoveryResult> {
     return this.guarded(async () => {
-      const input = discoverySchema.parse(request), { datasets } = optionsSchema.parse(context.options)
+      const parsed = discoverySchema.safeParse(request)
+      if (!parsed.success) throw new Error('FILE_DATASET_DISCOVERY_REQUEST_INVALID')
+      const input = parsed.data, { datasets } = optionsSchema.parse(context.options)
       const selected = input.datasetId ? datasets.filter(d => d.id === input.datasetId) : datasets.slice((input.page - 1) * 20, input.page * 20)
       if (input.datasetId && !selected.length) throw new Error('FILE_DATASET_UNAVAILABLE')
       const items: AnalyticsDiscoveryResult['items'] = []
@@ -84,19 +111,22 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
         const payload = payloadSchema.parse({ datasetId: definition.id, revision: definition.revision,
           contractHash: contractHash(definition), select: definition.columns.map(c => c.key) })
         let metadata: JSONValue = { revision: definition.revision, format: definition.reader.format }
+        // A single-dataset definition can expose its usable contract on the first discovery,
+        // without reading rows. Multi-dataset catalogs stay paginated and compact.
+        if (input.datasetId || datasets.length === 1) {
+          const binding: AnalyticsBinding = { source: context.source, id: definition.id,
+            providerId: PROVIDER, operation: 'query', contractVersion: 1, payload: JSON.parse(JSON.stringify(payload)), parameters: [],
+            output: { datasetId: definition.id, grain: [], fields: definition.columns.map(({ key, path, description, nullValues, ...field }) => ({ ...field, id: key, sourceField: key })) } }
+          metadata = { ...metadata, contractHash: payload.contractHash, bindingPayload: JSON.parse(JSON.stringify(payload)),
+            binding: JSON.parse(JSON.stringify(binding)), columns: definition.columns.map(({ path, nullValues, ...column }) => column) }
+        }
         if (input.datasetId) {
           const read = await this.read(definition, context)
           const preview = await queryWorker(read.buffer, definition, payload, {}, 5, context.signal, context.deadlineAt)
           await this.file(definition, context)
-          const binding: AnalyticsBinding = { source: context.source, id: definition.id,
-            providerId: PROVIDER, operation: 'query', contractVersion: 1, payload: JSON.parse(JSON.stringify(payload)), parameters: [],
-            output: { datasetId: definition.id, grain: [], fields: definition.columns.map(({ key, path, description, nullValues, ...field }) => ({ ...field, id: key, sourceField: key })) } }
           const previewFits = Buffer.byteLength(JSON.stringify(preview.rows)) <= 32000
-          metadata = { ...metadata, contractHash: payload.contractHash, bindingPayload: JSON.parse(JSON.stringify(payload)),
-            binding: JSON.parse(JSON.stringify(binding)),
-            columns: definition.columns.map(({ path, nullValues, ...column }) => column),
+          metadata = { ...metadata, preview: previewFits ? preview.rows : [], previewOmitted: !previewFits,
             ...(definition.reader.format === 'xlsx' ? { sheet: definition.reader.sheet, formulaPolicy: definition.reader.formulaPolicy } : {}),
-            preview: previewFits ? preview.rows : [], previewOmitted: !previewFits,
             ...(previewFits ? { previewCompleteness: preview.completeness } : {}),
             limits: { inputBytes: MAX_BYTES, inputRows: MAX_ROWS }, sourceVersion: hash(read.buffer) }
         }

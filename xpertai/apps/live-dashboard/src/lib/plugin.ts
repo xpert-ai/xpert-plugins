@@ -1,3 +1,8 @@
+import { AnalysisEvidenceTransfers } from './evidence/evidence-transfers'
+import { AnalysisEvidenceView, AnalysisEvidenceEditor } from './evidence/evidence-view.provider'
+import { AnalysisEvidenceRecord } from './evidence/evidence.entity'
+import { AnalysisEvidenceService } from './evidence/evidence.service'
+import { AnalysisEvidenceArtifactType, AnalysisEvidenceContent } from './evidence/evidence.provider'
 import { DashboardLibraryViewProvider } from './library-view.provider'
 import { DashboardDatasetService } from './dataset.service'
 import { DashboardTemplateService } from './template.service'
@@ -28,5 +33,5 @@ import { LibraryDatasetBindingService } from './library/dataset-binding.service'
 import { LibraryTemplateExecutionService } from './library/template-execution.service'
 import { LibraryTaskPreparationService } from './library/task-preparation.service'
 import { LibraryDirectoryService } from './library/directory.service'
-@XpertServerPlugin({ imports: [TypeOrmModule.forFeature(LIBRARY_V2_ENTITIES)], entities: LIBRARY_V2_ENTITIES, controllers: [DashboardProviderOptionsController], providers: [LibraryDirectoryService, LibraryExecutionResolution, LibraryDatasetBindingService, LibraryTemplateExecutionService, LibraryTaskPreparationService, LibraryCatalogService, LibraryFilesService, LibraryTransfersService, LibraryFileArtifactType, DashboardLibraryViewProvider, DashboardDatasetService, DashboardTemplateService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
+@XpertServerPlugin({ imports: [TypeOrmModule.forFeature([...LIBRARY_V2_ENTITIES, AnalysisEvidenceRecord])], entities: [...LIBRARY_V2_ENTITIES, AnalysisEvidenceRecord], controllers: [DashboardProviderOptionsController], providers: [AnalysisEvidenceTransfers, AnalysisEvidenceView, AnalysisEvidenceEditor, AnalysisEvidenceService, AnalysisEvidenceArtifactType, AnalysisEvidenceContent, LibraryDirectoryService, LibraryExecutionResolution, LibraryDatasetBindingService, LibraryTemplateExecutionService, LibraryTaskPreparationService, LibraryCatalogService, LibraryFilesService, LibraryTransfersService, LibraryFileArtifactType, DashboardLibraryViewProvider, DashboardDatasetService, DashboardTemplateService, DashboardDatasetArtifactType, DashboardSaveRequests, DashboardArchiveService, DashboardProjectsService, DashboardMonitor, DashboardMonitorMiddleware, DashboardArtifactType, DashboardCapability, DashboardContentProvider, DashboardContentEditor, DashboardService, DashboardViewProvider, DashboardMiddleware, HtmlDashboardValidation, DashboardPresentationProvider, DashboardSharingService] })
 export class LiveDashboardPlugin {}

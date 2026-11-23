@@ -13,8 +13,11 @@ import { Review } from './entity.js'
 import { localGitImportSchema, localGitSourcesSchema, type LocalGitImport } from './local-git.js'
 import { digest, reviewAgentContextSchema } from './pipeline/contract.js'
 import { GitHub } from './github.js'
+import { sourcePage } from './source-page.js'
 import { Repositories } from './repositories.js'
 import { ReviewRun, type ReviewRepository } from './automation-entities.js'
+import { publicationMode } from './automation-contract.js'
+import { claimRepositoryPublication } from './publication.js'
 import { ignoredPath } from './automation-domain.js'
 import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, reviewLabel, type Scope } from './domain.js'
 import { assertPipelineReviewAccess, assertPipelineReviewVersion } from './pipeline/access.js'
@@ -287,8 +290,7 @@ export class Reviews {
       if (!source || source[side] === null) throw new ReviewError('local_source_unavailable')
       content = source[side]!
     } else content = await (await this.recordGithub(s, r)).source(r.ref, sha, path)
-    const lines = content.split('\n')
-    return { path, sha, offset, total: lines.length, content: lines.slice(offset, offset + limit).map((line, i) => `${offset + i + 1}: ${line}`).join('\n') }
+    return sourcePage(path, sha, content, offset, limit)
   }
   async readRecord(s: Scope, config: unknown) {
     const selected = selectionSchema.safeParse(config)
@@ -319,26 +321,43 @@ export class Reviews {
       throw error
     }
   }
-  async publishAutomatic(p: ReviewRepository, run: ReviewRun, confirmed = false) {
-    if (!p.settings.enabled || p.revision !== run.policyRevision || (!confirmed && run.settings.delivery !== 'automatic') || !p.confirmedAt || !run.reviewId)
-      throw new ReviewError('policy_changed')
+  private commentBody(r: Review, run: ReviewRun) {
+    const marker = `<!-- xpert-code-review:${run.id} -->`
+    return { marker, body: `${r.summary}\n\n${marker}` }
+  }
+  async findAutomaticComment(p: ReviewRepository, run: ReviewRun, r: Review) {
+    if (r.ref.provider !== 'github' || r.automationRunId !== run.id || r.automationPolicyId !== p.id) throw new ReviewError('review_not_submittable')
+    const github = await this.recordGithub(p, r)
+    const { marker, body } = this.commentBody(r, run)
+    const found = await github.findReview(r.ref, run.headSha, marker, { body, authorId: await github.identity() })
+    if (found) return this.update(p, r, { status: 'submitted', submissionUrl: found.html_url, errorCode: null })
+    return null
+  }
+  async publishAutomatic(p: ReviewRepository, run: ReviewRun) {
+    if (!run.reviewId || run.settings.executionMode !== 'assistant') throw new ReviewError('review_not_submittable')
     const r = await this.get(p, run.reviewId)
-    if (r.automationRunId !== run.id || r.automationPolicyId !== p.id || r.snapshot.headSha !== run.headSha || r.status !== 'reviewed')
-      throw new ReviewError('review_not_submittable')
-    if (r.ref.provider !== 'github') throw new ReviewError('local_review_has_no_remote_delivery')
-    const github = await this.recordGithub(p, r), current = await github.state(r.ref)
-    if (current.head.sha !== run.headSha || current.state !== 'open' || current.draft) throw new ReviewError('stale_revision')
-    const findings = r.findings.filter(f => f.priority === 'P0' || f.priority === 'P1')
-    validateFindings(r.snapshot, findings)
-    const sending = await this.update(p, r, { status: 'submitting', errorCode: null })
+    if (r.ref.provider !== 'github' || r.pipelineProjectId || r.automationRunId !== run.id || r.automationPolicyId !== p.id ||
+        r.status !== 'reviewed' || r.snapshot.headSha !== run.headSha) throw new ReviewError('review_not_submittable')
+    const mode = publicationMode(run.settings)
+    if (mode === 'store') throw new ReviewError('review_not_submittable')
+    validateFindings(r.snapshot, r.findings)
+    const github = await this.recordGithub(p, r)
+    const { body } = this.commentBody(r, run)
+    const postComment = await github.prepareComment(r.ref, run.headSha, body, r.findings)
+    await this.records.manager.transaction(async manager => {
+      const authorized = await claimRepositoryPublication(manager, r, mode)
+      if (mode === 'confirm' && authorized.status !== 'publishing') throw new ReviewError('approval_required')
+      const result = await manager.update(Review, { ...owner(p), id: r.id, revision: r.revision, status: 'reviewed' },
+        { status: 'submitting', revision: r.revision + 1, errorCode: null })
+      if (result.affected !== 1) throw new ReviewError('revision_conflict')
+    })
     try {
-      const body = `Xpert 自动审查 · ${run.headSha.slice(0, 12)} · 策略 v${run.policyRevision}\n\n${r.summary}\n\n仅发布 P0/P1 行内问题；完整结果保存在 Xpert。\n<!-- xpert-code-review:${run.id} -->`
-      const receipt = await github.submit(r.ref, run.headSha, body, 'COMMENT', findings)
-      return this.update(p, sending, { status: 'submitted', submissionUrl: receipt.html_url })
-    } catch (error) {
-      await this.update(p, sending, { status: 'submission_unknown', errorCode: 'submission_unknown_check_github' })
-      throw error
+      const receipt = await postComment()
+      await this.records.update({ ...owner(p), id: r.id, status: 'submitting' },
+        { status: 'submitted', submissionUrl: receipt.html_url, revision: () => 'revision + 1' })
+    } catch {
+      await this.records.update({ ...owner(p), id: r.id, status: 'submitting' },
+        { status: 'submission_unknown', errorCode: 'submission_unknown_check_github', revision: () => 'revision + 1' })
     }
   }
-
 }

@@ -16,3 +16,5 @@ await cp(
   join(packageRoot, 'dist', 'lib', 'remote-components'),
   { recursive: true }
 )
+
+await import('./build-follow-up.mjs')

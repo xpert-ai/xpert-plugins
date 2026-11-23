@@ -21,7 +21,7 @@ describe('LarkTokenStrategy', () => {
 				id: 'integration-1',
 				organizationId: 'org-1',
 				options: {
-					preferLanguage: 'en_US'
+					preferLanguage: 'en_US', verificationToken: 'fixture-secret', appId: 'fixture-app'
 				}
 			}),
 			decryptWebhookBody: jest.fn().mockImplementation((body) => body),
@@ -41,14 +41,18 @@ describe('LarkTokenStrategy', () => {
 			toUnauthorizedError: jest.fn()
 		}
 		const strategy = new LarkTokenStrategy(inboundIdentityService as any)
-		const success = jest.spyOn(strategy as any, 'success').mockImplementation(() => undefined)
+		const success = jest.fn()
+		strategy.success = success
 
-		strategy.authenticate(createRequest(), {
+		const req = createRequest()
+		Object.assign(req.body.header, {token:'fixture-secret',app_id:'fixture-app'})
+		strategy.authenticate(req, {
 			session: false,
 			property: 'user'
 		})
 		await new Promise((resolve) => setImmediate(resolve))
 
+		expect(req.verifiedDecisionChannel).toBe(true)
 		expect(success).toHaveBeenCalledWith(
 			expect.objectContaining({
 				id: 'mapped-user-1'
@@ -62,7 +66,7 @@ describe('LarkTokenStrategy', () => {
 				id: 'integration-1',
 				organizationId: 'org-1',
 				options: {
-					preferLanguage: 'en_US'
+					preferLanguage: 'en_US', verificationToken: 'fixture-secret', appId: 'fixture-app'
 				}
 			}),
 			decryptWebhookBody: jest.fn().mockImplementation((body) => body),
@@ -81,7 +85,8 @@ describe('LarkTokenStrategy', () => {
 			toUnauthorizedError: jest.fn()
 		}
 		const strategy = new LarkTokenStrategy(inboundIdentityService as any)
-		const success = jest.spyOn(strategy as any, 'success').mockImplementation(() => undefined)
+		const success = jest.fn()
+		strategy.success = success
 		const req = createRequest()
 
 		strategy.authenticate(req, {
@@ -90,6 +95,7 @@ describe('LarkTokenStrategy', () => {
 		})
 		await new Promise((resolve) => setImmediate(resolve))
 
+		expect(req.verifiedDecisionChannel).toBe(false)
 		expect(req.larkInboundIdentity).toEqual(
 			expect.objectContaining({
 				requestUserId: 'creator-user-1',

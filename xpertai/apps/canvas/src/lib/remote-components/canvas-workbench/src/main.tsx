@@ -1,3 +1,7 @@
+import { CanvasHeader, type HeaderPanel } from './canvas-header.js'
+import { CanvasDocumentPicker } from './canvas-document-picker.js'
+import { CanvasConversion } from './canvas-conversion.js'
+import { CollaborationUpgrade } from './collaboration-upgrade.js'
 import 'tldraw/tldraw.css'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -15,8 +19,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Archive,
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
   Badge,
   Button,
+  Check,
   Copy,
   Dialog,
   DialogContent,
@@ -24,14 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
   FileJson,
-  Image,
   Input,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Plus,
-  Save,
   ScrollArea,
   Select,
   SelectContent,
@@ -39,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
   Send,
-  Separator,
   Switch,
   Tabs,
   TabsContent,
@@ -50,7 +52,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Trash2,
-  Upload,
 } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { io, type Socket } from 'socket.io-client'
@@ -63,8 +64,8 @@ import {
   type CollaborationClient,
   type CollaborationPresenceStore
 } from '@xpert-ai/plugin-sdk/collaboration-client'
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { createTranslator } from './i18n'
+import { canvasTranslationAssetUrls } from './tldraw-translations'
 import { injectStyles } from './styles'
 import { canvasWorkbenchDebug } from './debug-logger'
 import type { CanvasDebugObject } from './debug-logger'
@@ -117,7 +118,7 @@ import {
 } from './collaboration'
 
 const canvasOnlineFontAssetUrls = createTldrawOnlineFontAssetUrls()
-const canvasTldrawAssetUrls = Object.freeze({ fonts: canvasOnlineFontAssetUrls })
+const canvasTldrawAssetUrls = Object.freeze({ fonts: canvasOnlineFontAssetUrls, translations: canvasTranslationAssetUrls })
 
 type DocumentItem = RemotePayloadObject & {
   id: string
@@ -267,8 +268,9 @@ function App() {
   const [dirty, setDirty] = React.useState(false)
   const [collabState, setCollabState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [collaborators, setCollaborators] = React.useState<CanvasPresenceState[]>([])
-  const [leftCollapsed, setLeftCollapsed] = React.useState(() => window.innerWidth < 1180)
-  const [rightCollapsed, setRightCollapsed] = React.useState(() => window.innerWidth < 1180)
+  const [headerPanel, setHeaderPanel] = React.useState<HeaderPanel>(null)
+  const [conversionOpen, setConversionOpen] = React.useState(false)
+  const [upgradeOpen, setUpgradeOpen] = React.useState(false)
   const [editor, setEditor] = React.useState<Editor | null>(null)
   const [sceneKey, setSceneKey] = React.useState('empty')
   const [mountedSnapshot, setMountedSnapshot] = React.useState<CanvasSnapshotFromEditor | null>(null)
@@ -295,6 +297,7 @@ function App() {
   const autosaveSuppressedUntilRef = React.useRef(0)
   const editorRef = React.useRef<Editor | null>(null)
   const selectedIdRef = React.useRef('')
+  const viewIdentityRef = React.useRef<string | undefined>(undefined)
   const loadDataRef = React.useRef<LoadDataFunction | null>(null)
   const selectionSignatureRef = React.useRef('')
   const collaborationPresenceSignatureRef = React.useRef('')
@@ -506,7 +509,25 @@ function App() {
     if (!context) {
       return
     }
-    void loadData(normalizeDocumentId(context.initialQuery?.parameters?.documentId ?? context.initialQuery?.selectionId ?? selectedId))
+    const changedScope = viewIdentityRef.current !== undefined && viewIdentityRef.current !== context.viewIdentity
+    viewIdentityRef.current = context.viewIdentity
+    if (changedScope) {
+      ++loadSequenceRef.current
+      stopCollaboration()
+      editorRef.current = null
+      detailRef.current = null
+      selectedIdRef.current = ''
+      dirtyRef.current = false
+      setDirty(false)
+      setEditor(null)
+      setDetail(null)
+      setSelectedId('')
+      setMountedSnapshot(null)
+      setSceneKey('empty')
+    }
+    const documentId = normalizeDocumentId(context.initialQuery?.parameters?.documentId ?? context.initialQuery?.selectionId ?? selectedIdRef.current)
+    const preserveCanvas = Boolean(editorRef.current && documentId === selectedIdRef.current)
+    void loadData(documentId, { preserveCanvas, silent: preserveCanvas })
   }, [context])
 
   React.useEffect(() => {
@@ -764,6 +785,7 @@ function App() {
         search,
         parameters: requestedDocumentId ? { documentId: requestedDocumentId } : {}
       })
+      if (sequence !== loadSequenceRef.current) return null
       const payload = asPayloadObject(getResponsePayload(response))
       setSettings(toWorkbenchSettings(payload.settings))
       const docs = toDocumentItems(asPayloadObject(payload.documents).items ?? asPayloadObject(payload.table).items)
@@ -1459,117 +1481,45 @@ function App() {
   return (
     <TooltipProvider delayDuration={250}>
       <div
-        className={`cw-root cw-theme-${hostColorScheme} ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}
+        className={`cw-root cw-theme-${hostColorScheme}`}
         data-theme={hostColorScheme}
         data-tldraw-license={tldrawLicenseKey ? 'provided' : 'missing'}
       >
-        <Sidebar className="cw-sidebar" collapsed={leftCollapsed}>
-          {leftCollapsed ? (
-            <SidebarRail className="cw-rail">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarTrigger aria-label={t('documents')} onClick={() => setLeftCollapsed(false)}>
-                    <PanelLeftOpen className="cw-icon" />
-                  </SidebarTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('documents')}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" disabled={busy} onClick={createCanvas} aria-label={t('newCanvas')}>
-                    <Plus className="cw-icon" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('newCanvas')}</TooltipContent>
-              </Tooltip>
-            </SidebarRail>
-          ) : (
-            <>
-              <SidebarHeader className="cw-sidebar-header">
-                <SidebarTrigger aria-label={t('documents')} onClick={() => setLeftCollapsed(true)}>
-                  <PanelLeftClose className="cw-icon" />
-                </SidebarTrigger>
-                <div className="cw-panel-heading">
-                  <SidebarTitle>{t('studio')}</SidebarTitle>
-                  <span className="cw-panel-subtitle">{documents.length} {t('canvasItems')}</span>
-                </div>
-                <Button size="sm" disabled={busy} onClick={createCanvas}>
-                  <Plus className="cw-button-icon" />
-                  {t('newCanvas')}
-                </Button>
-              </SidebarHeader>
-              <SidebarContent>
-                <div className="cw-search">
-                  <Input
-                    value={search}
-                    placeholder={t('search')}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.currentTarget.value)}
-                    onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-                      if (event.key === 'Enter') {
-                        void loadData(selectedId)
-                      }
-                    }}
-                  />
-                </div>
-                <div className="cw-panel-section-label">
-                  <span>{t('documents')}</span>
-                  <Badge variant="secondary">{documents.length}</Badge>
-                </div>
-                <ScrollArea className="cw-list-scroll">
-                  <SidebarMenu className="cw-document-list">
-                    {documents.length ? documents.map((document) => (
-                      <SidebarMenuItem key={document.id}>
-                        <SidebarMenuButton
-                          className="cw-document-button"
-                          isActive={document.id === current?.id}
-                          aria-current={document.id === current?.id ? 'page' : undefined}
-                          onClick={() => loadData(document.id)}
-                        >
-                          <span className="cw-document-heading">
-                            <span className="cw-item-title">{document.title}</span>
-                            {document.id === current?.id ? (
-                              <Badge className="cw-document-current" variant="secondary">{t('current')}</Badge>
-                            ) : null}
-                          </span>
-                          <span className="cw-item-meta">
-                            {document.kind} / {document.status} / v{document.currentVersionNumber ?? 0}
-                          </span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )) : <div className="cw-panel-empty">{t('noCanvases')}</div>}
-                  </SidebarMenu>
-                </ScrollArea>
-              </SidebarContent>
-            </>
-          )}
-        </Sidebar>
-
         <main className="cw-workspace">
-          <div className="cw-toolbar">
-            <div className="cw-toolbar-title">
-              <div className="cw-title">{current?.title ?? t('selectCanvas')}</div>
-              <div className="cw-item-meta">
-                {current ? `${current.kind} / ${current.status} / ${detail?.sceneSource ?? 'version'}` : t('selectCanvas')}
-              </div>
-            </div>
-            <div className="cw-toolbar-actions">
+          <CanvasHeader title={current?.title ?? t('selectCanvas')} locale={context?.locale}
+            panel={headerPanel} onPanelChange={setHeaderPanel} busy={busy} hasDocument={Boolean(current)}
+            saveDisabled={!current || busy || autosaving} onSave={() => void saveCanvas(false)}
+            shareDisabled={!current || busy || !settings.artifactSharingAvailable} onShare={openShareDialog}
+            conversionDisabled={!current || busy || dirty || autosaving || collabState !== 'connected'}
+            onConvert={() => setConversionOpen(true)}
+            canUpgrade={collaborationDocRef.current?.getMap('canvas').get('schemaVersion') === 1}
+            onUpgrade={() => setUpgradeOpen(true)}
+            onImage={createAiHolder} onAnnotate={createAnnotation} onImport={() => fileInputRef.current?.click()}
+            onDelete={() => void deleteCurrentDocument()} presets={ASPECT_PRESETS} onPreset={applyAspectPreset}
+            labels={{ documents: t('documents'), details: t('details'), save: t('save'),
+              share: t('share'), aiHolder: t('aiHolder'), annotation: t('annotation'), aspect: t('aspect'),
+              import: t('import'), delete: t('delete') }}
+            status={
+              <Badge className="cw-status" variant={statusTone === 'success' ? 'ghost' : 'outline'}
+                data-status={statusTone === 'warning' ? 'warning' : undefined} role="status" aria-live="polite">
+                {statusTone === 'success' ? <Check aria-hidden="true" /> : null}{statusText}
+              </Badge>
+            }
+            presence={
               <div className="cw-toolbar-presence">
-                <div className="cw-collaborators" aria-label={t('collaborators')}>
+                <AvatarGroup className="cw-collaborators" aria-label={t('collaborators')}>
                   {visibleCollaborators.map((collaborator) => (
                     <Tooltip key={collaborator.presenceId}>
                       <TooltipTrigger asChild>
-                        <span
-                          className="cw-collaborator"
+                        <Avatar size="sm"
                           tabIndex={0}
                           aria-label={collaborator.displayName}
-                          style={{ '--cw-collaborator-color': collaborator.color } as React.CSSProperties}
                           data-actor={collaborator.actorType}
                           data-status={collaborator.status ?? ''}
                         >
-                          {collaborator.avatarUrl ? (
-                            <img src={collaborator.avatarUrl} alt="" />
-                          ) : collaborator.displayName.slice(0, 1).toUpperCase()}
-                        </span>
+                          {collaborator.avatarUrl ? <AvatarImage src={collaborator.avatarUrl} alt="" /> : null}
+                          <AvatarFallback>{collaborator.displayName.slice(0, 1).toUpperCase()}</AvatarFallback>
+                        </Avatar>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="cw-collaborator-tooltip">
@@ -1582,144 +1532,23 @@ function App() {
                   {hiddenCollaborators.length ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cw-collaborator cw-collaborator-overflow" tabIndex={0}>+{hiddenCollaborators.length}</span>
+                        <AvatarGroupCount tabIndex={0}>+{hiddenCollaborators.length}</AvatarGroupCount>
                       </TooltipTrigger>
                       <TooltipContent>{hiddenCollaborators.map((collaborator) => collaborator.displayName).join(' · ')}</TooltipContent>
                     </Tooltip>
                   ) : null}
-                </div>
-                <Badge className="cw-status" variant="outline" data-status={statusTone}>
-                  {statusText}
-                </Badge>
+                </AvatarGroup>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" disabled={!current || busy || autosaving} onClick={() => saveCanvas(false)}>
-                    <Save className="cw-button-icon" />
-                    {t('save')}
-                  </Button>
-                </TooltipTrigger>
-                  <TooltipContent>{t('save')}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!current || busy || !settings.artifactSharingAvailable}
-                    onClick={openShareDialog}
-                  >
-                    <Send className="cw-button-icon" />
-                    {t('share')}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {settings.artifactSharingAvailable ? t('shareCanvasTip') : settings.artifactSharingWarning || t('shareUnavailable')}
-                </TooltipContent>
-              </Tooltip>
-              <Separator orientation="vertical" className="cw-separator" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="outline" disabled={!current || busy} onClick={createAiHolder}>
-                    <Image className="cw-button-icon" />
-                    {t('aiHolder')}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('aiHolderTip')}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="outline" disabled={!current || busy} onClick={createAnnotation}>
-                    {t('annotation')}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('annotationTip')}</TooltipContent>
-              </Tooltip>
-              <div className="cw-presets" aria-label={t('aspect')}>
-                {ASPECT_PRESETS.map((preset) => (
-                  <Button key={preset.id} size="sm" variant="ghost" disabled={!current || busy} onClick={() => applyAspectPreset(preset)}>
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => fileInputRef.current?.click()}>
-                <Upload className="cw-button-icon" />
-                {t('import')}
-              </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button className="shrink-0" size="icon" variant="destructive" disabled={!current || busy} onClick={deleteCurrentDocument} aria-label={t('delete')}>
-                    <Trash2 className="cw-icon" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('delete')}</TooltipContent>
-              </Tooltip>
-              <input
-                ref={fileInputRef}
-                className="cw-hidden-file"
-                type="file"
-                accept=".json,.tldr,.tldraw,application/json"
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  const file = event.currentTarget.files?.[0]
-                  event.currentTarget.value = ''
-                  if (file) {
-                    void importSnapshot(file)
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div className="cw-canvas">
-            {current ? (
-              <Tldraw
-                key={canvasKey}
-                assetUrls={canvasTldrawAssetUrls}
-                locale={tldrawLocale}
-                licenseKey={tldrawLicenseKey}
-                snapshot={snapshot || undefined}
-                onMount={(nextEditor: Editor) => {
-                  editorRef.current = nextEditor
-                  nextEditor.user.updateUserPreferences({ colorScheme: hostColorScheme, locale: tldrawLocale })
-                  const viewState = getDetailViewState(detailRef.current)
-                  applyCanvasViewState(nextEditor, viewState)
-                  if (typeof window.requestAnimationFrame === 'function') {
-                    window.requestAnimationFrame(() => applyCanvasViewState(nextEditor, viewState))
-                  }
-                  setEditor(nextEditor)
-                  selectionSignatureRef.current = ''
-                  void syncAssistantContext({ editorOverride: nextEditor, force: true })
-                }}
-              />
-            ) : (
-              <div className="cw-empty">{t('selectCanvas')}</div>
-            )}
-          </div>
-        </main>
-
-        <Sidebar className="cw-inspector" side="right" collapsed={rightCollapsed}>
-          {rightCollapsed ? (
-            <SidebarRail className="cw-rail">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarTrigger aria-label={t('details')} onClick={() => setRightCollapsed(false)}>
-                    <PanelRightOpen className="cw-icon" />
-                  </SidebarTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('details')}</TooltipContent>
-              </Tooltip>
-            </SidebarRail>
-          ) : (
-            <>
-              <SidebarHeader className="cw-sidebar-header">
-                <SidebarTrigger aria-label={t('details')} onClick={() => setRightCollapsed(true)}>
-                  <PanelRightClose className="cw-icon" />
-                </SidebarTrigger>
-                <div className="cw-panel-heading">
-                  <SidebarTitle>{t('inspector')}</SidebarTitle>
-                  <span className="cw-panel-subtitle">{current?.title ?? t('selectCanvas')}</span>
-                </div>
-              </SidebarHeader>
-              <SidebarContent className="cw-inspector-content">
+            }
+            documents={
+              <CanvasDocumentPicker documents={documents} currentId={current?.id} busy={busy} search={search}
+                labels={{ title: t('documents'), newCanvas: t('newCanvas'), search: t('search'), empty: t('noCanvases'), untitled: t('untitled') }}
+                onSearchChange={setSearch} onSearch={() => { void loadData(selectedId) }}
+                onCreate={() => { setHeaderPanel(null); void createCanvas() }}
+                onSelect={id => { setHeaderPanel(null); void loadData(id) }} />
+            }
+            details={
+              <div className="cw-inspector-content">
                 {current ? (
                   <Tabs defaultValue="versions" className="cw-tabs">
                     <TabsList className="cw-tabs-list">
@@ -1792,10 +1621,66 @@ function App() {
                     </TabsContent>
                   </Tabs>
                 ) : null}
-              </SidebarContent>
-            </>
-          )}
-        </Sidebar>
+              </div>
+            } />
+          <input ref={fileInputRef} className="cw-hidden-file" type="file"
+            accept=".json,.tldr,.tldraw,application/json"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const file = event.currentTarget.files?.[0]
+              event.currentTarget.value = ''
+              if (file) void importSnapshot(file)
+            }} />
+          <div className="cw-canvas">
+            {current ? (
+              <Tldraw
+                key={canvasKey}
+                assetUrls={canvasTldrawAssetUrls}
+                locale={tldrawLocale}
+                licenseKey={tldrawLicenseKey}
+                snapshot={snapshot || undefined}
+                onMount={(nextEditor: Editor) => {
+                  editorRef.current = nextEditor
+                  nextEditor.user.updateUserPreferences({ colorScheme: hostColorScheme, locale: tldrawLocale })
+                  const viewState = getDetailViewState(detailRef.current)
+                  applyCanvasViewState(nextEditor, viewState)
+                  if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(() => applyCanvasViewState(nextEditor, viewState))
+                  }
+                  setEditor(nextEditor)
+                  selectionSignatureRef.current = ''
+                  void syncAssistantContext({ editorOverride: nextEditor, force: true })
+                }}
+              />
+            ) : (
+              <div className="cw-empty">{t('selectCanvas')}</div>
+            )}
+          </div>
+        </main>
+
+              <CollaborationUpgrade open={upgradeOpen} onOpenChange={setUpgradeOpen} schemaVersion={collaborationDocRef.current?.getMap('canvas').get('schemaVersion')}
+                locale={context?.locale} disabled={!current || dirty || busy || autosaving || collabState !== 'connected'}
+                upgrade={async () => {
+                  if (!current) return
+                  const response = await executeAction('upgrade_collaboration', current.id, { documentId: current.id,
+                    expectedSequence: baseWorkingCopyRevisionRef.current })
+                  const payload = asPayloadObject(getResponsePayload(response))
+                  if (payload.success === false) throw new Error('CANVAS_UPGRADE_FAILED')
+                  await loadData(current.id, { silent: true, preserveCanvas: true })
+                  await openCollaboration(current.id)
+                }} />
+              <CanvasConversion open={conversionOpen} onOpenChange={setConversionOpen} key={current?.id} disabled={!current || busy || dirty || autosaving || collabState !== 'connected'}
+                locale={context?.locale} revision={String(baseWorkingCopyRevisionRef.current)} convert={async (requestId, target, expectedRevision) => {
+                  if (!current) throw new Error('Canvas not open')
+                  const response = await executeAction(target === 'document' ? 'convert_to_document' : 'convert_to_workbook', current.id, { documentId: current.id,
+                    expectedRevision, requestId, title: (current.title ?? 'Canvas').slice(0, 200) })
+                  const payload = asPayloadObject(getResponsePayload(response))
+                  if (payload.success === false || !isRemoteObject(payload.data) || typeof payload.data.contentId !== 'string') throw new Error('Conversion failed')
+                  return payload.data.contentId
+                }} openContent={async contentId => {
+                  const resolved = asPayloadObject(getResponsePayload(await invokeClientCommand('workbench.content.resolve', { providerKey: 'platform.content.catalog', resourceId: contentId })))
+                  if (resolved.success === false || !isRemoteObject(resolved.navigation)) throw new Error('Cannot open content')
+                  await invokeClientCommand('workbench.navigation.open', resolved.navigation)
+                }} />
 
         <Dialog open={shareDialogOpen} onOpenChange={(open: boolean) => {
           if (!busy) setShareDialogOpen(open)

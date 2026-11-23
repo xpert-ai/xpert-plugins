@@ -44,6 +44,9 @@ export function VersionsDialog(props: {
 export function ExportsDialog(props: {
   open: boolean
   exports: ExportSummary[]
+  onRetry: (exportId: string) => Promise<void>
+  onDownload: (exportId: string) => Promise<void>
+  saving: boolean
   selectedProject: ProjectSummary | null
   t: Translator
   onOpenChange: (open: boolean) => void
@@ -61,6 +64,9 @@ export function ExportsDialog(props: {
         <div className="history-dialog-body">
           <ExportsTab
             exports={props.exports}
+            onRetry={props.onRetry}
+            onDownload={props.onDownload}
+            saving={props.saving}
             selectedProject={props.selectedProject}
             t={props.t}
             onReviewed={props.onReviewed}
@@ -100,6 +106,9 @@ export function VersionsTab(props: { versions: VersionSummary[]; currentId?: str
 
 export function ExportsTab(props: {
   exports: ExportSummary[]
+  onRetry: (exportId: string) => Promise<void>
+  onDownload: (exportId: string) => Promise<void>
+  saving: boolean
   selectedProject: ProjectSummary | null
   t: Translator
   onReviewed: () => void
@@ -127,6 +136,10 @@ export function ExportsTab(props: {
             <span>{item.filePath || item.fileUrl || item.checksum || item.id}</span>
             {item.errorMessage ? <span className="hyperframes-error">{item.errorMessage}</span> : null}
           </div>
+          {item.status === 'failed' && item.backend === 'hyperframes' ? <Button variant="secondary" disabled={props.saving}
+            onClick={() => void props.onRetry(item.id)}>{props.t('retryProductionRender')}</Button> : null}
+          {item.status === 'succeeded' && item.filePath ? <Button variant="secondary" disabled={props.saving}
+            onClick={() => void props.onDownload(item.id)}>{props.t('download')}</Button> : null}
           {item.fileUrl ? (
             <Button asChild variant="secondary">
               <a href={item.fileUrl} target="_blank" rel="noreferrer">

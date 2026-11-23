@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+jest.mock('./canvas-content.provider.js', () => ({ CanvasContentProvider: class CanvasContentProvider {} }))
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, key: string) => `plugin_${namespace}_${key}`,
   ViewExtensionProvider: () => (target: Function) => target,
@@ -290,4 +291,25 @@ describe('CanvasViewProvider', () => {
       expect.objectContaining({ documentId: 'doc-1', changeSummary: 'Imported import.tldr' })
     )
   })
+})
+
+it('rejects old browser protocol before opening an editable session', async () => {
+  const service = { openDocument: jest.fn().mockResolvedValue({}) }
+  const provider = new CanvasViewProvider(service as unknown as CanvasService)
+  const denied = await provider.executeViewAction(hostContext, CANVAS_WORKBENCH_VIEW_KEY, 'open_document',
+    { targetId: 'doc-1', input: {} } as XpertViewActionRequest)
+  expect(denied.success).toBe(false)
+  expect(service.openDocument).not.toHaveBeenCalled()
+  const allowed = await provider.executeViewAction(hostContext, CANVAS_WORKBENCH_VIEW_KEY, 'open_document',
+    { targetId: 'doc-1', input: { collaborationSchemaVersion: 2 } } as XpertViewActionRequest)
+  expect(allowed.success).toBe(true)
+  expect(service.openDocument).toHaveBeenCalledTimes(1)
+})
+
+it('uses the host-authorized runtime Project scope when creating a Canvas', async () => {
+  const createDocument = jest.fn().mockResolvedValue({ item: { id: 'new' } })
+  const provider = new CanvasViewProvider({ createDocument } as unknown as CanvasService)
+  await provider.executeViewAction({ ...hostContext, runtimeScope: { projectId: 'project-from-host', conversationId: null, dataScopeKey: 'project:project-from-host', workspaceFiles: { catalog: 'projects', scopeId: 'project-from-host' } } }, CANVAS_WORKBENCH_VIEW_KEY,
+    'create_document', { input: { title: 'Scoped Canvas', collaborationSchemaVersion: 2 } })
+  expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-from-host', userId: 'user' }), expect.anything())
 })

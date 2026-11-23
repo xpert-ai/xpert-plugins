@@ -6,6 +6,7 @@ import { AIPermissionsEnum, PermissionsEnum } from '@xpert-ai/contracts'
 import { AssistantMiddlewareAccessRuntimeCapability, ProjectAccessRuntimeCapability, RequestContext, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { projectContext, ReviewPipelineCatalog } from './pipeline/catalog.js'
+import { publicationMode } from './automation-contract.js'
 import { GitHubApp } from './github-app.js'
 import { ReviewPolicyAudit, ReviewRepository, ReviewRun } from './automation-entities.js'
 import { defaultPolicy, policySettingsSchema, type PolicySettings } from './automation-domain.js'
@@ -122,7 +123,7 @@ export class Repositories {
     if (!workspaceId) throw new ReviewError('workspace_required')
     const checked = await this.records.findOneByOrFail({ id, tenantId: s.tenantId, organizationId: s.organizationId })
     if (checked.revision !== revision) throw new ReviewError('revision_conflict')
-    const identity = await this.app.inspect(s, checked.owner, checked.repository, checked.settings.onWorkflowFailure || checked.settings.onWorkflowTimeout, checked.settings.onWorkflowTimeout)
+    const identity = await this.app.inspect(s, checked.owner, checked.repository, checked.settings.onWorkflowFailure || checked.settings.onWorkflowTimeout, checked.settings.executionMode === 'pipeline' || checked.settings.onWorkflowTimeout)
     if (identity.installationId !== checked.installationId || identity.repositoryId !== checked.repositoryId) throw new ReviewError('installation_changed')
     if (checked.settings.executionMode === 'pipeline' && !checked.settings.pipeline) throw new ReviewError('pipeline_binding_required')
     if (checked.settings.pipeline) await this.catalog.validate(s, checked.settings.pipeline)
@@ -150,22 +151,26 @@ export class Repositories {
     const settings = policySettingsSchema.parse(input), existing = await this.get(s, id)
     if (existing.revision !== revision) throw new ReviewError('revision_conflict')
     if (settings.executionMode === 'assistant') {
-      if (settings.pipeline || settings.visibility !== (existing.ownership === 'assistant' ? 'organization' : 'private') || settings.delivery !== 'draft') throw new ReviewError('assistant_policy_invalid')
+      if (settings.pipeline || settings.visibility !== (existing.ownership === 'assistant' ? 'organization' : 'private')) throw new ReviewError('assistant_policy_invalid')
     } else {
       if (settings.enabled && !settings.pipeline) throw new ReviewError('pipeline_binding_required')
     }
     if (settings.enabled && (settings.executionMode === 'assistant' || settings.onWorkflowFailure || settings.onWorkflowTimeout))
       await this.events.access(await this.execution({ ...existing, settings }))
-    if (settings.executionMode === 'pipeline' && settings.pipeline) {
-      if (settings.visibility !== 'project' || settings.delivery !== 'draft') throw new ReviewError('pipeline_policy_invalid')
-      await this.catalog.validate(s, settings.pipeline)
-    }
+    delete settings.publicationBindingId
+    settings.delivery = 'draft'
     let binding = { githubIntegrationId: existing.githubIntegrationId, githubAppId: existing.githubAppId }
     if (settings.enabled) {
       await this.execution({ ...existing, settings })
-      const identity = await this.app.inspect(s, existing.owner, existing.repository, settings.onWorkflowFailure || settings.onWorkflowTimeout, settings.onWorkflowTimeout)
+      const identity = await this.app.inspect(s, existing.owner, existing.repository, settings.onWorkflowFailure || settings.onWorkflowTimeout, settings.executionMode === 'pipeline' || settings.onWorkflowTimeout)
       if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
       binding = { githubIntegrationId: identity.githubIntegrationId, githubAppId: identity.githubAppId }
+    }
+    if (settings.executionMode === 'pipeline' && settings.pipeline) {
+      if (settings.visibility !== 'project') throw new ReviewError('pipeline_policy_invalid')
+      const mode = publicationMode(settings)
+      if (mode === 'confirm') await this.catalog.validate(s, settings.pipeline)
+      else settings.publicationBindingId = await this.catalog.configurePublication(s, settings.pipeline, mode)
     }
     return this.records.manager.transaction(async manager => {
       const p = { ...existing, ...binding, settings, revision: revision + 1, executionRevision: existing.executionRevision + 1, updatedById: s.userId, confirmedAt: new Date(), errorCode: null }
@@ -178,7 +183,7 @@ export class Repositories {
   }
   async github(s: Scope, id: string) {
     const p = await this.get(s, id)
-    return this.app.installation(p.installationId, p.repositoryId, s, p, p.settings.onWorkflowFailure || p.settings.onWorkflowTimeout, p.settings.onWorkflowTimeout)
+    return this.app.installation(p.installationId, p.repositoryId, s, p, p.settings.onWorkflowFailure || p.settings.onWorkflowTimeout, p.settings.executionMode === 'pipeline' || p.settings.onWorkflowTimeout)
   }
   async assertAssistantExecution(s: Scope, id: string, revision: number, trial: boolean) {
     const p = await this.get(s, id)

@@ -99,7 +99,7 @@ async function setup(t, stage = 'edited', html = false) {
         if (key === './toolbar-menu') return { ToolbarMenu: props => React.createElement('div', { 'data-testid': 'history', 'data-version': props.version },
           React.createElement(ui.Button, { onClick: () => props.onRefreshSeconds('30') }, 'Enable periodic refresh'),
           React.createElement(ui.Button, { disabled: props.disabled, onClick: props.onEdit }, 'Edit working draft')) }
-        for (const [module, symbol] of [['sources-panel', 'SourcesPanel'], ['import-dialog', 'ImportDialog'], ['share-dialog', 'ShareDialog'], ['dashboard-starter', 'DashboardStarter']]) {
+        for (const [module, symbol] of [['evidence-app', 'EvidenceApp'], ['sources-panel', 'SourcesPanel'], ['import-dialog', 'ImportDialog'], ['share-dialog', 'ShareDialog'], ['dashboard-starter', 'DashboardStarter']]) {
           if (key === `./${module}`) return { [symbol]: () => null }
         }
         if (key === './viewer-controls') return { ViewerControls: props => props.children }

@@ -7,6 +7,9 @@
     },
     "integration": {
         "Lark": {
+            "Delivery_unknown": "未知",
+            "Delivery_sent": "已发送",
+            "Delivery_failed": "发送失败",
             "HistoryContextReference": "飞书历史上下文",
             "EndConversation": "结束对话",
             "HelpDoc": "帮助文档",

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "xpert-assistant-suite@1",
+  "key": "order-evidence",
+  "plugin": {
+    "name": "@xpert-ai/plugin-order-evidence",
+    "version": "0.3.0"
+  },
+  "roles": [
+    {
+      "key": "capability",
+      "templateKey": "order-evidence-capability",
+      "name": "order-demo-capability",
+      "title": "能力维护 Assistant",
+      "primaryAgentKey": "Agent_capability"
+    },
+    {
+      "key": "contract",
+      "templateKey": "order-evidence-contract",
+      "name": "order-demo-contract",
+      "title": "合同 Assistant",
+      "primaryAgentKey": "Agent_contract"
+    },
+    {
+      "key": "engineering",
+      "templateKey": "order-evidence-engineering",
+      "name": "order-demo-engineering",
+      "title": "工程 Assistant",
+      "primaryAgentKey": "Agent_engineering"
+    },
+    {
+      "key": "procurement",
+      "templateKey": "order-evidence-procurement",
+      "name": "order-demo-procurement",
+      "title": "采购 Assistant",
+      "primaryAgentKey": "Agent_procurement"
+    },
+    {
+      "key": "production",
+      "templateKey": "order-evidence-production",
+      "name": "order-demo-production",
+      "title": "计划 Assistant",
+      "primaryAgentKey": "Agent_production"
+    },
+    {
+      "key": "quality",
+      "templateKey": "order-evidence-quality",
+      "name": "order-demo-quality",
+      "title": "质量 Assistant",
+      "primaryAgentKey": "Agent_quality"
+    },
+    {
+      "key": "aftercare",
+      "templateKey": "order-evidence-aftercare",
+      "name": "order-demo-aftercare",
+      "title": "售后 Assistant",
+      "primaryAgentKey": "Agent_aftercare"
+    }
+  ],
+  "orchestrator": {
+    "key": "coordinator",
+    "templateKey": "order-evidence-coordinator",
+    "name": "order-demo-coordinator",
+    "title": "订单协作 Assistant",
+    "primaryAgentKey": "Agent_coordinator",
+    "externalRoleKeys": [
+      "contract",
+      "engineering",
+      "procurement",
+      "production",
+      "quality",
+      "aftercare",
+      "capability"
+    ]
+  }
+}

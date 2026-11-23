@@ -1,6 +1,6 @@
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt, ApprovalData } from './input.js'
-import { outputDelivery, taskResult } from './task-result.js'
+import { outputDelivery, taskResult, appendReportText } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -136,7 +136,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
 
   private event(run: ProcessRun, message: WireMessage) {
     if (message.method === 'item/agentMessage/delta') {
-      run.text = (run.text + Delta.parse(message.params).delta).slice(-2 * 1024 * 1024)
+      run.text = appendReportText(run.text, Delta.parse(message.params).delta)
     } else if (message.method === 'turn/completed') {
       if (!run.boundTurn) {
         run.pendingCompletion = message

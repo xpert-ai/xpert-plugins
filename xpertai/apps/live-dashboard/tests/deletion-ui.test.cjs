@@ -110,6 +110,7 @@ async function setup(t) {
         if (id === './html-dashboard') return { HtmlDashboard: React.forwardRef(() => null) }
         if (id === './standard-dashboard') return { StandardDashboard: () => null }
         if (['./sources-panel', './import-dialog', './import-targets'].includes(id)) return load(id.slice(2) + '.tsx')
+        if (id === './evidence-app') return { EvidenceApp: () => null }
         if (id === './library-app') return { LibraryApp: () => null }
         if (id === './library-gateway') return load('library-gateway.ts')
         if (id === './share-dialog') return { ShareDialog: () => null }

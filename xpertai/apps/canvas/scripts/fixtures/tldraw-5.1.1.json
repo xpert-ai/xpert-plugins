@@ -1,0 +1,197 @@
+{
+  "store": {
+    "document:document": {
+      "gridSize": 10,
+      "name": "",
+      "meta": {},
+      "id": "document:document",
+      "typeName": "document"
+    },
+    "page:page": {
+      "meta": {},
+      "id": "page:page",
+      "name": "历史白板",
+      "index": "a1",
+      "typeName": "page"
+    },
+    "shape:legacy-frame": {
+      "x": 50,
+      "y": 80,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {
+        "source": "5.1.1-compatibility-fixture"
+      },
+      "id": "shape:legacy-frame",
+      "type": "frame",
+      "parentId": "page:page",
+      "index": "a1",
+      "props": {
+        "w": 900,
+        "h": 600,
+        "name": "历史项目",
+        "color": "black"
+      },
+      "typeName": "shape"
+    },
+    "shape:legacy-text": {
+      "x": 150,
+      "y": 180,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {
+        "source": "5.1.1-compatibility-fixture"
+      },
+      "id": "shape:legacy-text",
+      "type": "text",
+      "parentId": "shape:legacy-frame",
+      "index": "a2",
+      "props": {
+        "color": "black",
+        "size": "m",
+        "w": 8,
+        "font": "draw",
+        "textAlign": "start",
+        "autoSize": true,
+        "scale": 1,
+        "richText": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "升级前的text：中文 / English"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "typeName": "shape"
+    },
+    "shape:legacy-geo": {
+      "x": 250,
+      "y": 280,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {
+        "source": "5.1.1-compatibility-fixture"
+      },
+      "id": "shape:legacy-geo",
+      "type": "geo",
+      "parentId": "shape:legacy-frame",
+      "index": "a3",
+      "props": {
+        "w": 100,
+        "h": 100,
+        "geo": "rectangle",
+        "dash": "draw",
+        "growY": 0,
+        "url": "",
+        "scale": 1,
+        "color": "black",
+        "labelColor": "black",
+        "fill": "none",
+        "size": "m",
+        "font": "draw",
+        "align": "middle",
+        "verticalAlign": "middle",
+        "richText": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "升级前的geo：中文 / English"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "typeName": "shape"
+    },
+    "shape:legacy-note": {
+      "x": 350,
+      "y": 380,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {
+        "source": "5.1.1-compatibility-fixture"
+      },
+      "id": "shape:legacy-note",
+      "type": "note",
+      "parentId": "shape:legacy-frame",
+      "index": "a4",
+      "props": {
+        "color": "black",
+        "richText": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "升级前的note：中文 / English"
+                }
+              ]
+            }
+          ]
+        },
+        "size": "m",
+        "font": "draw",
+        "align": "middle",
+        "verticalAlign": "middle",
+        "labelColor": "black",
+        "growY": 0,
+        "fontSizeAdjustment": 1,
+        "url": "",
+        "scale": 1,
+        "textFirstEditedBy": null
+      },
+      "typeName": "shape"
+    }
+  },
+  "schema": {
+    "schemaVersion": 2,
+    "sequences": {
+      "com.tldraw.store": 5,
+      "com.tldraw.asset": 1,
+      "com.tldraw.camera": 1,
+      "com.tldraw.document": 2,
+      "com.tldraw.instance": 26,
+      "com.tldraw.instance_page_state": 5,
+      "com.tldraw.page": 1,
+      "com.tldraw.instance_presence": 6,
+      "com.tldraw.pointer": 1,
+      "com.tldraw.shape": 4,
+      "com.tldraw.user": 1,
+      "com.tldraw.asset.image": 6,
+      "com.tldraw.asset.video": 5,
+      "com.tldraw.asset.bookmark": 2,
+      "com.tldraw.shape.arrow": 8,
+      "com.tldraw.shape.bookmark": 2,
+      "com.tldraw.shape.draw": 4,
+      "com.tldraw.shape.embed": 4,
+      "com.tldraw.shape.frame": 1,
+      "com.tldraw.shape.geo": 11,
+      "com.tldraw.shape.group": 0,
+      "com.tldraw.shape.highlight": 3,
+      "com.tldraw.shape.image": 5,
+      "com.tldraw.shape.line": 5,
+      "com.tldraw.shape.note": 12,
+      "com.tldraw.shape.text": 4,
+      "com.tldraw.shape.video": 4,
+      "com.tldraw.binding.arrow": 1
+    }
+  }
+}

@@ -9,7 +9,7 @@ import {
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
 import { withProjectWorkspaceContext } from './project-workspace.js'
-import { outputDelivery, resolveTaskResult } from './task-result.js'
+import { deliveryPaths, outputDelivery, resolveTaskResult } from './task-result.js'
 import type { RuntimeProfile } from './managed-profiles.js'
 import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
@@ -70,7 +70,7 @@ export async function startComputerJsonl(
   // The service accepts one prompt only. A lost acknowledgement is inspected, never replayed.
   await runner.request(receipt, {
     method: 'POST', path: '/task',
-    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt), typeof runner.readTaskResultFile === 'function') }
+    body: { prompt: agentPrompt(withProjectWorkspaceContext(request.input, context, receipt), typeof runner.readTaskReportFile === 'function') }
   })
   return { status: 'running' as const, handle }
 }
@@ -119,23 +119,37 @@ export async function inspectComputerJsonl(
     ...(state.startedAt ? { startedAt: state.startedAt } : {}),
     phase: state.state === 'running' ? 'working' : state.state
   }
-  const activity = context.activity
+  const terminal = state.state === 'exited' || state.state === 'failed'
+  const activity = context.activity || (terminal && state.previewTruncated)
     ? await collectJsonlActivity(
         context,
         handle,
         adapter.activityProtocol,
-        state.state === 'exited' || state.state === 'failed'
+        terminal
       )
     : undefined
   if (state.state === 'running') return { status: 'running', handle, progress }
   if (state.state === 'idle') return { status: 'unknown', handle, progress }
-  const receiptLost = activity?.gap || (!activity && state.previewTruncated)
+  const collected = activity?.status === 'collected' ? activity : undefined
+  if (activity?.status === 'unavailable' && state.previewTruncated && state.state === 'exited' && state.exitCode === 0) {
+    const diagnostic = completionFailure(
+      'activity_unavailable',
+      'CLI completion data is temporarily unavailable; retry collection without rerunning the task.'
+    ).diagnostic
+    return {
+      status: 'unknown',
+      handle: { ...handle, metadata: { ...handle.metadata, completion: completionMetadata(diagnostic) } },
+      progress,
+      error: `[${diagnostic.code}] ${diagnostic.message}`
+    }
+  }
+  const receiptLost = activity?.status === 'incomplete' || collected?.gap || (!collected && state.previewTruncated)
   let completion = receiptLost
     ? completionFailure(
         'activity_incomplete',
-        'CLI protocol events are incomplete; final execution cannot be verified.'
+        `CLI protocol events are incomplete${activity?.status === 'incomplete' ? ` (${activity.reason})` : ''}; final execution cannot be verified.`
       )
-    : adapter.completion(activity?.events ?? state.events)
+    : adapter.completion(collected?.events ?? state.events)
   if (state.state === 'failed')
     completion = completionFailure(
       'process_failed',
@@ -148,7 +162,7 @@ export async function inspectComputerJsonl(
       'The CLI exited without a process exit code.',
       completion.diagnostic
     )
-  else if (state.exitCode !== 0 && (completion.ok || completion.diagnostic.code === 'missing_final_result'))
+  else if (state.exitCode !== 0 && (completion.ok || ['missing_final_result', 'activity_incomplete'].includes(completion.diagnostic.code)))
     completion = completionFailure(
       'process_exit_nonzero',
       `The CLI process exited with code ${state.exitCode}.`,
@@ -177,20 +191,19 @@ export async function inspectComputerJsonl(
   if (observation.status === 'succeeded' && completion.ok) {
     try {
       observation.result = {
-        ...(await resolveTaskResult(completion.text, delivery, runner.readTaskResultFile
-          ? (reference) => runner.readTaskResultFile(receipt, reference) : undefined)),
+        ...(await resolveTaskResult(completion.text, delivery, runner.readTaskReportFile
+          ? (reference) => runner.readTaskReportFile(receipt, reference) : undefined)),
         data: { workingDirectory: receipt.workingDirectory }
       }
     } catch {
       observation = {
         status: 'failed', handle, progress,
-        error: '[task_result_file_invalid] Result file submission failed validation (host support, path, digest or envelope schema). The authored report was not changed.'
+        error: '[task_result_invalid] The runtime result could not be processed.'
       }
     }
   }
   if (observation.result && delivery.mode !== 'none') {
-    const paths =
-      delivery.paths ?? (observation.result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
+    const paths = deliveryPaths(delivery)
     try {
       if (!paths.length) throw new Error('No declared deliverables')
       const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })

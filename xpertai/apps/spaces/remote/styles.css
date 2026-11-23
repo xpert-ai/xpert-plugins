@@ -23,8 +23,8 @@
   .app { @apply flex h-screen flex-col overflow-hidden; }
   .top { @apply flex items-center gap-3 border-b border-border px-5 py-4; }
   .body { @apply flex min-h-0 flex-1 max-md:block max-md:overflow-auto; }
-  .tree { @apply flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-border bg-muted/15 px-4 py-3 max-md:w-full max-md:max-h-48 max-md:border-r-0 max-md:border-b; }
-  .tree > :not(.folder-tree) { flex-shrink: 0; }
+  .tree { @apply flex w-[260px] shrink-0 flex-col min-h-0 overflow-y-auto overscroll-contain border-r border-border bg-muted/15 px-4 py-3 max-md:w-full max-md:max-h-48 max-md:border-r-0 max-md:border-b; }
+  .tree > * { flex-shrink: 0; }
   .tree button { @apply justify-start whitespace-normal text-left; }
   .workspace { @apply relative flex min-w-0 flex-1 flex-col overflow-auto px-6 pt-3 pb-2 max-md:w-full max-md:min-h-96 max-md:overflow-visible max-md:px-4; }
   .panel { @apply flex w-[340px] shrink-0 flex-col overflow-auto border-l border-border bg-background p-5 max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-30 max-lg:w-[360px] max-lg:shadow-xl max-sm:w-full; }
@@ -55,7 +55,7 @@
   .nav-item.nested { @apply pl-8; }
   .nav-item.nested svg { @apply text-blue-500; }
   .nav-label { @apply mt-3 mb-2 px-2 text-sm text-muted-foreground; }
-  .folder-tree { @apply min-h-0 flex-1 overflow-auto; }
+  .folder-tree { @apply min-w-0; }
   .nav-bottom { @apply mt-2 border-t border-border pt-2; }
   /* Layout spacing uses the host-derived --spacing token; controls keep shadcn defaults. */
   .library-header { @apply mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3; }
@@ -176,7 +176,7 @@
 .compact-navigation .body { display: flex; min-width: 0; overflow: hidden; }
 .compact-navigation .space-name h2 { font-size: 1rem; }
 .compact-navigation .space-subtitle { font-size: .75rem; }
-.compact-documents { margin: 12px 0; max-height: 42vh; overflow: auto; }
+.compact-documents { margin: 12px 0; min-width: 0; }
 .compact-navigation .nav-item { min-width: 0; }
 
 .form-columns > [data-slot="label"], .upload-area { display: grid; gap: calc(var(--spacing) * 2); }

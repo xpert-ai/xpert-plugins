@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject, Optional } from '@nestjs/common'
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import { dirname, extname, join } from 'path'
@@ -33,6 +33,9 @@ import {
   PROJECT_DETAIL_SECTIONS_SLOT
 } from './constants.js'
 import { ProcurementQuoteComparisonService } from './procurement-quote-comparison.service.js'
+import { humanDecisionInputSchema, WorkbenchDecisionCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import { z } from 'zod/v3'
+import { followUpInput } from './quote-follow-up.js'
 import type { ProcurementDocumentExtractionStatus, ProcurementDocumentRole, ProcurementScope } from './types.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -41,6 +44,7 @@ const requireFromHere = createRequire(__filename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 const MAX_EXTRACTED_CONTENT_LENGTH = 60000
 const TOOL_NAMES = [
+  'procurement_follow_up',
   'procurement_save_requirement',
   'procurement_save_supplier_quote',
   'procurement_save_item_matches',
@@ -52,7 +56,9 @@ const TOOL_NAMES = [
 @Injectable()
 @ViewExtensionProvider(PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY)
 export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: ProcurementQuoteComparisonService) {}
+  constructor(private readonly service: ProcurementQuoteComparisonService,
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities?: RuntimeCapabilityRegistry
+  ) {}
 
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'project' || context.hostType === 'agent'
@@ -122,6 +128,7 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
           querySchema: {
             supportsPagination: true,
             supportsSearch: true,
+            supportsSelection: true,
             supportsParameters: true,
             defaultPageSize: 20
           },
@@ -152,6 +159,21 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
           }
         ],
         actions: [
+          {
+            key: 'confirm_quote_series', label: text('Confirm quote series', '确认报价系列'), placement: 'row', actionType: 'invoke'
+          },
+          {
+            key: 'set_delay_decisions', label: text('Buyer decisions', '采购人决定'), placement: 'row', actionType: 'invoke'
+          },
+          {
+            key: 'submit_delay_decision', label: text('Submit decision', '提交决定'), placement: 'row', actionType: 'invoke'
+          },
+          {
+            key: 'change_follow_up',
+            label: text('Manage follow-up', '管理跟进'),
+            placement: 'row',
+            actionType: 'invoke'
+          },
           {
             key: 'refresh',
             label: text('Refresh', '刷新'),
@@ -250,6 +272,10 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
       join(__dirname, 'remote-components', PROCUREMENT_QUOTE_COMPARISON_REMOTE_ENTRY_KEY, 'app.js'),
       'utf8'
     )
+    const remoteDir = join(__dirname, 'remote-components', PROCUREMENT_QUOTE_COMPARISON_REMOTE_ENTRY_KEY)
+    const [controls, appCss] = await Promise.all(
+      ['follow-up.js', 'follow-up.css'].map((name) => readFile(join(remoteDir, name), 'utf8'))
+    )
     const react = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
 
@@ -259,7 +285,8 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
         lang: 'zh-Hans',
         reactUmd: react,
         reactDomUmd: reactDom,
-        appScript
+        appCss,
+        appScript: controls + '\n' + appScript
       }),
       contentType: 'text/html; charset=utf-8'
     }
@@ -295,6 +322,37 @@ export class ProcurementQuoteComparisonViewProvider implements IXpertViewExtensi
     try {
       const scope = scopeFromContext(context)
 
+      if (actionKey === 'confirm_quote_series') {
+        const { caseId, documentId, requestId, seriesId } = z.object({
+          caseId: z.string().uuid(), documentId: z.string().uuid(), requestId: z.string().uuid(), seriesId: z.string().uuid()
+        }).strict().parse(request.input)
+        await this.service.confirmQuoteSeries(scope, caseId, documentId, requestId, seriesId)
+        return success('Quote revision saved', '报价修订已保存')
+      }
+      if (actionKey === 'set_delay_decisions') {
+        const enabled = z.boolean().parse(request.input?.enabled)
+        await this.service.setDelayDecisions(scope, requireCaseId(request), enabled)
+        return success('Buyer decision settings saved', '已更新采购人决定设置')
+      }
+      if (actionKey === 'submit_delay_decision') {
+        const { caseId, ...command } = request.input ?? {}
+        const decisions = this.capabilities?.get(WorkbenchDecisionCapability)
+        if (!decisions) return failure('Decision service unavailable', '决定服务暂不可用')
+        const result = await decisions.submit('procurement.quote', requireCaseId(request),
+          humanDecisionInputSchema.parse(command))
+        const messages = {
+          recorded: success('Decision recorded','已记录决定'), already_recorded: success('Already recorded','此前已记录相同决定'),
+          stale: failure('Quote changed. Confirm the current revision.','报价已更新，请重新确认当前修订。'),
+          closed: failure('Request closed','此请求已关闭'), forbidden: failure('Access denied','无权处理此事项'),
+          conflicting_choice: failure('A different choice was already submitted','已提交其他决定')
+        }
+        return { ...messages[result.status], data: result, refresh: true }
+      }
+      if (actionKey === 'change_follow_up') {
+        const input = followUpInput.parse({ ...request.input, caseId: requireCaseId(request) })
+        await this.service.followUp(scope, input)
+        return success('Follow-up updated', '跟进已更新')
+      }
       if (actionKey === 'refresh') {
         return success('Procurement view refreshed', '采购比价视图已刷新')
       }
@@ -531,6 +589,7 @@ function scopeFromContext(context: XpertResolvedViewHostContext): ProcurementSco
     organizationId: context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,
     projectId: context.hostType === 'project' ? context.hostId : null,
+    assistantId: context.hostType === 'agent' ? context.hostId : undefined,
     userId: context.userId
   }
 }

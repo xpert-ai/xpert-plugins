@@ -3,6 +3,9 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Entity('plugin_procurement_supplier_quote')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementSupplierQuote {
+  @Column({ type: 'uuid', nullable: true })
+  eventQuoteSeriesId?: string
+
   @PrimaryGeneratedColumn('uuid')
   id?: string
 

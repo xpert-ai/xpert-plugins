@@ -19,7 +19,7 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 		const integrationId = req.params.id as string
 		let data = req.body
 
-		this.logger.verbose(`Lark request body:`, data)
+		this.logger.verbose('Lark webhook received')
 		;(async () => {
 			try {
 				const integration = await this.inboundIdentityService.readIntegration(integrationId)
@@ -27,6 +27,10 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 
 				data = this.inboundIdentityService.decryptWebhookBody(data, integration)
 
+				const token = integration.options?.verificationToken
+				;(req as express.Request & { verifiedDecisionChannel?: boolean }).verifiedDecisionChannel =
+					!!token && !!integration.options.appId && data.header?.token === token &&
+					data.header.app_id === integration.options.appId
 				if (data.type === 'url_verification') {
 					this.success({})
 				} else {
@@ -42,7 +46,7 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 					this.success(identity.requestUser)
 				}
 			} catch (err) {
-				this.logger.error(err, integrationId, data)
+				this.logger.warn('Lark webhook identity validation failed for integration ' + integrationId)
 				this.fail(this.inboundIdentityService.toUnauthorizedError(err))
 			}
 		})()

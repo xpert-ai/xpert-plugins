@@ -1,0 +1,78 @@
+{
+  "schema": "xpert.analysis-evidence@1",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "title": "<Quarterly revenue>",
+  "capturedAt": "2026-11-12T00:00:00.000Z",
+  "source": {
+    "artifactId": "00000000-0000-4000-8000-000000000001",
+    "versionId": "00000000-0000-4000-8000-000000000001",
+    "projectId": "00000000-0000-4000-8000-000000000001"
+  },
+  "controls": {
+    "region": "east"
+  },
+  "datasets": [
+    {
+      "schema": "xpert.analytics.dataset",
+      "datasetId": "sales",
+      "fields": [
+        {
+          "id": "region",
+          "sourceField": "region",
+          "label": "Region",
+          "logicalType": "string",
+          "role": "dimension",
+          "nullable": false
+        },
+        {
+          "id": "amount",
+          "sourceField": "amount",
+          "label": "Revenue",
+          "logicalType": "decimal",
+          "role": "measure",
+          "nullable": false,
+          "unit": "CNY"
+        }
+      ],
+      "rows": [
+        {
+          "region": "east </script>",
+          "amount": "9007199254740993.12"
+        }
+      ],
+      "grain": [
+        "region"
+      ],
+      "completeness": {
+        "returnedRows": 1,
+        "totalRows": 1,
+        "totalAccuracy": "exact",
+        "scope": "full_query_result",
+        "truncated": false
+      },
+      "freshness": {
+        "executedAt": "2026-11-12T00:00:00.000Z",
+        "sourceFetchedAt": "2026-11-12T00:00:00.000Z"
+      },
+      "provenance": {
+        "executionId": "run",
+        "bindingId": "sales",
+        "providerId": "file.table"
+      }
+    }
+  ],
+  "statements": [
+    {
+      "kind": "fact",
+      "text": "Revenue: 9007199254740993.12 CNY",
+      "citations": [
+        {
+          "datasetId": "sales",
+          "row": 0,
+          "field": "amount"
+        }
+      ]
+    }
+  ],
+  "sha256": "54a74001801a2449f5a6e2f131f0950cf3d7207d3d457f1360470004c5c6a0fb"
+}

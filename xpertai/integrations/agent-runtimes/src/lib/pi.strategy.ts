@@ -1,6 +1,6 @@
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
-import { outputDelivery, taskResult } from './task-result.js'
+import { outputDelivery, taskResult, appendReportText } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -89,11 +89,11 @@ export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
     if (event.type === 'message_end') {
       const parsed = Message.safeParse(event)
       if (parsed.success && parsed.data.message.role === 'assistant') {
-        run.text = parsed.data.message.content
+        run.text = appendReportText('', parsed.data.message.content
           .filter((part) => part.type === 'text')
           .map((part) => part.text ?? '')
           .join('')
-          .slice(-2 * 1024 * 1024)
+          )
         run.lastStopReason = parsed.data.message.stopReason
       }
     } else if (event.type === 'agent_settled') {

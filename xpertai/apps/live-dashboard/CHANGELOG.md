@@ -1,5 +1,52 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.7.0
+
+### Minor Changes
+
+- 161d155: Discover dashboards through the platform conversation directory. Add source filters, server search, pagination and fixed-version permission labels to the Workbench picker. Open shared references through the generic host navigation command while preserving current Project scope and separate source editing permissions.
+- c3437a7: Add explicit dataset/field/row analysis grants to published dashboards and declare fixed-version dataset bindings through the existing Artifact Type analytics extension. Preserve published control defaults and allowlists while platform Analytics orchestrates execution independently of rendering.
+- 6148712: Add a beta new-dashboard starter with SDK navigation to data, templates and examples, including loading and navigation-error states. Show it in editable personal scope as well as project scope. Keep the explicit Assistant-analysis action and clear the previous edit target before sending. No bundled template content is added. Entry points and navigation contracts may change incompatibly during beta.
+- 9a61fa6: **Beta:** Add Data views and reusable datasets are experimental. View identifiers, action APIs, payloads, and persisted formats may change incompatibly at any time during beta. Backward compatibility is not guaranteed; upgrades may require migrating or recreating dataset definitions.
+
+  Add an on-demand Add Data Workbench view for browsing authorized analytics sources and managing reusable datasets. Support source discovery, query and field editing, reuse of existing dashboard bindings, live query previews, revision-aware saves, and confirmed recycling.
+
+  Use shared shadcn controls and localized copy. Reset view state when its host scope changes, and ignore errors from requests belonging to the previous scope.
+
+- 240119e: Add a `template-create` View action that generates a standard dashboard draft from an authorized, revision-checked reusable dataset. Validate field mappings, preserve parameter defaults, and reuse the normal dashboard query validation and draft save workflow. Generated dashboards own a copy of the binding; recycling the source dataset does not delete the dashboard.
+
+  **Beta:** Generation contracts and preset semantics may change incompatibly at any time during beta. This foundation does not include a template catalog, example datasets, covers, publication, or library import/export.
+
+- 11e1823: Add reusable dataset storage backed by platform Artifacts and managed draft files. Persist validated query bindings and control defaults, recheck source access before saving or previewing, and protect edits and recycling with draft revision checks.
+
+  Register the dataset Artifact type with personal ownership and Project editor access policies. Keep dataset persistence independent of template recipes, catalog content, and public resource sharing.
+
+- c3437a7: Separate the dashboard collection from single-document Workbench views. Resolve source dashboards through the content catalog, preserve document identity and unsaved edits across versions, and reuse the canvas with viewing controls for authorized group presentations.
+- 091d543: Add ten example tasks, deterministic synthetic datasets, the hotel analysis template, regenerated covers and 86 non-executable catalog previews. Connect the Explore landing page and paginated V2 catalog to explicit ZIP imports; keep task preparation composer-only. Provide offline content-package exporters, provenance records and content tests without registering legacy catalog services. Resource and content contracts remain beta and may change incompatibly.
+- c3437a7: Allow source-project managers to offer a fixed published dashboard to a group, inspect and revoke grants from the Share dialog. Group viewers use the same read-only dashboard renderer and current-viewer data permissions without joining the authoring project.
+- 1c2cb4b: Add beta example preparation and generic template instantiation through existing Analytics, Workspace Files and Dashboard save APIs. Pin explicit dataset mappings/revisions, preserve template provenance, and recover interrupted submissions without duplicate drafts. Roll back failed input reservations so corrected requests can reuse their intent ID; guide unchanged tasks to pass recipe arguments without invented inputs. Guard composer handoffs against conversation changes. This batch contains no business template packages, covers or gallery screens. These beta contracts may change incompatibly; public attachment copying remains unsupported.
+- 8cd2b7f: Add beta library resource, draft, version, attachment and import-job storage with SDK-managed files, strict portable ZIP validation, owner-scoped idempotency and transactional imports. Register resource catalog and file actions without adding template content or switching the gallery UI. Use existing Artifact and Workspace Files APIs without storage-provider settings or deferred shared-read extensions. Public resources with attachments remain unsupported until an authorized copy API is available. Task execution and directory views follow in later batches. These beta contracts may change incompatibly.
+- 39c4301: Add a reusable resource detail dialog for fixed-version inspection, ZIP export, confirmed publication, withdrawal and composer-only task preparation. Support typed Dataset mappings and template parameters. Isolate authorized preview-image reading from bundled catalog artwork. These UI and action contracts are beta and may change incompatibly; catalog entries, sample content and page integration remain separate changes.
+- 9a67835: Connect the example, template and public-dataset views to paged resource queries, ZIP imports and fixed-version details. Support private/public audiences, search, template-kind and appearance filters, persisted navigation and composer-only task preparation. Export the shared Sparkles icon used by directory cards. Bundled catalog content and cover artwork remain separate. These views and navigation contracts are beta and may change incompatibly.
+- 16f3eb7: Add a reusable resource ZIP import dialog with conflict previews, explicit confirmation, cancellation and resumable job inspection. Use shared shadcn controls and localized copy. Directory-page integration and template content are separate changes. The import UI and host action contracts are beta and may change incompatibly.
+- 1773a4e: Add optional standard-dashboard theme settings and map host color/font tokens into the isolated renderer. Follow host theme changes without modifying saved bindings or query results. HTML-authored dashboards retain their own presentation styles.
+
+  **Beta:** Theme keys, token mappings, and the persisted `visualTheme` field may change incompatibly at any time during beta; backward compatibility is not guaranteed.
+
+### Patch Changes
+
+- c3437a7: Use platform resource navigation for conversational dashboard viewing and retain dashboard_open for source editing.
+- c3437a7: Show a retryable group authorization error when loading fails and reserve the no-groups hint for a successful empty result.
+- 998d99d: Reuse the Live Dashboard icon for project resource types and shared artifact resource cards.
+- 920483a: Reuse authored catalog covers in resource details and add a production-iframe regression harness for previews, ZIP import, ten composer handoffs, Dataset mapping and responsive layouts. Align the harness with the V2 provider and preserve generic execution fixtures. The resource-library interfaces remain beta and may change incompatibly.
+- 33b6b31: Add dashboard_present_analysis to display a verified, reauthorized query as a bounded inline Widget without creating a dashboard. Preserve exact table values, mark partial results, and reuse generic group result projection.
+- 418a48f: Document the beta template-to-Agent handoff in the live-dashboard skill: preserve prepared arguments, wait for a successful draft receipt, recover the same request on retry, and respect explicit data mappings and provider policy. Connect resource library feature guides without bundling template content. These beta contracts may change incompatibly.
+- 1c0f139: Reload mounted dashboard views after project or conversation context changes by renewing the host handshake. Deduplicate React and React DOM in remote view bundles to preserve the shared component hook dispatcher.
+
+  Include plugin assets in build freshness checks and reject mismatched package and portable manifest versions.
+
+- c3437a7: Widen the sharing dialog for data authorization forms while preserving viewport gutters and vertical scrolling. Document deferred resource-sharing decoupling proposals without changing authorization behavior.
+
 ## 0.6.2
 
 ### Patch Changes
