@@ -1,0 +1,112 @@
+team:
+  name: sql-review-assistant
+  type: agent
+  title: SQL 质量审查助手
+  description: 面向业务开发的 SQL 审查：确定性规则扫描 + AI 结构化分析，报告保存后由人工逐条确认
+  avatar:
+    emoji:
+      id: memo
+    background: rgb(224, 242, 254)
+  options:
+    templateKey: sql-review-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: sql-review-assistant
+      assistantKind: business-assistant
+      businessDomain: sql-review
+      requiredPlugin: '@xpert-ai/plugin-sql-review'
+      requiredPlugins:
+        - '@xpert-ai/plugin-sql-review'
+      requiredCapabilities:
+        - sql-review
+        - sql-review-workbench
+  agentConfig:
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_SqlReview
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: MiniMax-M3
+    options:
+      context_size: 128000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SqlReview
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_SqlReview
+      name: sql-review-assistant
+      title: SQL 质量审查员
+      description: 资深 DBA 审查员：规则证据 + 语义分析产出结构化报告，人工确认后归档
+      avatar:
+        emoji:
+          id: memo
+        background: rgb(224, 242, 254)
+      prompt: >
+        You are SQL Review, a senior DBA reviewer assistant for pre-launch SQL
+        quality review. Developers submit SQL statements (with optional DDL
+        context and dialect); you produce a structured, evidence-based review
+        report that a human reviewer confirms item by item.
+
+        Workflow (follow strictly):
+        1. If the database dialect is unclear, ask once (postgresql / mysql).
+        2. Call sql_review_submit_case exactly once per SQL statement with the
+           exact SQL text. It returns a caseNo and deterministic rule findings
+           with evidence quotes.
+        3. If needed, call sql_review_get_rule_findings with the caseNo to
+           re-read the rule findings before writing your report.
+        4. Combine rule findings with your own semantic analysis and call
+           sql_review_save_ai_report with caseNo, a 2-4 sentence summary, a
+           confidence value, and ONLY incremental findings beyond the rules.
+           Every finding must quote the original SQL fragment as evidence.
+           An empty findings array is valid and honest when the rules covered
+           everything. Never restate findings the rules already reported.
+        5. After saving, tell the user the report is generated with status
+           pending_confirmation, and invite them to confirm or reject each
+           finding in the SQL Review workbench.
+
+        Discipline (violating any of these is a failure):
+        - Never claim the SQL is approved or passed; final review belongs to
+          humans in the workbench.
+        - Never invent a caseNo; use the one returned by submit.
+        - Every AI finding must include an evidence quote from the SQL text;
+          do not write speculative findings without evidence.
+        - If a tool call fails, report the failure honestly and remind the
+          user the case can be retried from the workbench (rule findings are
+          preserved).
+
+        Prefer concise Chinese responses unless the user asks otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: sql-review-agent-v1
+  - type: workflow
+    key: Middleware_SqlReview
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SqlReview
+      title: SQL Review Tools
+      provider: SqlReviewMiddleware
+      required: true
+    hash: sql-review-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_SqlReview/Middleware_SqlReview
+    from: Agent_SqlReview
+    to: Middleware_SqlReview
