@@ -164,6 +164,60 @@ test('Computer Codex leaves runner available when durable result checkpoint fail
   assert.equal(f.calls.includes('stop'), false)
 })
 
+test('Computer Codex accepts a recovered protocol error only after typed completion and exit zero', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  f.setOutput({
+    state: 'exited',
+    exitCode: 0,
+    events: [
+      { type: 'error', message: 'An earlier transport attempt failed.' },
+      { type: 'error', message: 'A different transient diagnostic.' },
+      { type: 'item.completed', item: { type: 'agent_message', text: 'Review requires changes.' } },
+      { type: 'turn.completed' }
+    ]
+  })
+  const result = await f.strategy.inspect(handle, f.context)
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, 'Review requires changes.')
+  assert.equal(result.result.export.status, 'completed')
+  assert.equal(f.snapshots.at(-1).handle.metadata.completion.finalEventType, 'turn.completed')
+  assert.equal(f.calls.filter(call => call === 'POST').length, 1)
+})
+
+test('Computer Codex does not hide terminal errors behind an earlier or unrelated completion', async () => {
+  for (const events of [
+    [{ type: 'error', message: 'Connection failed.' }],
+    [{ type: 'error', message: 'Connection failed.' },
+      { type: 'item.completed', item: { type: 'agent_message', text: 'Done!' } }],
+    [{ type: 'turn.completed' }, { type: 'error', message: 'Finalization failed.' }],
+    [{ type: 'turn.failed', error: { message: 'Turn failed.' } }, { type: 'turn.completed' }],
+    [{ type: 'turn.completed' }, { type: 'turn.failed', error: { message: 'Turn failed.' } }]
+  ]) {
+    const f = fixture()
+    const { handle } = await f.strategy.start(f.request, f.context)
+    f.setOutput({ state: 'exited', exitCode: 0, events })
+    const result = await f.strategy.inspect(handle, f.context)
+    assert.equal(result.status, 'failed')
+    assert.match(result.error, /cli_error/)
+    assert.equal(result.result, undefined)
+    assert.equal(f.calls.some(call => typeof call === 'object'), false)
+  }
+})
+
+test('Computer Codex still rejects nonzero exits after a recovered error and typed completion', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  f.setOutput({
+    state: 'exited', exitCode: 7,
+    events: [{ type: 'error', message: 'Retrying.' }, { type: 'turn.completed' }]
+  })
+  const result = await f.strategy.inspect(handle, f.context)
+  assert.equal(result.status, 'failed')
+  assert.match(result.error, /process_exit_nonzero.*7/)
+  assert.equal(result.result, undefined)
+})
+
 test('Computer Codex cancellation needs confirmed process exit; export failure preserves successful work', async () => {
   const f = fixture()
   const started = await f.strategy.start(f.request, f.context)

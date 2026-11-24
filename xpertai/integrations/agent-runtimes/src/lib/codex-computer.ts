@@ -27,14 +27,19 @@ const adapter: ComputerJsonlAdapter = {
     const parsed = Events.safeParse(value)
     if (!parsed.success) return completionFailure('protocol_invalid', 'Codex returned an invalid JSONL event shape.')
     const events = parsed.data
-    const failed = events.find((event) => event.type === 'turn.failed' || event.type === 'error')
+    const completedIndex = events.map((event) => event.type).lastIndexOf('turn.completed')
+    // Generic errors can describe a recovered transport attempt. A later typed
+    // completion supersedes them; explicit turn failures remain terminal.
+    const failed = events.find(
+      (event, index) => event.type === 'turn.failed' || (event.type === 'error' && index > completedIndex)
+    )
     if (failed)
       return completionFailure(
         'cli_error',
         `Codex ${failed.type}: ${failed.error?.message || failed.message || 'the CLI reported an execution error'}.`,
         { finalEventType: failed.type }
       )
-    if (!events.some((event) => event.type === 'turn.completed'))
+    if (completedIndex < 0)
       return completionFailure('missing_final_result', 'Codex exited without a turn.completed event.')
     const text = events
       .filter((event) => event.type === 'item.completed' && event.item?.type === 'agent_message')
