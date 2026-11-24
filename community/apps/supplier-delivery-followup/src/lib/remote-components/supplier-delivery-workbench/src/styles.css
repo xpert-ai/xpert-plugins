@@ -1,0 +1,93 @@
+@import "tailwindcss" source(none);
+
+@source "./**/*.{ts,tsx}";
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border, var(--xui-color-border, #e4e4e7));
+  }
+}
+
+:root {
+  color-scheme: light;
+  font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, sans-serif);
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/*
+ * The shared package and the host only ship light status colours, so in dark mode the warning
+ * fill falls back to #fffbeb under white text. Give the status tokens dark values here.
+ */
+:root.dark {
+  --status-success: #34d399;
+  --status-success-background: color-mix(in oklab, #34d399 14%, var(--background));
+  --status-warning: #fbbf24;
+  --status-warning-background: color-mix(in oklab, #fbbf24 18%, var(--background));
+  --status-destructive-background: color-mix(in oklab, #f87171 16%, var(--background));
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Radix ScrollArea needs every flex ancestor to keep a bounded height. */
+[data-sdf-scroll] > [data-slot='scroll-area-viewport'] {
+  min-height: 0;
+}
+
+/* Evidence quoted by the assistant: light for every proposal, strong for the active one. */
+/* Reads like a highlighter: a dotted underline for any cited text, a warm fill for the active proposal. */
+.sdf-evidence {
+  border-radius: 2px;
+  padding: 0 1px;
+  color: inherit;
+  background: transparent;
+  text-decoration: underline dotted color-mix(in oklab, var(--status-warning) 70%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.sdf-evidence[data-active='true'] {
+  background: var(--status-warning-background);
+  text-decoration: underline solid var(--status-warning);
+  text-decoration-thickness: 2px;
+}
+
+.sdf-evidence[data-flash='true'] {
+  background: color-mix(in oklab, var(--status-warning) 28%, var(--status-warning-background));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--status-warning) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

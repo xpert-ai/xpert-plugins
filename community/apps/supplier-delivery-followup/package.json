@@ -1,0 +1,86 @@
+{
+  "name": "@community/apps-supplier-delivery-followup",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Supplier delivery follow-up Agentic App: AI extracts delivery-date changes from supplier replies with source evidence; buyers review and confirm each change.",
+  "license": "AGPL-3.0",
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/supplier-delivery-followup"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "supplier_delivery"
+    }
+  },
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "generate:remote": "node scripts/build-remote-components.mjs",
+    "check:remote": "node scripts/build-remote-components.mjs --check",
+    "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
+    "build": "pnpm run remote:typecheck && pnpm run generate:remote && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test:pg": "node scripts/test-pg.cjs",
+    "test": "jest --config jest.config.cjs --runInBand",
+    "e2e:platform": "node e2e/platform-e2e.mjs"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.4",
+    "@xpert-ai/plugin-sdk": "^3.18.4",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/cqrs": "11.0.3",
+    "@nestjs/typeorm": "11.0.0",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "@swc/jest": "~0.2.38",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "jest": "^29.7.0",
+    "lucide-react": "1.24.0",
+    "reflect-metadata": "0.2.2",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "zod": "3.25.67"
+  }
+}
