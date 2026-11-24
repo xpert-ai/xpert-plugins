@@ -1,0 +1,128 @@
+---
+title: 模型故障注入与重试
+description: 真实 Xpert 调用链上的 HTTP 503 故障、持久化失败和真实 DeepSeek 恢复验收。
+---
+
+## 对应任务书要求
+
+附录二要求模拟一个模型或外部服务失败，显示可理解的原因，并验证重试不会产生重复业务结果。本次在真实 Xpert 已发布 Assistant 的模型 HTTP 调用处返回 503；恢复阶段将请求原样转发到真实 DeepSeek，不返回固定模型结果。
+
+2026-11-01 的成功验收约耗时 24 秒。点击分析后 3388 ms 内出现“模型分析失败”，而非等待两分钟超时。该时长是本次测量，不是性能承诺。模型 SDK 内部重试在专用助手中设为 0；默认环境会先等待 SDK 的重试结束，再记录最终模型错误。
+
+## 操作、预期与实际结果
+
+| 操作 | 预期 | 实际 |
+| --- | --- | --- |
+| 代理返回 HTTP 503 | 平台收到真实 HTTP 错误，业务状态进入 failed | 通过，错误码 model_failed，代理记录一条 503 |
+| 刷新顶层页面 | 原单据、原文和失败原因仍在 | 通过，记录 ID 不变 |
+| 恢复代理为正常转发，点击重新分析 | 新 attemptId，调用真实模型 | 通过，DeepSeek 返回 3 次 HTTP 200 |
+| 查看结构化草稿 | 四千元、2026-11-05，原文引用有效 | 通过，恰好一条付款承诺 |
+| 人工确认并再次刷新 | 确认结果持久化，不重复建单 | 通过，同一单号仅一条记录，历史为 failed → success |
+| 清理测试环境 | 原演示助手不变，测试模型不依赖代理 | 通过，专用 provider 已改回直连 DeepSeek，代理已停止 |
+
+测试数据为虚构。首轮配置探查保留了一条不同单号的测试记录，截图中可能看到同名客户；“不重复”的断言针对本轮唯一单号及记录 ID，而不是客户名称。完整阶段快照及脱敏 HTTP 审计见 [验收记录](/fault-acceptance-receipt.json)。
+
+![503 后显示错误且保留原文](/images/09-model-unavailable.png)
+![真实模型恢复后确认并重新打开](/images/10-model-recovered.png)
+
+## 实现补强与测试边界
+
+`PaymentMiddleware.wrapModelCall` 在模型最终抛错时，通过真实服务将当前 attempt 标为 model_failed，然后继续抛出原错误，让 Xpert 显示模型错误。服务端身份来自宿主；attemptId 和状态校验确保旧请求不能覆盖新轮次，工具已保存的草稿也不会被随后聊天总结的错误丢弃。若数据库本身不可用，保留原模型异常并由现有读写超时恢复兜底。
+
+6 个中间件回归测试覆盖当前模型失败、成功直通、旧错误与新重试竞争、已保存草稿保护、无业务上下文和失败持久化异常。另有 1 个新增真实 PostgreSQL 子场景直接验证中间件异常写入数据库。全部 Node 检查现为 45 项通过、无跳过。
+
+代理位于 `scripts/fault-proxy.mjs`，仅供验收，不被插件运行时导入。它只监听 127.0.0.1，唯一上游为 https://api.deepseek.com/v1/chat/completions；日志只含状态、时间、模型名及工具名，不保存密钥、提示词或响应正文。测试没有替换工具结果、伪造成功响应或直接写业务数据库。
+
+本次验证 HTTP 503 这一明确的服务故障；不宣称覆盖所有供应商错误、网络中断或数据库故障的真实平台场景。数据库失败的错误保留属于回归测试。
+
+## 复现步骤
+
+### 1. 建立隔离的测试配置
+
+使用本插件 README 的平台基线与安装流程，准备一个专用模型配置、从本插件模板创建的专用 Assistant。不要替换演示或生产助手的模型。模型名称使用当前平台实际可用、支持工具调用的 DeepSeek 模型；本次为 deepseek-flash。
+
+在本包目录准备控制文件并启动代理：
+
+```bash
+mkdir -p /tmp/payment-fault-acceptance
+chmod 700 /tmp/payment-fault-acceptance
+export PAYMENT_FAULT_CONTROL=/tmp/payment-fault-acceptance/control.json
+export PAYMENT_FAULT_LOG=/tmp/payment-fault-acceptance/proxy.jsonl
+printf '%s\n' '{"mode":"pass"}' > "$PAYMENT_FAULT_CONTROL"
+node scripts/fault-proxy.mjs
+```
+
+代理初始为 pass，使平台凭证校验能访问真实 DeepSeek。只在专用 provider 中将 endpoint_url 配成 `http://127.0.0.1:39091`，密钥通过平台配置提供；将专用 Assistant 绑定该 copilot，保存并发布。API 必须与代理运行在同一主机网络中，本次 API 为源码进程；容器内的 localhost 指向不同网络，不能照抄该地址。
+
+### 2. 明确设置已发布助手的模型参数
+
+本次发现模板安装传入的 options 没有保留在发布图中，导致 SDK 默认重试延长等待。必须核对实际发布图，而不只核对配置输入。本测试要求主 Agent 的 `copilotModel.options.maxRetries=0`，并使用 `thinking=false`、`temperature=0.1`、`max_tokens=4096`。
+
+可使用平台正常的草稿保存/发布接口设置。下例需预先在进程环境提供本地测试登录信息、tenant/organization ID、专用 Assistant ID（PAYMENT_FAULT_ASSISTANT_ID）、专用 copilot ID（PAYMENT_FAULT_COPILOT_ID），以及已构建平台路径；不把凭证写入脚本：
+
+```bash
+node --input-type=module <<'JS'
+import assert from 'node:assert/strict'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+const e=process.env
+const base=e.XPERT_API_URL
+assert.ok(base && ['localhost','127.0.0.1'].includes(new URL(base).hostname))
+assert.ok(e.PAYMENT_FAULT_ASSISTANT_ID && e.PAYMENT_FAULT_COPILOT_ID && e.XPERT_ORGANIZATION_ID && e.XPERT_TENANT_ID)
+const {requireAuthentication,createRequestHeaders}=await import(pathToFileURL(resolve(e.XPERT_PLATFORM_ROOT,'tools/scripts/local-plugin-cli.mjs')))
+const auth=await requireAuthentication({username:e.XPERT_USERNAME,password:e.XPERT_PASSWORD,noKeychain:true,apiUrl:base})
+const headers=createRequestHeaders({scope:'organization',orgId:e.XPERT_ORGANIZATION_ID},auth.token,e.XPERT_TENANT_ID)
+async function call(path,method='GET',body){
+  const r=await fetch(base+'/api'+path,{method,headers,body:body?JSON.stringify(body):undefined})
+  if(!r.ok)throw Error('Platform request failed: HTTP '+r.status)
+  return r.json()
+}
+const id=e.PAYMENT_FAULT_ASSISTANT_ID
+await call('/xpert/'+id+'/sync-template','POST',{})
+const {draft}=await call('/xpert/'+id+'/team')
+const options={maxRetries:0,thinking:false,temperature:0.1,max_tokens:4096}
+for(const n of draft.nodes)if(n.type==='agent')n.entity.copilotModel={...n.entity.copilotModel,copilotId:e.PAYMENT_FAULT_COPILOT_ID,model:'deepseek-flash',modelType:'llm',options}
+draft.team.copilotModel={...draft.team.copilotModel,copilotId:e.PAYMENT_FAULT_COPILOT_ID,model:'deepseek-flash',modelType:'llm',options}
+await call('/xpert/'+id+'/draft','POST',draft)
+await call('/xpert/'+id+'/publish?newVersion=false','POST',{releaseNotes:'Isolated HTTP 503 acceptance'})
+const published=await call('/xpert/'+id+'/team')
+const model=published.graph.nodes.find(n=>n.type==='agent').entity.copilotModel
+assert.equal(model.options.maxRetries,0)
+assert.equal(model.copilotId,e.PAYMENT_FAULT_COPILOT_ID)
+console.log('Published test Assistant has maxRetries=0.')
+JS
+```
+
+模板同步仅用于这个专门从本插件模板创建的测试 Assistant，不适用于已有自定义业务图。
+
+### 3. 准备浏览器登录状态
+
+通过 Playwright 的浏览器登录本地 Xpert、选择测试组织并打开专用助手，将 storage state 保存在仓库外，例如 `/tmp/payment-fault-acceptance/browser-state.json`。它包含会话凭证，不可提交。
+
+```bash
+# 本次验收使用已安装的 Chrome；没有对应浏览器时先安装 Playwright 浏览器。
+corepack pnpm exec playwright codegen --channel=chrome \
+  --save-storage=/tmp/payment-fault-acceptance/browser-state.json \
+  http://localhost:4300/auth/login
+```
+
+在打开的浏览器中完成正常登录、组织选择后关闭窗口。
+
+### 4. 运行完整故障验收
+
+另一个终端中进入本包，使用与代理一致的路径：
+
+```bash
+export PAYMENT_FAULT_CONTROL=/tmp/payment-fault-acceptance/control.json
+export PAYMENT_FAULT_LOG=/tmp/payment-fault-acceptance/proxy.jsonl
+export PAYMENT_FAULT_ASSISTANT_URL='http://localhost:4300/chat/x/YOUR_TEST_ASSISTANT/c'
+export PAYMENT_FAULT_BROWSER_STATE=/tmp/payment-fault-acceptance/browser-state.json
+export PAYMENT_FAULT_EVIDENCE_DIR=/tmp/payment-fault-acceptance/evidence
+PLAYWRIGHT_CHANNEL=chrome corepack pnpm test:platform-failure
+```
+
+脚本通过真实工作台新建虚构单据，控制代理 fail/pass，观察真实 View Host 响应，检查失败恢复、同记录重试、确认、刷新及单号唯一性。输出两张截图和一份 JSON 记录；成功阶段是付费模型请求，会使用测试账号的正常额度。成功运行无需手工改数据库或注入模型结果。
+
+### 5. 清理
+
+脚本 finally 会把模式改回 pass。无论验收是否通过，都应将专用 provider 的 endpoint_url 恢复为直连 DeepSeek（或禁用专用配置），再停止代理；原演示助手一直使用其原配置。本次已经完成恢复，保留虚构测试记录用于查看。

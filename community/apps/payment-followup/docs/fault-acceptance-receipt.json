@@ -1,0 +1,299 @@
+{
+  "scenario": "provider-http-503-then-real-deepseek-recovery",
+  "startedAt": "2026-11-01T09:34:19.600Z",
+  "completedAt": "2026-11-01T09:34:43.706Z",
+  "failureLatencyMs": 3388,
+  "failureInjected": true,
+  "recoveryResponseMocked": false,
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "assistantUrl": "http://localhost:4300/chat/x/payment-followup-fault/c",
+  "conversationUrl": "http://localhost:4300/chat/x/payment-followup-fault/c/53b584bb-f23f-4516-af13-d44c8774c6e3",
+  "recordId": "a310fa8f-4961-4138-b68f-78eccd8bf960",
+  "checks": {
+    "visibleModelFailure": true,
+    "failedStateSurvivesReload": true,
+    "inputPreserved": true,
+    "sameRecordRetried": true,
+    "newAttemptId": true,
+    "noDuplicateRecord": true,
+    "singlePromise": true,
+    "humanConfirmationSaved": true,
+    "confirmedStateSurvivesReload": true
+  },
+  "failed": {
+    "id": "a310fa8f-4961-4138-b68f-78eccd8bf960",
+    "error": "model_failed",
+    "input": {
+      "source": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。",
+      "dueDate": "2026-10-25",
+      "customerName": "远帆制造（模型故障验收）",
+      "invoiceNumber": "AR-FAULT-1793525659600",
+      "outstandingCents": 400000,
+      "communicationDate": "2026-11-01"
+    },
+    "status": "failed",
+    "aiResult": null,
+    "attempts": [
+      {
+        "id": "936008ea-cd2f-4797-b339-4c6d7e5aeb2f",
+        "error": "model_failed",
+        "status": "failed",
+        "startedAt": "2026-11-01T09:34:25.824Z",
+        "finishedAt": "2026-11-01T09:34:26.861Z"
+      }
+    ],
+    "revision": 2,
+    "attemptId": "936008ea-cd2f-4797-b339-4c6d7e5aeb2f",
+    "confirmedAt": null,
+    "confirmedResult": null,
+    "sourceLines": [
+      {
+        "id": 1,
+        "text": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。"
+      }
+    ],
+    "warnings": [],
+    "createdAt": "2026-11-01T09:34:25.524Z",
+    "updatedAt": "2026-11-01T09:34:26.857Z"
+  },
+  "reviewed": {
+    "id": "a310fa8f-4961-4138-b68f-78eccd8bf960",
+    "error": null,
+    "input": {
+      "source": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。",
+      "dueDate": "2026-10-25",
+      "customerName": "远帆制造（模型故障验收）",
+      "invoiceNumber": "AR-FAULT-1793525659600",
+      "outstandingCents": 400000,
+      "communicationDate": "2026-11-01"
+    },
+    "status": "review",
+    "aiResult": {
+      "summary": "客户在2026-11-01沟通中明确承诺：本笔四千元货款于2026年11月5日全额支付，与应收未收金额4000.00元一致。该承诺为无条件口头承诺，尚未到账，需人工核对。",
+      "blockers": [],
+      "promises": [
+        {
+          "condition": "",
+          "amountCents": 400000,
+          "paymentDate": "2026-11-05",
+          "evidenceLineIds": [
+            1
+          ]
+        }
+      ],
+      "questions": [
+        "客户承诺的2026-11-05全额付款是否已进入公司账户，需财务核实到账情况。",
+        "该承诺为口头表述，是否需要客户书面确认（如邮件或付款计划确认函）？"
+      ],
+      "suggestedAction": "在2026-11-05前提醒跟进，到期后核对银行到账记录；如未到账再联系客户确认新的付款安排。本记录仅为草稿，请在工作台确认。"
+    },
+    "attempts": [
+      {
+        "id": "936008ea-cd2f-4797-b339-4c6d7e5aeb2f",
+        "error": "model_failed",
+        "status": "failed",
+        "startedAt": "2026-11-01T09:34:25.824Z",
+        "finishedAt": "2026-11-01T09:34:26.861Z"
+      },
+      {
+        "id": "eff62eb9-b04a-4d86-ac20-d2f2c4d7ebcb",
+        "error": null,
+        "status": "success",
+        "startedAt": "2026-11-01T09:34:31.696Z",
+        "finishedAt": "2026-11-01T09:34:35.273Z"
+      }
+    ],
+    "revision": 4,
+    "attemptId": "eff62eb9-b04a-4d86-ac20-d2f2c4d7ebcb",
+    "confirmedAt": null,
+    "confirmedResult": null,
+    "sourceLines": [
+      {
+        "id": 1,
+        "text": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。"
+      }
+    ],
+    "warnings": [],
+    "createdAt": "2026-11-01T09:34:25.524Z",
+    "updatedAt": "2026-11-01T09:34:35.254Z"
+  },
+  "reopened": {
+    "id": "a310fa8f-4961-4138-b68f-78eccd8bf960",
+    "error": null,
+    "input": {
+      "source": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。",
+      "dueDate": "2026-10-25",
+      "customerName": "远帆制造（模型故障验收）",
+      "invoiceNumber": "AR-FAULT-1793525659600",
+      "outstandingCents": 400000,
+      "communicationDate": "2026-11-01"
+    },
+    "status": "confirmed",
+    "aiResult": {
+      "summary": "客户在2026-11-01沟通中明确承诺：本笔四千元货款于2026年11月5日全额支付，与应收未收金额4000.00元一致。该承诺为无条件口头承诺，尚未到账，需人工核对。",
+      "blockers": [],
+      "promises": [
+        {
+          "condition": "",
+          "amountCents": 400000,
+          "paymentDate": "2026-11-05",
+          "evidenceLineIds": [
+            1
+          ]
+        }
+      ],
+      "questions": [
+        "客户承诺的2026-11-05全额付款是否已进入公司账户，需财务核实到账情况。",
+        "该承诺为口头表述，是否需要客户书面确认（如邮件或付款计划确认函）？"
+      ],
+      "suggestedAction": "在2026-11-05前提醒跟进，到期后核对银行到账记录；如未到账再联系客户确认新的付款安排。本记录仅为草稿，请在工作台确认。"
+    },
+    "attempts": [
+      {
+        "id": "936008ea-cd2f-4797-b339-4c6d7e5aeb2f",
+        "error": "model_failed",
+        "status": "failed",
+        "startedAt": "2026-11-01T09:34:25.824Z",
+        "finishedAt": "2026-11-01T09:34:26.861Z"
+      },
+      {
+        "id": "eff62eb9-b04a-4d86-ac20-d2f2c4d7ebcb",
+        "error": null,
+        "status": "success",
+        "startedAt": "2026-11-01T09:34:31.696Z",
+        "finishedAt": "2026-11-01T09:34:35.273Z"
+      }
+    ],
+    "revision": 5,
+    "attemptId": "eff62eb9-b04a-4d86-ac20-d2f2c4d7ebcb",
+    "confirmedAt": "2026-11-01T09:34:35.531Z",
+    "confirmedResult": {
+      "note": "故障恢复后已核对原文：11月5日全额支付四千元。",
+      "analysis": {
+        "summary": "客户在2026-11-01沟通中明确承诺：本笔四千元货款于2026年11月5日全额支付，与应收未收金额4000.00元一致。该承诺为无条件口头承诺，尚未到账，需人工核对。",
+        "blockers": [],
+        "promises": [
+          {
+            "condition": "",
+            "amountCents": 400000,
+            "paymentDate": "2026-11-05",
+            "evidenceLineIds": [
+              1
+            ]
+          }
+        ],
+        "questions": [
+          "客户承诺的2026-11-05全额付款是否已进入公司账户，需财务核实到账情况。",
+          "该承诺为口头表述，是否需要客户书面确认（如邮件或付款计划确认函）？"
+        ],
+        "suggestedAction": "在2026-11-05前提醒跟进，到期后核对银行到账记录；如未到账再联系客户确认新的付款安排。本记录仅为草稿，请在工作台确认。"
+      },
+      "nextFollowupDate": "2026-11-02"
+    },
+    "sourceLines": [
+      {
+        "id": 1,
+        "text": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。"
+      }
+    ],
+    "warnings": [],
+    "createdAt": "2026-11-01T09:34:25.524Z",
+    "updatedAt": "2026-11-01T09:34:35.530Z"
+  },
+  "proxyRequests": [
+    {
+      "id": 11,
+      "at": "2026-11-01T09:34:26.849Z",
+      "mode": "fail",
+      "model": "deepseek-flash",
+      "stream": true,
+      "tools": [
+        "parsed_file_search",
+        "parsed_file_read",
+        "parsed_file_table_query",
+        "parsed_file_preview",
+        "parsed_file_page_images",
+        "parsed_file_list",
+        "parsed_file_read_by_path",
+        "parsed_file_search_all",
+        "payment_followup_read",
+        "payment_followup_submit",
+        "payment_followup_fail"
+      ],
+      "injected": true,
+      "status": 503
+    },
+    {
+      "id": 12,
+      "at": "2026-11-01T09:34:32.216Z",
+      "mode": "pass",
+      "model": "deepseek-flash",
+      "stream": true,
+      "tools": [
+        "parsed_file_search",
+        "parsed_file_read",
+        "parsed_file_table_query",
+        "parsed_file_preview",
+        "parsed_file_page_images",
+        "parsed_file_list",
+        "parsed_file_read_by_path",
+        "parsed_file_search_all",
+        "payment_followup_read",
+        "payment_followup_submit",
+        "payment_followup_fail"
+      ],
+      "injected": false,
+      "status": 200
+    },
+    {
+      "id": 13,
+      "at": "2026-11-01T09:34:33.235Z",
+      "mode": "pass",
+      "model": "deepseek-flash",
+      "stream": true,
+      "tools": [
+        "parsed_file_search",
+        "parsed_file_read",
+        "parsed_file_table_query",
+        "parsed_file_preview",
+        "parsed_file_page_images",
+        "parsed_file_list",
+        "parsed_file_read_by_path",
+        "parsed_file_search_all",
+        "payment_followup_read",
+        "payment_followup_submit",
+        "payment_followup_fail"
+      ],
+      "injected": false,
+      "status": 200
+    },
+    {
+      "id": 14,
+      "at": "2026-11-01T09:34:35.349Z",
+      "mode": "pass",
+      "model": "deepseek-flash",
+      "stream": true,
+      "tools": [
+        "parsed_file_search",
+        "parsed_file_read",
+        "parsed_file_table_query",
+        "parsed_file_preview",
+        "parsed_file_page_images",
+        "parsed_file_list",
+        "parsed_file_read_by_path",
+        "parsed_file_search_all",
+        "payment_followup_read",
+        "payment_followup_submit",
+        "payment_followup_fail"
+      ],
+      "injected": false,
+      "status": 200
+    }
+  ],
+  "cleanup": {
+    "completedAt": "2026-11-01T09:35:42.271Z",
+    "testProviderRestoredToDirectDeepSeek": true,
+    "originalPrimaryAndDemoUnchanged": true
+  }
+}

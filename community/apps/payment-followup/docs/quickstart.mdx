@@ -1,0 +1,23 @@
+---
+title: 构建与安装
+description: 使用当前仓库共享 UI，并通过平台安装本地插件。
+---
+
+先将 XPERT_PLATFORM_ROOT 指向已安装依赖并构建的 Xpert checkout。在本包目录使用 Corepack 管理的 pnpm 8.15.8（包括子进程的 pnpm）：
+
+```bash
+corepack pnpm install --frozen-lockfile
+corepack pnpm build
+NODE_PATH="$XPERT_PLATFORM_ROOT/node_modules" corepack pnpm test
+corepack pnpm verify:dist
+```
+
+数据库集成测试需要由环境安全注入 PAYMENT_TEST_DATABASE_URL；未配置时明确跳过。SDK 的宿主 peer 从已安装依赖的 Xpert checkout 提供。
+
+在 Xpert 平台根目录，设置安全登录配置及明确租户后运行：
+
+```bash
+corepack pnpm plugin:deploy:local --plugin-dir "$PAYMENT_PLUGIN_DIR" --scope tenant
+```
+
+按结果处理 restartRequired，再创建插件模板 Assistant、选择支持工具调用的模型并发布。入口是已发布 Assistant 内的“回款承诺”工作台。

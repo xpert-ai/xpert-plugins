@@ -1,0 +1,310 @@
+{
+  "verifiedAt": "2026-10-30T18:26:10.215Z",
+  "platform": "Xpert source checkout",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "mode": "actual published Assistant + browser UI + persisted view API",
+  "fixtureData": true,
+  "fixtureModel": false,
+  "assistantId": "752652b7-7081-4811-a15a-ebba09411600",
+  "checks": {
+    "confirmedReopened": true,
+    "sourceAndBalancePreserved": true,
+    "humanSnapshotSeparate": true,
+    "retryAfterCancelledAndTimedOutAttempts": true,
+    "ambiguousTextDoesNotInventPromise": true
+  },
+  "records": [
+    {
+      "id": "d9ac6919-202d-42e4-9118-5b80415c2876",
+      "error": null,
+      "input": {
+        "source": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。",
+        "dueDate": "2026-10-25",
+        "customerName": "云帆设备（取消重试示例）",
+        "invoiceNumber": "AR-2026-RETRY-01",
+        "outstandingCents": 400000,
+        "communicationDate": "2026-10-31"
+      },
+      "status": "review",
+      "aiResult": {
+        "summary": "云帆设备（取消重试示例）就单据 AR-2026-RETRY-01（到期日 2026-10-25，未结金额 4,000.00 元）在 2026-10-31 沟通中明确承诺：于 2026-11-05 全额支付本笔四千元货款，为无条件承诺。",
+        "blockers": [],
+        "promises": [
+          {
+            "condition": "",
+            "amountCents": 400000,
+            "paymentDate": "2026-11-05",
+            "evidenceLineIds": [
+              1
+            ]
+          }
+        ],
+        "questions": [
+          "客户承诺的 4,000.00 元是否对应本单据全部未结金额（无其他扣减或争议）？",
+          "该笔款项已过到期日 2026-10-25，是否需在 2026-11-05 前做一次到期提醒？"
+        ],
+        "suggestedAction": "请销售内勤在工作台人工确认该承诺：客户口头承诺 2026-11-05 全额支付 4,000.00 元，建议在到期前一日设置提醒并核对到账；本记录仅为客户承诺，不代表已收款。"
+      },
+      "attempts": [
+        {
+          "id": "64e7238b-8e1d-429b-b5d8-74f05051233a",
+          "error": "user_cancelled",
+          "status": "failed",
+          "startedAt": "2026-10-30T18:25:32.951Z",
+          "finishedAt": "2026-10-30T18:25:33.191Z"
+        },
+        {
+          "id": "0d9d9236-e33c-4672-8c8f-45c5534dd064",
+          "error": null,
+          "status": "success",
+          "startedAt": "2026-10-30T18:25:43.509Z",
+          "finishedAt": "2026-10-30T18:25:47.072Z"
+        }
+      ],
+      "revision": 4,
+      "attemptId": "0d9d9236-e33c-4672-8c8f-45c5534dd064",
+      "confirmedAt": null,
+      "confirmedResult": null,
+      "sourceLines": [
+        {
+          "id": 1,
+          "text": "客户：本笔四千元货款，我们确定在2026年11月5日全额支付。"
+        }
+      ],
+      "warnings": [],
+      "createdAt": "2026-10-30T18:25:32.698Z",
+      "updatedAt": "2026-10-30T18:25:47.066Z"
+    },
+    {
+      "id": "9b64e9ca-984a-4fb7-a2ab-4586b31c6f49",
+      "error": null,
+      "input": {
+        "source": "客户：最近资金紧张，有钱了就安排。\n销售：能确认付款金额和日期吗？\n客户：现在不能承诺，等通知。",
+        "dueDate": "2026-10-20",
+        "customerName": "北辰贸易（模糊承诺示例）",
+        "invoiceNumber": "AR-2026-AMB-01",
+        "outstandingCents": 1250000,
+        "communicationDate": "2026-10-31"
+      },
+      "status": "review",
+      "aiResult": {
+        "summary": "北辰贸易（模糊承诺示例）就单据 AR-2026-AMB-01（到期日 2026-10-20，未结金额 12,500.00 元）在 2026-10-31 沟通中未给出明确付款承诺：客户称资金紧张、有钱再安排，并明确表示现在不能承诺金额和日期、等通知。",
+        "blockers": [
+          {
+            "description": "客户称近期资金紧张，付款需等资金到位后安排，未给出具体时间。",
+            "evidenceLineIds": [
+              1
+            ]
+          },
+          {
+            "description": "客户明确表示现在不能承诺付款金额和日期，需等其通知。",
+            "evidenceLineIds": [
+              3
+            ]
+          }
+        ],
+        "promises": [],
+        "questions": [
+          "客户所称“有钱了就安排”是否有可预期的资金到位时间？",
+          "客户“等通知”指由谁通知、预计何时给出付款安排？",
+          "本笔 12,500.00 元是否可分期或部分支付？",
+          "该笔款项已逾期（到期日 2026-10-20），是否需要升级催收或确认是否存在争议？"
+        ],
+        "suggestedAction": "请销售内勤在工作台人工确认：本次沟通无明确付款承诺，建议再次向客户索取具体付款金额与日期，并核实逾期原因及是否存在质量或对账争议；本记录不构成收款确认。"
+      },
+      "attempts": [
+        {
+          "id": "490803b9-6dd3-449d-9762-221528c7c7f7",
+          "error": null,
+          "status": "success",
+          "startedAt": "2026-10-30T18:19:33.687Z",
+          "finishedAt": "2026-10-30T18:19:38.418Z"
+        }
+      ],
+      "revision": 2,
+      "attemptId": "490803b9-6dd3-449d-9762-221528c7c7f7",
+      "confirmedAt": null,
+      "confirmedResult": null,
+      "sourceLines": [
+        {
+          "id": 1,
+          "text": "客户：最近资金紧张，有钱了就安排。"
+        },
+        {
+          "id": 2,
+          "text": "销售：能确认付款金额和日期吗？"
+        },
+        {
+          "id": 3,
+          "text": "客户：现在不能承诺，等通知。"
+        }
+      ],
+      "warnings": [
+        "balance_not_fully_scheduled",
+        "no_explicit_promise"
+      ],
+      "createdAt": "2026-10-30T18:19:33.455Z",
+      "updatedAt": "2026-10-30T18:19:38.416Z"
+    },
+    {
+      "id": "ab4e681f-e668-4780-b7df-5db5e89f4e7c",
+      "error": null,
+      "input": {
+        "source": "客户：这笔五万元货款，我们 11 月 6 日先付三万。\n客户：剩下的等验收单补齐再安排，你们先把盖章版发过来。\n销售：收到，我先协调验收单，余款日期再与您确认。",
+        "dueDate": "2026-10-25",
+        "customerName": "华东精密制造（示例）",
+        "invoiceNumber": "AR-2026-102",
+        "outstandingCents": 5000000,
+        "communicationDate": "2026-10-31"
+      },
+      "status": "confirmed",
+      "aiResult": {
+        "summary": "客户对 AR-2026-102（应收 50,000.00 元，到期日 2026-10-25）表示 11 月 6 日先付 30,000.00 元，余款以验收单补齐为条件、日期未定；销售已答应协调验收单并再确认余款日期。以上均为客户口头表述，未核实到账。",
+        "blockers": [
+          {
+            "description": "余款支付以验收单补齐为前提，验收单尚未提供，需内部协调",
+            "evidenceLineIds": [
+              2,
+              3
+            ]
+          },
+          {
+            "description": "客户要求先收到盖章版文件，尚未确认是否已发送",
+            "evidenceLineIds": [
+              2
+            ]
+          }
+        ],
+        "promises": [
+          {
+            "condition": "",
+            "amountCents": 3000000,
+            "paymentDate": "2026-11-06",
+            "evidenceLineIds": [
+              1
+            ]
+          },
+          {
+            "condition": "验收单补齐后安排，且需我方先发送盖章版文件",
+            "amountCents": null,
+            "paymentDate": null,
+            "evidenceLineIds": [
+              2,
+              3
+            ]
+          }
+        ],
+        "questions": [
+          "11 月 6 日先付的 30,000.00 元是否已确认付款方式与账户，是否需要我方提供盖章版收款通知？",
+          "验收单由哪一方出具、目前缺哪几项，预计何时补齐？",
+          "余款 20,000.00 元的具体付款日期客户未明确，需再次确认。",
+          "客户所称“五万元货款”是否即 AR-2026-102 全部应收 50,000.00 元，是否包含其他单据？"
+        ],
+        "suggestedAction": "请内勤先核实验收单缺口并安排盖章版文件发送，同时向客户书面确认 11 月 6 日 30,000.00 元的付款安排及余款日期；到账情况以银行流水为准，勿在系统中标记为已收款。"
+      },
+      "attempts": [
+        {
+          "id": "2c90f5c6-b024-4206-bf55-53d97416c72a",
+          "error": "user_cancelled",
+          "status": "failed",
+          "startedAt": "2026-10-30T18:06:14.408Z",
+          "finishedAt": "2026-10-30T18:08:04.501Z"
+        },
+        {
+          "id": "c573d5a5-ed0d-4e4b-9191-da23acb6b659",
+          "error": "analysis_timeout",
+          "status": "failed",
+          "startedAt": "2026-10-30T18:08:04.699Z",
+          "finishedAt": "2026-10-30T18:12:15.700Z"
+        },
+        {
+          "id": "5e0d9bb6-c5ce-49b2-886d-66df8828859c",
+          "error": "analysis_timeout",
+          "status": "failed",
+          "startedAt": "2026-10-30T18:12:15.906Z",
+          "finishedAt": "2026-10-30T18:15:05.500Z"
+        },
+        {
+          "id": "d11be5ea-35fa-4a36-81aa-0ef291c92ec9",
+          "error": null,
+          "status": "success",
+          "startedAt": "2026-10-30T18:15:05.709Z",
+          "finishedAt": "2026-10-30T18:15:11.278Z"
+        }
+      ],
+      "revision": 9,
+      "attemptId": "d11be5ea-35fa-4a36-81aa-0ef291c92ec9",
+      "confirmedAt": "2026-10-30T18:18:06.801Z",
+      "confirmedResult": {
+        "note": "已核对客户原话；11月2日协调盖章验收单，并再次确认余款日期。",
+        "analysis": {
+          "summary": "11月6日先付3万元；余款待补齐盖章验收单后进一步确认。人工已核对。",
+          "blockers": [
+            {
+              "description": "余款支付以验收单补齐为前提，验收单尚未提供，需内部协调",
+              "evidenceLineIds": [
+                2,
+                3
+              ]
+            },
+            {
+              "description": "客户要求先收到盖章版文件，尚未确认是否已发送",
+              "evidenceLineIds": [
+                2
+              ]
+            }
+          ],
+          "promises": [
+            {
+              "condition": "",
+              "amountCents": 3000000,
+              "paymentDate": "2026-11-06",
+              "evidenceLineIds": [
+                1
+              ]
+            },
+            {
+              "condition": "验收单补齐后安排，且需我方先发送盖章版文件",
+              "amountCents": null,
+              "paymentDate": null,
+              "evidenceLineIds": [
+                2,
+                3
+              ]
+            }
+          ],
+          "questions": [
+            "11 月 6 日先付的 30,000.00 元是否已确认付款方式与账户，是否需要我方提供盖章版收款通知？",
+            "验收单由哪一方出具、目前缺哪几项，预计何时补齐？",
+            "余款 20,000.00 元的具体付款日期客户未明确，需再次确认。",
+            "客户所称“五万元货款”是否即 AR-2026-102 全部应收 50,000.00 元，是否包含其他单据？"
+          ],
+          "suggestedAction": "请内勤先核实验收单缺口并安排盖章版文件发送，同时向客户书面确认 11 月 6 日 30,000.00 元的付款安排及余款日期；到账情况以银行流水为准，勿在系统中标记为已收款。"
+        },
+        "nextFollowupDate": "2026-11-02"
+      },
+      "sourceLines": [
+        {
+          "id": 1,
+          "text": "客户：这笔五万元货款，我们 11 月 6 日先付三万。"
+        },
+        {
+          "id": 2,
+          "text": "客户：剩下的等验收单补齐再安排，你们先把盖章版发过来。"
+        },
+        {
+          "id": 3,
+          "text": "销售：收到，我先协调验收单，余款日期再与您确认。"
+        }
+      ],
+      "warnings": [
+        "balance_not_fully_scheduled",
+        "incomplete_promise",
+        "conditional_payment"
+      ],
+      "createdAt": "2026-10-30T18:06:14.117Z",
+      "updatedAt": "2026-10-30T18:18:06.796Z"
+    }
+  ]
+}
