@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "types": ["node", "react", "react-dom"],
+    "rootDir": "../../../"
+  },
+  "include": ["src/lib/remote-components/**/*.tsx", "src/lib/remote-components/**/*.ts"]
+}

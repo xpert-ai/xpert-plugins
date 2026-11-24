@@ -1,0 +1,87 @@
+{
+  "name": "@xpert-ai/plugin-vehicle-pickup",
+  "version": "0.1.0",
+  "description": "Conversational vehicle pickup request app with server-side validation, approval workflow and mock carrier execution.",
+  "author": {
+    "name": "TTDNR"
+  },
+  "license": "AGPL-3.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/vehicle-pickup"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "vehicle_pickup"
+    }
+  },
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "README.md",
+    "docs",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
+    "test": "pnpm run build && tsc -p tsconfig.spec.json --noEmit && node --test tests/*.test.mjs",
+    "lint": "tsc -p tsconfig.spec.json --noEmit",
+    "verify:api": "node scripts/verify-local-api.mjs",
+    "verify:workflow": "node scripts/verify-workflow.mjs",
+    "verify:execution-clear": "node scripts/verify-execution-clear.mjs",
+    "setup:model": "node scripts/setup-local-model.mjs",
+    "install:assistant": "node scripts/install-assistant.mjs"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "yaml": ">=2.0.0",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/node": "^20.19.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "^0.28.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "yaml": "^2.8.1",
+    "zod": "3.25.67"
+  }
+}
