@@ -52,7 +52,7 @@ test('DataXpert schema discovery feeds real dashboard tool validation and previe
       return normalizeAnalyticsResult(input.binding, await provider.execute(input.binding, parameters, context), 'fixture-preview', 100)
     }
   }
-  const middleware = new DashboardMiddleware(service).createMiddleware({}, { ...actor, xpertId: uuid(7) })
+  const middleware = new DashboardMiddleware(service).createMiddleware({}, { ...actor, xpertId: uuid(7), projectId: uuid(9) })
   const invoke = (name, input) => middleware.tools.find(tool => tool.name === name).invoke(input)
   const payload = { resourceId: 'fixture-resource', actionTypeCode: 'mdx.query_cube_slice',
     target: { entityTypeCode: 'semantic_cube', entityRef: 'fixture::cube' },

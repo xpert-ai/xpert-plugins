@@ -43,3 +43,5 @@ Malformed, sensitive, oversized or unfinished bodies use the existing status-onl
 Parameter mapping failures use provider-authored repair guidance without echoing values.
 
 Structured diagnostics require `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` 3.32.0 or a compatible later 3.x release.
+
+For organization model setup, an organization without a configured built-in ontology Assistant can register a dedicated business Assistant with code `analytics-reader-<organization UUID>` and organization scope. Bind only the published resources the reader may inspect. Data Xpert checks the signed-in user's access and the reader's resource grants during discovery and queries.

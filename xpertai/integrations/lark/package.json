@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.3.7",
+  "version": "0.4.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -31,16 +31,16 @@
   },
   "devDependencies": {
     "@xpert-ai/chatkit-types": "0.3.11",
-    "@xpert-ai/contracts": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-contracts-3.36.0-outbox.5.tgz",
-    "@xpert-ai/plugin-sdk": "file:../../../packages/event-inbox-sdk-snapshot/xpert-ai-plugin-sdk-3.36.0-outbox.5.tgz",
+    "@xpert-ai/contracts": "3.38.0",
+    "@xpert-ai/plugin-sdk": "3.38.0",
     "@types/express": "^5.0.6",
     "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.3.11",
-    "@xpert-ai/contracts": "^3.37.0 || 3.36.0-outbox.5",
-    "@xpert-ai/plugin-sdk": "^3.37.0 || 3.36.0-outbox.5",
+    "@xpert-ai/contracts": "^3.37.0",
+    "@xpert-ai/plugin-sdk": "^3.37.0",
     "i18next": "25.6.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",

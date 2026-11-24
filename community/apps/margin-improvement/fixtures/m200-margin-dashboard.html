@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>M200 毛利改善｜本体经营看板</title>
+<style>
+:root{color-scheme:light;--paper:#fff;--rail:#f1f6fc;--control:#f7f9fc;--ink:#182d44;--muted:#566a7e;--line:#dce4ed;--blue:#2868b2;--teal:#137c71;--red:#b83c47;--selected:#eaf2fc;--focus:#2563eb;--shadow:0 8px 24px #182d441a;--radius:10px}
+body.dark{color-scheme:dark;--paper:#142231;--rail:#1b2e40;--control:#203448;--ink:#edf3f9;--muted:#b3c3d4;--line:#3e5368;--blue:#8bb9f0;--teal:#72cabc;--red:#ff9da6;--selected:#294662;--focus:#9bc1ff;--shadow:0 8px 24px #0005}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 system-ui,"PingFang SC",sans-serif}button,select{font:inherit}p,h1,h2{margin:0}h1{font-size:26px;font-weight:650;line-height:1.35;letter-spacing:-.5px}h2{font-size:18px;line-height:1.4;font-weight:650;letter-spacing:-.25px}.workspace{display:grid;grid-template-columns:minmax(240px,22%) minmax(0,1fr);min-height:100vh}.metric-rail{min-width:0;padding:28px 26px;background:var(--rail);border-right:1px solid var(--line)}.demo{display:block;margin-bottom:10px;font-size:12px;color:var(--muted)}.description{margin-top:10px;color:var(--muted)}.metrics{display:grid;grid-template-columns:1fr 1fr;margin-top:28px}.metric{grid-column:1/-1;min-width:0;padding:24px 0;border-top:1px solid var(--line)}.metric p{font-size:14px;font-weight:550;color:var(--muted)}.metric output{display:block;margin:5px 0;font-size:clamp(28px,2.7vw,40px);font-weight:650;line-height:1.2;letter-spacing:-1px;font-variant-numeric:tabular-nums}.metric small{display:block;font-size:12px;line-height:1.5;color:var(--muted)}.metric:nth-last-child(-n+2){grid-column:auto;padding-right:12px}.metric:nth-last-child(-n+2) output{font-size:28px}.metric:last-child{padding-left:16px;padding-right:0}.analysis{min-width:0}.filters{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;padding:14px 28px 18px}.filter-field{min-width:0;width:150px}.filter-field>label{font-size:12px;color:var(--muted)}.filter-field>select{width:100%;min-height:44px}.filter-field.is-enhanced>label,.filter-field.is-enhanced>select{display:none}.filter-trigger{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:8px 13px;text-align:left;border:1px solid var(--line);border-radius:var(--radius);background:var(--control);cursor:pointer;transition:border-color .14s,background .14s}.filter-copy{display:grid;gap:3px;min-width:0;flex:1}.filter-caption{color:var(--muted);font-size:12px;line-height:1.3}.filter-value{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.filter-trigger svg{flex:none;width:16px;height:16px;transition:transform .14s}.filter-trigger[aria-expanded="true"]{border-color:var(--focus);box-shadow:0 0 0 2px color-mix(in srgb,var(--focus) 12%,transparent)}.filter-trigger[aria-expanded="true"]>svg{transform:rotate(180deg)}.filter-trigger:hover:not(:disabled){border-color:var(--blue)}.filter-trigger:disabled{opacity:.6;cursor:wait}button:focus-visible,.table-scroll:focus-visible{outline:2px solid var(--focus);outline-offset:3px}.filter-menu{position:fixed;z-index:100;width:200px;max-height:280px;overflow-y:auto;padding:6px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.filter-menu[hidden]{display:none}.filter-option{display:flex;align-items:center;gap:10px;min-height:40px;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px}.filter-option>span{flex:1}.filter-option svg{width:16px;height:16px;opacity:0}.filter-option[aria-selected="true"]{color:var(--blue);font-weight:600;background:var(--selected)}.filter-option[aria-selected="true"] svg{opacity:1}.filter-option[data-active="true"]{outline:1px solid var(--blue);outline-offset:-1px}.hero{padding:10px 28px 22px}.note{margin-top:5px;color:var(--muted);font-size:12px}.chart-heading{margin:18px 0 2px;color:var(--blue);font-size:14px;font-weight:600}.chart-heading.profit{color:var(--teal)}.chart{min-width:0;height:230px}.lower-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);border-top:1px solid var(--line)}.region-panel,.details{padding:20px 28px;min-width:0}.lower-grid>.details{border-left:1px solid var(--line)}.region-panel .chart{height:220px;margin-top:12px}.table-scroll{overflow:auto;max-height:380px;margin-top:16px}table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:right}th{color:var(--muted);font-size:12px;font-weight:500;background:var(--control);position:sticky;top:0;z-index:1}th:first-child,td:first-child{text-align:left}td:first-child{font-weight:500}tbody tr:hover{background:var(--control)}.negative{color:var(--red)}.status{padding:0 28px;min-height:22px;color:var(--muted);font-size:12px}.status.error{color:var(--red)}footer{grid-column:1/-1;display:flex;justify-content:space-between;gap:16px;padding:10px 24px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}@media(max-width:1100px){.workspace{grid-template-columns:218px minmax(0,1fr)}.metric-rail{padding:24px 20px}.metric output{font-size:29px}.lower-grid{grid-template-columns:1fr}.lower-grid>.details{border-left:0;border-top:1px solid var(--line)}}@media(max-width:680px){.workspace{display:block}.metric-rail{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:24px}.metrics{grid-template-columns:1fr 1fr;margin-top:18px;gap:0 18px}.metric{grid-column:auto;padding:16px 0}.metric:first-child{grid-column:1/-1}.metric:first-child output{font-size:36px}.metric output,.metric:nth-last-child(-n+2) output{font-size:26px}.metric:last-child{padding-left:0}.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:16px}.filter-field{width:auto}.filter-trigger{padding:8px;gap:4px;min-height:58px}.filter-value{font-size:13px}.hero,.region-panel,.details{padding:16px}.status{padding-left:16px;padding-right:16px}footer{flex-direction:column;gap:4px;padding:12px 16px}}
+</style>
+</head>
+<body>
+<main class="workspace">
+<aside class="metric-rail">
+<header><span class="demo">合成演示数据；复查为预置样本，不代表实际改善或因果效果</span><h1>M200 毛利改善｜本体经营看板</h1><p class="description">当期实际毛利率、预算、偏差百分点与材料成本差额。</p></header>
+<section class="metrics" aria-label="主要指标">
+<div class="metric"><p>当期实际毛利率</p><output id="kpi-actual-margin">—</output><small>所选阶段最新月份</small></div>
+<div class="metric"><p>预算毛利率</p><output id="kpi-budget-margin">—</output><small>统一预算口径</small></div>
+<div class="metric"><p>偏差（百分点）</p><output id="kpi-deviation">—</output><small>实际减预算</small></div>
+<div class="metric"><p>材料成本差额（元）</p><output id="kpi-material-diff">—</output><small>实际减预算</small></div>
+</section>
+</aside>
+<div class="analysis">
+<div class="filters" aria-label="分析筛选">
+<div class="filter-field"><label for="filter-stage">阶段</label><select id="filter-stage" data-dashboard-control="stage" disabled></select></div>
+<button id="refresh-data" type="button" style="margin-left:12px;padding:8px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--control);cursor:pointer;font-weight:600;">刷新数据</button>
+</div>
+<section class="hero"><h2>月度实际/预算趋势</h2><p class="note">受阶段选择影响</p><h3 class="chart-heading">毛利率 (%)</h3><div id="chart-trend" class="chart" role="img" aria-label="趋势"></div></section>
+<div class="lower-grid">
+<section class="region-panel"><h2>2026-11 基线/复查对比</h2><p class="note">固定月份，不受阶段选择影响</p><div id="chart-comparison" class="chart" role="img" aria-label="对比"></div></section>
+<section class="details"><h2>采购价差与订单明细（2026-11）</h2><div class="table-scroll" tabindex="0" role="region" aria-label="订单明细"><table><thead><tr><th>订单</th><th>供应商</th><th>物料</th><th>数量</th><th>实际价</th><th>预算价</th><th>超额成本</th></tr></thead><tbody id="purchase-rows"></tbody></table></div></section>
+</div>
+<p id="status" class="status" role="status">正在加载…</p>
+</div>
+<footer><span>制造业经营改善 · Data Xpert 本体（合成演示）</span><span id="freshness">尚无当前查询结果</span></footer>
+</main>
+<script>
+const dashboardThemeIcons={"chevronDown":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-down\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 9 6 6 6-6\"></path></svg>","check":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 6 9 17l-5-5\"></path></svg>"};
+function dashboardThemeIcon(name){const t=document.createElement('template');t.innerHTML=dashboardThemeIcons[name];return t.content.firstElementChild.cloneNode(true);}
+function enhanceDashboardSelect(select){const field=select.closest('.filter-field');const label=field.querySelector('label').textContent;const button=document.createElement('button');button.type='button';button.id=select.id+'-trigger';button.className='filter-trigger';button.setAttribute('role','combobox');button.setAttribute('aria-haspopup','listbox');button.setAttribute('aria-expanded','false');const copy=document.createElement('span');copy.className='filter-copy';const caption=document.createElement('span');caption.className='filter-caption';caption.textContent=label;const value=document.createElement('span');value.className='filter-value';copy.append(caption,value);button.append(copy,dashboardThemeIcon('chevronDown'));const menu=document.createElement('div');menu.id=select.id+'-listbox';menu.className='filter-menu';menu.hidden=true;menu.setAttribute('role','listbox');menu.setAttribute('aria-label',label);button.setAttribute('aria-controls',menu.id);let active=0;const options=[...select.options].map((option,index)=>{const item=document.createElement('div');item.id=select.id+'-option-'+index;item.className='filter-option';item.setAttribute('role','option');const text=document.createElement('span');text.textContent=option.textContent;item.append(text,dashboardThemeIcon('check'));item.addEventListener('pointerdown',e=>e.preventDefault());item.addEventListener('pointermove',()=>highlight(index));item.addEventListener('click',()=>choose(index));menu.append(item);return item;});
+function sync(){value.textContent=select.selectedOptions[0]?.textContent??'';button.setAttribute('aria-label',label+'：'+value.textContent);button.disabled=select.disabled;options.forEach((item,i)=>item.setAttribute('aria-selected',String(i===select.selectedIndex)));if(select.disabled)close(false);}
+function position(){if(menu.hidden)return;const rect=button.getBoundingClientRect();const width=Math.min(Math.max(rect.width,190),innerWidth-16);menu.style.width=width+'px';menu.style.left=Math.min(Math.max(8,rect.left),innerWidth-width-8)+'px';menu.style.maxHeight=Math.min(280,innerHeight-16)+'px';const height=menu.offsetHeight;const top=rect.bottom+6+height<=innerHeight-8?rect.bottom+6:Math.max(8,rect.top-height-6);menu.style.top=top+'px';}
+function highlight(index){active=Math.max(0,Math.min(index,options.length-1));options.forEach((item,i)=>item.dataset.active=String(i===active));button.setAttribute('aria-activedescendant',options[active].id);options[active].scrollIntoView({block:'nearest'});}
+function open(index=select.selectedIndex){if(button.disabled||!options.length)return;document.dispatchEvent(new CustomEvent('dashboard-select-open',{detail:button.id}));menu.hidden=false;button.setAttribute('aria-expanded','true');position();highlight(index);}
+function close(restoreFocus=false){menu.hidden=true;button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');if(restoreFocus&&!button.disabled)button.focus();}
+function choose(index){if(select.disabled||select.options[index].disabled)return;const changed=select.selectedIndex!==index;select.selectedIndex=index;sync();close(true);if(changed)select.dispatchEvent(new Event('change',{bubbles:true}));}
+button.addEventListener('click',()=>menu.hidden?open():close());
+button.addEventListener('keydown',event=>{const{key}=event;if(key==='Tab'){close();return;}if(key==='Escape'){if(!menu.hidden){event.preventDefault();close(true);}return;}if(['ArrowDown','ArrowUp','Home','End'].includes(key)){event.preventDefault();if(menu.hidden)open(key==='Home'?0:key==='End'?options.length-1:select.selectedIndex);else highlight(key==='Home'?0:key==='End'?options.length-1:active+(key==='ArrowDown'?1:-1));return;}if(key==='Enter'||key===' '){event.preventDefault();menu.hidden?open():choose(active);return;}});
+select.addEventListener('change',sync);
+document.addEventListener('pointerdown',event=>{if(!field.contains(event.target)&&!menu.contains(event.target))close();});
+document.addEventListener('dashboard-select-open',event=>{if(event.detail!==button.id)close();});
+document.addEventListener('focusin',event=>{if(!field.contains(event.target)&&!menu.contains(event.target))close();});
+window.addEventListener('resize',position);window.addEventListener('scroll',position,true);
+new MutationObserver(sync).observe(select,{attributes:true,attributeFilter:['disabled']});
+field.append(button);document.body.append(menu);field.classList.add('is-enhanced');select.hidden=true;sync();return{sync,close};}
+</script><script>
+const TrendWorkspaceCharts=(()=>{function tokens(){const s=getComputedStyle(document.body);return Object.fromEntries(['ink','muted','line','blue','teal','red'].map(k=>[k,s.getPropertyValue('--'+k).trim()]));}const compact=v=>Math.abs(v)>=1e6?(v/1e6)+'m':Math.abs(v)>=1e3?(v/1e3)+'k':String(v);function axis(){const t=tokens();return{axisLabel:{color:t.muted,fontSize:11},nameTextStyle:{color:t.muted},axisTick:{show:false},axisLine:{lineStyle:{color:t.line}},splitLine:{lineStyle:{color:t.line}}};}function line(chart,rows,{dimension,measure,label,color='blue'}){const t=tokens(),a=axis();chart.setOption({animation:false,aria:{enabled:true},textStyle:{fontFamily:'system-ui,sans-serif'},grid:{left:48,right:34,top:14,bottom:28},color:[t[color]],tooltip:{trigger:'axis',confine:true},xAxis:{...a,type:'category',boundaryGap:false,data:rows.map(r=>r[dimension]),splitLine:{show:false},axisLabel:{...a.axisLabel,hideOverlap:true,showMaxLabel:true}},yAxis:{...a,type:'value',axisLabel:{...a.axisLabel,formatter:compact}},series:[{id:measure,name:label,type:'line',smooth:false,showSymbol:false,lineStyle:{width:2},...(color==='blue'?{areaStyle:{opacity:.045}}:{}),data:rows.map(r=>Number(r[measure])),...(rows.some(r=>Number(r[measure])<0)?{markLine:{silent:true,symbol:'none',label:{show:false},lineStyle:{color:t.muted,type:'dashed',width:1},data:[{yAxis:0}]}}:{})}]},{notMerge:true});}function horizontal(chart,rows,{dimension,measure,label,color='blue',decimals=2}){const t=tokens(),a=axis();const narrow=chart.getWidth()<450;chart.setOption({animation:false,aria:{enabled:true},grid:{left:narrow?78:96,right:narrow?70:92,top:8,bottom:26},tooltip:{trigger:'axis',confine:true,axisPointer:{type:'shadow'}},xAxis:{...a,type:'value',splitNumber:4,axisLabel:{...a.axisLabel,formatter:compact}},yAxis:{...a,type:'category',inverse:true,data:rows.map(r=>r[dimension]),splitLine:{show:false},axisLine:{show:false},axisLabel:{...a.axisLabel,width:narrow?72:90,overflow:'truncate'}},series:[{id:measure,name:label,type:'bar',barMaxWidth:20,label:{show:true,position:'right',color:t.ink,fontSize:11,formatter:item=>new Intl.NumberFormat('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals}).format(item.value)},data:rows.map(r=>({value:Number(r[measure]),itemStyle:{color:Number(r[measure])<0?t.red:t[color]},...(Number(r[measure])<0)?{label:{position:'right',color:t.red}}:{}}))}]},{notMerge:true});}return{line,horizontal};})();
+</script>
+<script>
+(async()=>{
+const live=window.xpertLiveArtifact;
+const bindingIds=['margin_trend','margin_comparison','purchase_facts'];
+const controls={stage:'baseline'};
+const datasets={};
+const trendChart=echarts.init(document.getElementById('chart-trend'),null,{renderer:'svg'});
+const compChart=echarts.init(document.getElementById('chart-comparison'),null,{renderer:'svg'});
+const statusEl=document.getElementById('status');
+const freshnessEl=document.getElementById('freshness');
+const select=document.getElementById('filter-stage');
+
+function renderKPIs(){
+  const trendRows=datasets['margin_trend']?.rows||[];
+  if(!trendRows.length){document.getElementById('kpi-actual-margin').textContent='—';document.getElementById('kpi-budget-margin').textContent='—';document.getElementById('kpi-deviation').textContent='—';document.getElementById('kpi-material-diff').textContent='—';return;}
+  const sorted=[...trendRows].sort((a,b)=>a.Period.localeCompare(b.Period));
+  const last=sorted[sorted.length-1]||{};
+  const actual=toFinite(last.ActualMargin);
+  const budget=toFinite(last.BudgetMargin);
+  const matCost=toFinite(last.MaterialCost);
+  const budCost=toFinite(last.BudgetCost);
+  const actualMarginPct=isFinite(actual)?actual.toFixed(1)+'%':'—';
+  const budgetMarginPct=isFinite(budget)?budget.toFixed(1)+'%':'—';
+  const deviation=isFinite(actual)&&isFinite(budget)?(actual-budget).toFixed(1):'—';
+  const matDiff=isFinite(matCost)&&isFinite(budCost)?(matCost-budCost).toLocaleString('en-US'):'—';
+  document.getElementById('kpi-actual-margin').textContent=actualMarginPct;
+  document.getElementById('kpi-budget-margin').textContent=budgetMarginPct;
+  const devEl=document.getElementById('kpi-deviation');
+  devEl.textContent=deviation!=='—'?deviation+'pp':'—';
+  devEl.style.color=deviation!=='—'&&Number(deviation)<0?'var(--red)':'var(--teal)';
+  const matEl=document.getElementById('kpi-material-diff');
+  matEl.textContent=matDiff;
+  matEl.style.color=matDiff!=='—'&&Number(matDiff.replace(/,/g,''))>0?'var(--red)':'var(--teal)';
+}
+
+const toFinite=v=>(v!=null&&v!==''&&isFinite(Number(v)))?Number(v):NaN;
+
+function renderTrend(){
+  const rows=datasets['margin_trend']?.rows||[];
+  if(!rows.length){trendChart.clear();return;}
+  const sorted=[...rows].sort((a,b)=>a.Period.localeCompare(b.Period));
+  const t=getComputedStyle(document.body);
+  trendChart.setOption({animation:false,aria:{enabled:true},textStyle:{fontFamily:'system-ui,sans-serif'},grid:{left:48,right:34,top:36,bottom:28},color:[t.getPropertyValue('--blue'),t.getPropertyValue('--teal')],legend:{data:['实际毛利率','预算毛利率'],top:0,textStyle:{fontSize:12,color:t.getPropertyValue('--muted')}},tooltip:{trigger:'axis',confine:true},xAxis:{type:'category',boundaryGap:false,data:sorted.map(r=>r.Period),splitLine:{show:false},axisLabel:{color:t.getPropertyValue('--muted'),fontSize:11}},yAxis:{type:'value',axisLabel:{color:t.getPropertyValue('--muted'),fontSize:11}},series:[{id:'actual',name:'实际毛利率',type:'line',smooth:false,showSymbol:true,itemStyle:{color:t.getPropertyValue('--blue')},lineStyle:{width:2},data:sorted.map(r=>toFinite(r.ActualMargin))},{id:'budget',name:'预算毛利率',type:'line',smooth:false,showSymbol:true,itemStyle:{color:t.getPropertyValue('--teal')},lineStyle:{width:2},data:sorted.map(r=>toFinite(r.BudgetMargin))}]},{notMerge:true});
+}
+
+function renderComparison(){
+  const rows=datasets['margin_comparison']?.rows||[];
+  if(!rows.length){compChart.clear();return;}
+  const t=getComputedStyle(document.body);
+  compChart.setOption({animation:false,aria:{enabled:true},grid:{left:96,right:92,top:36,bottom:26},color:[t.getPropertyValue('--blue'),t.getPropertyValue('--teal')],legend:{data:['实际','预算'],top:0,textStyle:{fontSize:12,color:t.getPropertyValue('--muted')}},tooltip:{trigger:'axis',confine:true,axisPointer:{type:'shadow'}},xAxis:{type:'value',splitNumber:4,axisLabel:{color:t.getPropertyValue('--muted'),fontSize:11}},yAxis:{type:'category',inverse:true,data:rows.map(r=>r.Stage==='baseline'?'基线':'复查'),splitLine:{show:false},axisLine:{show:false},axisLabel:{color:t.getPropertyValue('--muted'),fontSize:11}},series:[{id:'comp_actual',name:'实际',type:'bar',barMaxWidth:20,label:{show:true,position:'right',color:t.getPropertyValue('--ink'),fontSize:11,formatter:item=>isFinite(item.value)?item.value.toFixed(1)+'%':''},data:rows.map((r,i)=>({value:toFinite(r.ActualMargin),itemStyle:{color:t.getPropertyValue('--blue')}}))},{id:'comp_budget',name:'预算',type:'bar',barMaxWidth:20,label:{show:true,position:'right',color:t.getPropertyValue('--ink'),fontSize:11,formatter:item=>isFinite(item.value)?item.value.toFixed(1)+'%':''},data:rows.map((r,i)=>({value:toFinite(r.BudgetMargin),itemStyle:{color:t.getPropertyValue('--teal')}}))}]},{notMerge:true});
+}
+
+function renderPurchase(){
+  const rows=datasets['purchase_facts']?.rows||[];
+  const tbody=document.getElementById('purchase-rows');
+  tbody.innerHTML='';
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7">无数据</td></tr>';return;}
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    const excess=Number(r.ExcessCost);
+    const td1=document.createElement('td');td1.textContent=r.PurchaseOrder||'';tr.appendChild(td1);
+    const td2=document.createElement('td');td2.textContent=r.Supplier||'';tr.appendChild(td2);
+    const td3=document.createElement('td');td3.textContent=r.Material||'';tr.appendChild(td3);
+    const td4=document.createElement('td');td4.textContent=r.Quantity??'—';tr.appendChild(td4);
+    const td5=document.createElement('td');td5.textContent=r.ActualPrice??'—';tr.appendChild(td5);
+    const td6=document.createElement('td');td6.textContent=r.BudgetPrice??'—';tr.appendChild(td6);
+    const td7=document.createElement('td');const excessVal=toFinite(r.ExcessCost);td7.textContent=isFinite(excessVal)?excessVal.toLocaleString('en-US'):'';if(isFinite(excessVal)&&excessVal>0)td7.className='negative';tr.appendChild(td7);
+    tbody.appendChild(tr);
+  });
+}
+
+function updateAll(){
+  renderKPIs();renderTrend();renderComparison();renderPurchase();
+  const now=new Date();
+  const ts=datasets['margin_trend']?.freshness?.executedAt||datasets['margin_comparison']?.freshness?.executedAt||datasets['purchase_facts']?.freshness?.executedAt;
+  freshnessEl.textContent=ts?'最后更新：'+new Date(ts).toLocaleTimeString('zh-CN'):'尚无当前查询结果';
+}
+
+for(const id of bindingIds){
+  live.subscribe(id,dataset=>{
+    datasets[id]=dataset;
+    updateAll();
+  });
+}
+
+await live.ready();
+const stageOptions=[{value:'baseline',label:'基线'},{value:'review',label:'复查'}];
+stageOptions.forEach(opt=>{select.add(new Option(opt.label,JSON.stringify(opt.value)));});
+select.value=JSON.stringify(controls.stage);
+enhanceDashboardSelect(select);
+
+async function loadAll(){
+  statusEl.textContent='正在加载数据…';
+  statusEl.classList.remove('error');
+  const results=await Promise.allSettled(bindingIds.map(id=>live.query(id,id==='margin_trend'?{...controls}:{ })));
+  results.forEach((res,i)=>{
+    if(res.status==='rejected'){
+      datasets[bindingIds[i]]=null;
+      updateAll();
+    }
+  });
+  if(results.every(r=>r.status==='fulfilled'))statusEl.textContent='';
+  else{statusEl.textContent='部分数据加载失败';statusEl.classList.add('error');}
+}
+
+select.addEventListener('change',()=>{
+  controls.stage=JSON.parse(select.value);
+  statusEl.textContent='正在刷新…';
+  statusEl.classList.remove('error');
+  select.disabled=true;
+  datasets['margin_trend']=null;
+  renderKPIs();renderTrend();
+  live.query('margin_trend',{...controls}).then(()=>{statusEl.textContent='';}).catch(e=>{statusEl.textContent='趋势查询失败';statusEl.classList.add('error');}).finally(()=>{select.disabled=false;});
+});
+
+document.getElementById('refresh-data').addEventListener('click',async()=>{
+  const refresh=document.getElementById('refresh-data');
+  refresh.disabled=true;
+  select.disabled=true;
+  statusEl.textContent='正在刷新…';
+  statusEl.classList.remove('error');
+  const results=await Promise.allSettled(bindingIds.map(id=>live.refresh(id)));
+  results.forEach((result,i)=>{if(result.status==='rejected')datasets[bindingIds[i]]=null;});
+  updateAll();
+  const failed=results.some(result=>result.status==='rejected');
+  statusEl.textContent=failed?'部分查询失败，请刷新重试':'';
+  statusEl.classList.toggle('error',failed);
+  refresh.disabled=false;
+  select.disabled=false;
+});
+
+await loadAll();
+select.disabled=false;
+
+[trendChart,compChart].forEach(chart=>{
+  new ResizeObserver(()=>chart.resize()).observe(chart.getDom());
+});
+
+// Data is redrawn by live subscriptions after every query and refresh.
+})();
+</script>
+</body>
+</html>

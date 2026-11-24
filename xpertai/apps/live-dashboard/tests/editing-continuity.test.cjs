@@ -1,12 +1,46 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { randomUUID } = require('node:crypto')
-const { ToolMessage } = require('@langchain/core/messages')
+const { AIMessage, HumanMessage, ToolMessage } = require('@langchain/core/messages')
 const { DashboardMiddleware } = require('../dist/lib/middleware.js')
 const { editingSession } = require('../dist/lib/editing-session.js')
 const { upsertComponents, assertHtmlPreserved } = require('../dist/lib/editing-patch.js')
 const example = require('../examples/postgres-sales.json')
-const scope = { tenantId: 'tenant', organizationId: 'org', userId: 'owner', xpertId: 'assistant', conversationId: 'conversation', threadId: 'branch' }
+const scope = { projectId: 'project', tenantId: 'tenant', organizationId: 'org', userId: 'owner', xpertId: 'assistant', conversationId: 'conversation', threadId: 'branch' }
+
+test('a delivered draft informs the next model call and repeated reads leave other work available', async () => {
+  const middleware = new DashboardMiddleware({ maxBindings: 8 }).createMiddleware({}, scope)
+  const artifactId = randomUUID()
+  const tool = (name, value) => new ToolMessage({ name, content: JSON.stringify(value), tool_call_id: randomUUID() })
+  const saved = tool('dashboard_create', { dashboard: { artifactId, draftRevision: 1, status: 'draft' }, resourceCard: { status: 'emitted' } })
+  const read = (id = artifactId) => tool('dashboard_open', { artifactId: id, state: 'draft', expectedRevision: 1 })
+  const tools = [{ name: 'dashboard_open' }, { name: 'dashboard_update' }, { name: 'another_capability' }]
+  const openCall = args => ({ name: 'dashboard_open', args, id: 'open', type: 'tool_call' })
+  const invoke = async (messages, calls, content = '') => {
+    const response = new AIMessage({ content, tool_calls: calls, usage_metadata: { input_tokens: 4, output_tokens: 2, total_tokens: 6 } })
+    let captured
+    const result = await middleware.wrapModelCall({ messages, tools }, async request => { captured = request; return response })
+    assert.deepEqual(captured.tools, tools)
+    return { result, prompt: JSON.stringify(captured.systemMessage.content) }
+  }
+  const calls = [openCall({ artifactId })]
+  assert.match((await invoke([saved], calls)).prompt, /card has already been delivered/)
+  const checked = await invoke([saved, read()], calls, [{ type: 'text', text: '已保存' }])
+  assert.deepEqual(checked.result.tool_calls, [])
+  assert.equal(checked.result.content, '已保存')
+  assert.equal(checked.result.usage_metadata.total_tokens, 6)
+  assert.match((await invoke([saved, read()], calls)).result.content, /Draft r1/)
+  for (const messages of [[saved], [saved, read(randomUUID())], [saved, read(), tool('another_capability', {})],
+    [saved, tool('dashboard_open', { artifactId, state: 'draft', expectedRevision: 2 })],
+    [saved, read(), new HumanMessage('inspect again')]]) {
+    assert.deepEqual((await invoke(messages, calls)).result.tool_calls, calls)
+  }
+  for (const distinct of [[openCall({ artifactId: randomUUID() })], [openCall({ artifactId, versionId: randomUUID() })],
+    [...calls, { name: 'another_capability', args: {}, id: 'other', type: 'tool_call' }]]) {
+    assert.deepEqual((await invoke([saved, read()], distinct)).result.tool_calls, distinct)
+  }
+  assert.doesNotMatch((await invoke([saved, new HumanMessage('next task')], [])).prompt, /card has already been delivered/)
+})
 
 test('checkpoint target restores only in the same authorized conversation; explicit selection and New win', () => {
   const a = { schemaVersion: 1, artifactId: randomUUID(), draftRevision: 2 }, b = { schemaVersion: 1, artifactId: randomUUID() }

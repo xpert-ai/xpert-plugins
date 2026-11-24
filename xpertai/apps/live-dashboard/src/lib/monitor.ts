@@ -4,7 +4,7 @@ import { z } from 'zod/v3'
 import { AgentMiddlewareStrategy, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import type { TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { DashboardService } from './dashboard.service'
-import { dashboardRuntimeContext } from './runtime-context'
+import { dashboardProjectTools, dashboardRuntimeContext } from './runtime-context'
 import { dashboardIcon } from './dashboard-icon'
 
 const freshnessRuleSchema = z.object({ bindingId: z.string().min(1), fieldId: z.string().min(1), maxAgeSeconds: z.number().int().min(1).max(31536000) }).strict()
@@ -44,7 +44,7 @@ export class DashboardMonitorMiddleware implements IAgentMiddlewareStrategy {
   createMiddleware(options: unknown, context: IAgentMiddlewareContext): AgentMiddleware {
     z.object({}).strict().parse(options ?? {})
     const scope = dashboardRuntimeContext(context)
-    return { name: 'LiveDashboardMonitor', tools: [
+    return { name: 'LiveDashboardMonitor', tools: dashboardProjectTools(context.projectId, [
       tool(async ({ artifactId, freshness }) => JSON.stringify(await this.monitor.inspect(scope, artifactId, freshness)), {
         name: 'dashboard_inspect', description: 'Check one explicitly selected published Project dashboard as the current run actor. Returns compact binding availability and query timestamps, never data rows. Does not modify or publish. Query time is not proof of business-data freshness. Only an explicitly configured freshness rule checks the latest returned declared timestamp, and incomplete results remain unknown. Scheduled runs retain this receipt in platform execution history.',
         schema: z.object({ artifactId: z.string().uuid(), freshness: freshnessRuleSchema.optional() }).strict(), verboseParsingErrors: true,
@@ -57,7 +57,7 @@ export class DashboardMonitorMiddleware implements IAgentMiddlewareStrategy {
       }, { name: 'dashboard_list_published', description: 'List published dashboards in the current Project. Follow hasMore/page; never infer the target from recency.',
         schema: z.object({ page: z.number().int().positive().default(1) }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'List published dashboards', zh_Hans: '列出正式看板' } } })
-    ] }
+    ]) }
   }
 }
 

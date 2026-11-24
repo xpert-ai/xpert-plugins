@@ -15,7 +15,7 @@ function setup() {
       return { rows: [], completeness: { returnedRows: 0, truncated: false } }
     }
   }
-  const middleware = new DashboardMiddleware(service).createMiddleware({}, { xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' })
+  const middleware = new DashboardMiddleware(service).createMiddleware({}, { projectId: 'project', xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' })
   const invoke = (name, args) => {
     const tool = middleware.tools.find(t => t.name === name)
     const request = { tool, toolCall: { name, args, id: 'call' }, state: { messages: [] }, runtime: {} }

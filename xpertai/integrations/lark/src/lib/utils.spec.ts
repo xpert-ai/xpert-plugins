@@ -93,7 +93,7 @@ describe('lark utils', () => {
 			expect(message).toBe(
 				'Invalid department request | field_violations: department_id: is invalid; name: required | log_id: log-001 | troubleshooter: https://open.feishu.cn/document/uAjLw4CM'
 			)
-			expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"Invalid department request"'))
+			expect(consoleErrorSpy).not.toHaveBeenCalled()
 		})
 
 		it('falls back to plain message for generic Error', () => {

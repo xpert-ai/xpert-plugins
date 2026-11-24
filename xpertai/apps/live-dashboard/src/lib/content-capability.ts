@@ -15,6 +15,7 @@ export class DashboardCapability implements IAssistantCapabilityProvider {
   isEnabled(draft: TXpertTeamDraft) { return hasAssistantMiddleware(draft, 'LiveDashboard') }
   async check() { return { available: true } }
   async apply({ draft }: AssistantCapabilityApplyContext) {
+    applyAssistantMiddleware(draft, { provider: 'ProjectMiddleware', key: 'Capability_Project', title: 'Projects', instructions: '', preserveToolConcurrency: true })
     applyAssistantMiddleware(draft, { provider: 'LiveDashboard', key: 'Capability_DashboardCapability', title: 'Live dashboards', instructions: 'Maintain live dashboard definitions in the current Project using Live Dashboard tools and registered Analytics providers. Discover and validate current data bindings before saving. Read the current draft revision and handle conflicts without overwriting another editor. Query with the current actor permissions; never copy credentials or query rows into the shared definition. Publishing a definition is separate from saving and refreshing data.' })
   }
 }
