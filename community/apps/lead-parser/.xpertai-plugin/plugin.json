@@ -1,0 +1,29 @@
+{
+  "name": "@community/apps-lead-parser",
+  "version": "0.0.1",
+  "description": "Lead parsing business app: parse raw sales lead text into structured fields (name, company, intent, budget) via an Agent middleware tool and a Workbench view, then save confirmed leads.",
+  "author": "Zhang Jinpeng",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "lead_parser",
+  "targetApps": ["data-xpert"],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": ["business-app", "workbench-view", "assistant-tool"],
+      "capabilities": [
+        "lead-parser",
+        "lead-parser-workbench",
+        "lead-parser-tool"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "assistant-template",
+            "name": "lead-parser-assistant",
+            "displayName": "线索解析助手",
+            "description": "绑定 lead-parser 中间件与工作台视图的数字专家模板：对话中解析线索文本，工作台中确认并保存。"
+          }
+        ]
+      }
+    }
+  }
+}
