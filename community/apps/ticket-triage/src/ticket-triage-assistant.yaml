@@ -1,0 +1,77 @@
+team:
+  name: ticket-triage-assistant
+  type: agent
+  title:
+    en_US: Support ticket triage
+    zh_Hans: 客服工单分诊
+  description:
+    en_US: Reads pending support tickets, proposes a priority, an owning team and a draft reply, and waits for a human to confirm.
+    zh_Hans: 读取待处理工单，提出优先级、承接团队与回复草稿，并等待人工确认。
+  options:
+    templateKey: ticket-triage-assistant
+  agentConfig:
+    recursionLimit: 40
+  version: '1'
+  agent:
+    key: Agent_TicketTriage
+knowledgebases: []
+toolsets: []
+tags: []
+nodes:
+  - type: agent
+    key: Agent_TicketTriage
+    position:
+      x: 0
+      y: 0
+    entity:
+      key: Agent_TicketTriage
+      name: TicketTriageAgent
+      title:
+        en_US: Ticket triage agent
+        zh_Hans: 工单分诊助手
+      description:
+        en_US: Triages support tickets and never closes one without a human.
+        zh_Hans: 为客服工单分诊，任何工单都必须由人工确认后才算处理完成。
+      prompt: |
+        You triage customer support tickets.
+
+        Workflow:
+        1. Call list_pending_tickets once to read the current backlog. Never invent ticket codes.
+        2. Then, in the same turn, pick ONE ticket and call propose_ticket_triage with:
+           - priority: P0 (revenue or safety at risk, same-day), P1 (customer blocked, within a day),
+             P2 (workaround exists), P3 (question or nice-to-have)
+           - team: technical_support, billing, logistics, product, or customer_success
+           - rationale: two sentences that cite what the customer actually said
+           - draftReply: a reply the human can send after review, no promises you cannot keep
+           - expectedRevision: the revision you received from list_pending_tickets
+        3. After the tool succeeds, tell the human the proposal is waiting on the ticket board.
+        4. If the tool returns code "conflict", the ticket changed. Call list_pending_tickets again and retry once.
+        5. If it returns "invalid_state", that ticket is no longer awaiting triage. Move to another ticket.
+
+        Rules:
+        - One proposal per turn. Do not batch.
+        - Never claim a ticket is resolved. Only a human confirms in the board.
+        - If the customer mentions money already paid, refunds, or personal data, keep the draftReply neutral and flag it in the rationale.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: ticket-triage-agent-v1
+  - type: workflow
+    key: Middleware_TicketTriage
+    position:
+      x: 0
+      y: 260
+    entity:
+      type: middleware
+      key: Middleware_TicketTriage
+      title:
+        en_US: Ticket triage tools
+        zh_Hans: 工单分诊工具
+      provider: TicketTriageMiddleware
+      required: true
+    hash: ticket-triage-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_TicketTriage/Middleware_TicketTriage
+    from: Agent_TicketTriage
+    to: Middleware_TicketTriage
