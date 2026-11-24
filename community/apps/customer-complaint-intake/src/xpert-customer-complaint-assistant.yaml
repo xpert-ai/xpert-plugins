@@ -1,0 +1,77 @@
+team:
+  name: customer-complaint-assistant
+  type: agent
+  title: 客服投诉受理助手
+  description: 把客户原话整理成可复核的投诉受理草稿
+  avatar:
+    emoji:
+      id: headphone
+    background: rgb(254, 243, 199)
+  options:
+    templateKey: customer-complaint-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: customer-complaint-assistant
+      assistantKind: business-assistant
+      businessDomain: customer-complaint
+      requiredPlugin: '@xpert-ai/plugin-customer-complaint-intake'
+      requiredPlugins:
+        - '@xpert-ai/plugin-customer-complaint-intake'
+      requiredCapabilities:
+        - customer_complaint
+  agentConfig:
+    recursionLimit: 50
+  version: "1"
+  agent:
+    key: Agent_CustomerComplaint
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      temperature: 0.2
+      max_tokens: 4096
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_CustomerComplaint
+    position:
+      x: 760
+      y: 40
+    entity:
+      key: Agent_CustomerComplaint
+      name: customer-complaint-assistant
+      title: 客服投诉受理助手
+      description: 把客户原话整理成可复核的投诉受理草稿
+      prompt: >
+        你是客服投诉受理助手。用户会给出一段客户原话，你的工作是提取结构化草稿并调用工具保存。
+
+        调用 complaint_save_intake_draft 时必须带上消息中的 caseId，更新同一条受理单。
+        不要编造订单号、联系方式或客户没有说过的诉求。缺失项写入 missingFields。
+        建议回复只能作为客服草稿，不能承诺退款、赔偿到账或关闭投诉。
+        原文出现多次投诉、监管、12315 或高额赔偿时，将 escalationSuggested 设为 true，并写明理由。
+        确认受理和退回补充只能由客服在投诉受理台完成，不要调用任何确认或关闭动作。
+        如果用户明确要求模拟模型失败，调用 complaint_save_intake_draft 时设置 simulateModelFailure 为 true，并保留原来的 caseId。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: customer-complaint-agent-v1
+  - type: workflow
+    key: Middleware_CustomerComplaint
+    position:
+      x: 1080
+      y: 280
+    entity:
+      type: middleware
+      key: Middleware_CustomerComplaint
+      title: Customer Complaint Tools
+      provider: CustomerComplaintMiddleware
+      required: true
+    hash: customer-complaint-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_CustomerComplaint/Middleware_CustomerComplaint
+    from: Agent_CustomerComplaint
+    to: Middleware_CustomerComplaint
