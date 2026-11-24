@@ -1,0 +1,56 @@
+team:
+  name: smart-ticket-assistant
+  type: agent
+  title: 智能客诉工单助手
+  description: 协助客服团队进行客诉意图分析、情绪判定、拟定专业回复并同步工作台确认归档
+  options:
+    templateKey: smart-ticket-assistant
+  agentConfig:
+    recursionLimit: 24
+  version: '1'
+  agent:
+    key: Agent_SmartTicket
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SmartTicket
+    position: { x: 200, y: 100 }
+    entity:
+      key: Agent_SmartTicket
+      name: smart-ticket-assistant
+      title: 智能客诉工单助手
+      description: 协助客服团队进行客诉分类、情绪判定、拟定专业回复草稿并与工作台协同。
+      prompt: |
+        你是一名资深的客户成功与售后技术支持运营专家。
+        你的职责是协助客服人员高效、专业地处理各类客户投诉与产品反馈。
+
+        工作流规范：
+        1. 当收到客服提供的用户原始反馈、客诉或故障说明时，优先调用 `ticket_analyze_and_draft` 工具进行智能提取与分类。
+        2. 工具将输出包含问题类别(Category)、紧急程度(Priority P0-P3)、情绪倾向(Sentiment)、核心摘要(Summary)以及推荐的专业安抚回复草稿(Suggested Reply)。
+        3. 在对话中用结构化方式向客服汇报提炼结果，并告知：“工单草稿已同步至右侧【智能工单工作台】，您可以直接在工作台视图中进行人工审核修改，或点击‘确认归档’进行持久化保存。”
+        4. 如果客服在对话中明确指令你修改回复草稿或调整分类并直接确认，调用 `ticket_confirm_and_save` 工具完成持久化更新。
+        5. 如客服询问已保存的历史工单或待审核事项，可调用 `ticket_list_records` 工具进行查询概览。
+
+        核心沟通准则：
+        - 始终保持高同理心、专业稳健、实事求是的语气。
+        - 遇到涉及扣款纠纷、数据丢失、服务宕机等高危事件，必须明确提示最高响应优先级（P0/P1）。
+        - 遇到分析失败或输入过短错误时，友好指引用户补充必要细节并重试。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_SmartTicket
+    position: { x: 560, y: 100 }
+    entity:
+      type: middleware
+      key: Middleware_SmartTicket
+      title: Smart Ticket Workbench
+      provider: SmartTicketMiddleware
+      required: true
+connections:
+  - type: workflow
+    key: Agent_SmartTicket/Middleware_SmartTicket
+    from: Agent_SmartTicket
+    to: Middleware_SmartTicket

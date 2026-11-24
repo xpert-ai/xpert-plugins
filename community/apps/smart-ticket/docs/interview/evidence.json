@@ -1,0 +1,78 @@
+{
+  "testSuite": "@community/apps-smart-ticket",
+  "version": "0.1.0",
+  "executedAt": "2026-11-10T13:40:00Z",
+  "nodeVersion": "v20.20.0",
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "name": "TicketService - 基础业务流程：分析客诉并生成结构化草稿",
+      "status": "PASS",
+      "durationMs": 9.73,
+      "input": "我们在支付购买企业版时，微信支付扣款了 999 元，但是系统提示订单失败，请尽快退款或补发会员！",
+      "output": {
+        "category": "billing",
+        "priority": "P1",
+        "sentiment": "negative_urgent",
+        "status": "pending_review"
+      }
+    },
+    {
+      "name": "TicketService - 输入校验：少于10个字符时抛出 CONTENT_TOO_SHORT",
+      "status": "PASS",
+      "durationMs": 2.20,
+      "input": "坏了",
+      "expectedErrorCode": "CONTENT_TOO_SHORT"
+    },
+    {
+      "name": "TicketService - 异常模拟与重试：模拟超时抛错并在重试后恢复",
+      "status": "PASS",
+      "durationMs": 2.88,
+      "simulateFailure": true,
+      "retryCount": 2,
+      "recoveryStatus": "SUCCESS"
+    },
+    {
+      "name": "TicketService - 人工确认与持久化：状态变更为 confirmed 并保存人工微调",
+      "status": "PASS",
+      "durationMs": 1.17,
+      "finalStatus": "confirmed",
+      "revision": 2
+    },
+    {
+      "name": "TicketService - 权限隔离与删除测试",
+      "status": "PASS",
+      "durationMs": 1.22,
+      "tenantIsolationVerified": true
+    },
+    {
+      "name": "Plugin Metadata & Template 完整性测试",
+      "status": "PASS",
+      "durationMs": 4.90,
+      "templatesCount": 1
+    },
+    {
+      "name": "TicketViewProvider - 视图 Manifest 与插槽定义测试",
+      "status": "PASS",
+      "durationMs": 2.74,
+      "actionsCount": 5
+    },
+    {
+      "name": "TicketViewProvider - 视图动作分发与异常校验测试",
+      "status": "PASS",
+      "durationMs": 12.04,
+      "dispatchVerified": true
+    },
+    {
+      "name": "TicketViewProvider - 远程组件 Entry 生成测试",
+      "status": "PASS",
+      "durationMs": 31.60,
+      "htmlProtocolMatch": true
+    }
+  ]
+}

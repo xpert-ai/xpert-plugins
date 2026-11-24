@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <title>Xpert 平台工作台宿主模拟预览器 - 智能客诉工单</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Xpert Top Navigation Bar */
+    .xpert-navbar {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .xpert-logo {
+      font-weight: 800;
+      font-size: 16px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-badge {
+      background: #334155;
+      color: #cbd5e1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .breadcrumb {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #34d399;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    /* Main Workspace Layout */
+    .workspace-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+    .workbench-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .iframe-wrapper {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Host Event Log Drawer */
+    .event-drawer {
+      height: 140px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer-header {
+      padding: 6px 16px;
+      background: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .log-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 16px;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .log-item {
+      display: flex;
+      gap: 10px;
+    }
+    .log-time { color: #64748b; }
+    .log-type { font-weight: bold; }
+    .log-type-ready { color: #38bdf8; }
+    .log-type-req { color: #f59e0b; }
+    .log-type-act { color: #10b981; }
+    .log-type-cmd { color: #ec4899; }
+    .log-data { color: #e2e8f0; }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      top: 65px;
+      right: 20px;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      z-index: 9999;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Xpert Navigation Bar -->
+  <header class="xpert-navbar">
+    <div class="nav-left">
+      <div class="xpert-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="m10 15 5-3-5-3v6Z"></path>
+        </svg>
+        Xpert Platform
+      </div>
+      <span class="nav-badge">Host Simulator</span>
+      <div class="breadcrumb">工作空间 / 客服专家 / 智能客诉工单工作台 (Smart Ticket)</div>
+    </div>
+    <div class="nav-right">
+      <div class="status-pill">
+        <div class="dot"></div>
+        Remote Component Bridge Active (xpertai.remote_component v1)
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace & Remote Component Iframe -->
+  <main class="workspace-body">
+    <div class="workbench-viewport">
+      <iframe id="remote-iframe" class="iframe-wrapper" src="component.html"></iframe>
+    </div>
+  </main>
+
+  <!-- Host Event Log Drawer -->
+  <aside class="event-drawer">
+    <div class="drawer-header">
+      <span>📡 宿主与远程组件通信事件监听流 (PostMessage Protocol Stream)</span>
+      <span id="event-counter" style="color: #38bdf8;">0 个事件</span>
+    </div>
+    <div class="log-list" id="log-list">
+      <div class="log-item">
+        <span class="log-time">[System]</span>
+        <span class="log-data">Xpert 宿主模拟容器已就绪，正在等待远程组件发送 ready 信号...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const CHANNEL = 'xpertai.remote_component';
+    const VERSION = 1;
+    const INSTANCE_ID = 'inst_smart_ticket_preview_01';
+    let eventCount = 0;
+
+    // In-memory Mock Database
+    let mockTickets = [
+      {
+        id: "ticket_c4a89e1b2f0a",
+        title: "【账单纠纷】微信支付999元扣款失败但订单未生成",
+        rawContent: "我们在支付购买企业版时，微信支付扣款了 999 元，但是系统提示订单失败，请尽快退款或补发会员！",
+        category: "billing",
+        priority: "P1",
+        sentiment: "negative_urgent",
+        summary: "1. 用户反馈核心：微信支付999元已扣费但订单失败；\n2. 业务分类判断：【账单纠纷】，判定紧急度为 P1 级；\n3. 情绪评估：负向/情绪急切，需优先安抚并核查流水。",
+        suggestedReply: "尊敬的用户您好，非常抱歉给您带来财务账单方面的不便！\n\n我们已针对您反馈的支付问题发起专员账单复核。请您放心，若核实存在重复扣款或计费异常，款项将在 1-3 个工作日内原路退回至您的支付账户。\n\n如需加急处理，您可以回复提供您的订单号或交易流水截图，我们将竭诚为您跟进！",
+        status: "pending_review",
+        failureCode: null,
+        retryCount: 0,
+        revision: 1,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000).toISOString()
+      },
+      {
+        id: "ticket_e98f01b38c2d",
+        title: "【安全告警】客户登录密码被重置怀疑盗号",
+        rawContent: "客户登录密码提示被重置了，收不到短信验证码，怀疑被盗号了，非常紧急！",
+        category: "account_security",
+        priority: "P0",
+        sentiment: "negative_urgent",
+        summary: "1. 用户反馈核心：密码被恶意重置且收不到验证码；\n2. 业务分类判断：【安全告警】，判定紧急度为 P0 级；\n3. 情绪评估：负向急切，涉及账号被盗，需立即冻结与专人联系。",
+        suggestedReply: "尊敬的用户您好，我们高度重视您的账号与数据安全！\n\n针对您所反馈的账号安全隐患，我们已临时对异常登录态进行保护性阻断。建议您立即前往安全中心重置登录密码并检查双重身份认证（2FA）绑定状态。\n\n专员正加急通过专属电话与您核验身份，请留意接听。",
+        status: "confirmed",
+        failureCode: null,
+        retryCount: 0,
+        revision: 2,
+        createdAt: new Date(Date.now() - 7200000).toISOString(),
+        updatedAt: new Date(Date.now() - 7100000).toISOString()
+      },
+      {
+        id: "ticket_77d291a0c8fe",
+        title: "【功能建议】希望增加移动端二维码一键扫码登录",
+        rawContent: "希望能在移动端增加扫码登录功能，现在每次输长密码体验很差，希望能加上。",
+        category: "product_suggestion",
+        priority: "P3",
+        sentiment: "neutral",
+        summary: "1. 用户反馈核心：希望支持移动端扫码免密登录；\n2. 业务分类判断：【功能建议】，判定紧急度为 P3 级；\n3. 情绪评估：中性，正常体验优化建议。",
+        suggestedReply: "尊敬的用户您好，非常感谢您对产品提出的宝贵建议！\n\n您提到的“扫码快捷登录”非常切合当前很多用户的实际诉求，我们已将该需求记录至产品需求池（Feature Backlog）并提交产品评审团队评估排期。\n\n感谢您一路以来的支持与陪伴，祝您使用愉快！",
+        status: "confirmed",
+        failureCode: null,
+        retryCount: 0,
+        revision: 1,
+        createdAt: new Date(Date.now() - 14400000).toISOString(),
+        updatedAt: new Date(Date.now() - 14400000).toISOString()
+      }
+    ];
+
+    const iframe = document.getElementById('remote-iframe');
+    const logList = document.getElementById('log-list');
+    const counterEl = document.getElementById('event-counter');
+    const toastEl = document.getElementById('toast');
+
+    function log(type, typeClass, message) {
+      eventCount++;
+      counterEl.textContent = `${eventCount} 个事件`;
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      div.innerHTML = `<span class="log-time">[${time}]</span><span class="log-type ${typeClass}">[${type}]</span><span class="log-data">${message}</span>`;
+      logList.appendChild(div);
+      logList.scrollTop = logList.scrollHeight;
+    }
+
+    function showToast(text) {
+      toastEl.textContent = text;
+      toastEl.style.display = 'block';
+      setTimeout(() => { toastEl.style.display = 'none'; }, 4000);
+    }
+
+    window.addEventListener('message', (event) => {
+      const msg = event.data;
+      if (!msg || msg.channel !== CHANNEL || msg.protocolVersion !== VERSION) return;
+
+      if (msg.type === 'ready') {
+        log('RECV: ready', 'log-type-ready', '收到远程组件就绪信号，正在回传 host init 握手报文...');
+        iframe.contentWindow.postMessage({
+          channel: CHANNEL,
+          protocolVersion: VERSION,
+          type: 'init',
+          instanceId: INSTANCE_ID,
+          manifest: { key: 'smart-ticket.workbench' },
+          locale: 'zh-Hans',
+          theme: 'light'
+        }, '*');
+        return;
+      }
+
+      if (msg.type === 'requestData') {
+        log('RECV: requestData', 'log-type-req', `工单数据拉取请求 (requestId: ${msg.requestId})，返回 ${mockTickets.length} 条记录`);
+        iframe.contentWindow.postMessage({
+          channel: CHANNEL,
+          protocolVersion: VERSION,
+          type: 'data',
+          instanceId: INSTANCE_ID,
+          requestId: msg.requestId,
+          data: {
+            tickets: mockTickets,
+            total: mockTickets.length
+          }
+        }, '*');
+        return;
+      }
+
+      if (msg.type === 'executeAction') {
+        log('RECV: executeAction', 'log-type-act', `执行动作: [${msg.actionKey}] (requestId: ${msg.requestId})`);
+
+        if (msg.actionKey === 'analyze_ticket') {
+          const raw = (msg.input && msg.input.rawContent || '').trim();
+          if (raw.length < 10) {
+            iframe.contentWindow.postMessage({
+              channel: CHANNEL,
+              protocolVersion: VERSION,
+              type: 'actionResult',
+              instanceId: INSTANCE_ID,
+              requestId: msg.requestId,
+              result: {
+                success: false,
+                data: {
+                  code: 'CONTENT_TOO_SHORT',
+                  message: '客诉反馈文本过短（至少 10 个字符），请补充详细背景后再提交分析。'
+                }
+              }
+            }, '*');
+            return;
+          }
+
+          if (msg.input && msg.input.simulateFailure) {
+            log('HOST_INTERCEPT', 'log-type-req', '触发【模拟上游 AI 超时】容灾测试，返回错误报文');
+            iframe.contentWindow.postMessage({
+              channel: CHANNEL,
+              protocolVersion: VERSION,
+              type: 'actionResult',
+              instanceId: INSTANCE_ID,
+              requestId: msg.requestId,
+              result: {
+                success: false,
+                data: {
+                  code: 'SIMULATED_SERVICE_TIMEOUT',
+                  message: '模拟上游 AI 分析服务响应超时，请检查网络或点击重新尝试。'
+                }
+              }
+            }, '*');
+            return;
+          }
+
+          // Smart classification logic
+          let category = 'other';
+          if (/退款|扣费|发票|账单|支付|充值|多扣|价格|续费|订阅/.test(raw)) category = 'billing';
+          else if (/密码|登录|盗号|短信|验证码|被盗|安全|泄露/.test(raw)) category = 'account_security';
+          else if (/崩溃|闪退|报错|500|卡顿|无法打开|白屏|无法使用/.test(raw)) category = 'technical_issue';
+          else if (/建议|希望|功能|优化|增加|体验|改进/.test(raw)) category = 'product_suggestion';
+
+          let priority = 'P2';
+          if (/严重|紧急|崩溃|宕机|资产|资损|被盗/.test(raw)) priority = 'P0';
+          else if (/退款|扣费|无法登录|白屏|闪退/.test(raw)) priority = 'P1';
+
+          let sentiment = 'neutral';
+          if (/垃圾|投诉|退钱|骗子|极差|无法忍受|尽快|马上/.test(raw) || priority === 'P0') sentiment = 'negative_urgent';
+          else if (/感谢|赞|很棒|不错|喜欢/.test(raw)) sentiment = 'positive';
+
+          const firstLine = raw.split(/[\r\n。！!？?]/)[0].trim();
+          const categoryNameMap = {
+            billing: '【账单纠纷】',
+            account_security: '【安全告警】',
+            technical_issue: '【技术故障】',
+            product_suggestion: '【功能建议】',
+            other: '【用户反馈】'
+          };
+          const title = `${categoryNameMap[category]}${firstLine.slice(0, 32)}`;
+
+          const newTicket = {
+            id: 'ticket_' + Math.random().toString(36).slice(2, 12),
+            title,
+            rawContent: raw,
+            category,
+            priority,
+            sentiment,
+            summary: `1. 用户诉求核心：${raw.slice(0, 60)}...\n2. 业务判断：${categoryNameMap[category]}，判定紧急度为 ${priority} 级。\n3. 情绪评估：${sentiment === 'negative_urgent' ? '负面焦急' : '中性'}。`,
+            suggestedReply: `尊敬的用户您好，非常抱歉给您带来不便！\n\n针对您所反馈的“${firstLine.slice(0, 20)}”，专员已为您加急登记核实。我们将全力跟进排查，并在核验后第一时间向您答复。\n\n如需补充信息，欢迎随时向我们留言！`,
+            status: 'pending_review',
+            failureCode: null,
+            retryCount: 0,
+            revision: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          mockTickets.unshift(newTicket);
+          log('HOST_SUCCESS', 'log-type-act', `AI 分析完成，生成新工单草稿: ${newTicket.id}`);
+
+          iframe.contentWindow.postMessage({
+            channel: CHANNEL,
+            protocolVersion: VERSION,
+            type: 'actionResult',
+            instanceId: INSTANCE_ID,
+            requestId: msg.requestId,
+            result: {
+              success: true,
+              data: { ticket: newTicket }
+            }
+          }, '*');
+          return;
+        }
+
+        if (msg.actionKey === 'confirm_ticket') {
+          const item = mockTickets.find(t => t.id === msg.input.id);
+          if (item) {
+            item.title = msg.input.title || item.title;
+            item.category = msg.input.category || item.category;
+            item.priority = msg.input.priority || item.priority;
+            item.sentiment = msg.input.sentiment || item.sentiment;
+            item.summary = msg.input.summary || item.summary;
+            item.suggestedReply = msg.input.suggestedReply || item.suggestedReply;
+            item.status = 'confirmed';
+            item.revision++;
+            item.updatedAt = new Date().toISOString();
+            log('HOST_SUCCESS', 'log-type-act', `工单 ${item.id} 人工确认保存成功，状态跃迁为 confirmed`);
+            showToast(`✅ 工单 ${item.id} 已成功持久化归档！`);
+          }
+
+          iframe.contentWindow.postMessage({
+            channel: CHANNEL,
+            protocolVersion: VERSION,
+            type: 'actionResult',
+            instanceId: INSTANCE_ID,
+            requestId: msg.requestId,
+            result: {
+              success: true,
+              data: { ticket: item }
+            }
+          }, '*');
+          return;
+        }
+
+        if (msg.actionKey === 'delete_ticket') {
+          mockTickets = mockTickets.filter(t => t.id !== msg.input.id);
+          log('HOST_SUCCESS', 'log-type-act', `工单 ${msg.input.id} 已从数据库删除`);
+          showToast(`🗑️ 工单已删除`);
+          iframe.contentWindow.postMessage({
+            channel: CHANNEL,
+            protocolVersion: VERSION,
+            type: 'actionResult',
+            instanceId: INSTANCE_ID,
+            requestId: msg.requestId,
+            result: { success: true }
+          }, '*');
+          return;
+        }
+      }
+
+      if (msg.type === 'command') {
+        log('RECV: command', 'log-type-cmd', `客户端命令: [${msg.command}]`);
+        if (msg.command === 'assistant.composer.append_references') {
+          const ref = msg.payload && msg.payload.references && msg.payload.references[0];
+          showToast(`💬 [ChatKit 收到引用]: ${ref ? ref.title : ''}`);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
