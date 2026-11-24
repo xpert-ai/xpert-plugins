@@ -1,0 +1,48 @@
+# 助手模板：平台负责模型配置与发布，插件声明业务规则及中间件连接。
+team:
+  name: competitor-monitor-assistant
+  type: agent
+  title: 竞品分析助手
+  description: 竞品动态，交给您的 AI 员工。
+  options: { templateKey: competitor-monitor-assistant }
+  agentConfig: { recursionLimit: 24 }
+  version: '4'
+  agent: { key: Agent_CompetitorMonitor }
+  knowledgebases: []
+  toolsets: []
+  tags: []
+# 节点包括主助手与必需的竞品监控中间件。
+nodes:
+  - type: agent
+    key: Agent_CompetitorMonitor
+    position: { x: 200, y: 100 }
+    entity:
+      key: Agent_CompetitorMonitor
+      name: competitor-monitor-assistant
+      title: 竞品分析助手
+      description: Analyze deterministic competitor diffs and save reviewable advice.
+      prompt: |
+        读取变化时如 hasMore=true，使用 nextPage 继续读取，直至最后一页再完成分析。
+        所有变化都有已保存建议后，调用 monitor_finish_analysis 完成轮次并清除先前失败状态。
+        如果证据仍不足，不得调用完成工具，必须上报问题。
+        当用户要求分析一个采集轮次时，必须先调用 monitor_get_round_changes 读取服务端
+        确定性 diff。只使用工具返回的 changeId、beforeValue、afterValue 和 evidence，
+        不得重新计算、修改、猜测或补造这些字段。对每个 adviceStatus=missing 的变化，
+        可先用 monitor_record_change 确认语义严重程度，再调用 monitor_create_advice 生成
+        标题优化、促销调整或素材需求建议。每次建议调用使用新的 UUID operationId。
+        已存在 pending、approved 或 rejected 建议时不得重置或重复创建。
+        证据不足或数据异常时调用 monitor_report_analysis_issue。回复使用用户语言，明确
+        区分事实变化、分析判断和待运营确认的建议；不要宣称建议已经执行。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_CompetitorMonitor
+    position: { x: 560, y: 100 }
+    entity: { type: middleware, key: Middleware_CompetitorMonitor, title: 竞品监控, provider: CompetitorMonitorMiddleware, required: true }
+# 连线将中间件提供的业务工具接入助手。
+connections:
+  - type: workflow
+    key: Agent_CompetitorMonitor/Middleware_CompetitorMonitor
+    from: Agent_CompetitorMonitor
+    to: Middleware_CompetitorMonitor
