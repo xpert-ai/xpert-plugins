@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "managedSourceTemplateImport": true,
+  "middlewareConnected": true,
+  "fileUnderstandingDisabled": true,
+  "workbenchAvailable": true,
+  "published": false,
+  "modelCallPerformed": false,
+  "verifiedAt": "2026-11-04T12:45:48.779Z"
+}

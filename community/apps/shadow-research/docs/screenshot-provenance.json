@@ -1,0 +1,8 @@
+{
+  "xpert-input.png": "User-provided screenshot from actual Xpert Workbench input page, 2026-11-04",
+  "xpert-recursion-failure.png": "User-provided actual model/tool run interrupted at recursion limit 40; retained as failure evidence",
+  "xpert-confirmed.jpg": "Agent captured actual Xpert saved decision through IAB after user confirmation",
+  "xpert-restored.jpg": "Agent captured actual Xpert after browser reload; confirmed status and four stages restored",
+  "xpert-invalid-input.jpg": "Agent captured invalid snapshot UI validation in actual Xpert; no record created",
+  "preview-*.png": "Prior simulated host and injected model judgments; not real-model acceptance"
+}

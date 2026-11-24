@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "host": "official-preview",
+  "model": "simulated",
+  "database": "sqljs",
+  "checks": 8
+}

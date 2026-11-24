@@ -1,0 +1,23 @@
+{
+  "verifiedDate": "2026-11-04",
+  "status": "confirmed",
+  "attempt": 1,
+  "reviews": [
+    "fundamental",
+    "technical",
+    "risk",
+    "decision"
+  ],
+  "exploredDimensions": [
+    "amount:desc",
+    "change_pct:desc",
+    "turnover_pct:desc",
+    "pe_ratio:asc"
+  ],
+  "marketUniverse": 20,
+  "snapshotFinancialRows": 5,
+  "model": "qwen3.8-flash",
+  "humanConfirmation": "performed by user; independently read back from API and fresh IAB session",
+  "browserReload": "confirmed state and four reviews restored",
+  "qualityBoundary": "saved model conclusions are not a semantic accuracy certification"
+}

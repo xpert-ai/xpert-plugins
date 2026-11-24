@@ -1,0 +1,20 @@
+{
+  "title":"Stock Research Lab", "subtitle":"Frozen evidence · Four research stages · Human confirmation",
+  "newTask":"New research task", "taskTitle":"Task title", "objective":"Research objective", "snapshot":"Frozen snapshot JSON",
+  "snapshotHelp":"Paste an exported snapshot. The cutoff, source and synthetic/historical/live label are required.",
+  "create":"Create task", "refresh":"Refresh", "history":"Research history", "empty":"No research tasks yet.",
+  "open":"Open", "previous":"Previous", "next":"Next", "page":"Page {{page}} · {{total}} tasks",
+  "reference":"Research in chat", "referenceHint":"A task reference is added to the chat composer. Send it to start real AI research.",
+  "confirm":"Confirm research result", "retry":"Retry same snapshot", "recover":"Recover interrupted run",
+  "busy":"Working…", "error":"Operation failed: {{code}}", "created":"Task saved. Add it to chat to start research.",
+  "status.draft":"Draft", "status.running":"Researching", "status.ready":"Ready for review", "status.abstained":"No selection",
+  "status.confirmed":"Confirmed", "status.failed":"Failed", "kind.synthetic":"Synthetic sample", "kind.historical":"Historical snapshot", "kind.live":"Live snapshot",
+  "stage.fundamental":"Fundamentals", "stage.technical":"Technical review", "stage.risk":"Risk review", "stage.decision":"Decision",
+  "source":"Source", "cutoff":"Evidence cutoff", "hash":"Snapshot fingerprint", "attempt":"Attempt {{attempt}}", "nextStage":"Next stage",
+  "candidates":"Frozen candidates", "code":"Code", "name":"Stock", "price":"Price", "amount":"Turnover amount",
+  "financial":"Financial evidence", "available":"Available", "missing":"Unknown", "reviews":"Research findings", "noReviews":"AI research has not saved a review yet.",
+  "evidence":"Evidence references", "risks":"Risks", "selection":"Selected stock", "abstain":"Abstain", "failure":"Failure code",
+  "frozen":"Research uses the same frozen input on retry. No orders are placed.", "details":"Evidence and input details",
+  "instruction":"Research the referenced task. Inspect evidence, complete the four review stages, and save the result for my review.",
+  "lease":"If an AI run is interrupted, recover it after the five-minute lease expires, then retry.", "invalidJson":"invalid_snapshot_json"
+}

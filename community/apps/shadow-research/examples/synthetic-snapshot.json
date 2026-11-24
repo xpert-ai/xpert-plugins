@@ -1,0 +1,12 @@
+{
+  "source": "Synthetic demonstration fixture; not real market or company data",
+  "kind": "synthetic",
+  "cutoff": "2026-10-23T14:30:00+08:00",
+  "stocks": [
+    {"code":"600000","name":"模拟甲","price":10,"amount":100000000,"change_pct":2,"turnover_pct":3,"volume_ratio":1.2,"pe_ratio":10,"quote_time":"2026-10-23T14:29:00+08:00"},
+    {"code":"000001","name":"模拟乙","price":20,"amount":200000000,"change_pct":-1,"turnover_pct":2,"volume_ratio":1.1,"pe_ratio":12,"quote_time":"2026-10-23T14:29:00+08:00"}
+  ],
+  "financials": [
+    {"code":"600000","source":"Synthetic financial fixture","report_date":"2026-06-30","disclosed_at":"2026-08-20T00:00:00+08:00","revenue_yoy_pct":5,"profit_yoy_pct":6,"roe_pct":8}
+  ]
+}
