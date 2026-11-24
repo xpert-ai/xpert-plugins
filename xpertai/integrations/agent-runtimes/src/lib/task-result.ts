@@ -73,6 +73,6 @@ export function resultInstructions(delivery: AgentOutputDelivery, reportReader =
       reportReader ? 'The host reads the selected report only after verified execution completion.'
         : 'This runtime cannot transfer the selected report. State this delivery limitation; do not claim the report was delivered.'
     ] : []),
-    `Requested delivery: ${JSON.stringify(delivery)}. With mode none, do not package files. With files or archive, create only requested deliverables; the host collects explicitly selected paths and packages archives. If paths were not selected, report their exact relative paths to the coordinator for delivery recovery. File presence or tool output does not prove task completion.`
+    `Requested delivery: ${JSON.stringify(delivery)}. This selects host file transfer, not the work to perform. With mode none, still create the source, installable packages and evidence required by your task; no artifact export is selected. A caller-selected report follows the report instructions above. With files or archive, the host collects explicitly selected paths and packages transfer archives. If paths were not selected, report their exact relative paths to the coordinator for delivery recovery. File presence or tool output does not prove task completion.`
   ].join('\n')
 }
