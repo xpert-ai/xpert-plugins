@@ -19,7 +19,7 @@ HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
 
 ## 平台接口
 
-`@xpert-ai/plugin-sdk/artifact-document` 是浏览器安全子入口。`mountArtifactDocument` 封装 HTML 格式验证、CSP、独立 MessageChannel、Binding ID 白名单、请求限额、销毁和刷新。每次挂载都从 `sandbox="allow-scripts"` 开始；只有可信宿主显式传入 `allowDownloads: true` 时才追加 `allow-downloads`。交互式 HTML 看板会开启下载。HTML 预检使用同一个挂载函数但不传入该选项，验证沙箱保持仅脚本。同源、表单和弹窗仍然拒绝。`installArtifactDocumentFramePolicy` 在专用宿主文档安装 frame-src 策略，禁止子文档自行跳转到外部 URL。需要 SDK 3.38.0 及以上，构建期钉扎在 3.38.0。
+`@xpert-ai/plugin-sdk/artifact-document` 是浏览器安全子入口。`mountArtifactDocument` 封装 HTML 格式验证、CSP、独立 MessageChannel、Binding ID 白名单、请求限额、销毁和刷新。每次挂载都从 `sandbox="allow-scripts"` 开始；只有可信宿主显式传入 `allowDownloads: true` 时才追加 `allow-downloads`。在插件源码中，`src/lib/dashboard-download-policy.ts` 的 `allowDownloads` 同时控制 HTML 看板、标准看板和已登录分享页的外层 iframe。HTML 预检使用同一个挂载函数但不传入该选项，验证沙箱保持仅脚本。同源、表单和弹窗仍然拒绝。`installArtifactDocumentFramePolicy` 在专用宿主文档安装 frame-src 策略，禁止子文档自行跳转到外部 URL。需要 SDK 3.38.0 及以上，构建期钉扎在 3.38.0。
 
 平台不依赖 `live-dashboard`、data-xpert、图表库或任何业务页面。插件可以替换渲染器与数据源，而不复制平台权限和隔离逻辑。
 

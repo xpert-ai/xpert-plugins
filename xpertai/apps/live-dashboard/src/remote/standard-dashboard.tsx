@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { createDashboardInspector } from '../lib/inspection-host'
+import { DASHBOARD_FRAME_SANDBOX } from '../lib/dashboard-download-policy'
 import { dashboardComponents } from '../lib/dashboard-sources'
 import type { DashboardManifest } from '../lib/dashboard.schema'
 import { standardDashboardDocument } from './dashboard-theme'
@@ -26,5 +27,5 @@ export function StandardDashboard({ html, manifest, inspect, onInspect, onExit }
     return () => { observer.disconnect(); mounted.dispose(); host.current = undefined }
   }, [html, manifest.id, manifest.visualTheme])
   React.useEffect(() => { host.current?.setEnabled(inspect) }, [inspect])
-  return <iframe ref={frame} title={manifest.title} sandbox="allow-scripts allow-downloads" className="h-full w-full border-0"/>
+  return <iframe ref={frame} title={manifest.title} sandbox={DASHBOARD_FRAME_SANDBOX} className="h-full w-full border-0"/>
 }

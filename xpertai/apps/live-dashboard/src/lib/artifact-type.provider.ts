@@ -2,12 +2,19 @@ import { readDashboardArtifact } from './dashboard-artifact'
 import { validateControls } from './dashboard-queries'
 import { DashboardService } from './dashboard.service'
 import type { ArtifactDraftRecord } from '@xpert-ai/plugin-sdk'
+import * as hostSdk from '@xpert-ai/plugin-sdk'
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common'
 import { ArtifactTypeProvider, ProjectAccessRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry, type ArtifactTypeDefinition, type ArtifactTypeSource, type ArtifactTypeActor, type ContentOperation, type IArtifactTypeProvider } from '@xpert-ai/plugin-sdk'
 import { decodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { DASHBOARD_SHARE_KEY } from './dashboard-sharing'
 import { DASHBOARD_CONTENT_TYPE } from './content-type'
 import { dashboardIcon } from './dashboard-icon'
+import { DASHBOARD_DOWNLOAD_POLICY } from './dashboard-download-policy'
+
+// The host supplies the SDK. Older hosts reject unknown presentation fields at registration.
+const sdk: typeof hostSdk & {
+  authenticatedArtifactPresentation?(policy: typeof DASHBOARD_DOWNLOAD_POLICY): Extract<ArtifactTypeDefinition['presentation'], { mode: 'authenticated' }>
+} = hostSdk
 
 /** Drafts require Project edit access; explicit authenticated shares may expand formal-version readership. */
 @Injectable()
@@ -24,7 +31,7 @@ export class DashboardArtifactType implements IArtifactTypeProvider {
     useGrants: { audience: 'group', permission: 'read', queryOperations: ['query', 'query-binding'] },
     sharing: { projectAccess: 'link-audience', accessModes: ['organization_all'], versionModes: ['latest', 'version'],
       allowDownload: false, mutableLinks: true, descriptor: true, shareKey: DASHBOARD_SHARE_KEY },
-    presentation: { mode: 'authenticated' }
+    presentation: sdk.authenticatedArtifactPresentation?.(DASHBOARD_DOWNLOAD_POLICY) ?? { mode: 'authenticated' }
   }
   readonly analytics: NonNullable<IArtifactTypeProvider['analytics']> = {
     resolveBindings: context => readDashboardArtifact(context).manifest.bindings.map(binding => ({ binding })),
