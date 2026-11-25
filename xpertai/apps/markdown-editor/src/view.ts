@@ -34,6 +34,7 @@ export class MarkdownEditorView implements IXpertViewExtensionProvider {
     return [{ key: VIEW, title: label('Markdown document', 'Markdown 文档'), hostType: 'agent', slot,
       source: { provider: 'markdown.views', plugin: '@xpert-ai/plugin-markdown-editor' }, refreshable: false,
       activation: { requiredFeatures: ['spaces'] },
+      workbench: { openMode: 'on-demand', menu: { enabled: false } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: 'markdown-editor' }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsSelection: true, supportsParameters: true } },
