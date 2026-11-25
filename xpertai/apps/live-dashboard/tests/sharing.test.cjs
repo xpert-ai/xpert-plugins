@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const { randomUUID, createHash } = require('node:crypto')
 const { DashboardPresentationProvider } = require('../dist/lib/presentation.provider.js')
 const { DashboardArtifactType } = require('../dist/lib/artifact-type.provider.js')
+const { DASHBOARD_DOWNLOAD_POLICY } = require('../dist/lib/dashboard-download-policy.js')
 const hostSdk = require('@xpert-ai/plugin-sdk')
 const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { encodeDashboardPackage } = require('../dist/lib/document-package.js')
@@ -50,8 +51,8 @@ function fixture(manifest = example) {
 
 test('requests generated file downloads only when supported by the host SDK', () => {
   const { definition } = new DashboardArtifactType()
-  const expected = hostSdk.AUTHENTICATED_PRESENTATION_WITH_VIEWER_DOWNLOADS
-    ? { mode: 'authenticated', allowViewerDownloads: true }
+  const expected = hostSdk.authenticatedArtifactPresentation
+    ? { mode: 'authenticated', allowDownloads: DASHBOARD_DOWNLOAD_POLICY.allowDownloads }
     : { mode: 'authenticated' }
   assert.deepEqual(definition.presentation, expected)
   assert.equal(definition.sharing.allowDownload, false)
