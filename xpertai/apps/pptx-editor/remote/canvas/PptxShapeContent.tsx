@@ -107,10 +107,45 @@ export function PptxShapeContent({
         </tbody>
       </table>
     );
+  return <PptxTextContent shape={shape} deck={deck} />;
+}
+
+export function PptxTextContent({ shape, deck, editorProps }: {
+  shape: PptxShape;
+  deck: PptxDeck;
+  editorProps?: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> };
+}) {
+  // Reuse the authored DOM in the editor; browser input owns it until blur.
+  const content = React.useMemo(() => shape.paragraphs.length
+        ? shape.paragraphs.map((paragraph, index) => (
+            <p key={index} style={{
+              margin: 0,
+              marginTop: pptxParagraphOffset(paragraph.spaceBeforePt ?? 0, deck),
+              marginBottom: pptxParagraphOffset(paragraph.spaceAfterPt ?? 0, deck),
+              marginLeft: pptxParagraphOffset(paragraph.marginLeftPt ?? 0, deck),
+              textIndent: pptxParagraphOffset(paragraph.indentPt ?? 0, deck),
+              minHeight: '1em',
+              textAlign: paragraph.align,
+              lineHeight: pptxParagraphLineHeight(paragraph, shape, deck),
+            }}>
+              {paragraph.bullet && <span data-pptx-bullet="" contentEditable={false}>{paragraph.bullet} </span>}
+              {paragraph.runs.map((run, r) => <span key={r} style={{
+                fontSize: pptxRunFontSize(run, shape, deck),
+                color: run.color,
+                fontFamily: run.fontFamily ?? undefined,
+                fontWeight: run.bold ? 'bold' : 'normal',
+                fontStyle: run.italic ? 'italic' : 'normal',
+                textDecoration: pptxRunTextDecoration(run),
+              }}>{run.text}</span>)}
+            </p>
+          ))
+        : shape.text, [shape, deck]);
   return (
     <div
+      {...editorProps}
       className="flex h-full flex-col"
       style={{
+        ...editorProps?.style,
         padding: pptxTextPadding(shape, deck),
         justifyContent:
           shape.verticalAlign === 'middle'
@@ -120,49 +155,7 @@ export function PptxShapeContent({
               : 'flex-start',
       }}
     >
-      {shape.paragraphs.length
-        ? shape.paragraphs.map((paragraph, index) => (
-            <p
-              key={index}
-              style={{
-                margin: 0,
-                marginTop: pptxParagraphOffset(
-                  paragraph.spaceBeforePt ?? 0,
-                  deck,
-                ),
-                marginBottom: pptxParagraphOffset(
-                  paragraph.spaceAfterPt ?? 0,
-                  deck,
-                ),
-                marginLeft: pptxParagraphOffset(
-                  paragraph.marginLeftPt ?? 0,
-                  deck,
-                ),
-                textIndent: pptxParagraphOffset(paragraph.indentPt ?? 0, deck),
-                minHeight: '1em',
-                textAlign: paragraph.align,
-                lineHeight: pptxParagraphLineHeight(paragraph, shape, deck),
-              }}
-            >
-              {paragraph.bullet && <span>{paragraph.bullet} </span>}
-              {paragraph.runs.map((run, r) => (
-                <span
-                  key={r}
-                  style={{
-                    fontSize: pptxRunFontSize(run, shape, deck),
-                    color: run.color,
-                    fontFamily: run.fontFamily ?? undefined,
-                    fontWeight: run.bold ? 'bold' : 'normal',
-                    fontStyle: run.italic ? 'italic' : 'normal',
-                    textDecoration: pptxRunTextDecoration(run),
-                  }}
-                >
-                  {run.text}
-                </span>
-              ))}
-            </p>
-          ))
-        : shape.text}
+      {content}
     </div>
   );
 }

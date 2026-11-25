@@ -117,9 +117,9 @@ export function Editor({ source }: { source: Source }) {
       {navigation && !grid && <aside className="ppt-navigation flex shrink-0 flex-col bg-background" aria-label={t('ppt.navigation')}>
         <div className="flex items-center justify-between p-3 text-sm text-muted-foreground"><span>{t('ppt.slides',{count:deck.slides.length})}</span>
           <Button variant="ghost" size="icon" aria-label={t('ppt.navigation')} onClick={() => setNavigation(false)}><PanelLeftClose/></Button></div>
-        <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">{deck.slides.map((item,i) => <li key={item.path} className="group relative">
+        <ol className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{deck.slides.map((item,i) => <li key={item.path} className="group relative">
           <Button variant={i===index ? 'secondary':'ghost'} className="ppt-thumbnail flex w-full items-start gap-2" aria-label={t('ppt.slide',{number:i+1})} aria-pressed={i===index} onClick={() => changePage(i)}>
-            <span className="shrink-0 text-xs">{i+1}</span><span className={`min-w-0 flex-1 overflow-hidden rounded-md border ${i===index ? 'ring-2 ring-primary':'border-border'}`}><PptxCanvas deck={deck} slide={item}/></span>
+            <span className="w-4 shrink-0 text-right text-xs tabular-nums">{i+1}</span><span className={`min-w-0 flex-1 overflow-hidden rounded-md border ${i===index ? 'ring-2 ring-primary':'border-border'}`}><PptxCanvas deck={deck} slide={item}/></span>
           </Button>
           {canEdit && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="absolute bottom-1 right-1 opacity-0 focus:opacity-100 group-hover:opacity-100" aria-label={t('ppt.slideActions')}><MoreHorizontal/></Button></DropdownMenuTrigger>
             <DropdownMenuContent><DropdownMenuItem onSelect={() => changeSlide('duplicate',i)}><Copy/>{t('ppt.duplicate')}</DropdownMenuItem>
