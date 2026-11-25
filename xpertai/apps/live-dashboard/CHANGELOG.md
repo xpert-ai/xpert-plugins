@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.7.3
+
+### Patch Changes
+
+- e690d1d: Support host-provided TypeORM 0.3.28 and NestJS TypeORM 11.0.0 when registering Live Dashboard entities and repositories.
+
 ## 0.7.2
 
 ### Patch Changes
