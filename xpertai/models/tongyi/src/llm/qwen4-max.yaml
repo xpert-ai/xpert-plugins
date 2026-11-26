@@ -109,3 +109,49 @@ pricing:
   output: '0.030'
   unit: '0.001'
   currency: RMB
+  # https://help.aliyun.com/zh/model-studio/model-pricing
+  rules:
+    - component: input
+      unit_price: 10
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 30
+      unit_size: 1000000
+      region: cn
+    - component: cache_read_input
+      unit_price: 0.5
+      unit_size: 1000000
+      region: cn
+    - component: cache_write_input
+      unit_price: 12.5
+      unit_size: 1000000
+      region: cn
+      cache_ttl: 5m
+    - component: cache_write_input
+      unit_price: 20
+      unit_size: 1000000
+      region: cn
+      cache_ttl: 1h
+    - component: input
+      unit_price: 10.938
+      unit_size: 1000000
+      region: international
+    - component: output
+      unit_price: 32.813
+      unit_size: 1000000
+      region: international
+    - component: cache_read_input
+      unit_price: 0.547
+      unit_size: 1000000
+      region: international
+    - component: cache_write_input
+      unit_price: 13.672
+      unit_size: 1000000
+      region: international
+      cache_ttl: 5m
+    - component: cache_write_input
+      unit_price: 21.875
+      unit_size: 1000000
+      region: international
+      cache_ttl: 1h

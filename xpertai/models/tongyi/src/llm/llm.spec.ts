@@ -79,6 +79,21 @@ describe('Tongyi DeepSeek V4.1 Flash', () => {
   })
 })
 
+describe('Qwen4-Max regional pricing', () => {
+  it.each([
+    ['cn', 35.25], ['international', 38.5555]
+  ])('applies the %s tariff to cached input, uncached input and output', (region, expected) => {
+    const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+    const schema = manager.predefinedModels().find(entry => entry.model === 'qwen4-max')
+    if (!schema?.pricing || !('input' in schema.pricing)) throw new Error('Missing Qwen4-Max pricing')
+    const charge = calculateLLMUsagePrice(schema.pricing, {
+      promptTokens: 1000000, completionTokens: 1000000, totalTokens: 2000000, cacheReadInputTokens: 500000
+    }, { region: String(region) })
+    expect(charge.pricingStatus).toBe('priced')
+    expect(charge.totalAmount).toBeCloseTo(Number(expected), 8)
+  })
+})
+
 describe('getTongyiPricingContext', () => {
   it('uses explicit request mode and the selected DashScope endpoint', () => {
     expect(
