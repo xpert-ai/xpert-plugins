@@ -3,7 +3,6 @@ model: XingChenAGI/Xing4.0-29B
 label:
   en_US: XingChenAGI/Xing4.0-29B
   zh_Hans: XingChenAGI/Xing4.0-29B
-deprecated: true
 model_type: llm
 features:
   - agent-thought

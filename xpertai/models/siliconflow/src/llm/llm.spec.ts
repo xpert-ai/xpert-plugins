@@ -2,7 +2,7 @@ import { SiliconflowLargeLanguageModel } from './llm.js'
 import { SiliconflowProviderStrategy } from '../provider.strategy.js'
 import { AiProviderRole, ModelFeature } from '@xpert-ai/contracts'
 import { calculateLLMUsagePrice, TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import { SiliconflowModelCredentials } from '../types.js'
+import { getBaseUrlFromCredentials, toCredentialKwargs, type SiliconflowModelCredentials } from '../types.js'
 
 describe('getCustomizableModelSchemaFromCredentials', () => {
   let llm: SiliconflowLargeLanguageModel
@@ -53,6 +53,16 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
     })
     expect(charge.pricingStatus).toBe('priced')
     expect(charge.totalAmount).toBeCloseTo(6 + 18 + 0.3 / 2, 8)
+  })
+
+  it('removes retired presets and keeps models available on the inspection date', () => {
+    const models = llm.predefinedModels()
+    const ids = models.map(entry => entry.model)
+    for (const removed of ['Qwen/Qwen3.5-397B-A17B', 'Pro/MiniMaxAI/MiniMax-M2.5', 'Pro/zai-org/GLM-5.1']) {
+      expect(ids).not.toContain(removed)
+    }
+    expect(models.find(entry => entry.model === 'XingChenAGI/Xing4.0-29B')).toBeDefined()
+    expect(models.find(entry => entry.model === 'Qwen/Qwen3.5-122B-A10B')?.deprecated).not.toBe(true)
   })
 
   it('loads Hy4 preview and forwards its structured output settings', () => {
@@ -231,9 +241,10 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
     expect(model.invocationParams()['enable_thinking']).toBe(true)
   })
 
-  it('keeps fixed thinking models in reasoning mode without sending an unsupported toggle', () => {
+  it('keeps a fixed-thinking deployment in reasoning mode when its schema has no thinking toggle', () => {
+    jest.spyOn(llm, 'getParameterRules').mockReturnValue([])
     const model = llm.getChatModel(
-      createCopilotModel('moonshotai/Kimi-K2-Thinking'),
+      createCopilotModel('custom/Fixed-Thinking'),
       { modelProperties: createCredentials() } as unknown as TChatModelOptions,
       null
     )
@@ -257,5 +268,25 @@ describe('November SiliconFlow reasoning models', () => {
     const manager = new SiliconflowLargeLanguageModel(new SiliconflowProviderStrategy())
     const client = manager.getChatModel({ model: 'deepseek-ai/DeepSeek-V4.1-Flash', copilot: { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test' } } }, options: { enable_thinking: false, reasoning_effort: 'max' } })
     expect(client.invocationParams()).not.toHaveProperty('reasoning_effort')
+  })
+})
+
+
+describe('regional model retirements', () => {
+  const credentials = { api_key: 'test', context_size: '4096' }
+  const qwen = 'Qwen/Qwen3.5-122B-A10B'
+
+  it('uses the selected model and endpoint when validating a regional retirement', () => {
+    expect(() => toCredentialKwargs(credentials, qwen)).toThrow('api.siliconflow.cn')
+    expect(toCredentialKwargs({ ...credentials, use_international_endpoint: true }, qwen).model).toBe(qwen)
+    expect(toCredentialKwargs({ ...credentials, endpoint_url: 'https://example.test/v1' }, qwen).model).toBe(qwen)
+    expect(toCredentialKwargs({ ...credentials, endpoint_model_name: 'deployment-id' }, qwen).model).toBe('deployment-id')
+  })
+
+  it('keeps China-only rerank models on their supported endpoint', () => {
+    const reranker = 'Qwen/Qwen3-Reranker-4B'
+    expect(getBaseUrlFromCredentials(credentials, reranker)).toBe('https://api.siliconflow.cn/v1')
+    expect(() => getBaseUrlFromCredentials({ ...credentials, use_international_endpoint: true }, reranker))
+      .toThrow('api.siliconflow.com')
   })
 })

@@ -1,3 +1,4 @@
+import { VeoVideoJobProcessor } from './job.js'
 import type { ManagedQueueService } from '@xpert-ai/plugin-sdk'
 import { GeminiVeoClient, validateVeoOperationName } from './client.js'
 import { VeoVideoModelClient } from './model.js'
@@ -110,6 +111,7 @@ describe('Gemini video generation', () => {
     const name = 'models/veo-3.1-generate-preview/operations/legacy'
     const old = { name, done: true, response: { generateVideoResponse: { generatedSamples: [{ video: { uri } }] } } }
     const client = new GeminiVeoClient(credentials, jest.fn().mockResolvedValue(Response.json(old)))
+    await expect(client.submit('veo-3.1-generate-preview', {})).rejects.toThrow('retired')
     expect(await client.getOperation(name)).toEqual(old)
     expect(normalizeVeoObservation(old, { durationSeconds: 8 }).metrics).toEqual([{ unit: 'second', quantity: 8, authority: 'request' }])
     expect(() => validateVeoOperationName('interactions/../../files')).toThrow()
@@ -132,4 +134,36 @@ describe('Gemini video generation', () => {
     expect(http.mock.calls[1][1].headers).toBeUndefined()
     await expect(client.downloadVideo('https://example.test/video')).rejects.toThrow('Untrusted')
   })
+})
+
+it('resumes a retired model job using its original access and pricing snapshot', async () => {
+  const oldModel = 'veo-3.1-generate-preview'
+  const previousPricing = { capturedAt: '2026-08-15T00:00:00Z', rules: [] }
+  const previousAccess = { source: 'internal' }
+  const provider = { copilotId: 'copilot', authorization: 'ApiKey test', baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+    reportUsage: jest.fn(), resolveModelAccess: jest.fn(), resolvePricingSnapshot: jest.fn() }
+  const client = { submit: jest.fn(), query: jest.fn().mockResolvedValue({
+    data: { name: 'operations/provider-task', done: true, response: { generateVideoResponse: { generatedSamples: [{ video: { uri } }] } } },
+    observation: { state: 'succeeded', metrics: [{ unit: 'second', quantity: 8 }] }
+  }) }
+  const uploadBuffer = jest.fn().mockResolvedValue({ filePath: '/project/clip.mp4' })
+  const runtime = { getModelProvider: jest.fn().mockResolvedValue(provider),
+    createModelClient: jest.fn().mockResolvedValue(client), capabilities: { get: () => ({ uploadBuffer }) } }
+  const processor = new VeoVideoJobProcessor({ createScopedApi: () => runtime } as unknown as ConstructorParameters<typeof VeoVideoJobProcessor>[0])
+  const data = { model: oldModel, phase: 'submitted', providerRequestId: 'provider-task', requestId: 'request',
+    runtimeScope: { projectId: 'project' }, modelAccess: previousAccess, pricingSnapshot: previousPricing }
+  const job = { id: 'job', data, updateData: jest.fn() }
+  const http = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(Buffer.from('video'), { headers: { 'Content-Type': 'video/mp4' } }))
+  try {
+    await processor.handle(job as unknown as Parameters<typeof processor.handle>[0], {} as Parameters<typeof processor.handle>[1])
+  } finally {
+    http.mockRestore()
+  }
+  expect(runtime.createModelClient).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel }), { purpose: 'observe' })
+  expect(client.query).toHaveBeenCalledWith('provider-task', expect.anything())
+  expect(client.submit).not.toHaveBeenCalled()
+  expect(provider.resolvePricingSnapshot).not.toHaveBeenCalled()
+  expect(provider.resolveModelAccess).not.toHaveBeenCalled()
+  expect(provider.reportUsage).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel, pricingSnapshot: previousPricing }), previousAccess)
+  expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project' }))
 })

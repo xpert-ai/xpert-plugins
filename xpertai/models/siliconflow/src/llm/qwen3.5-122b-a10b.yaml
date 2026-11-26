@@ -1,7 +1,7 @@
 model: Qwen/Qwen3.5-122B-A10B
 label:
-  en_US: Qwen/Qwen3.5-122B-A10B
-deprecated: true
+  en_US: Qwen/Qwen3.5-122B-A10B (international endpoint)
+  zh_Hans: Qwen/Qwen3.5-122B-A10B（国际站）
 model_type: llm
 features:
   - agent-thought

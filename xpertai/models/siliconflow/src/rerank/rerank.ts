@@ -21,7 +21,7 @@ export class SiliconflowRerankModel extends RerankModel {
   override async validateCredentials(model: string, credentials: Record<string, any>) {
     const merged = credentials ?? ({} as TModelProperties)
     const reranker = new OpenAICompatibleReranker({
-      endpointUrl: getBaseUrlFromCredentials(merged as any),
+      endpointUrl: getBaseUrlFromCredentials(merged as any, merged.endpoint_model_name || model),
       apiKey: merged.api_key,
       endpointModelName: merged.endpoint_model_name,
     })
@@ -38,7 +38,7 @@ export class SiliconflowRerankModel extends RerankModel {
       options?.modelProperties
     ) as TModelProperties
     return new OpenAICompatibleReranker({
-      endpointUrl: getBaseUrlFromCredentials(credentials as any),
+      endpointUrl: getBaseUrlFromCredentials(credentials as any, credentials.endpoint_model_name || copilotModel.model),
       apiKey: credentials.api_key,
       endpointModelName: credentials.endpoint_model_name,
     })

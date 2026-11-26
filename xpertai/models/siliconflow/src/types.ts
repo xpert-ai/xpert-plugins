@@ -38,15 +38,27 @@ function isTrue(value: string | boolean | undefined): boolean {
   return value === true || value === 'true'
 }
 
-export function getBaseUrlFromCredentials(credentials: SiliconflowCredentials): string {
-  const baseUrl = credentials.endpoint_url || credentials.base_url
-  if (baseUrl) {
-    return baseUrl.replace(/\/$/, '')
-  }
+const disabledModelsByOrigin = new Map<string, ReadonlySet<string>>([
+  ['https://api.siliconflow.cn', new Set([
+    'Qwen/Qwen3.5-122B-A10B', 'stepfun-ai/Step-3.5-Flash', 'deepseek-ai/DeepSeek-V3.1',
+  ])],
+  ['https://api.siliconflow.com', new Set([
+    'Qwen/Qwen2.5-32B-Instruct', 'Qwen/Qwen2.5-72B-Instruct-128K',
+    'Qwen/Qwen2.5-14B-Instruct', 'Qwen/Qwen3-Reranker-4B',
+  ])],
+])
 
-  return isTrue(credentials.use_international_endpoint)
-    ? 'https://api.siliconflow.com/v1'
-    : 'https://api.siliconflow.cn/v1'
+export function getBaseUrlFromCredentials(credentials: SiliconflowCredentials, model?: string): string {
+  const baseUrl = (credentials.endpoint_url || credentials.base_url ||
+    (isTrue(credentials.use_international_endpoint) ? 'https://api.siliconflow.com/v1' : 'https://api.siliconflow.cn/v1')
+  ).replace(/\/$/, '')
+  if (model) {
+    const { origin, hostname } = new URL(baseUrl)
+    if (disabledModelsByOrigin.get(origin)?.has(model)) {
+      throw new Error(`${model} has been retired on ${hostname}. Choose the other SiliconFlow endpoint or another model.`)
+    }
+  }
+  return baseUrl
 }
 
 export function toCredentialKwargs(
@@ -62,7 +74,7 @@ export function toCredentialKwargs(
   } as OpenAIBaseInput
 
   const configuration: ClientOptions = {
-    baseURL: getBaseUrlFromCredentials(credentials)
+    baseURL: getBaseUrlFromCredentials(credentials, credentialsKwargs.model)
   }
 
   const modelKwargs = {}

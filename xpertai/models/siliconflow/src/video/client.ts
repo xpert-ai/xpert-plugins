@@ -1,6 +1,7 @@
 import { ModelProviderHttpClient } from '@xpert-ai/plugin-sdk/model-provider-http-client'
 import { getBaseUrlFromCredentials, type SiliconflowCredentials } from '../types.js'
 import {
+  SiliconflowH3,
   SiliconflowVideoDefaultBaseUrl,
   type SiliconflowVideoCredentials,
   type SiliconflowVideoGenerationPayload,
@@ -41,6 +42,7 @@ export class SiliconflowVideoClient extends ModelProviderHttpClient {
   }
 
   async submitVideo(payload: SiliconflowVideoGenerationPayload): Promise<SiliconflowVideoTask> {
+    if (payload.model !== SiliconflowH3) throw new Error('Select MiniMax H3 for new video tasks')
     return this.requestJson(
       '/video/submit',
       { method: 'POST', body: JSON.stringify(payload) },

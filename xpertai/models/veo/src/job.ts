@@ -47,7 +47,7 @@ export class VeoVideoJobProcessor implements ManagedQueueJobProcessor<VeoVideoJo
     if (!provider.copilotId) throw new Error('Google Veo model provider is not configured')
     const client = await runtime.createModelClient<AsyncAIGCModelClient<VeoGenerationRequest, VeoOperation>>(
       { copilotId: provider.copilotId, model: job.data.model, modelType: AiModelTypeEnum.VIDEO },
-      { purpose: 'invoke' }
+      { purpose: job.data.providerRequestId ? 'observe' : 'invoke' }
     )
     const workspaceFiles = runtime.capabilities?.get(WorkspaceFilesRuntimeCapability)
     if (!workspaceFiles) throw new Error('Xpert workspace file runtime is unavailable')

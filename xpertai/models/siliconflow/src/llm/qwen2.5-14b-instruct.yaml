@@ -1,6 +1,7 @@
 model: Qwen/Qwen2.5-14B-Instruct
 label:
-  en_US: Qwen/Qwen2.5-14B-Instruct
+  en_US: Qwen/Qwen2.5-14B-Instruct (China endpoint)
+  zh_Hans: Qwen/Qwen2.5-14B-Instruct（中国站）
 model_type: llm
 features:
   - agent-thought
@@ -49,4 +50,3 @@ pricing:
   output: '0.7'
   unit: '0.000001'
   currency: RMB
-deprecated: true

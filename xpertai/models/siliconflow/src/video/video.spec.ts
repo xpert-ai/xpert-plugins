@@ -1,3 +1,4 @@
+import { SiliconflowVideoJobProcessor } from './job.js'
 import { buildSiliconflowVideoTools } from './tools.js'
 import { SiliconflowVideoClient } from './client.js'
 import { SiliconflowVideoModelClient } from './model.js'
@@ -72,6 +73,8 @@ describe('SiliconFlow H3 video', () => {
     const http = jest.fn().mockResolvedValueOnce(Response.json({ requestId: 'id' })).mockResolvedValueOnce(status())
       .mockResolvedValueOnce(status()).mockResolvedValueOnce(Response.json({ status: 'Failed' }))
     const client = new SiliconflowVideoModelClient(new SiliconflowVideoClient({ api_key: 'test', endpoint_url: 'https://example.test/v1' }, http))
+    await expect(client.submit({ model: 'Wan-AI/Wan2.2-T2V-A14B', prompt: 'A' })).rejects.toThrow('MiniMax H3')
+    expect(http).not.toHaveBeenCalled()
     await client.submit({ model: SiliconflowH3, prompt: 'A', duration: 7 })
     expect(http.mock.calls[0][0]).toBe('https://example.test/v1/video/submit')
     expect(http.mock.calls[0][1].headers).toMatchObject({ Authorization: 'Bearer test' })
@@ -80,4 +83,36 @@ describe('SiliconFlow H3 video', () => {
     expect((await client.query('legacy')).observation.metrics).toEqual([{ unit: 'generation', authority: 'contract', quantity: 1 }])
     expect((await client.query('id')).observation.state).toBe('failed')
   })
+})
+
+it('resumes a retired model job using its original access and pricing snapshot', async () => {
+  const oldModel = 'Wan-AI/Wan2.2-T2V-A14B'
+  const previousPricing = { capturedAt: '2026-08-15T00:00:00Z', rules: [] }
+  const previousAccess = { source: 'internal' }
+  const provider = { copilotId: 'copilot', authorization: 'Bearer test', baseURL: 'https://api.siliconflow.cn/v1',
+    reportUsage: jest.fn(), resolveModelAccess: jest.fn(), resolvePricingSnapshot: jest.fn() }
+  const client = { submit: jest.fn(), query: jest.fn().mockResolvedValue({
+    data: { status: 'Succeed', results: { videos: [{ url: 'https://example.test/clip.mp4' }] } },
+    observation: { state: 'succeeded', metrics: [{ unit: 'generation', quantity: 1 }] }
+  }) }
+  const uploadBuffer = jest.fn().mockResolvedValue({ filePath: '/project/clip.mp4' })
+  const runtime = { getModelProvider: jest.fn().mockResolvedValue(provider),
+    createModelClient: jest.fn().mockResolvedValue(client), capabilities: { get: () => ({ uploadBuffer }) } }
+  const processor = new SiliconflowVideoJobProcessor({ createScopedApi: () => runtime } as unknown as ConstructorParameters<typeof SiliconflowVideoJobProcessor>[0])
+  const data = { model: oldModel, phase: 'submitted', providerRequestId: 'provider-task', requestId: 'request',
+    runtimeScope: { projectId: 'project' }, modelAccess: previousAccess, pricingSnapshot: previousPricing }
+  const job = { id: 'job', data, updateData: jest.fn() }
+  const http = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(Buffer.from('video'), { headers: { 'Content-Type': 'video/mp4' } }))
+  try {
+    await processor.handle(job as unknown as Parameters<typeof processor.handle>[0], {} as Parameters<typeof processor.handle>[1])
+  } finally {
+    http.mockRestore()
+  }
+  expect(runtime.createModelClient).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel }), { purpose: 'observe' })
+  expect(client.query).toHaveBeenCalledWith('provider-task', expect.anything())
+  expect(client.submit).not.toHaveBeenCalled()
+  expect(provider.resolvePricingSnapshot).not.toHaveBeenCalled()
+  expect(provider.resolveModelAccess).not.toHaveBeenCalled()
+  expect(provider.reportUsage).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel, pricingSnapshot: previousPricing }), previousAccess)
+  expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project' }))
 })

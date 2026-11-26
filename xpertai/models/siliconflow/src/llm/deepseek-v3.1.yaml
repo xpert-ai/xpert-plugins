@@ -1,6 +1,7 @@
 model: deepseek-ai/DeepSeek-V3.1
 label:
-  en_US: deepseek-ai/DeepSeek-V3.1
+  en_US: deepseek-ai/DeepSeek-V3.1 (international endpoint)
+  zh_Hans: deepseek-ai/DeepSeek-V3.1（国际站）
 model_type: llm
 features:
   - agent-thought

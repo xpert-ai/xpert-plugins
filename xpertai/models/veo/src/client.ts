@@ -37,17 +37,8 @@ export class GeminiVeoClient extends ModelProviderHttpClient {
     model: VeoModel,
     payload: Record<string, unknown>
   ): Promise<VeoOperation> {
-    if (model === OmniModel) {
-      return this.requestJson('/interactions', { method: 'POST', body: JSON.stringify(payload) }, parseOmniInteraction)
-    }
-    return this.requestJson(
-      `/models/${encodeURIComponent(model)}:predictLongRunning`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      },
-      parseVeoOperation
-    )
+    if (model !== OmniModel) throw new Error('Veo 3.1 has retired. Select Gemini Omni for new tasks.')
+    return this.requestJson('/interactions', { method: 'POST', body: JSON.stringify(payload) }, parseOmniInteraction)
   }
 
   async getOperation(operationName: string): Promise<VeoOperation> {

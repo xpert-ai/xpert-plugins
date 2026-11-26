@@ -1,7 +1,7 @@
 model: stepfun-ai/Step-3.5-Flash
 label:
-  en_US: stepfun-ai/Step-3.5-Flash
-deprecated: true
+  en_US: stepfun-ai/Step-3.5-Flash (international endpoint)
+  zh_Hans: stepfun-ai/Step-3.5-Flash（国际站）
 model_type: llm
 features:
   - agent-thought

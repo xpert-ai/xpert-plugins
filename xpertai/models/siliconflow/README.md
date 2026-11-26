@@ -19,6 +19,10 @@ New submissions use `MiniMaxAI/MiniMax-H3`. Select a duration of 5–15 seconds 
 
 Generated MP4 files are saved under `files/siliconflow/videos` in the active project or Xpert scope. SiliconFlow video URLs are temporary, so the query tool downloads them immediately after a successful status response.
 
+## Model availability
+
+The predefined catalog omits retired models from the [SiliconFlow release notes](https://api-docs.siliconflow.cn/docs/release-notes/overview) and the official [China](https://cloud.siliconflow.cn/open/models) and [international](https://cloud.siliconflow.com/open/models) catalogs. Some models are active in only one region. Their display names identify the endpoint and the plugin checks the selected official endpoint before sending a request. Custom endpoint deployments keep their own model IDs. Xing4.0-29B is scheduled to retire on December 4, 2026.
+
 ## Credentials
 
 The existing model provider uses `api_key` and the optional endpoint selection. The video toolset has its own credential form so it can be configured per Workspace toolset.
