@@ -2,6 +2,7 @@ model: veo-3.1-fast-generate-preview
 label:
   en_US: Veo 3.1 Fast
   zh_Hans: Veo 3.1 Fast
+deprecated: true
 model_type: video
 features: []
 model_properties:

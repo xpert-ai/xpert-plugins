@@ -1,3 +1,16 @@
+- openai/gpt-6.2-astra
+- openai/gpt-6.2-astra-pro
+- openai/gpt-6.2-sol
+- openai/gpt-6.2-sol-pro
+- google/gemini-4-carbon
+- google/gemini-4-neon
+- google/gemini-4-hydrogen
+- google/gemini-4-argon
+- anthropic/claude-fable-5.2
+- qwen/qwen4-max
+- tencent/hy4
+- tencent/hy4-flash
+- xiaomi/mimo-v2.6-flash-mopd
 - google/gemini-3.8-flash
 - moonshotai/kimi-k3.1-pro
 - openai/gpt-6-astra

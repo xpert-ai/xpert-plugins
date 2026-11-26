@@ -1,0 +1,68 @@
+# https://aistudio.google.com/docs/models/gemini-4-argon
+model: gemini-4-argon
+label:
+  en_US: Gemini 4 Argon
+model_type: llm
+features:
+  - tool-call
+  - multi-tool-call
+  - agent-thought
+  - vision
+  - stream-tool-call
+  - document
+  - video
+  - audio
+  - structured-output
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: include_thoughts
+    type: boolean
+    required: true
+    default: false
+    label:
+      en_US: Include thoughts
+      zh_Hans: 返回思考过程
+    help:
+      en_US: Include available thought summaries in the response.
+      zh_Hans: 在响应中返回可用的思考摘要。
+  - name: thinking_level
+    type: string
+    required: true
+    default: Medium
+    options:
+      - Low
+      - Medium
+      - High
+    label:
+      en_US: Thinking level
+      zh_Hans: 思考层级
+    help:
+      en_US: Medium is recommended for most tasks. Low reduces latency and token usage; High allows deeper reasoning. Thinking cannot be disabled.
+      zh_Hans: 大多数任务推荐使用 Medium。Low 减少延迟和 token 用量，High 支持更深入的推理。无法关闭思考。
+  - name: max_output_tokens
+    use_template: max_tokens
+    type: int
+    required: true
+    default: 8192
+    min: 1
+    max: 65536
+    label:
+      en_US: Output length
+      zh_Hans: 输出长度
+pricing:
+  input: '2'
+  output: '10'
+  currency: USD
+  unit: '0.000001'
+  rules:
+    - component: input
+      unit_price: 2
+      unit_size: 1000000
+    - component: output
+      unit_price: 10
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 0.1
+      unit_size: 1000000

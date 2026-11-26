@@ -1,0 +1,23 @@
+# https://api-docs.siliconflow.cn/docs/api/video-submit-post
+model: MiniMaxAI/MiniMax-H3
+label:
+  en_US: MiniMax H3
+  zh_Hans: MiniMax H3
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: siliconflow-minimax-h3-cn-second
+      version: '2026-11-10'
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: second
+      unit_size: 1
+      unit_price: 0.5
+      currency: CNY
+      charge_type: paid
+      dimensions: { mode: cn }
+      source_url: https://www.siliconflow.cn/news/l79jsom7hup3ovmj80tzblmx

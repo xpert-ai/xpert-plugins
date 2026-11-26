@@ -1,4 +1,5 @@
 export const SEEDANCE_2_MODELS = new Set([
+  'doubao-seedance-2-5-flash-261115',
   'doubao-seedance-2-5-260628',
   'doubao-seedance-2-0-260128',
   'doubao-seedance-2-0-fast-260128',
@@ -163,6 +164,10 @@ export function normalizeVideoGenerationOptions(input: VideoGenerationInput): No
   }
 
   const requestedResolution = normalizeString(input.resolution) || capabilities.defaultResolution
+  if (model === 'doubao-seedance-2-5-flash-261115' &&
+      (!capabilities.resolutions.includes(requestedResolution) || normalizeBoolean(input.draft, false))) {
+    throw new Error('Seedance 2.5 Flash requires 480p or 720p and does not support draft generation')
+  }
   const resolution = capabilities.resolutions.includes(requestedResolution)
     ? requestedResolution
     : capabilities.defaultResolution
@@ -204,6 +209,9 @@ export function normalizeVideoGenerationOptions(input: VideoGenerationInput): No
 
 export function getVideoModelCapabilities(model: string): VideoModelCapabilities {
   const normalized = model.toLowerCase()
+  if (normalized === 'doubao-seedance-2-5-flash-261115') {
+    return { ...VIDEO_MODEL_CAPABILITIES['2.5'], maxReferenceImages: 10, maxReferenceVideos: 5, maxReferenceAudios: 5 }
+  }
   if (normalized.includes('seedance-2-5')) return VIDEO_MODEL_CAPABILITIES['2.5']
   if (normalized.includes('seedance-2-0')) return VIDEO_MODEL_CAPABILITIES['2.0']
   if (normalized.includes('seedance-1-5-pro')) return VIDEO_MODEL_CAPABILITIES['1.5']

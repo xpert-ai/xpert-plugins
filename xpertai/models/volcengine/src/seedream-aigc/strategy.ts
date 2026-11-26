@@ -46,6 +46,18 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       },
       models: [
         {
+          id: 'doubao-seedance-2-5-flash-261115',
+          label: 'Seedance 2.5 Flash',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 10 },
+            referenceVideos: { maxItems: 5 },
+            referenceAudios: { maxItems: 5 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
           id: 'doubao-seedance-2-5-260628',
           label: 'Seedance 2.5',
           modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],

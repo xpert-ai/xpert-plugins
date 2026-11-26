@@ -8,6 +8,7 @@ import {
   mergeCredentials,
   TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
+import { Gemini4ChatModel, gemini4Models } from './gemini4.js';
 import { GeminiProviderStrategy } from '../provider.strategy.js';
 import { GeminiModelCredentials, toCredentialKwargs } from '../types.js';
 import {
@@ -38,6 +39,19 @@ export class GeminiLargeLanguageModel extends LargeLanguageModel {
 
   constructor(modelProvider: GeminiProviderStrategy) {
     super(modelProvider, AiModelTypeEnum.LLM);
+  }
+
+  override predefinedModels(): ReturnType<LargeLanguageModel['predefinedModels']> {
+    const schemas = super.predefinedModels();
+    // Google's published introductory rates for Carbon and Argon end November 30.
+    if (Date.now() < Date.UTC(2026, 11, 1)) return schemas;
+    return schemas.map(schema => {
+      if (!['gemini-4-carbon', 'gemini-4-argon'].includes(schema.model)) return schema;
+      const pricing = schema.pricing;
+      if (!pricing || !('input' in pricing)) return schema;
+      return { ...schema, pricing: { ...pricing, input: 4, output: 20,
+        rules: pricing.rules?.map(rule => ({ ...rule, unit_price: rule.unit_price * 2 })) } };
+    });
   }
 
   async validateCredentials(
@@ -83,7 +97,8 @@ export class GeminiLargeLanguageModel extends LargeLanguageModel {
       maxOutputTokens: toGeminiFiniteNumber(modelOptions['max_output_tokens'] ?? modelOptions['max_tokens']),
       maxRetries: modelCredentials?.maxRetries,
     };
-    return new GeminiChatGoogleGenerativeAI(
+    const ChatModel = gemini4Models.has(copilotModel.model) ? Gemini4ChatModel : GeminiChatGoogleGenerativeAI;
+    return new ChatModel(
       {
         ...fields,
         callbacks: [

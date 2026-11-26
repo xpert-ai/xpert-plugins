@@ -13,10 +13,13 @@ import type {
 export const SiliconflowVideo = 'siliconflow_video'
 export const SiliconflowVideoDefaultBaseUrl = 'https://api.siliconflow.cn/v1'
 
+export const SiliconflowH3 = 'MiniMaxAI/MiniMax-H3'
+export const H3Ratios = ['1:1', '3:4', '4:3', '9:16', '16:9', '21:9'] as const
+export const H3Resolutions = ['480p', '768p'] as const
 export const SiliconflowVideoTextModel = 'Wan-AI/Wan2.2-T2V-A14B'
 export const SiliconflowVideoImageModel = 'Wan-AI/Wan2.2-I2V-A14B'
 
-export const SiliconflowVideoModels = [SiliconflowVideoTextModel, SiliconflowVideoImageModel] as const
+export const SiliconflowVideoModels = [SiliconflowH3, SiliconflowVideoTextModel, SiliconflowVideoImageModel] as const
 export const SiliconflowVideoSizes = ['1280x720', '720x1280', '960x960'] as const
 
 export type SiliconflowVideoModel = (typeof SiliconflowVideoModels)[number]
@@ -36,6 +39,10 @@ export type WorkspaceFilesApi = WorkspaceMediaFilesApi<WorkspaceFileScope & Work
 export type SiliconflowVideoGenerationPayload = {
   model: SiliconflowVideoModel
   prompt: string
+  duration?: number
+  resolution?: (typeof H3Resolutions)[number]
+  ratio?: (typeof H3Ratios)[number]
+  images?: Array<{ role: 'first_frame' | 'last_frame'; url: string }>
   negative_prompt?: string
   image_size?: SiliconflowVideoSize
   image?: string

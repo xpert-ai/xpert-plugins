@@ -1,3 +1,5 @@
+import { getSeedreamImagePricingDimensions } from './image-pricing-context.js'
+import { SEEDREAM_55_MODEL } from './image-models.js'
 import type { ModelUsageMetric } from '@xpert-ai/contracts'
 import type { AIGCModelObservation } from '@xpert-ai/plugin-sdk'
 import type { SeedanceVideoTask, SeedanceVideoUsage, SeedreamImageResponse } from './types.js'
@@ -18,7 +20,21 @@ export function normalizeSeedreamImageUsage(response: unknown): SeedreamImageTok
   return { promptTokens, completionTokens, totalTokens }
 }
 
-export function normalizeSeedreamImageObservation(response: SeedreamImageResponse): AIGCModelObservation {
+export function normalizeSeedreamImageObservation(response: SeedreamImageResponse, input?: Record<string, unknown>): AIGCModelObservation {
+  if (input?.model === SEEDREAM_55_MODEL) {
+    const metrics: ModelUsageMetric[] = []
+    const images = Array.isArray(response.data) ? response.data : []
+    for (const [index, image] of images.entries()) {
+      if (!isRecord(image) || (!image.url && !image.b64_json)) continue
+      const pricingDimensions = getSeedreamImagePricingDimensions(SEEDREAM_55_MODEL, { size: image.size ?? input.size })
+      metrics.push({ key: `image-${index}`, unit: 'generation', component: 'output', quantity: 1, authority: 'provider', pricingDimensions })
+    }
+    const inputCount = Array.isArray(input.image) ? input.image.length : input.image ? 1 : 0
+    if (inputCount && metrics.length) {
+      metrics.push({ unit: 'generation', component: 'input', quantity: inputCount, authority: 'contract' })
+    }
+    return { state: 'succeeded', metrics }
+  }
   const usage = normalizeSeedreamImageUsage(response)
   const generation = normalizeSeedreamImageGeneration(response)
   if (!usage && !generation) {

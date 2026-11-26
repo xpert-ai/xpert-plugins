@@ -6,6 +6,8 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import { OpenRouterProviderStrategy } from './provider.strategy.js';
 import { OpenRouterLargeLanguageModel } from './llm/llm.js';
+import { OpenRouterTTSModel } from './tts/tts.js';
+import { OpenRouterSpeech2TextModel } from './speech2text/speech2text.js';
 import { OpenRouterRerankModel } from './rerank/rerank.js';
 import { OpenRouterTextEmbeddingModel } from './text-embedding/text-embedding.js';
 
@@ -14,6 +16,8 @@ import { OpenRouterTextEmbeddingModel } from './text-embedding/text-embedding.js
   providers: [
     OpenRouterProviderStrategy,
     OpenRouterLargeLanguageModel,
+    OpenRouterTTSModel,
+    OpenRouterSpeech2TextModel,
     OpenRouterRerankModel,
     OpenRouterTextEmbeddingModel
   ],

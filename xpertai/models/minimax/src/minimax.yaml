@@ -3,8 +3,8 @@ label:
   en_US: MiniMax
   zh_Hans: MiniMax
 description:
-  en_US: MiniMax models for chat, text-to-speech, and video generation.
-  zh_Hans: MiniMax 提供的对话、语音合成和视频生成模型。
+  en_US: MiniMax models for chat, speech synthesis, image generation and video generation.
+  zh_Hans: MiniMax 提供的对话、语音合成、图片和视频生成模型。
 icon_small:
   en_US: icon_s_en.png
 icon_large:
@@ -20,6 +20,7 @@ supported_model_types:
   - llm
   - tts
   - video
+  - image
 configurate_methods:
   - predefined-model
 provider_credential_schema:
@@ -38,7 +39,7 @@ provider_credential_schema:
         en_US: Group ID
         zh_Hans: Group ID
       type: text-input
-      required: true
+      required: false
       placeholder:
         en_US: Enter your Group ID
         zh_Hans: 在此输入您的 Group ID

@@ -1,0 +1,52 @@
+# https://openrouter.ai/tencent/hy4-flash
+model: tencent/hy4-flash
+label:
+  en_US: 'Tencent: Hy4 flash'
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - stream-tool-call
+  - structured-output
+  - vision
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 65536
+    default: 4096
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    help:
+      zh_Hans: 指定模型必须输出的格式
+      en_US: specifying the format that the model must output
+    required: false
+    options:
+      - text
+      - json_object
+      - json_schema
+  - name: json_schema
+    use_template: json_schema
+pricing:
+  input: '0.035'
+  output: '0.1405'
+  currency: USD
+  unit: '0.000001'
+  rules:
+    - component: input
+      unit_price: 0.035
+      unit_size: 1000000
+    - component: output
+      unit_price: 0.1405
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 0.0015
+      unit_size: 1000000
+  source_url: https://openrouter.ai/tencent/hy4-flash

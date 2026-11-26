@@ -34,9 +34,12 @@ import {
 } from './runtime-options.js'
 
 type AnthropicChatModelParams = AnthropicInput & {
+  effort?: string
   callbacks?: Callbacks
   promptCaching?: AnthropicPromptCachingOptions
 }
+
+const adaptiveThinkingModels = new Set(['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'])
 
 type AnthropicCacheCreationUsage = {
   ephemeral5mInputTokens: number
@@ -135,8 +138,20 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
   }
 
   protected createChatModel(params: AnthropicChatModelParams) {
-    const { promptCaching, ...fields } = params
-    const chatModel = new ChatAnthropic(fields)
+    const { promptCaching, effort, ...fields } = params
+    // This SDK otherwise serializes legacy sampling defaults and disabled thinking.
+    const chatModel = new ChatAnthropic(adaptiveThinkingModels.has(fields.model ?? fields.modelName ?? '') ? {
+      ...fields,
+      thinking: undefined,
+      invocationKwargs: {
+        ...fields.invocationKwargs,
+        temperature: undefined,
+        top_k: undefined,
+        top_p: undefined,
+        thinking: { type: 'adaptive' },
+        ...(effort ? { output_config: { effort } } : {})
+      }
+    } : fields)
 
     if (promptCaching && hasPromptCachingEnabled(promptCaching)) {
       return enhanceChatAnthropicWithPromptCaching(chatModel, promptCaching)
@@ -186,6 +201,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
       {
         ...params,
         streaming: true,
+        effort: optionValue('effort'),
         temperature: thinkingEnabled ? undefined : normalizeNumber(optionValue('temperature')),
         maxTokens: normalizeInteger(optionValue('max_tokens')),
         topK: thinkingEnabled ? undefined : normalizeInteger(optionValue('top_k')),

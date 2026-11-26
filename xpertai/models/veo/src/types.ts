@@ -14,7 +14,8 @@ export const VeoToolsetName = 'veo_video_generation'
 export const VeoModelProvider = 'veo'
 export const VeoApiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta'
 
-export const VeoModels = ['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'] as const
+export const OmniModel = 'gemini-omni-1.2-flash'
+export const VeoModels = [OmniModel, 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'] as const
 
 export type VeoModel = (typeof VeoModels)[number]
 

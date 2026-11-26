@@ -1,4 +1,4 @@
-import { VeoModels, type VeoModel } from './types.js'
+import { OmniModel, VeoModels, type VeoModel } from './types.js'
 
 export type VeoGenerationMode =
   | 'text_to_video'
@@ -9,8 +9,8 @@ export type VeoGenerationMode =
 export type VeoSubmissionOptions = {
   model: VeoModel
   prompt: string
-  durationSeconds: 4 | 6 | 8
-  resolution: '720p' | '1080p' | '4k'
+  durationSeconds: number
+  resolution: '360p' | '720p' | '1080p' | '4k'
   aspectRatio: '16:9' | '9:16'
   personGeneration: 'allow_all' | 'allow_adult'
 }
@@ -29,14 +29,11 @@ export function normalizeSubmissionOptions(
   const resolution = normalizeResolution(input.resolution)
   const aspectRatio = normalizeAspectRatio(input.ratio)
 
-  if (mode === 'reference_to_video' && durationSeconds !== 8) {
-    throw new Error('Veo asset-reference generation requires an 8-second duration')
-  }
-  if (resolution !== '720p' && durationSeconds !== 8) {
-    throw new Error('Veo 1080p and 4k generation requires an 8-second duration')
+  if (mode === 'first_last_frame_to_video' && durationSeconds > 10) {
+    throw new Error('First and last frame interpolation supports at most 10 seconds')
   }
   if (input.generate_audio !== undefined && !normalizeBoolean(input.generate_audio)) {
-    throw new Error('Veo 3.1 always generates audio and audio cannot be disabled')
+    throw new Error('Gemini Omni always generates audio and audio cannot be disabled')
   }
 
   return {
@@ -59,8 +56,8 @@ export function assertInlineRequestLimit(payload: Record<string, unknown>) {
 
 export function requireReferenceImages(value: unknown) {
   const images = Array.isArray(value) ? value : []
-  if (images.length < 1 || images.length > 3) {
-    throw new Error('Veo requires between 1 and 3 asset reference images')
+  if (images.length < 1 || images.length > 6) {
+    throw new Error('Veo requires between 1 and 6 asset reference images')
   }
   return images
 }
@@ -86,28 +83,31 @@ function normalizeModel(value: unknown): VeoModel {
   const model =
     typeof value === 'string' && value.trim()
       ? value.trim()
-      : 'veo-3.1-generate-preview'
+      : OmniModel
+  if (model !== OmniModel && VeoModels.includes(model as VeoModel)) {
+    throw new Error('Veo 3.1 has retired on the Gemini API. Select Gemini Omni 1.2 Flash for new tasks.')
+  }
   if (!VeoModels.includes(model as VeoModel)) {
     throw new Error('Unsupported Veo model')
   }
   return model as VeoModel
 }
 
-function normalizeDuration(value: unknown): 4 | 6 | 8 {
+function normalizeDuration(value: unknown): number {
   const duration = value === undefined ? 8 : Number(value)
-  if (![4, 6, 8].includes(duration)) {
-    throw new Error('Veo duration must be 4, 6, or 8 seconds')
+  if (!Number.isInteger(duration) || duration < 3 || duration > 15) {
+    throw new Error('Veo duration must be between 3 and 15 seconds')
   }
-  return duration as 4 | 6 | 8
+  return duration
 }
 
-function normalizeResolution(value: unknown): '720p' | '1080p' | '4k' {
+function normalizeResolution(value: unknown): '360p' | '720p' | '1080p' | '4k' {
   const resolution =
     typeof value === 'string' && value.trim() ? value.trim() : '720p'
-  if (!['720p', '1080p', '4k'].includes(resolution)) {
-    throw new Error('Veo resolution must be 720p, 1080p, or 4k')
+  if (!['360p', '720p', '1080p', '4k'].includes(resolution)) {
+    throw new Error('Veo resolution must be 360p, 720p, 1080p, or 4k')
   }
-  return resolution as '720p' | '1080p' | '4k'
+  return resolution as '360p' | '720p' | '1080p' | '4k'
 }
 
 function normalizeAspectRatio(value: unknown): '16:9' | '9:16' {

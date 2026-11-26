@@ -26,7 +26,7 @@ export class SeedreamImageModelClient
     const response = await this.client.generateImages(input)
     return {
       data: response,
-      observation: normalizeSeedreamImageObservation(response)
+      observation: normalizeSeedreamImageObservation(response, input)
     }
   }
 }

@@ -13,7 +13,7 @@ export const SvgIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="no
 
 export interface MiniMaxCredentials {
   api_key: string;
-  group_id: string;
+  group_id?: string;
   base_url?: string;
 }
 

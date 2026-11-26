@@ -2,6 +2,7 @@ model: Wan-AI/Wan2.2-T2V-A14B
 label:
   en_US: Wan2.2 Text to Video
   zh_Hans: Wan2.2 文生视频
+deprecated: true
 model_type: video
 features: []
 model_properties:

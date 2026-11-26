@@ -1,0 +1,48 @@
+model: doubao-seedream-5-5-261028
+label:
+  en_US: Seedream 5.5
+  zh_Hans: Seedream 5.5
+model_type: image
+features: []
+model_properties:
+  mode: image
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: seedream-55-reference
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: generation
+      unit_size: 1
+      unit_price: 0.05
+      currency: CNY
+      charge_type: paid
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+      component: input
+    - id: seedream-55-le-261mp
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: generation
+      unit_size: 1
+      unit_price: 0.13
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: le-2.61mp
+        mode: standard
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+      component: output
+    - id: seedream-55-gt-261mp
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: generation
+      unit_size: 1
+      unit_price: 0.23
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: gt-2.61mp
+        mode: standard
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+      component: output

@@ -18,10 +18,6 @@ export class MiniMaxProviderStrategy extends ModelProvider {
       throw new CredentialsValidateFailedError('API key is required and must be a string');
     }
 
-    if (typeof credentials.group_id !== 'string' || !credentials.group_id.trim()) {
-      throw new CredentialsValidateFailedError('Group ID is required and must be a string');
-    }
-
     if (credentials.base_url) {
       try {
         new URL(credentials.base_url);

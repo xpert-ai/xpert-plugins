@@ -1,0 +1,64 @@
+model: doubao-seedance-2-5-flash-261115
+label:
+  en_US: Seedance 2.5 Flash
+  zh_Hans: Seedance 2.5 Flash
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedance-2-5-flash-480p-no-video-input-output-token
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 46
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: 480p
+        videoInput: false
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+    - id: volcengine-seedance-2-5-flash-480p-video-input-output-token
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 28
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: 480p
+        videoInput: true
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+    - id: volcengine-seedance-2-5-flash-720p-no-video-input-output-token
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 46
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: 720p
+        videoInput: false
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing
+    - id: volcengine-seedance-2-5-flash-720p-video-input-output-token
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00+08:00'
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 28
+      currency: CNY
+      charge_type: paid
+      dimensions:
+        resolution: 720p
+        videoInput: true
+      source_url: https://docs.volcengine.com/docs/ark/model-pricing

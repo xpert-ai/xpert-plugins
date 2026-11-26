@@ -1,5 +1,7 @@
 // Image capability contracts shared by tool choices and payload validation.
+export const SEEDREAM_55_MODEL = 'doubao-seedream-5-5-261028'
 export const SEEDREAM_MODEL_OPTIONS = [
+  [SEEDREAM_55_MODEL, 'Seedream 5.5'],
   ['doubao-seedream-4-0-250828', 'Seedream4.0'],
   ['doubao-seedream-4-5-251128', 'Seedream4.5'],
   ['doubao-seedream-5-0-260128', 'Seedream5.0 Lite'],
@@ -11,6 +13,12 @@ const SEEDREAM_IMAGE_CAPABILITIES: Record<
   string,
   { supportsSequential: boolean; supportsStream: boolean; supportsOutputFormat: boolean; maxInputImages: number }
 > = {
+  [SEEDREAM_55_MODEL]: {
+    supportsSequential: false,
+    supportsStream: false,
+    supportsOutputFormat: true,
+    maxInputImages: 10
+  },
   'doubao-seedream-5-0-flash-260915': {
     supportsSequential: false,
     supportsStream: false,
@@ -66,16 +74,16 @@ export function validateImageSize(model: string, size: string) {
     '3744x2496': new Set(['doubao-seedream-5-0-260128']),
     '2496x3744': new Set(['doubao-seedream-5-0-260128']),
     '4704x2016': new Set(['doubao-seedream-5-0-260128']),
-    '2368x1776': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '1776x2368': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '2816x1584': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '1584x2816': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '1024x1024': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
-    '1152x864': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
-    '864x1152': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
-    '1424x800': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '800x1424': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
-    '1568x672': new Set(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '2368x1776': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '1776x2368': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '2816x1584': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '1584x2816': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '1024x1024': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
+    '1152x864': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
+    '864x1152': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915', 'doubao-seedream-4-0-250828']),
+    '1424x800': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '800x1424': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
+    '1568x672': new Set([SEEDREAM_55_MODEL, 'doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915']),
     '1280x720': new Set(['doubao-seedream-4-0-250828']),
     '720x1280': new Set(['doubao-seedream-4-0-250828']),
     '1512x648': new Set(['doubao-seedream-4-0-250828'])

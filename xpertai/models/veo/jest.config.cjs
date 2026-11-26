@@ -14,6 +14,7 @@ module.exports = {
   },
   transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   moduleNameMapper: {
+    '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts',
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
   },
   moduleFileExtensions: ['ts', 'js', 'html'],

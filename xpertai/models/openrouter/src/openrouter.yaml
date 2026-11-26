@@ -3,8 +3,8 @@ label:
   en_US: OpenRouter
   zh_Hans: OpenRouter
 description:
-  en_US: Access OpenRouter language, embedding, and rerank models through a unified API.
-  zh_Hans: 通过统一 API 使用 OpenRouter 的语言、嵌入与重排模型。
+  en_US: Access OpenRouter language, speech, embedding, and rerank models through a unified API.
+  zh_Hans: 通过统一 API 使用 OpenRouter 的语言、语音、嵌入与重排模型。
 background: '#F1EFED'
 configurate_methods:
   - predefined-model
@@ -165,6 +165,14 @@ model_credential_schema:
       en_US: Enter the full OpenRouter model name
       zh_Hans: 输入 OpenRouter 模型全称
 models:
+  tts:
+    position: tts/_position.yaml
+    predefined:
+      - tts/*.yaml
+  speech2text:
+    position: speech2text/_position.yaml
+    predefined:
+      - speech2text/*.yaml
   llm:
     position: llm/_position.yaml
     predefined:
@@ -198,6 +206,8 @@ provider_credential_schema:
       required: false
       type: text-input
 supported_model_types:
+  - tts
+  - speech2text
   - llm
   - rerank
   - text-embedding

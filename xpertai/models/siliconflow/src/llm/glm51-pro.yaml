@@ -2,6 +2,7 @@ model: Pro/zai-org/GLM-5.1
 label:
   zh_Hans: Pro/zai-org/GLM-5.1
   en_US: Pro/zai-org/GLM-5.1
+deprecated: true
 model_type: llm
 features:
   - tool-call

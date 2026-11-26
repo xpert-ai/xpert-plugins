@@ -6,15 +6,14 @@ import type {
   SiliconflowArtifactFile,
   SiliconflowVideoGenerationPayload,
   SiliconflowVideoJobPayload,
-  SiliconflowVideoModel,
   SiliconflowVideoToolDependencies,
   SiliconflowVideoToolResult
 } from './types.js'
 import {
-  SiliconflowVideoImageModel,
+  H3Ratios,
+  H3Resolutions,
+  SiliconflowH3,
   SiliconflowVideoModels,
-  SiliconflowVideoSizes,
-  SiliconflowVideoTextModel
 } from './types.js'
 import { SILICONFLOW_PLUGIN_NAME, SILICONFLOW_VIDEO_JOB, SILICONFLOW_VIDEO_QUEUE } from './constants.js'
 
@@ -74,34 +73,32 @@ function buildSubmitTool(deps: SiliconflowVideoToolDependencies) {
       const values = requireRecord(input)
       const prompt = readOptionalString(values.prompt)
       const imageInput = values.input_image_file ?? values.image_url
-      if (!prompt && imageInput === undefined) {
-        throw new Error('At least one of prompt, input_image_file, or image_url is required')
+      const lastImage = values.last_frame_file
+      if (!prompt && imageInput === undefined && lastImage === undefined) {
+        throw new Error('A prompt or reference frame is required')
       }
-
-      const model = normalizeModel(values.model, imageInput !== undefined)
-      if (model === SiliconflowVideoImageModel && imageInput === undefined) {
-        throw new Error('An input image is required for the SiliconFlow image-to-video model')
+      if (values.model !== undefined && values.model !== SiliconflowH3) {
+        throw new Error('SiliconFlow now accepts MiniMaxAI/MiniMax-H3 for new video tasks')
       }
-      if (model === SiliconflowVideoTextModel && imageInput !== undefined) {
-        throw new Error('Use the SiliconFlow image-to-video model when an input image is provided')
+      if (values.negative_prompt !== undefined || values.image_size !== undefined) {
+        throw new Error('MiniMax H3 uses resolution and ratio. Negative prompts and image_size are unsupported.')
       }
-
+      const model = SiliconflowH3
+      const duration = values.duration === undefined ? 5 : normalizeInteger(values.duration)
+      const resolution = normalizeEnum(values.resolution ?? '768p', H3Resolutions)
+      const ratio = normalizeEnum(values.ratio ?? '16:9', H3Ratios)
+      if (!duration || duration < 5 || duration > 15 || !resolution || !ratio) {
+        throw new Error('Invalid MiniMax H3 duration, resolution or aspect ratio')
+      }
+      const assets = { fetchImpl: deps.fetch ?? fetch, workspaceFiles: deps.workspaceFiles, workspaceScope: deps.workspaceScope }
+      const frameUrl = (frame: unknown) => typeof frame === 'string' && frame.startsWith('https://')
+        ? frame : encodeImageInput(frame, assets)
+      const images: NonNullable<SiliconflowVideoGenerationPayload['images']> = []
+      if (imageInput !== undefined) images.push({ role: 'first_frame', url: await frameUrl(imageInput) })
+      if (lastImage !== undefined) images.push({ role: 'last_frame', url: await frameUrl(lastImage) })
       const payload: SiliconflowVideoGenerationPayload = {
-        model,
-        prompt: prompt || 'Create a natural, cinematic motion from the supplied image.',
-        ...(readOptionalString(values.negative_prompt)
-          ? { negative_prompt: readOptionalString(values.negative_prompt) }
-          : {}),
-        image_size: normalizeEnum(values.image_size, SiliconflowVideoSizes) || '1280x720',
-        ...(imageInput !== undefined
-          ? {
-              image: await encodeImageInput(imageInput, {
-                fetchImpl: deps.fetch ?? fetch,
-                workspaceFiles: deps.workspaceFiles,
-                workspaceScope: deps.workspaceScope
-              })
-            }
-          : {}),
+        model, duration, resolution, ratio, prompt: prompt || 'Animate the supplied reference frame.',
+        ...(images.length ? { images } : {}),
         ...(normalizeInteger(values.seed) !== undefined ? { seed: normalizeInteger(values.seed) } : {})
       }
 
@@ -127,8 +124,8 @@ function buildSubmitTool(deps: SiliconflowVideoToolDependencies) {
           model,
           toolName: 'siliconflow_video_submit',
           modality: 'video',
-        operation: imageInput === undefined ? 'text_to_video' : 'image_to_video',
-          pricingDimensions: payload.image_size ? { resolution: payload.image_size } : undefined,
+          operation: images.length === 2 ? 'first_last_frame_to_video' : images.length ? 'image_to_video' : 'text_to_video',
+          pricingDimensions: { resolution, durationSeconds: duration },
           input: payload,
           phase: 'queued',
           startedAt: new Date().toISOString(),
@@ -153,7 +150,7 @@ function buildSubmitTool(deps: SiliconflowVideoToolDependencies) {
     {
       name: 'siliconflow_video_submit',
       description:
-        'Submit a SiliconFlow Wan2.2 text-to-video or image-to-video task. Returns a task ID; use siliconflow_video_query to retrieve the result.',
+        'Submit a SiliconFlow text-to-video or image-to-video task. Returns a task ID; use siliconflow_video_query to retrieve the result.',
       schema: submitSchema,
       responseFormat: 'content_and_artifact'
     }
@@ -197,17 +194,11 @@ function buildQueryTool(deps: SiliconflowVideoToolDependencies) {
     {
       name: 'siliconflow_video_query',
       description:
-        'Query a SiliconFlow Wan2.2 video task. When complete, download generated MP4 files into the Xpert Workspace.',
+        'Query a SiliconFlow video task. When complete, download generated MP4 files into the Xpert Workspace.',
       schema: querySchema,
       responseFormat: 'content_and_artifact'
     }
   )
-}
-
-function normalizeModel(value: unknown, hasImage: boolean): SiliconflowVideoModel {
-  const model = normalizeEnum(value, SiliconflowVideoModels)
-  if (model) return model
-  return hasImage ? SiliconflowVideoImageModel : SiliconflowVideoTextModel
 }
 
 function normalizeEnum<T extends string>(value: unknown, options: readonly T[]): T | undefined {
@@ -294,12 +285,10 @@ const submitSchema = {
       title: 'Prompt',
       description: 'Motion and scene description. Optional when a reference image is supplied.'
     },
-    negative_prompt: {
-      type: 'string',
-      maxLength: 2_000,
-      title: 'Negative prompt',
-      description: 'Content or visual defects to avoid.'
-    },
+    duration: { type: 'integer', minimum: 5, maximum: 15, default: 5 },
+    resolution: { type: 'string', enum: H3Resolutions, default: '768p' },
+    ratio: { type: 'string', enum: H3Ratios, default: '16:9' },
+    last_frame_file: { anyOf: [{ type: 'string' }, imageFileDescriptorSchema], title: 'Last frame' },
     input_image_file: {
       anyOf: [
         {
@@ -319,15 +308,9 @@ const submitSchema = {
     },
     model: {
       type: 'string',
-      enum: SiliconflowVideoModels,
+      enum: [SiliconflowH3],
       title: 'Model',
-      default: SiliconflowVideoTextModel
-    },
-    image_size: {
-      type: 'string',
-      enum: SiliconflowVideoSizes,
-      title: 'Video size',
-      default: '1280x720'
+      default: SiliconflowH3
     },
     seed: {
       type: ['integer', 'string'],
@@ -338,7 +321,7 @@ const submitSchema = {
   // A text prompt or either supported image input is required. Keeping this
   // at the object-schema level prevents model-only calls without blocking
   // image-to-video requests that rely on the reference image.
-  anyOf: [{ required: ['prompt'] }, { required: ['input_image_file'] }, { required: ['image_url'] }]
+  anyOf: [{ required: ['prompt'] }, { required: ['input_image_file'] }, { required: ['image_url'] }, { required: ['last_frame_file'] }]
 } as const
 
 const querySchema = {
@@ -359,7 +342,7 @@ const querySchema = {
       type: 'string',
       enum: SiliconflowVideoModels,
       title: 'Model',
-      default: SiliconflowVideoTextModel
+      default: SiliconflowH3
     },
     wait_seconds: {
       type: ['integer', 'string'],

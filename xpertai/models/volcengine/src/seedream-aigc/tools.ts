@@ -1,6 +1,6 @@
 import { getSeedreamImagePricingDimensions } from './image-pricing-context.js'
 export { getSeedreamImagePricingDimensions } from './image-pricing-context.js'
-import { getSeedreamImageCapabilities, SEEDREAM_MODEL_OPTIONS, validateImageSize } from './image-models.js'
+import { getSeedreamImageCapabilities, SEEDREAM_55_MODEL, SEEDREAM_MODEL_OPTIONS, validateImageSize } from './image-models.js'
 import { randomUUID } from 'node:crypto'
 import { tool } from '@langchain/core/tools'
 import {
@@ -550,6 +550,7 @@ const SEQUENTIAL_SEEDREAM_MODEL_OPTIONS = SEEDREAM_MODEL_OPTIONS.filter(
 )
 
 const SEEDANCE_MODEL_OPTIONS = [
+  ['doubao-seedance-2-5-flash-261115', 'Seedance 2.5 Flash'],
   ['doubao-seedance-2-5-260628', 'Seedance2.5'],
   ['doubao-seedance-2-0-260128', 'Seedance2.0'],
   ['doubao-seedance-2-0-fast-260128', 'Seedance2.0 Fast'],
@@ -560,6 +561,7 @@ const SEEDANCE_MODEL_OPTIONS = [
 ] as const
 
 const SEEDANCE_2_MODEL_OPTIONS = [
+  ['doubao-seedance-2-5-flash-261115', 'Seedance 2.5 Flash'],
   ['doubao-seedance-2-5-260628', 'Seedance2.5'],
   ['doubao-seedance-2-0-260128', 'Seedance2.0'],
   ['doubao-seedance-2-0-fast-260128', 'Seedance2.0 Fast'],
@@ -1472,7 +1474,8 @@ async function generateImages(
   toolName: string,
   operation: ImageGenerationOperation
 ) {
-  const pricingDimensions = getSeedreamImagePricingDimensions(model, payload)
+  // Seedream 5.5 bills each returned image at its actual pixel count.
+  const pricingDimensions = getSeedreamImagePricingDimensions(model, model === SEEDREAM_55_MODEL ? {} : payload)
   if (deps.createImageModelClient) {
     if (!toolCallId) throw new Error('Tool call ID is required to record Seedream image usage')
     const pricingSnapshot = deps.modelProvider?.resolvePricingSnapshot
@@ -1501,7 +1504,7 @@ async function generateImages(
   const response = await directClient.generateImages(payload)
   await reportImageObservation(
     deps,
-    normalizeSeedreamImageObservation(response),
+    normalizeSeedreamImageObservation(response, payload),
     model,
     toolCallId,
     toolName,

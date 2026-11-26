@@ -2,8 +2,8 @@ background: '#FCFDFF'
 configurate_methods:
 - predefined-model
 description:
-  en_US: Google Veo video generation through the Gemini Developer API.
-  zh_Hans: 通过 Gemini Developer API 使用 Google Veo 生成视频。
+  en_US: Gemini Omni video generation through the Gemini Developer API.
+  zh_Hans: 通过 Gemini Developer API 使用 Gemini Omni 生成视频。
 help:
   title:
     en_US: Get an API key from Google AI Studio

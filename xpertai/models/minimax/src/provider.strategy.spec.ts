@@ -19,6 +19,11 @@ describe('MiniMax provider credential validation', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it('accepts API-key-only provider credentials for image generation', async () => {
+    fetchSpy.mockResolvedValueOnce(Response.json({ data: [{ id: 'MiniMax-H3-Image' }] }))
+    await expect(provider.validateProviderCredentials({ api_key: 'test' })).resolves.toBeUndefined()
+  })
+
   it.each([undefined, 'https://proxy.example.com', 'https://proxy.example.com/v1/'])(
     'validates using the authenticated model list at %p', async (base_url) => {
       fetchSpy.mockResolvedValue(Response.json({ object: 'list', data: [] }));
@@ -64,7 +69,6 @@ describe('MiniMax provider credential validation', () => {
 
   it.each([
     { ...credentials, api_key: ' ' },
-    { ...credentials, group_id: ' ' },
     { ...credentials, base_url: 'invalid-url' }
   ])('rejects incomplete credentials before calling the API', async (input) => {
     await expect(provider.validateProviderCredentials(input)).rejects.toBeInstanceOf(CredentialsValidateFailedError);

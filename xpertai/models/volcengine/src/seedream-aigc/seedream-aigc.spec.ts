@@ -328,6 +328,7 @@ describe('Seedream AIGC tools', () => {
     expect(textToImageSchema.properties.watermark['x-ui'].enumLabels['true'].zh_Hans).toBe('启用')
     expect(textToImageSchema.properties.model.default).toBe('doubao-seedream-4-5-251128')
     expect(textToImageSchema.properties.model.enum).toEqual([
+      'doubao-seedream-5-5-261028',
       'doubao-seedream-4-0-250828',
       'doubao-seedream-4-5-251128',
       'doubao-seedream-5-0-260128',
@@ -398,6 +399,7 @@ describe('Seedream AIGC tools', () => {
     expect(textToVideoSchema.properties.prompt['x-ui'].title.zh_Hans).toBe('提示词')
     expect(textToVideoSchema.properties.model.default).toBe('doubao-seedance-1-5-pro-251215')
     expect(textToVideoSchema.properties.model.enum).toEqual([
+      'doubao-seedance-2-5-flash-261115',
       'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
       'doubao-seedance-2-0-fast-260128',
@@ -425,6 +427,7 @@ describe('Seedream AIGC tools', () => {
 
     expect(multimodalSchema.properties.model.default).toBe('doubao-seedance-2-0-260128')
     expect(multimodalSchema.properties.model.enum).toEqual([
+      'doubao-seedance-2-5-flash-261115',
       'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
       'doubao-seedance-2-0-fast-260128',

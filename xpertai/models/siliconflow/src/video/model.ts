@@ -38,10 +38,10 @@ export class SiliconflowVideoModelClient
 
   async query(
     providerRequestId: string,
-    _context?: AsyncAIGCModelQueryContext
+    context?: AsyncAIGCModelQueryContext
   ): Promise<AsyncAIGCModelQueryResult<SiliconflowVideoTask>> {
     const task = await this.client.getVideoTask(providerRequestId)
-    return { data: task, observation: normalizeSiliconflowVideoObservation(task) }
+    return { data: task, observation: normalizeSiliconflowVideoObservation(task, context?.pricingDimensions?.durationSeconds) }
   }
 }
 
