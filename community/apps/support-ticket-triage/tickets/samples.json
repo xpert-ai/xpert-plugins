@@ -1,0 +1,62 @@
+[
+  {
+    "id": "TKT-001",
+    "title": "全组在管理后台无法登录",
+    "description": "从今天 09:10 开始，同一个工作区的 12 位客服都无法登录管理后台。验证后会返回登录页。无痕窗口重试也一样；客服工单已经无法处理。",
+    "expected": { "category": "access", "priority": "P0" }
+  },
+  {
+    "id": "TKT-002",
+    "title": "同一次订阅续费出现两条入账",
+    "description": "模拟订单 ORD-DEMO-217 在上午续费后，账单页显示两条金额相同且均已完成的交易。只提交过一次付款，请帮忙核对。",
+    "expected": { "category": "billing", "priority": "P1" }
+  },
+  {
+    "id": "TKT-003",
+    "title": "单个项目的 CSV 导出失败",
+    "description": "导出上月账目时界面提示导出失败。只在项目 Demo-A 遇到，其他项目正常。报表页面能查看数据，月底前还有一周。",
+    "expected": { "category": "data", "priority": "P2" }
+  },
+  {
+    "id": "TKT-004",
+    "title": "怎么把已有成员调整为只读",
+    "description": "我们想把一个测试成员改成只读，可继续查看报表。请告诉我们应在哪个页面操作，以及是否需要管理员。",
+    "expected": { "category": "how_to", "priority": "P3" }
+  },
+  {
+    "id": "TKT-005",
+    "title": "希望可以按处理人筛选导出结果",
+    "description": "现在可以导出全部记录。希望后续支持按处理人筛选后再导出，减少手工过滤时间。目前有手工处理方案。",
+    "expected": { "category": "feature_request", "priority": "P3" }
+  },
+  {
+    "id": "TKT-006",
+    "title": "生产环境的订单提交全部超时",
+    "description": "10:20 起生产环境所有用户提交订单都在一分钟后超时。已测试三个不同账户和两台终端，已有订单仍可查看，但没有任何新订单成功。",
+    "expected": { "category": "service_incident", "priority": "P0" }
+  },
+  {
+    "id": "TKT-007",
+    "title": "发票抬头修改入口咨询",
+    "description": "上个月开过一张测试发票。想知道下次开票前在哪里维护新的企业抬头。当前发票无需作废或重开。",
+    "expected": { "category": "billing", "priority": "P3" }
+  },
+  {
+    "id": "TKT-008",
+    "title": "点了之后没反应",
+    "description": "刚才点了一下就没反应了，麻烦看下。未提供页面、账号范围、按钮名称或报错。",
+    "expected": { "category": "other", "priority": "P2", "needsClarification": true }
+  },
+  {
+    "id": "TKT-009",
+    "title": "单个成员收不到重置邮件",
+    "description": "一名测试成员无法收到密码重置邮件，已经检查垃圾邮箱。其他成员都能正常登录，受影响成员还有另一个可用的登录方式。",
+    "expected": { "category": "access", "priority": "P2" }
+  },
+  {
+    "id": "TKT-010",
+    "title": "当日库存同步积压",
+    "description": "三个仓库的门店库存从 14:00 开始停止更新。销售页面仍可操作，值班员暂时手工核对。请评估积压并给出下一步。",
+    "expected": { "category": "service_incident", "priority": "P1" }
+  }
+]
