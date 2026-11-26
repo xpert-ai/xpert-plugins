@@ -1,0 +1,333 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { test } from 'node:test'
+import 'reflect-metadata'
+import { DataSource } from 'typeorm'
+import { AIMessage, HumanMessage } from '@langchain/core/messages'
+import { createTicketSchema, ModelError, requireScope, validateAnalysis } from '../dist/domain.js'
+import { TicketService } from '../dist/service.js'
+import { FeedbackTicket } from '../dist/ticket.entity.js'
+import { FeedbackView } from '../dist/view.js'
+import { TriageMiddleware } from '../dist/middleware.js'
+import { VIEW_KEY } from '../dist/constants.js'
+
+const scope = { tenantId: randomUUID(), organizationId: randomUUID(), userId: randomUUID() }
+const source = 'On the orders page the Export button stays disabled after I select two rows.'
+const result = {
+  summary: 'Export is disabled',
+  category: 'bug',
+  quote: 'Export button stays disabled',
+  nextStep: 'Check the selection state in the orders page.',
+}
+const input = () => ({ requestId: randomUUID(), source })
+async function database(t, model = { extract: async () => result }, data) {
+  const db = await new DataSource({
+    type: 'sqljs',
+    entities: [FeedbackTicket],
+    synchronize: true,
+    ...(data ? { database: data } : {}),
+  }).initialize()
+  t.after(() => db.destroy())
+  const repo = db.getRepository(FeedbackTicket)
+  return { db, repo, service: new TicketService(repo, model) }
+}
+
+test('requires trusted tenant, organization and user, and allows only bounded feedback', () => {
+  assert.deepEqual(requireScope({ ...scope, extraField: 'ignored' }), scope)
+  for (const key of Object.keys(scope))
+    assert.throws(() => requireScope({ ...scope, [key]: undefined }), { message: 'scope_required' })
+  assert.equal(createTicketSchema.safeParse({ ...input(), source: '  ' }).success, false)
+  assert.equal(createTicketSchema.safeParse({ ...input(), source: 'x'.repeat(2401) }).success, false)
+  assert.equal(createTicketSchema.safeParse({ ...input(), userId: scope.userId }).success, false)
+  assert.throws(() => validateAnalysis(source, { ...result, quote: 'The card was charged twice.' }), {
+    message: 'invalid_model_output',
+  })
+})
+
+test('holds a saved proposal for human confirmation, then restores it from a reopened database', async (t) => {
+  let calls = 0
+  const { db, service } = await database(t, {
+    extract: async () => {
+      calls++
+      return result
+    },
+  })
+  const row = await service.create(scope, input())
+  assert.equal(row.status, 'draft')
+  await assert.rejects(service.confirm(scope, row.id), { message: 'conflict' })
+  const review = await service.analyze(scope, row.id)
+  assert.equal(review.status, 'review')
+  assert.deepEqual(review.analysis, result)
+  assert.equal((await service.confirm(scope, row.id)).status, 'confirmed')
+  assert.equal((await service.confirm(scope, row.id)).status, 'confirmed')
+  assert.equal((await service.analyze(scope, row.id)).attempts, 1)
+  assert.equal(calls, 1)
+  const reopened = await database(t, undefined, db.driver.databaseConnection.export())
+  const history = await reopened.service.list(scope)
+  assert.equal(history.tickets.length, 1)
+  assert.deepEqual(history.tickets[0].analysis, result)
+  assert.equal(history.tickets[0].status, 'confirmed')
+})
+
+test('records a corrected category separately and refuses conflicting confirmations', async (t) => {
+  const { service } = await database(t)
+  const { id } = await service.create(scope, input())
+  await service.analyze(scope, id)
+  const saved = await service.confirm(scope, id, 'usability')
+  assert.equal(saved.confirmedCategory, 'usability')
+  assert.equal(saved.analysis.category, 'bug')
+  assert.deepEqual(await service.confirm(scope, id, 'usability'), saved)
+  await assert.rejects(service.confirm(scope, id, 'request'), { message: 'conflict' })
+  assert.equal((await service.list(scope)).tickets[0].confirmedCategory, 'usability')
+  const [inbox, analyze] = new TriageMiddleware(service).createMiddleware({}, scope).tools
+  const listed = JSON.parse(await inbox.invoke({}))
+  assert.equal(listed.tickets[0].confirmedCategory, 'usability')
+  const handled = JSON.parse(await analyze.invoke({ id }))
+  assert.equal(handled.analysis.category, 'bug')
+  assert.equal(handled.confirmedCategory, 'usability')
+})
+
+test('deduplicates submissions by the reviewer request ID, even when submitted concurrently', async (t) => {
+  const { service } = await database(t)
+  const request = input()
+  const [a, b] = await Promise.all([service.create(scope, request), service.create(scope, request)])
+  assert.equal(a.id, b.id)
+  assert.equal((await service.list(scope)).tickets.length, 1)
+  await assert.rejects(service.create(scope, { ...request, source: source + ' Second report.' }), {
+    message: 'request_id_reused',
+  })
+  const other = await service.create({ ...scope, userId: randomUUID() }, request)
+  assert.notEqual(a.id, other.id)
+})
+
+test('cannot read or act on a ticket outside any one of the three identity scopes', async (t) => {
+  const { service } = await database(t)
+  const ticket = await service.create(scope, input())
+  for (const field of Object.keys(scope)) {
+    const stranger = { ...scope, [field]: randomUUID() }
+    assert.deepEqual((await service.list(stranger)).tickets, [])
+    await assert.rejects(service.analyze(stranger, ticket.id), { message: 'not_found' })
+    await assert.rejects(service.confirm(stranger, ticket.id), { message: 'not_found' })
+  }
+  assert.equal((await service.list(scope)).tickets[0].attempts, 0)
+})
+
+test('persists model failure, then retries the same ticket exactly once', async (t) => {
+  let calls = 0
+  const { service } = await database(t, {
+    extract: async () => {
+      if (++calls === 1) throw new ModelError('model_unavailable')
+      return result
+    },
+  })
+  const ticket = await service.create(scope, input())
+  const failure = await service.analyze(scope, ticket.id)
+  assert.equal(failure.status, 'failed')
+  assert.equal(failure.errorCode, 'model_unavailable')
+  assert.deepEqual((await service.list(scope)).tickets[0], failure)
+  const retry = await service.analyze(scope, ticket.id)
+  assert.equal(retry.id, ticket.id)
+  assert.equal(retry.attempts, 2)
+  assert.equal(retry.errorCode, null)
+  assert.equal(retry.status, 'review')
+  assert.equal((await service.list(scope)).tickets.length, 1)
+})
+
+test('fences an abandoned model call when a second worker retries its expired lease', async (t) => {
+  let calls = 0
+  const entered = Promise.withResolvers()
+  const slowModel = Promise.withResolvers()
+  const { repo, service } = await database(t, {
+    extract: async () => {
+      if (++calls === 1) {
+        entered.resolve()
+        return slowModel.promise
+      }
+      return result
+    },
+  })
+  const { id } = await service.create(scope, input())
+  const one = service.analyze(scope, id)
+  await entered.promise
+  assert.equal((await service.analyze(scope, id)).status, 'processing')
+  assert.equal(calls, 1)
+  await repo.update({ id }, { updatedAt: new Date(Date.now() - 181_000).toISOString() })
+  assert.equal((await service.list(scope)).tickets[0].status, 'failed')
+  assert.equal((await service.analyze(scope, id)).status, 'review')
+  slowModel.resolve({ ...result, summary: 'Stale result' })
+  const after = await one
+  assert.equal(after.analysis.summary, result.summary)
+  assert.equal(after.attempts, 2)
+})
+
+test('Workbench rejects identity smuggling and Agent exposes only inbox and analysis', async (t) => {
+  const { service } = await database(t)
+  const view = new FeedbackView(service)
+  const context = { ...scope, hostType: 'agent' }
+  const invalid = await view.executeViewAction(context, VIEW_KEY, 'create_ticket', {
+    input: { ...input(), userId: randomUUID() },
+  })
+  assert.deepEqual(invalid, {
+    success: false,
+    failure: { kind: 'business', code: 'invalid_input' },
+    data: { code: 'invalid_input' },
+  })
+  const middleware = new TriageMiddleware(service)
+  assert.deepEqual(middleware.getToolNames(), ['feedback_inbox', 'feedback_analyze'])
+  assert.deepEqual(
+    middleware.createMiddleware({}, context).tools.map((tool) => tool.name),
+    middleware.getToolNames(),
+  )
+})
+
+test('Workbench returns the same safe business error for another user’s ticket and a missing ticket', async (t) => {
+  const { service } = await database(t)
+  const { id } = await service.create(scope, input())
+  const view = new FeedbackView(service)
+  const context = { ...scope, userId: randomUUID(), hostType: 'agent' }
+  const expected = {
+    success: false,
+    failure: { kind: 'business', code: 'not_found' },
+    data: { code: 'not_found' },
+  }
+  for (const target of [id, randomUUID()]) {
+    const response = await view.executeViewAction(context, VIEW_KEY, 'analyze_ticket', { input: { id: target } })
+    assert.deepEqual(response, expected)
+  }
+  assert.equal((await service.list(scope)).tickets[0].status, 'draft')
+})
+
+test('a simple inbox turn executes its registered scoped tool and returns a final answer without model inference', async (t) => {
+  const { service } = await database(t)
+  await service.create(scope, input())
+  const privateText = 'A different reviewer reported a missing invoice button.'
+  await service.create({ ...scope, userId: randomUUID() }, { requestId: randomUUID(), source: privateText })
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const [inbox] = middleware.tools
+  const human = new HumanMessage('Show me my recent feedback tickets.')
+  const run = (messages) => middleware.wrapModelCall({ messages, tools: middleware.tools }, () => assert.fail('unexpected inference'))
+  const selected = await run([human])
+  assert.equal(selected.tool_calls.length, 1)
+  assert.equal(selected.tool_calls[0].name, inbox.name)
+  assert.deepEqual(selected.tool_calls[0].args, { purpose: 'list' })
+  const receipt = await inbox.invoke(selected.tool_calls[0])
+  assert.equal(receipt.status, 'success')
+  assert.equal(receipt.tool_call_id, selected.tool_calls[0].id)
+  const displayed = await run([human, selected, receipt])
+  assert.equal(displayed.getType(), 'ai')
+  assert.ok(displayed.content.includes(source))
+  assert.ok(!displayed.content.includes(privateText))
+  assert.deepEqual(displayed.tool_calls, [])
+  const later = new HumanMessage('How many confirmed issues are in the list?')
+  const nextModel = () => new AIMessage('model handles follow-up')
+  const followUp = await middleware.wrapModelCall({ messages: [human, selected, receipt, displayed, later], tools: middleware.tools }, nextModel)
+  assert.equal(followUp.content, 'model handles follow-up')
+})
+
+test('paginates older saved feedback and does not mark a read as a new change', async (t) => {
+  const { service } = await database(t)
+  for (let i = 0; i < 31; i++) await service.create(scope, input())
+  const a = await service.list(scope, 1)
+  const b = await service.list(scope, 2)
+  assert.equal(a.hasMore, true)
+  assert.equal(a.tickets.length, 30)
+  assert.equal(b.hasMore, false)
+  assert.equal(b.tickets.length, 1)
+  assert.equal(new Set([...a.tickets, ...b.tickets].map((t) => t.id)).size, 31)
+})
+
+test('checks scoped excerpts for a source-language request without classifying languages or starting analysis', async (t) => {
+  const { service } = await database(t, { extract: () => assert.fail('source-language checks are read-only') })
+  const own = await service.create(scope, { ...input(), source: '订单下载按钮无法点击，页面显示 ERROR。' })
+  await service.create(scope, input())
+  await service.create({ ...scope, userId: randomUUID() }, { ...input(), source: '另一个用户的反馈工单不可见。' })
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const human = new HumanMessage('在刚才的工单里，只看用英文提交的反馈。请列出符合条件的工单，如果没有就说明原因。')
+  const run = (messages) => middleware.wrapModelCall({ messages, tools: middleware.tools }, () => assert.fail('unexpected inference'))
+  const selected = await run([human])
+  assert.deepEqual(selected.tool_calls.map(({ name, args }) => [name, args]), [['feedback_inbox', { purpose: 'lookup' }]])
+  const receipt = await middleware.tools[0].invoke(selected.tool_calls[0])
+  const reply = await run([human, selected, receipt])
+  assert.match(reply.content, /未单独记录提交语言/)
+  assert.match(reply.content, /读取的 2 条原文摘录中，有 1 条含汉字/)
+  assert.deepEqual(reply.tool_calls, [])
+  assert.equal((await service.list(scope)).tickets.find(({ id }) => id === own.id).status, 'draft')
+})
+
+test('prevents a read-only filter from running ticket analysis while preserving explicit follow-up analysis', async (t) => {
+  const { service } = await database(t)
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const read = new HumanMessage('请筛选优先级较高的工单。')
+  const analyze = new HumanMessage('筛选这些工单，然后分析第一条。')
+  const model = async (messages) => {
+    let names
+    await middleware.wrapModelCall({ messages, tools: middleware.tools }, (request) => {
+      names = request.tools.map(({ name }) => name)
+      return new AIMessage('model response')
+    })
+    return names
+  }
+  assert.deepEqual(await model([analyze, read]), ['feedback_inbox'])
+  for (const prompt of [
+    '列出已确认的工单。',
+    'Show me the confirmed tickets.',
+    '只看最近的工单，重试就先不用了。',
+    '列出我的已确认工单，不要重试。',
+    'List the confirmed tickets; do not analyze them.',
+    '筛选这些工单，翻译“然后分析第一条”这句话。',
+    'Analyze the reasons for collecting customer feedback.',
+  ]) assert.deepEqual(await model([new HumanMessage(prompt)]), ['feedback_inbox'])
+  assert.deepEqual(await model([read, analyze]), ['feedback_inbox', 'feedback_analyze'])
+  for (const prompt of [
+    '只看上周的工单，能否分析第一条？',
+    '筛选后请对第一条工单进行分析。',
+    'Show only my tickets and then analyze the first one.',
+  ]) assert.deepEqual(await model([new HumanMessage(prompt)]), ['feedback_inbox', 'feedback_analyze'])
+  const call = (messages) => ({ state: { messages }, toolCall: { name: 'feedback_analyze', id: 'filter-call' } })
+  const denied = await middleware.wrapToolCall(call([analyze, read]), () => assert.fail('business write attempted'))
+  assert.equal(denied.status, 'error')
+  assert.equal(denied.tool_call_id, 'filter-call')
+  assert.deepEqual(JSON.parse(denied.content), { error: 'analysis_requires_request' })
+  assert.equal(await middleware.wrapToolCall(call([read, analyze]), () => 'allowed'), 'allowed')
+})
+
+test('binds analysis to the named UUID or a unique scoped workbench number before running the real tool', async (t) => {
+  let calls = 0
+  const { service, repo } = await database(t, { extract: () => { calls++; return result } })
+  const a = await service.create(scope, input())
+  const original = await repo.findOneByOrFail({ id: a.id })
+  const b = (a.id.startsWith('0') ? '1' : '0') + a.id.slice(1)
+  const similar = (tail) => a.id.slice(0, -2) + tail
+  const tails = ['01', '02', '03'].filter((tail) => !a.id.endsWith(tail))
+  const insert = (id, userId = scope.userId) => repo.insert({ ...original, id, userId, requestId: randomUUID() })
+  await insert(b)
+  await insert(similar(tails[0]), randomUUID())
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const analyze = middleware.tools.find(({ name }) => name === 'feedback_analyze')
+  const invoke = (text, id) => {
+    const toolCall = { name: analyze.name, id: randomUUID(), type: 'tool_call', args: { id } }
+    return middleware.wrapToolCall({ tool: analyze, state: { messages: [new HumanMessage(text)] }, toolCall },
+      (request) => analyze.invoke(request.toolCall))
+  }
+  const short = a.id.slice(0, 8)
+  for (const prompt of [`只重试工单 ${a.id}`, `Please retry ticket #${short.toUpperCase()}.`]) {
+    const rejected = await invoke(prompt, b)
+    assert.equal(rejected.status, 'error')
+    assert.equal(JSON.parse(rejected.content).error, 'ticket_target_mismatch')
+  }
+  assert.equal(calls, 0)
+  assert.equal((await repo.findOneByOrFail({ id: b })).attempts, 0)
+  assert.equal((await invoke(`请分析工单 ${short}`, a.id)).status, 'success')
+  assert.equal((await repo.findOneByOrFail({ id: a.id })).status, 'review')
+  assert.equal(calls, 1)
+  const colliding = similar(tails[1])
+  await insert(colliding)
+  for (const candidate of [a.id, colliding]) {
+    assert.equal((await invoke(`请分析工单 ${short}`, candidate)).status, 'error')
+  }
+  assert.equal((await repo.findOneByOrFail({ id: colliding })).status, 'draft')
+  assert.equal((await invoke(`Only retry ticket ${b}`, b)).status, 'success')
+  assert.equal(calls, 2)
+  assert.equal((await invoke('请分析第一条工单', colliding)).status, 'success')
+  assert.equal(calls, 3)
+})
