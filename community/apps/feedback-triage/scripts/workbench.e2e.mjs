@@ -141,7 +141,9 @@ test(
     await page.goto('http://127.0.0.1:' + server.address().port)
     const ui = page.frameLocator('iframe')
     const feedback = ui.getByRole('textbox')
-    await ui.getByRole('button', { name: '保存并生成建议' }).click()
+    await ui.getByText('还没有工单。提交第一条客户反馈后，可以在这里重新打开。').waitFor()
+    const submit = ui.getByRole('button', { name: '保存并生成建议' })
+    await submit.press('Enter')
     await ui.getByText('请输入 10 到 2400 个字符的客户原话。').waitFor()
     assert.equal(fixture.calls.length, 0)
     await feedback.fill(source)
@@ -150,7 +152,6 @@ test(
     assert.equal(await feedback.inputValue(), source)
     await page.evaluate(() => window.setViewLocale('zh-Hans'))
 
-    const submit = ui.getByRole('button', { name: '保存并生成建议' })
     await submit.click()
     await ui.getByText('无法完成工作台请求，请刷新工单后重试。').waitFor()
     assert.equal(await feedback.inputValue(), source)
