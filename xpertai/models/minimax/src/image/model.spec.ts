@@ -1,11 +1,16 @@
+import { AiProviderRole } from '@xpert-ai/contracts'
 import { calculateModelUsageCharge } from '@xpert-ai/plugin-sdk'
 import { MiniMaxImageModel } from './model.js'
 import { MiniMaxProviderStrategy } from '../provider.strategy.js'
 
+function imageModel(model = 'MiniMax-H3-Image', base_url?: string) {
+  return { model, copilot: { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test', base_url } } } }
+}
+
 it('uses separate generation and edit routes and records actual token usage', async () => {
   const model = new MiniMaxImageModel(new MiniMaxProviderStrategy())
   const handleModelUsage = jest.fn()
-  const client = model.getAIGCModel({ model: 'MiniMax-H3-Image', copilot: { modelProvider: { credentials: { api_key: 'test' } } } } as any, { handleModelUsage })
+  const client = model.getAIGCModel(imageModel(), { modelProperties: {}, verbose: false, handleLLMTokens: jest.fn(), handleModelUsage })
   const data = { data: [{ url: 'https://example.test/result.jpg', size: '1024x1024' }], usage: { input_tokens: 50, output_tokens: 130, input_tokens_details: { text_tokens: 30, image_tokens: 20 } } }
   const http = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(data))
   try {
@@ -22,7 +27,7 @@ it('uses separate generation and edit routes and records actual token usage', as
 
 it.each(['MiniMax-H3-Image', 'MiniMax-H3-Image-Highspeed'])('forwards the documented generation and edit inputs for %s', async (modelId) => {
   const model = new MiniMaxImageModel(new MiniMaxProviderStrategy())
-  const client = model.getAIGCModel({ model: modelId, copilot: { modelProvider: { credentials: { api_key: 'test' } } } } as any)
+  const client = model.getAIGCModel(imageModel(modelId))
   const output = { data: [{ b64_json: 'cGl4ZWxz', size: '2720x1536' }] }
   const http = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(output))
   try {
@@ -44,7 +49,7 @@ it.each([
 ] as const)('prices delivered Highspeed usage at %s', async (base_url, currency, size, prices) => {
   const model = 'MiniMax-H3-Image-Highspeed'
   const manager = new MiniMaxImageModel(new MiniMaxProviderStrategy())
-  const client = manager.getAIGCModel({ model, copilot: { modelProvider: { credentials: { base_url, api_key: 'test' } } } } as any)
+  const client = manager.getAIGCModel(imageModel(model, base_url))
   const response = {
     data: [{ url: 'https://example.test/image.jpg', size }, { error: { code: '1000', message: 'Failed' } }],
     usage: { input_tokens: 200, output_tokens: 400, input_tokens_details: { text_tokens: 80, image_tokens: 120 } }
@@ -62,7 +67,7 @@ it.each([
 
 it('requires a concrete aspect ratio or size when generation skips prompt enhancement', async () => {
   const manager = new MiniMaxImageModel(new MiniMaxProviderStrategy())
-  const client = manager.getAIGCModel({ model: 'MiniMax-H3-Image', copilot: { modelProvider: { credentials: { api_key: 'test' } } } } as any)
+  const client = manager.getAIGCModel(imageModel())
   const http = jest.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ data: [{ url: 'https://example.test/image.jpg' }] }))
   try {
     for (const fields of [{}, { size: 'auto', aspect_ratio: 'auto' }, { area: '2K' as const }]) {

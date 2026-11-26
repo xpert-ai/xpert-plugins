@@ -1,5 +1,5 @@
 import { HumanMessage } from '@langchain/core/messages'
-import type { ICopilotModel } from '@xpert-ai/contracts'
+import { AiProviderRole } from '@xpert-ai/contracts'
 import { OpenRouterTTSModel } from './tts.js'
 import { OpenRouterSpeech2TextModel } from '../speech2text/speech2text.js'
 import { OpenRouterProviderStrategy } from '../provider.strategy.js'
@@ -10,12 +10,12 @@ it('uses the binary speech and JSON transcription endpoints', async () => {
     .mockResolvedValueOnce(new Response(Buffer.from('audio'), { headers: { 'Content-Type': 'audio/mpeg' } }))
     .mockResolvedValueOnce(Response.json({ text: 'transcribed' }))
   const provider = new OpenRouterProviderStrategy()
-  const copilot = { modelProvider: { credentials: { api_key: 'test', endpoint_url: 'https://example.test/v1/' } } }
+  const copilot = { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test', endpoint_url: 'https://example.test/v1/' } } }
   try {
-    const tts = new OpenRouterTTSModel(provider).getChatModel({ copilot, model: 'hexgrad/kokoro-82m' } as ICopilotModel)
+    const tts = new OpenRouterTTSModel(provider).getChatModel({ copilot, model: 'hexgrad/kokoro-82m' })
     const speech = await tts.invoke('read aloud')
     expect(speech.content).toEqual([{ type: 'audio', mime_type: 'audio/mpeg', data: 'YXVkaW8=' }])
-    const stt = new OpenRouterSpeech2TextModel(provider).getChatModel({ copilot, model: 'deepgram/nova-3' } as ICopilotModel)
+    const stt = new OpenRouterSpeech2TextModel(provider).getChatModel({ copilot, model: 'deepgram/nova-3' })
     const input_audio = { format: 'wav', data: 'YXVkaW8=' }
     const transcript = await stt.invoke([new HumanMessage({ content: [{ type: 'input_audio', input_audio }] })])
     expect(transcript.content).toBe('transcribed')

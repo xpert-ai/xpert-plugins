@@ -82,10 +82,10 @@ export class MiniMaxImageModel extends ImageGenerationModel {
         })
         if (!response.ok) throw new Error('MiniMax image request failed with HTTP ' + response.status)
         const data = result.parse(await response.json())
-        const images = data.data.filter(item => 'url' in item || 'b64_json' in item)
-        if (!images.length) throw new Error('MiniMax returned no successful images')
-        const tiers = new Set(images.map(image => {
-          const size = 'size' in image && typeof image.size === 'string' && /^(\d+)x(\d+)$/.exec(image.size)
+        const imageSizes = data.data.flatMap(item => 'url' in item || 'b64_json' in item ? [item.size] : [])
+        if (!imageSizes.length) throw new Error('MiniMax returned no successful images')
+        const tiers = new Set(imageSizes.map(value => {
+          const size = value && /^(\d+)x(\d+)$/.exec(value)
           if (!size) return 'unknown'
           return Number(size[1]) * Number(size[2]) >= 16_600_000 ? '4k-promotion' : 'standard'
         }))
@@ -105,7 +105,7 @@ export class MiniMaxImageModel extends ImageGenerationModel {
           metrics.push({ unit: 'token', component: 'output', key: 'image', authority: 'provider',
             completionTokens: data.usage.output_tokens, pricingDimensions: { resolution, mode: market + '-image' } })
         } else {
-          metrics.push({ unit: 'generation', authority: 'provider', quantity: images.length })
+          metrics.push({ unit: 'generation', authority: 'provider', quantity: imageSizes.length })
         }
         if (options?.handleModelUsage) {
           const pricingSnapshot = await options.resolveUsagePricingSnapshot?.({ model, modality: 'image', operation, startedAt })

@@ -1,7 +1,10 @@
+import { AiProviderRole } from '@xpert-ai/contracts'
 import { SeedreamArkClient } from './client.js'
 import { calculateModelUsageCharge } from '@xpert-ai/plugin-sdk'
 import { VolcengineProviderStrategy } from '../provider.strategy.js'
 import { SeedreamImageModelClient, VolcengineImageGenerationModel, VolcengineVideoGenerationModel } from './model.js'
+
+const copilot = { role: AiProviderRole.Primary, modelProvider: { credentials: { ark_api_key: 'test' } } }
 
 describe('SeedreamImageModelClient', () => {
   it('returns Provider token and generation usage in the unified observation', async () => {
@@ -44,7 +47,7 @@ it.each([undefined, 'other-image-model'])('bills the selected Seedream model whe
   const data = [{ url: 'https://example.test/a', size: '1280x720' }, { url: 'https://example.test/b', size: '2880x1440' }]
   const http = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(Response.json({ data }))
   try {
-    const client = manager.getAIGCModel({ model, copilot: { modelProvider: { credentials: { ark_api_key: 'test' } } } } as any)
+    const client = manager.getAIGCModel({ model, copilot })
     const result = await client.invoke({ model: inputModel, prompt: 'Edit', image: ['a', 'b'], size: '2880x1440' })
     expect(JSON.parse(String(http.mock.calls[0][1]?.body))).toMatchObject({ model, size: '2880x1440' })
     const snapshot = manager.getUsagePricingSnapshot(model, {}, { model, modality: 'image', operation: 'image_to_image', startedAt: '2026-11-26T00:00:00Z' })
@@ -60,7 +63,7 @@ it.each([undefined, 'other-video-model'])('bills the selected Seedance model whe
     .mockResolvedValueOnce(Response.json({ id: 'task-1' }))
     .mockResolvedValueOnce(Response.json({ id: 'task-1', status: 'succeeded', usage: { completion_tokens: 1800, total_tokens: 1800 } }))
   try {
-    const client = manager.getAIGCModel({ model, copilot: { modelProvider: { credentials: { ark_api_key: 'test' } } } } as any)
+    const client = manager.getAIGCModel({ model, copilot })
     const submitted = await client.submit({ model: inputModel, content: [{ type: 'text', text: 'Mountains' }], resolution: '720p' })
     expect(JSON.parse(String(http.mock.calls[0][1]?.body))).toMatchObject({ model, resolution: '720p' })
     const result = await client.query(submitted.providerRequestId)

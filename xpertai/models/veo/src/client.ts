@@ -43,24 +43,21 @@ export class GeminiVeoClient extends ModelProviderHttpClient {
 
   async getOperation(operationName: string): Promise<VeoOperation> {
     const name = validateVeoOperationName(operationName)
-    if (name.startsWith('interactions/')) {
-      const operation = await this.requestJson('/' + name, { method: 'GET' }, parseOmniInteraction)
-      const uri = operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
-      if (uri) {
-        const file = await this.requestJson(uri.replace(/:download\?alt=media$/, ''), { method: 'GET' }, value => {
-          if (!isRecord(value) || typeof value.state !== 'string') throw new Error('Invalid Gemini file response')
-          return value
-        })
-        if (file.state === 'PROCESSING') return { name, done: false }
-        if (file.state !== 'ACTIVE') return { name, done: true, error: { message: 'Gemini video file processing failed' } }
-      }
-      return operation
+    if (!name.startsWith('interactions/')) {
+      return this.requestJson('/' + name, { method: 'GET' }, parseVeoOperation)
     }
-    return this.requestJson(
-      '/' + name,
-      { method: 'GET' },
-      parseVeoOperation
-    )
+
+    const operation = await this.requestJson('/' + name, { method: 'GET' }, parseOmniInteraction)
+    const uri = operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
+    if (!uri) return operation
+
+    const state = await this.requestJson(uri.replace(/:download\?alt=media$/, ''), { method: 'GET' }, value => {
+      if (!isRecord(value) || typeof value.state !== 'string') throw new Error('Invalid Gemini file response')
+      return value.state
+    })
+    if (state === 'PROCESSING') return { name, done: false }
+    if (state !== 'ACTIVE') return { name, done: true, error: { message: 'Gemini video file processing failed' } }
+    return operation
   }
 
   async downloadVideo(uri: string): Promise<{ buffer: Buffer; mimeType: string }> {

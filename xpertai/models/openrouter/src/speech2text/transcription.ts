@@ -7,8 +7,9 @@ import { readPublicAudioUrl } from './audio-download.js'
 
 const formats = z.enum(['wav', 'mp3', 'ogg', 'm4a', 'flac', 'webm', 'mp4', 'aac', 'mpeg', 'mpga'])
 const inputSchema = z.array(z.union([
-  z.object({ type: z.literal('input_audio'), input_audio: z.object({ data: z.string(), format: formats.optional() }) }),
-  z.object({ url: z.string() })
+  z.object({ type: z.literal('input_audio'), input_audio: z.object({ data: z.string(), format: formats.optional() }) })
+    .transform(({ input_audio }) => input_audio),
+  z.object({ url: z.string() }).transform(({ url }) => url)
 ])).length(1)
 const responseSchema = z.object({ text: z.string() })
 const mimeTypes: Record<z.infer<typeof formats>, string[]> = {
@@ -33,14 +34,13 @@ export class OpenRouterTranscriptionModel extends BaseChatModel {
   async _generate(messages: BaseMessage[], options: this['ParsedCallOptions']): Promise<ChatResult> {
     const parsed = inputSchema.safeParse(messages.at(-1)?.content)
     if (!parsed.success) throw new Error('OpenRouter transcription requires one audio input')
-    const block = parsed.data[0]
-    let data = 'url' in block ? block.url : 'input_audio' in block ? block.input_audio.data : undefined
-    if (typeof data !== 'string') throw new Error('OpenRouter requires audio data')
-    if ('url' in block && !data.startsWith('data:')) data = await readPublicAudioUrl(data, options.signal)
+    const input = parsed.data[0]
+    let data = typeof input === 'string' ? input : input.data
+    if (typeof input === 'string' && !input.startsWith('data:')) data = await readPublicAudioUrl(input, options.signal)
     const limit = 25 * 1024 * 1024
     if (data.length > Math.ceil(limit / 3) * 4 + 128) throw new Error('OpenRouter audio exceeds 25 MiB')
     const uri = /^data:(audio\/[a-z0-9.+-]+)(?:;[^,;]+)*;base64,(.*)$/i.exec(data)
-    const declared = 'input_audio' in block ? block.input_audio.format : undefined
+    const declared = typeof input === 'string' ? undefined : input.format
     const mime = uri?.[1].toLowerCase()
     const format = declared ?? (mime && formats.options.find(key => mimeTypes[key].includes(mime)))
     if (!format || (mime && !mimeTypes[format].includes(mime))) {

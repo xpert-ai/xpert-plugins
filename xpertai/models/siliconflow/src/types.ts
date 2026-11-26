@@ -48,7 +48,10 @@ const disabledModelsByOrigin = new Map<string, ReadonlySet<string>>([
   ])],
 ])
 
-export function getBaseUrlFromCredentials(credentials: SiliconflowCredentials, model?: string): string {
+export function getBaseUrlFromCredentials(
+  credentials: Pick<SiliconflowCredentials, 'endpoint_url' | 'base_url' | 'use_international_endpoint'>,
+  model?: string
+): string {
   const baseUrl = (credentials.endpoint_url || credentials.base_url ||
     (isTrue(credentials.use_international_endpoint) ? 'https://api.siliconflow.com/v1' : 'https://api.siliconflow.cn/v1')
   ).replace(/\/$/, '')
