@@ -1,0 +1,66 @@
+.triage {
+  max-width: 68rem;
+  margin-inline: auto;
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.heading, .controls {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+
+.heading {
+  justify-content: space-between;
+}
+
+.workspace, .choice-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.section {
+  display: grid;
+  align-content: start;
+  gap: .55rem;
+  min-width: 0;
+}
+
+.ticket-list {
+  margin-block-start: 1rem;
+}
+
+.ticket-list li > button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.ticket-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail {
+  overflow-wrap: anywhere;
+  gap: 1rem;
+}
+
+.message {
+  white-space: pre-wrap;
+}
+
+@media (min-width: 42rem) {
+  .workspace {
+    grid-template-columns: minmax(13rem, 1fr) minmax(0, 1.6fr);
+    gap: 2rem;
+  }
+
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
