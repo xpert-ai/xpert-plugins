@@ -99,7 +99,7 @@ export function inboxIntent(input: string, preferredLanguage: string): InboxInte
 }
 
 const zhAction = '(?:分析|分诊|重试)'
-const zhSubject = '(?:第[一二三四五六七八九十\\d]+(?:条|个|张)(?:反馈|工单)?|(?:这|那|该|最新|最近|最后|选中)(?:一)?(?:条|个|张)(?:反馈|工单)?|(?:这|那|该|最新的?|最近的?|选中的?|全部|我的)?(?:工单|反馈)|它|[a-f\\d]{8})'
+const zhSubject = '(?:第[一二三四五六七八九十\\d]+(?:条|个|张)(?:反馈|工单)?|(?:这|那|该|最新|最近|最后|选中)(?:一)?(?:条|个|张)(?:反馈|工单)?|(?:这|那|该|最新的?|最近的?|选中的?|全部|我的)?(?:工单|反馈)|编号|它|#?[a-f\\d]{8})'
 const zhLead = '(?:^|[，,。.;；]|然后|随后|接着|后|并)(?:请|帮我|麻烦|能否|可否|可以|能不能|继续|然后|再|只|仅|重新)*\\s*'
 const zhDirectAnalysis = new RegExp(`${zhLead}${zhAction}(?:一下|一次)?(?=\\s*(?:${zhSubject}|[，,。.;；?!！？]|$))`, 'iu')
 const zhAnalyzeSubject = new RegExp(`${zhLead}对${zhSubject}\\s*(?:进行|做|重新)?${zhAction}`, 'iu')
@@ -112,4 +112,18 @@ export function requestsTicketAnalysis(text: string): boolean {
   const unquoted = text.replace(/“[^”]*”|‘[^’]*’|「[^」]*」|"[^"]*"|`[^`]*`|(?:^|\s)'[^']*'/gu, ' ')
   if (/(?:不要|不用|不必|无需|别|禁止)(?:再|先|继续|重新)?(?:分析|重试|分诊)|(?:分析|重试|分诊)(?:就|先|暂时|也)*(?:不用|不必|不要|免了)|\b(?:do not|don't|don’t|never|skip|without|no need to)\s+(?:analy[sz]|reanaly[sz]|triag|retr)/iu.test(unquoted)) return false
   return zhDirectAnalysis.test(unquoted) || zhAnalyzeSubject.test(unquoted) || enDirectAnalysis.test(unquoted)
+}
+
+/** A UUID identifies a ticket. A short number displayed by the workbench still needs scoped resolution. */
+export function explicitTicketReferences(text: string): string[] {
+  const source = text.normalize('NFKC').toLowerCase()
+  const references: string[] = []
+  const identifier = /(?<![a-z\d_-])[a-f\d]{8}(?:-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})?(?![a-z\d_-])/gu
+  const label = /(?:#|工单(?:号|编号)?|反馈(?:编号)?|编号(?:为|是)?|分诊|重试|分析|\b(?:ticket(?: (?:id|number))?|id|retry|triage|analy[sz]e))\s*[:#`“"'「(]*\s*$/u
+  for (const match of source.matchAll(identifier)) {
+    const ref = match[0]
+    // Eight decimal digits may be a date. Treat them as a short ticket ID only when explicitly labelled.
+    if (ref.length === 36 || /[a-f]/u.test(ref) || label.test(source.slice(0, match.index))) references.push(ref)
+  }
+  return [...new Set(references)]
 }

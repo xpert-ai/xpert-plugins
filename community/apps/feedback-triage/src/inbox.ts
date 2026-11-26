@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import { LIST_TOOL } from './constants.js'
 import { ticketSchema, type Ticket } from './domain.js'
-import { inboxIntent, requestsTicketAnalysis, type InboxIntent, type InboxLanguage } from './inbox-intent.js'
+import { inboxIntent, type InboxIntent, type InboxLanguage } from './inbox-intent.js'
 
 const LIMIT = 10
 const EXCERPT_LENGTH = 100
@@ -119,12 +119,12 @@ function humanText(message: BaseMessage): string | null {
   return typeof text === 'string' ? text : null
 }
 
-export function allowsTicketAnalysis(messages: BaseMessage[]): boolean {
+export function currentUserText(messages: BaseMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
-    if (message && isHumanMessage(message)) return requestsTicketAnalysis(humanText(message) ?? '')
+    if (message && isHumanMessage(message)) return humanText(message) ?? ''
   }
-  return false
+  return ''
 }
 
 /** Dispatch through the graph so the real registered tool performs authorization, retrieval and event reporting. */

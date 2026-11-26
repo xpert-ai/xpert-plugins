@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { InjectRepository, LessThan } from './host-orm.js'
+import { Between, InjectRepository, LessThan } from './host-orm.js'
 import { randomUUID } from 'node:crypto'
 import type { Repository } from 'typeorm'
 import {
@@ -57,6 +57,22 @@ export class TicketService {
       take: PAGE_SIZE + 1,
     })
     return { tickets: rows.slice(0, PAGE_SIZE).map(toTicket), hasMore: rows.length > PAGE_SIZE }
+  }
+
+  async matchesAnalysisTarget(scope: Scope, suppliedId: unknown, references: string[]): Promise<boolean> {
+    if (!references.length) return true
+    if (typeof suppliedId !== 'string') return false
+    const id = suppliedId.toLowerCase()
+    if (references.some((ref) => ref.length === 8 ? !id.startsWith(ref + '-') : id !== ref)) return false
+    if (references.includes(id)) return true
+    const prefix = id.slice(0, 8)
+    // Match every scoped ticket with this prefix, including older pages. Two rows establish ambiguity.
+    const matches = await this.tickets.find({
+      select: { id: true },
+      where: { ...scope, id: Between(prefix + '-0000-0000-0000-000000000000', prefix + '-ffff-ffff-ffff-ffffffffffff') },
+      take: 2,
+    })
+    return matches.length === 1 && matches[0]?.id.toLowerCase() === id
   }
 
   private async get(scope: Scope, id: string) {

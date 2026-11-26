@@ -10,4 +10,4 @@ const ormRequire = createRequire(hostRequire.resolve('@nestjs/typeorm'))
 const orm: typeof import('typeorm') = ormRequire('typeorm')
 
 export const { TypeOrmModule, InjectRepository } = nestOrm
-export const { Column, Entity, Index, PrimaryColumn, LessThan } = orm
+export const { Between, Column, Entity, Index, PrimaryColumn, LessThan } = orm

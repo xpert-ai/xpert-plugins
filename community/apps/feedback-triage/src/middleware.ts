@@ -11,7 +11,8 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { ANALYZE_TOOL, FEATURE, ICON, LIST_TOOL, MIDDLEWARE, title } from './constants.js'
 import { requireScope, TicketError, ticketIdSchema } from './domain.js'
-import { allowsTicketAnalysis, inboxInput, inboxReceipt, inboxTurn } from './inbox.js'
+import { explicitTicketReferences, requestsTicketAnalysis } from './inbox-intent.js'
+import { currentUserText, inboxInput, inboxReceipt, inboxTurn } from './inbox.js'
 import { TicketService } from './service.js'
 
 @Injectable()
@@ -53,19 +54,22 @@ export class TriageMiddleware implements IAgentMiddlewareStrategy<Record<string,
         const locale = RequestContext.currentUser()?.preferredLanguage ?? RequestContext.getLanguageCode()
         const direct = inboxTurn(request, locale)
         if (direct) return direct
-        if ((!request.toolChoice || request.toolChoice === 'auto') && !allowsTicketAnalysis(request.messages)) {
+        if ((!request.toolChoice || request.toolChoice === 'auto') && !requestsTicketAnalysis(currentUserText(request.messages))) {
           return next({ ...request, tools: request.tools.filter((item) => item.name !== ANALYZE_TOOL) })
         }
         return next(request)
       },
-      wrapToolCall: (request, next) => {
-        if (!eventRun && request.toolCall.name === ANALYZE_TOOL && !allowsTicketAnalysis(request.state.messages)) {
-          return new ToolMessage({
-            name: ANALYZE_TOOL, tool_call_id: request.toolCall.id ?? '', status: 'error',
-            content: JSON.stringify({ error: 'analysis_requires_request' }),
-          })
+      wrapToolCall: async (request, next) => {
+        if (eventRun || request.toolCall.name !== ANALYZE_TOOL) return next(request)
+        const text = currentUserText(request.state.messages)
+        const requested = requestsTicketAnalysis(text)
+        if (requested && await this.service.matchesAnalysisTarget(scope, request.toolCall.args?.id, explicitTicketReferences(text))) {
+          return next(request)
         }
-        return next(request)
+        return new ToolMessage({
+          name: ANALYZE_TOOL, tool_call_id: request.toolCall.id ?? '', status: 'error',
+          content: JSON.stringify({ error: requested ? 'ticket_target_mismatch' : 'analysis_requires_request' }),
+        })
       },
       tools: [
         tool(

@@ -67,8 +67,8 @@ llama-server --model /models/feedback.gguf --alias feedback-qwen3 \
 从宿主仓库根目录执行归档发布与校验。按 `node tools/scripts/deploy-archive-plugin.mjs --help` 设置 API、租户和管理员认证。校验时将 `XPERT_REPLICA_URLS` 设为实际服务副本的受信任直连地址数组。
 
 ```sh
-corepack pnpm plugin:deploy:archive publish /tmp/community-apps-feedback-triage-0.1.3.tgz
-corepack pnpm plugin:deploy:archive verify /tmp/community-apps-feedback-triage-0.1.3.tgz
+corepack pnpm plugin:deploy:archive publish /tmp/community-apps-feedback-triage-0.1.4.tgz
+corepack pnpm plugin:deploy:archive verify /tmp/community-apps-feedback-triage-0.1.4.tgz
 ```
 
 ## 开发者复验
@@ -130,13 +130,13 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 
 | 层次 | 执行环境与操作 | 实际结果 |
 | --- | --- | --- |
-| 构建与业务规则 | TypeScript 类型检查、服务端与视图构建、28 项 Node 测试，使用内存 SQL 数据库和可控模型响应 | 覆盖重复提交、并发领用、过期重试、人工更正、重新打开数据库、租户/组织/用户隔离，以及只读请求和明确要求分诊的边界。 |
+| 构建与业务规则 | TypeScript 类型检查、服务端与视图构建、29 项 Node 测试，使用内存 SQL 数据库和可控模型响应 | 覆盖重复提交、并发领用、过期重试、人工更正、重新打开数据库、租户/组织/用户隔离，以及只读请求和明确要求分诊的边界。 |
 | 生命周期与浏览器夹具 | 官方 `plugin-dev-harness` 加载、初始化和关闭插件；Chrome 加载打包后的远程组件 | 加载和关闭成功。浏览器完成了输入校验、丢失创建回执后重试、失败后恢复、人工修改分类与刷新回读。 |
 | 平台真实使用 | Xpert 开源版、PostgreSQL、专用 Qwen、普通客服账号 | 从工作台创建工单并取得含原文引用的建议，确认后刷新重开成功。停止模型服务后另一张工单显示失败，恢复服务后同一编号的尝试次数由 1 变为 2，数据库回读为已确认。 |
 | 真实权限 | 同组织的两个独立登录账号；用第二人的会话查询列表，并尝试分析及确认第一人的工单 | 列表中没有对方工单，两次写操作均返回 `not_found`，对方工单未被改动。跨组织、跨租户隔离由服务测试覆盖。 |
 | 助手工具 | 普通客服从 ChatKit 发出查询，核对工具记录与最终答复 | 一次 `feedback_inbox` 调用成功。中英文清单和 `/inbox` 均只调用一次工具。三条短编号、原文、已确认状态与人工分类逐条匹配工作台，客服可以重新打开保存的对话。 |
 
-测试平台运行官方 main 基线对应的 Linux amd64 Web 与 API，宿主 SDK / contracts 为 3.38.1。API 的大体积只读文件在演示服务器使用 SquashFS 挂载，仍使用该版本的官方入口与 Node 20.20.2。工作区按仓库依赖使用 SDK / contracts 3.26.2 编译。演示部署使用插件 0.1.3，已发布助手 v3，执行上限为 32 步。本次给演示宿主的浏览器资源做了单独分包与缓存。其他宿主可直接安装此插件。没有验证生产并发容量或其他云模型供应商。
+测试平台运行官方 main 基线对应的 Linux amd64 Web 与 API，宿主 SDK / contracts 为 3.38.1。API 的大体积只读文件在演示服务器使用 SquashFS 挂载，仍使用该版本的官方入口与 Node 20.20.2。工作区按仓库依赖使用 SDK / contracts 3.26.2 编译。演示部署使用插件 0.1.4，已发布助手 v3，执行上限为 32 步。本次给演示宿主的浏览器资源做了单独分包与缓存。其他宿主可直接安装此插件。没有验证生产并发容量或其他云模型供应商。
 
 在同一演示站的普通账号上，原版两次近期工单查询的宿主执行记录约 47–49 秒。更新后，从点击发送到清单全部可见，API 重启后的第一条中文查询约 3.2 秒，新会话英文查询约 2.5 秒，`/inbox` 约 2.1 秒。首次要求解释分诊依据的开放问题使用真实模型，约 25 秒。同一会话再问一个不同的简短问题，约 5.8 秒。这里记录的是单用户实测。
 
@@ -147,7 +147,7 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 | 工具 | 谁使用 | 业务结果 |
 | --- | --- | --- |
 | `feedback_inbox` | 助手 | 读取当前用户最近十张工单的编号、原话摘录、状态和人工确认分类 |
-| `feedback_analyze` | 助手 | 按编号分析或重试一张工单，返回保存的建议或失败原因 |
+| `feedback_analyze` | 助手 | 依客服请求分析或重试一张工单。客服指定编号时会核对目标，短编号须在本人可见工单中唯一。 |
 | 工作台确认操作 | 客服 | 核对原话和建议，保存最终类型和确认状态 |
 
 模型能逐字引用原句，但仍可能选错句子或误分类。客服应核实引用是否真的支持摘要。模型不可用、输出不合约或引用脱离原文时，工单保留原始输入并提供重试。

@@ -290,3 +290,44 @@ test('prevents a read-only filter from running ticket analysis while preserving 
   assert.deepEqual(JSON.parse(denied.content), { error: 'analysis_requires_request' })
   assert.equal(await middleware.wrapToolCall(call([read, analyze]), () => 'allowed'), 'allowed')
 })
+
+test('binds analysis to the named UUID or a unique scoped workbench number before running the real tool', async (t) => {
+  let calls = 0
+  const { service, repo } = await database(t, { extract: () => { calls++; return result } })
+  const a = await service.create(scope, input())
+  const original = await repo.findOneByOrFail({ id: a.id })
+  const b = (a.id.startsWith('0') ? '1' : '0') + a.id.slice(1)
+  const similar = (tail) => a.id.slice(0, -2) + tail
+  const tails = ['01', '02', '03'].filter((tail) => !a.id.endsWith(tail))
+  const insert = (id, userId = scope.userId) => repo.insert({ ...original, id, userId, requestId: randomUUID() })
+  await insert(b)
+  await insert(similar(tails[0]), randomUUID())
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const analyze = middleware.tools.find(({ name }) => name === 'feedback_analyze')
+  const invoke = (text, id) => {
+    const toolCall = { name: analyze.name, id: randomUUID(), type: 'tool_call', args: { id } }
+    return middleware.wrapToolCall({ tool: analyze, state: { messages: [new HumanMessage(text)] }, toolCall },
+      (request) => analyze.invoke(request.toolCall))
+  }
+  const short = a.id.slice(0, 8)
+  for (const prompt of [`只重试工单 ${a.id}`, `Please retry ticket #${short.toUpperCase()}.`]) {
+    const rejected = await invoke(prompt, b)
+    assert.equal(rejected.status, 'error')
+    assert.equal(JSON.parse(rejected.content).error, 'ticket_target_mismatch')
+  }
+  assert.equal(calls, 0)
+  assert.equal((await repo.findOneByOrFail({ id: b })).attempts, 0)
+  assert.equal((await invoke(`请分析工单 ${short}`, a.id)).status, 'success')
+  assert.equal((await repo.findOneByOrFail({ id: a.id })).status, 'review')
+  assert.equal(calls, 1)
+  const colliding = similar(tails[1])
+  await insert(colliding)
+  for (const candidate of [a.id, colliding]) {
+    assert.equal((await invoke(`请分析工单 ${short}`, candidate)).status, 'error')
+  }
+  assert.equal((await repo.findOneByOrFail({ id: colliding })).status, 'draft')
+  assert.equal((await invoke(`Only retry ticket ${b}`, b)).status, 'success')
+  assert.equal(calls, 2)
+  assert.equal((await invoke('请分析第一条工单', colliding)).status, 'success')
+  assert.equal(calls, 3)
+})

@@ -1,6 +1,6 @@
 {
   "name": "@community/apps-feedback-triage",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Evidence-backed feedback triage with human approval in Xpert.",
   "author": "Kang Ningning",
