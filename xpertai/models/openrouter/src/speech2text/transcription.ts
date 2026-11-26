@@ -11,7 +11,18 @@ const inputSchema = z.array(z.union([
   z.object({ url: z.string() })
 ])).length(1)
 const responseSchema = z.object({ text: z.string() })
-const mimeTypes = { wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg', m4a: 'audio/x-m4a', flac: 'audio/flac', webm: 'audio/webm', mp4: 'audio/mp4', aac: 'audio/aac', mpeg: 'audio/mpeg', mpga: 'audio/mpeg' }
+const mimeTypes: Record<z.infer<typeof formats>, string[]> = {
+  wav: ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave'],
+  mp3: ['audio/mpeg', 'audio/mp3'],
+  ogg: ['audio/ogg'],
+  m4a: ['audio/x-m4a'],
+  flac: ['audio/flac', 'audio/x-flac'],
+  webm: ['audio/webm'],
+  mp4: ['audio/mp4'],
+  aac: ['audio/aac'],
+  mpeg: ['audio/mpeg'],
+  mpga: ['audio/mpeg']
+}
 
 export class OpenRouterTranscriptionModel extends BaseChatModel {
   constructor(private readonly fields: BaseChatModelParams & { apiKey: string; baseUrl: string; model: string }) {
@@ -28,17 +39,18 @@ export class OpenRouterTranscriptionModel extends BaseChatModel {
     if ('url' in block && !data.startsWith('data:')) data = await readPublicAudioUrl(data, options.signal)
     const limit = 25 * 1024 * 1024
     if (data.length > Math.ceil(limit / 3) * 4 + 128) throw new Error('OpenRouter audio exceeds 25 MiB')
-    const uri = /^data:(audio\/[a-z0-9.+-]+);base64,(.*)$/.exec(data)
+    const uri = /^data:(audio\/[a-z0-9.+-]+)(?:;[^,;]+)*;base64,(.*)$/i.exec(data)
     const declared = 'input_audio' in block ? block.input_audio.format : undefined
-    const mimeFormat = uri && (declared && mimeTypes[declared] === uri[1] ? declared
-      : Object.entries(mimeTypes).find(([, mime]) => mime === uri[1])?.[0])
-    const format = formats.safeParse(mimeFormat || declared)
-    if (!format.success || (declared && mimeFormat && declared !== mimeFormat)) throw new Error('OpenRouter requires a supported audio data URI or an explicit input_audio format')
+    const mime = uri?.[1].toLowerCase()
+    const format = declared ?? (mime && formats.options.find(key => mimeTypes[key].includes(mime)))
+    if (!format || (mime && !mimeTypes[format].includes(mime))) {
+      throw new Error('OpenRouter requires a supported audio data URI or an explicit matching input_audio format')
+    }
     const encoded = uri ? uri[2] : data
     if (!encoded || encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new Error('OpenRouter invalid base64 audio')
     const bytes = Buffer.from(encoded, 'base64')
     if (!bytes.length || bytes.length > limit || bytes.toString('base64') !== encoded) throw new Error('OpenRouter invalid audio size or encoding')
-    const body = JSON.stringify({ model: this.fields.model, input_audio: { data: encoded, format: format.data } })
+    const body = JSON.stringify({ model: this.fields.model, input_audio: { data: encoded, format } })
     const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(120000)]) : AbortSignal.timeout(120000)
     signal.throwIfAborted()
     const response = await fetch(`${this.fields.baseUrl.replace(/\/+$/, '')}/audio/transcriptions`, {
