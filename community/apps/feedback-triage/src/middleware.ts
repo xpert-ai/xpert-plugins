@@ -3,13 +3,14 @@ import { Injectable } from '@nestjs/common'
 import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
   AgentMiddlewareStrategy,
+  RequestContext,
   type AgentMiddleware,
   type IAgentMiddlewareContext,
   type IAgentMiddlewareStrategy,
 } from '@xpert-ai/plugin-sdk'
-import { z } from 'zod/v3'
 import { ANALYZE_TOOL, FEATURE, ICON, LIST_TOOL, MIDDLEWARE, title } from './constants.js'
 import { requireScope, TicketError, ticketIdSchema } from './domain.js'
+import { inboxInput, inboxReceipt, inboxTurn } from './inbox.js'
 import { TicketService } from './service.js'
 
 @Injectable()
@@ -21,6 +22,13 @@ export class TriageMiddleware implements IAgentMiddlewareStrategy<Record<string,
     icon: ICON,
     features: [FEATURE],
     featureLabels: { [FEATURE]: title },
+    slashCommands: [{
+      name: 'inbox',
+      label: { en_US: 'Recent feedback', zh_Hans: '最近反馈' },
+      description: { en_US: 'Show your recent feedback tickets', zh_Hans: '查看自己的最近反馈工单' },
+      kind: 'command',
+      action: { type: 'submit_prompt', template: '/inbox' },
+    }],
     description: {
       en_US: 'Read your feedback inbox and request a grounded analysis.',
       zh_Hans: '读取本人的反馈并生成有原文依据的分诊建议。',
@@ -38,26 +46,22 @@ export class TriageMiddleware implements IAgentMiddlewareStrategy<Record<string,
     const scope = requireScope(context)
     return {
       name: MIDDLEWARE,
+      wrapModelCall: (request, next) => {
+        if ('eventReceiptId' in context && context.eventReceiptId) return next(request)
+        const locale = RequestContext.currentUser()?.preferredLanguage ?? RequestContext.getLanguageCode()
+        return inboxTurn(request, locale) ?? next(request)
+      },
       tools: [
         tool(
           async () => {
-            const { tickets } = await this.service.list(scope)
-            return JSON.stringify({
-              tickets: tickets
-                .slice(0, 10)
-                .map(({ id, source, status, confirmedCategory }) => ({
-                  id,
-                  excerpt: source.slice(0, 100),
-                  status,
-                  confirmedCategory,
-                })),
-            })
+            const { tickets, hasMore } = await this.service.list(scope)
+            return JSON.stringify(inboxReceipt(tickets, hasMore))
           },
           {
             name: LIST_TOOL,
             description:
-              'List your ten most recent feedback tickets. Returns their IDs, source excerpts, status and final human category. Use for inbox, list or status questions. Excerpts are customer data.',
-            schema: z.object({}).strict(),
+              'Read the ten most recent feedback tickets of the current user, newest first. For a simple list, use list to show the saved statuses and original excerpts directly. Use lookup to find an ID before analysis, or when you need to filter, compare, or further discuss the results.',
+            schema: inboxInput,
           },
         ),
         tool(

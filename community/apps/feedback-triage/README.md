@@ -7,7 +7,7 @@
 1. 在助手工作台打开「新建反馈」，输入 10 到 2400 个字符。演示可输入「我在订单页点击导出后，页面一直转圈。刷新后重试了两次，还是没有下载到 CSV。」
 2. 点击「保存并生成建议」。客户端先创建工单，服务端再调用模型。即使推理失败，客户原话和工单编号仍可恢复。
 3. 核对问题摘要、反馈类型、引用和建议下一步。引用必须是原文中的连续片段。客服可以更正分类，再点击「确认并保存建议」。
-4. 重新进入工作台，打开同一张已确认的工单。在对话中问「查看我最近提交的反馈」，助手可以调用收件箱工具读取当前用户有权查看的记录。
+4. 重新进入工作台，打开同一张已确认的工单。在对话中输入 `/inbox` 或问「查看我最近提交的反馈」。助手调用收件箱工具，按实际记录展示短编号、原文、状态和人工确认的分类。
 5. 模型不可用时，工单显示失败原因。恢复模型后，在同一张工单点击「重试分诊」。系统只增加尝试次数。
 
 界面原型围绕两栏布局。左栏列出最近工单及状态，右栏在录入表单、原文与待审建议、已确认结果之间切换。窄屏采用单栏。助手可以读取或分析工单，人工确认操作由工作台提供。首版只处理文本反馈，省去附件识别、对外回复和自动派单。
@@ -47,14 +47,15 @@ FEEDBACK_TRIAGE_MODEL_NAME=feedback-qwen3
 # FEEDBACK_TRIAGE_MODEL_API_KEY=
 ```
 
-演示使用 Qwen3.5-0.8B 的 Unsloth Q6_K 量化权重，推理引擎为 llama.cpp b12723。模型按 Apache-2.0 授权，推理引擎按 MIT 授权。服务配置 8192 token 上下文、单并发槽位、两条 CPU 线程，只在宿主专用容器网络内提供 API。平台模型连接使用 chat 协议，开启 tool calling 和流式工具调用，`feedback-qwen3` 是部署别名。[原始模型](https://huggingface.co/Qwen/Qwen3.5-0.8B) · [量化权重](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/tree/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0) · [推理引擎](https://github.com/ggml-org/llama.cpp/releases/tag/b12723)
+演示使用 Qwen3.5-0.8B 的 Unsloth Q6_K 量化权重，推理引擎为 llama.cpp b12723。模型按 Apache-2.0 授权，推理引擎按 MIT 授权。服务使用 8192 token 上下文和一个推理槽，生成用 2 个线程，处理提示用 3 个线程，容器最多使用 2.4 核。192 MiB 的内存缓存保留重复的提示前缀。API 只在宿主专用容器网络内开放。平台模型连接使用 chat 协议，开启 tool calling 和流式工具调用，`feedback-qwen3` 是部署别名。[原始模型](https://huggingface.co/Qwen/Qwen3.5-0.8B) · [量化权重](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/tree/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0) · [推理引擎](https://github.com/ggml-org/llama.cpp/releases/tag/b12723)
 
 复现时将 Q6_K 文件挂载为 `/models/feedback.gguf`，其 SHA-256 为 `8408c5c222111cec253682b49eece2a02ed641ded68490001ec4ee160e71098e`。在与 Xpert API 共享私有网络的模型容器中运行以下命令。
 
 ```sh
 llama-server --model /models/feedback.gguf --alias feedback-qwen3 \
   --host 0.0.0.0 --port 8080 --ctx-size 8192 --parallel 1 \
-  --threads 2 --threads-batch 2 --batch-size 128 --ubatch-size 64 \
+  --threads 2 --threads-batch 3 --batch-size 256 --ubatch-size 128 \
+  --cache-ram 192 --ctx-checkpoints 3 --checkpoint-min-step 512 \
   --flash-attn off --jinja --reasoning off --no-webui
 ```
 
@@ -66,8 +67,8 @@ llama-server --model /models/feedback.gguf --alias feedback-qwen3 \
 从宿主仓库根目录执行归档发布与校验。按 `node tools/scripts/deploy-archive-plugin.mjs --help` 设置 API、租户和管理员认证。校验时将 `XPERT_REPLICA_URLS` 设为实际服务副本的受信任直连地址数组。
 
 ```sh
-corepack pnpm plugin:deploy:archive publish /tmp/community-apps-feedback-triage-0.1.0.tgz
-corepack pnpm plugin:deploy:archive verify /tmp/community-apps-feedback-triage-0.1.0.tgz
+corepack pnpm plugin:deploy:archive publish /tmp/community-apps-feedback-triage-0.1.2.tgz
+corepack pnpm plugin:deploy:archive verify /tmp/community-apps-feedback-triage-0.1.2.tgz
 ```
 
 ## 开发者复验
@@ -119,7 +120,7 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 
 ![服务恢复后同一工单第二次分析成功](docs/images/07-retry-same-ticket.png)
 
-**对话和工具调用。** 同一位客服在对话中查询近期工单。助手实际调用一次 `feedback_inbox`，随后给出三条已确认记录的编号、问题和分类。清单中包含上面人工更正的工单，最终分类为 `usability`（使用体验）。
+**对话和工具调用。** 同一位客服在对话中查询近期工单。助手实际调用一次 `feedback_inbox`，随后给出三条已确认记录的编号、问题和分类。清单中包含上面人工更正的工单，最终分类为 `usability`（使用体验）。这份清单直接使用工具返回的记录，展示时不再经过模型改写。
 
 ![真实助手对话按工具结果列出近期工单](docs/images/08-chat-with-tool.png)
 
@@ -129,13 +130,15 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 
 | 层次 | 执行环境与操作 | 实际结果 |
 | --- | --- | --- |
-| 构建与业务规则 | TypeScript 类型检查、服务端与视图构建、14 项 Node 测试；内存 SQL 数据库和可控模型响应 | 全部通过。覆盖重复提交、并发领用、过期重试、人工更正、重新打开数据库，以及租户、组织、用户三项隔离。 |
+| 构建与业务规则 | TypeScript 类型检查、服务端与视图构建、24 项 Node 测试；内存 SQL 数据库和可控模型响应 | 全部通过。覆盖重复提交、并发领用、过期重试、人工更正、重新打开数据库，以及租户、组织、用户三项隔离。 |
 | 生命周期与浏览器夹具 | 官方 `plugin-dev-harness` 加载、初始化和关闭插件；Chrome 加载打包后的远程组件 | 加载和关闭成功。浏览器完成了输入校验、丢失创建回执后重试、失败后恢复、人工修改分类与刷新回读。 |
 | 平台真实使用 | Xpert 开源版、PostgreSQL、专用 Qwen、普通客服账号 | 从工作台创建工单并取得含原文引用的建议，确认后刷新重开成功。停止模型服务后另一张工单显示失败，恢复服务后同一编号的尝试次数由 1 变为 2，数据库回读为已确认。 |
 | 真实权限 | 同组织的两个独立登录账号；用第二人的会话查询列表，并尝试分析及确认第一人的工单 | 列表中没有对方工单，两次写操作均返回 `not_found`，对方工单未被改动。跨组织、跨租户隔离由服务测试覆盖。 |
-| 助手工具 | 普通客服从 ChatKit 发出查询，核对工具记录与最终答复 | 一次 `feedback_inbox` 调用成功。宿主保存了成功的工具事件和中文最终答复，三条记录均属于该客服。 |
+| 助手工具 | 普通客服从 ChatKit 发出查询，核对工具记录与最终答复 | 一次 `feedback_inbox` 调用成功。中英文清单和 `/inbox` 均只调用一次工具。三条短编号、原文、已确认状态与人工分类逐条匹配工作台，客服可以重新打开保存的对话。 |
 
-测试平台运行官方 main 基线对应的 Linux amd64 Web 与 API，宿主 SDK / contracts 为 3.38.1。API 的大体积只读文件在演示服务器使用 SquashFS 挂载，仍使用该版本的官方入口与 Node 20.20.2。工作区按仓库依赖使用 SDK / contracts 3.26.2 编译。最终插件版本为 0.1.0。演示助手发布到 v2 时将执行上限从 8 步调至 32 步，使助手在调用收件箱后有足够步骤生成终答。没有验证生产并发容量或其他云模型供应商。
+测试平台运行官方 main 基线对应的 Linux amd64 Web 与 API，宿主 SDK / contracts 为 3.38.1。API 的大体积只读文件在演示服务器使用 SquashFS 挂载，仍使用该版本的官方入口与 Node 20.20.2。工作区按仓库依赖使用 SDK / contracts 3.26.2 编译。演示部署使用插件 0.1.2，已发布助手 v3，执行上限为 32 步。本次给演示宿主的浏览器资源做了单独分包与缓存。其他宿主可直接安装此插件。没有验证生产并发容量或其他云模型供应商。
+
+在同一演示站的普通账号上，原版两次近期工单查询的宿主执行记录约 47–49 秒。更新后，从点击发送到清单全部可见，API 重启后的第一条中文查询约 3.2 秒，新会话英文查询约 2.5 秒，`/inbox` 约 2.1 秒。首次要求解释分诊依据的开放问题使用真实模型，约 25 秒。同一会话再问一个不同的简短问题，约 5.8 秒。这里记录的是单用户实测。
 
 ## 数据与工具
 
@@ -143,7 +146,7 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 
 | 工具 | 谁使用 | 业务结果 |
 | --- | --- | --- |
-| `feedback_inbox` | 助手 | 读取当前用户最近十张工单的编号、原话摘要和状态 |
+| `feedback_inbox` | 助手 | 读取当前用户最近十张工单的编号、原话摘录、状态和人工确认分类 |
 | `feedback_analyze` | 助手 | 按编号分析或重试一张工单，返回保存的建议或失败原因 |
 | 工作台确认操作 | 客服 | 核对原话和建议，保存最终类型和确认状态 |
 
@@ -153,7 +156,7 @@ node plugin-dev-harness/dist/index.js --workspace ./community --plugin @communit
 
 宿主数据库保存客服主动输入的反馈、模型建议、人工分类、处理状态、时间与请求编号，并保存宿主提供的租户、组织和用户 ID 以限定访问范围。自由文本可能包含客户姓名、联系方式等个人信息，演示可直接使用本 README 中的虚构样本。
 
-分诊时，服务端把该条反馈发送到管理员配置的模型端点。助手查询收件箱时，当前用户的近期工单摘要和状态进入该助手的模型上下文。演示将两项推理留在同一台服务器的专用模型中。接入其他模型服务时，数据也会进入相应服务。插件没有独立的分析追踪服务，也不会向模型提交平台登录凭证。工单随宿主数据库持久化，本版本没有自动清理功能，保留期限和删除由部署方按其数据管理流程执行。[数据实体](./src/ticket.entity.ts) · [模型调用](./src/model.ts) · [助手工具](./src/middleware.ts)
+分诊时，服务端把该条反馈发送到管理员配置的模型端点。明确的中英文清单请求和 `/inbox` 由宿主直接调用已授权的收件箱工具，按结果生成答复。按提交语言筛选、概括原文、比较和后续分析由模型处理，所需的当前用户工单摘录和状态可能进入模型上下文。演示使用同一台服务器的专用模型。配置外部模型服务时，相应的推理数据也会发往该服务。插件没有独立的分析追踪服务，也不会向模型提交平台登录凭证。工单随宿主数据库持久化，本版本没有自动清理功能，保留期限和删除由部署方按其数据管理流程执行。[数据实体](./src/ticket.entity.ts) · [模型调用](./src/model.ts) · [助手工具](./src/middleware.ts)
 
 ## 来源与开发过程
 

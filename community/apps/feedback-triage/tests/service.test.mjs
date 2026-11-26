@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { test } from 'node:test'
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
+import { AIMessage, HumanMessage } from '@langchain/core/messages'
 import { createTicketSchema, ModelError, requireScope, validateAnalysis } from '../dist/domain.js'
 import { TicketService } from '../dist/service.js'
 import { FeedbackTicket } from '../dist/ticket.entity.js'
@@ -194,6 +195,33 @@ test('Workbench returns the same safe business error for another user’s ticket
     assert.deepEqual(response, expected)
   }
   assert.equal((await service.list(scope)).tickets[0].status, 'draft')
+})
+
+test('a simple inbox turn executes its registered scoped tool and returns a final answer without model inference', async (t) => {
+  const { service } = await database(t)
+  await service.create(scope, input())
+  const privateText = 'A different reviewer reported a missing invoice button.'
+  await service.create({ ...scope, userId: randomUUID() }, { requestId: randomUUID(), source: privateText })
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const [inbox] = middleware.tools
+  const human = new HumanMessage('Show me my recent feedback tickets.')
+  const run = (messages) => middleware.wrapModelCall({ messages, tools: middleware.tools }, () => assert.fail('unexpected inference'))
+  const selected = await run([human])
+  assert.equal(selected.tool_calls.length, 1)
+  assert.equal(selected.tool_calls[0].name, inbox.name)
+  assert.deepEqual(selected.tool_calls[0].args, { purpose: 'list' })
+  const receipt = await inbox.invoke(selected.tool_calls[0])
+  assert.equal(receipt.status, 'success')
+  assert.equal(receipt.tool_call_id, selected.tool_calls[0].id)
+  const displayed = await run([human, selected, receipt])
+  assert.equal(displayed.getType(), 'ai')
+  assert.ok(displayed.content.includes(source))
+  assert.ok(!displayed.content.includes(privateText))
+  assert.deepEqual(displayed.tool_calls, [])
+  const later = new HumanMessage('How many confirmed issues are in the list?')
+  const nextModel = () => new AIMessage('model handles follow-up')
+  const followUp = await middleware.wrapModelCall({ messages: [human, selected, receipt, displayed, later], tools: middleware.tools }, nextModel)
+  assert.equal(followUp.content, 'model handles follow-up')
 })
 
 test('paginates older saved feedback and does not mark a read as a new change', async (t) => {
