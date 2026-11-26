@@ -92,18 +92,31 @@ test('only dispatches a present tool for a plain current user turn and respects 
   assert.equal(inboxTurn({ messages: [mixed, ...callPair], tools }, 'zh-Hans'), null)
 })
 
-test('delegates filtering and summarization before and after a real inbox lookup', () => {
+test('delegates summaries before and after a real inbox lookup', () => {
   const receipt = inboxReceipt([row('The page loads normally. '.repeat(6) + 'Submitting the payment fails.')], false)
   assert.ok(!receipt.tickets[0].excerpt.includes('payment fails'))
   const tools = [{ name: LIST_TOOL }]
   for (const text of [
-    '列出我用英文提交的反馈',
-    'Show the feedback I submitted in Chinese recently.',
     '列出我的反馈工单，附上摘要。',
     'List my recent tickets with summaries.',
   ]) {
     const user = new HumanMessage(text)
     assert.equal(inboxTurn({ messages: [user], tools }, 'zh'), null)
     assert.equal(inboxTurn({ messages: [user, request(call()), result(receipt)], tools }, 'zh'), null)
+  }
+})
+
+test('keeps a failed source check distinct from an empty or mixed-script inbox', () => {
+  const human = new HumanMessage('List only tickets written in English.')
+  const tools = [{ name: LIST_TOOL }]
+  const query = request(call({ purpose: 'lookup' }))
+  const reply = (receipt, fields) => inboxTurn({ messages: [human, query, result(receipt, fields)], tools }, 'zh').content
+  assert.match(reply(inboxReceipt([], false)), /Your inbox is empty/)
+  const mixed = inboxReceipt([row('The CSV 导出 option fails.'), row('かな and Latin text together.')], false)
+  assert.match(reply(mixed), /Han characters appeared in 1 of 2 original excerpts/)
+  assert.doesNotMatch(reply(mixed), /English tickets|submitted in English/)
+  for (const fields of [{ status: 'error' }, { tool_call_id: 'wrong' }, { content: '{' }]) {
+    assert.match(reply(mixed, fields), /could not be read/)
+    assert.doesNotMatch(reply(mixed, fields), /excerpts|empty/)
   }
 })

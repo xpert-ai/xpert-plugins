@@ -2,6 +2,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { inboxIntent } from '../dist/inbox-intent.js'
 
+function listLanguage(input, preferred) {
+  const intent = inboxIntent(input, preferred)
+  return intent?.kind === 'list' ? intent.language : null
+}
+
 test('recognizes composable read-only inbox requests and uses the current requested language', () => {
   const examples = {
     zh: [
@@ -21,7 +26,7 @@ test('recognizes composable read-only inbox requests and uses the current reques
     ],
   }
   for (const [locale, inputs] of Object.entries(examples)) {
-    for (const input of inputs) assert.equal(inboxIntent(input, 'zh-Hans'), locale, input)
+    for (const input of inputs) assert.equal(listLanguage(input, 'zh-Hans'), locale, input)
   }
 })
 
@@ -41,7 +46,7 @@ test('delegates unrecognized, compound, scoped, quoted and analytical requests t
   for (const input of examples) assert.equal(inboxIntent(input, 'zh-Hans'), null, input)
 })
 
-test('applies an output language to the listing and delegates source-language filters', () => {
+test('applies an output language to the listing and keeps source-language filters out of plain lists', () => {
   const cases = [
     ['请用英文回答，列出我最近的反馈工单。', 'en'],
     ['请用英语列出我的反馈。', 'en'],
@@ -60,7 +65,7 @@ test('applies an output language to the listing and delegates source-language fi
     ['Show the feedback I submitted recently in Chinese.', null],
     ['列出我的工单，用英语回答，然后重试第一条。', null],
   ]
-  for (const [input, expected] of cases) assert.equal(inboxIntent(input, 'zh-Hans'), expected, input)
+  for (const [input, expected] of cases) assert.equal(listLanguage(input, 'zh-Hans'), expected, input)
 })
 
 test('serves the fields carried in the receipt and delegates summaries and unabridged originals', () => {
@@ -75,5 +80,30 @@ test('serves the fields carried in the receipt and delegates summaries and unabr
     ['Show my tickets with summary and status.', null],
     ['Show my recent tickets, including the full original text.', null],
   ]
-  for (const [input, expected] of cases) assert.equal(inboxIntent(input, 'en'), expected, input)
+  for (const [input, expected] of cases) assert.equal(listLanguage(input, 'en'), expected, input)
+})
+
+test('recognizes explicit submission-language filters separately from an output-language instruction', () => {
+  const cases = [
+    ['在刚才的工单里，只看用英文提交的反馈。请列出符合条件的工单，如果没有就说明原因。', 'zh'],
+    ['列出我用英文提交的反馈', 'zh'],
+    ['看看我以中文提交的工单，用英文回答。', 'en'],
+    ['列出我用英语发过的反馈工单。', 'zh'],
+    ['用英语提交的反馈列表', 'zh'],
+    ['只看原文语言为中文的工单', 'zh'],
+    ['Show the feedback I submitted in Chinese recently.', 'en'],
+    ['List the tickets I submitted in English lately, in Chinese.', 'zh'],
+    ['List only tickets written in English.', 'en'],
+    ['Show my Chinese-language feedback tickets.', 'en'],
+    ['Show tickets whose original language is Chinese.', 'en'],
+  ]
+  for (const [input, language] of cases) {
+    assert.deepEqual(inboxIntent(input, 'zh-Hans'), { kind: 'sourceLanguage', language }, input)
+  }
+  for (const input of [
+    '筛选英文提交的反馈，然后分析最新一条',
+    'List the tickets I submitted in English and retry the first one',
+    'Translate “only show feedback submitted in English”',
+  ]) assert.equal(inboxIntent(input, 'zh'), null, input)
+  assert.deepEqual(inboxIntent('List my recent tickets in Chinese.', 'en'), { kind: 'list', language: 'zh' })
 })

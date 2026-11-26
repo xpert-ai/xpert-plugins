@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import { LIST_TOOL } from './constants.js'
 import { ticketSchema, type Ticket } from './domain.js'
-import { inboxIntent } from './inbox-intent.js'
+import { inboxIntent, requestsTicketAnalysis, type InboxIntent, type InboxLanguage } from './inbox-intent.js'
 
 const LIMIT = 10
 const EXCERPT_LENGTH = 100
@@ -64,7 +64,18 @@ function inlineExcerpt(text: string) {
   return `${fence} ${text.replace(/\s+/gu, ' ').trim()} ${fence}`
 }
 
-export function inboxReply(messages: BaseMessage[], locale: string): string | null {
+function sourceLanguageReply(tickets: { excerpt: string }[], language: InboxLanguage): string {
+  // A script is observable in an excerpt. It is not a language label, especially for mixed-language feedback.
+  const withHan = tickets.filter(({ excerpt }) => /\p{Script=Han}/u.test(excerpt)).length
+  if (language === 'zh') {
+    const seen = tickets.length ? `本次读取的 ${tickets.length} 条原文摘录中，有 ${withHan} 条含汉字。` : '当前收件箱没有工单。'
+    return `工单未单独记录提交语言，无法按该字段准确筛选。${seen}可在工作台核对完整原文。`
+  }
+  const seen = tickets.length ? `Han characters appeared in ${withHan} of ${tickets.length} original excerpts checked.` : 'Your inbox is empty.'
+  return `Tickets have no recorded submission language, so an exact language filter is unavailable. ${seen} You can check the full original text in the workbench.`
+}
+
+export function inboxReply(messages: BaseMessage[], locale: string, kind: InboxIntent['kind'] = 'list'): string | null {
   const response = messages.at(-1)
   const request = messages.at(-2)
   if (!response || !request || !isToolMessage(response) || !isAIMessage(request)) return null
@@ -77,7 +88,8 @@ export function inboxReply(messages: BaseMessage[], locale: string): string | nu
     return null
   }
   const input = inboxInput.safeParse(call.args)
-  if (!input.success || input.data.purpose !== 'list' || response.content.length > 16_000) return null
+  const purpose = kind === 'sourceLanguage' ? 'lookup' : 'list'
+  if (!input.success || input.data.purpose !== purpose || response.content.length > 16_000) return null
 
   let data: unknown
   try {
@@ -87,6 +99,7 @@ export function inboxReply(messages: BaseMessage[], locale: string): string | nu
   }
   const parsed = receiptSchema.safeParse(data)
   if (!parsed.success) return null
+  if (kind === 'sourceLanguage') return sourceLanguageReply(parsed.data.tickets, /^zh/i.test(locale) ? 'zh' : 'en')
   const labels = /^zh/i.test(locale) ? copy.zh : copy.en
   const { tickets, hasMore } = parsed.data
   if (!tickets.length) return labels.empty
@@ -96,6 +109,22 @@ export function inboxReply(messages: BaseMessage[], locale: string): string | nu
     return `- \`${id.slice(0, 8)}\` **${labels.status[status]}${category}**　${inlineExcerpt(excerpt)}${truncated ? '…' : ''}`
   })
   return [labels.heading(tickets.length), lines.join('\n'), ...(hasMore ? [labels.more] : [])].join('\n\n')
+}
+
+function humanText(message: BaseMessage): string | null {
+  if (!isHumanMessage(message)) return null
+  const content = message.content
+  const part = Array.isArray(content) && content.length === 1 ? content[0] : null
+  const text = typeof content === 'string' ? content : part?.type === 'text' ? part.text : null
+  return typeof text === 'string' ? text : null
+}
+
+export function allowsTicketAnalysis(messages: BaseMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message && isHumanMessage(message)) return requestsTicketAnalysis(humanText(message) ?? '')
+  }
+  return false
 }
 
 /** Dispatch through the graph so the real registered tool performs authorization, retrieval and event reporting. */
@@ -108,19 +137,20 @@ export function inboxTurn(request: ModelRequest, preferredLanguage: string): AIM
   if (!last) return null
   const afterTool = isToolMessage(last)
   const human = afterTool ? request.messages.at(-3) : last
-  if (!human || !isHumanMessage(human)) return null
-  const content = human.content
-  const part = Array.isArray(content) && content.length === 1 ? content[0] : null
-  const text = typeof content === 'string' ? content : part?.type === 'text' ? part.text : null
-  if (typeof text !== 'string') return null
-  const language = inboxIntent(text, preferredLanguage)
-  if (!language) return null
+  const text = human && humanText(human)
+  const intent = text && inboxIntent(text, preferredLanguage)
+  if (!intent) return null
   if (afterTool) {
-    const reply = inboxReply(request.messages, language)
-    return reply === null ? null : new AIMessage(reply)
+    const reply = inboxReply(request.messages, intent.language, intent.kind)
+    if (reply !== null) return new AIMessage(reply)
+    if (intent.kind === 'sourceLanguage') return new AIMessage(intent.language === 'zh'
+      ? '暂时无法读取工单进行核对，请在工作台重试。'
+      : 'The tickets could not be read for this check. Please retry in the workbench.')
+    return null
   }
+  const purpose = intent.kind === 'sourceLanguage' ? 'lookup' : 'list'
   return new AIMessage({
     content: '',
-    tool_calls: [{ id: randomUUID(), name: LIST_TOOL, args: { purpose: 'list' }, type: 'tool_call' }],
+    tool_calls: [{ id: randomUUID(), name: LIST_TOOL, args: { purpose }, type: 'tool_call' }],
   })
 }

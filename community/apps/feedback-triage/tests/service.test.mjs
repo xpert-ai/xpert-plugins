@@ -235,3 +235,58 @@ test('paginates older saved feedback and does not mark a read as a new change', 
   assert.equal(b.tickets.length, 1)
   assert.equal(new Set([...a.tickets, ...b.tickets].map((t) => t.id)).size, 31)
 })
+
+test('checks scoped excerpts for a source-language request without classifying languages or starting analysis', async (t) => {
+  const { service } = await database(t, { extract: () => assert.fail('source-language checks are read-only') })
+  const own = await service.create(scope, { ...input(), source: '订单下载按钮无法点击，页面显示 ERROR。' })
+  await service.create(scope, input())
+  await service.create({ ...scope, userId: randomUUID() }, { ...input(), source: '另一个用户的反馈工单不可见。' })
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const human = new HumanMessage('在刚才的工单里，只看用英文提交的反馈。请列出符合条件的工单，如果没有就说明原因。')
+  const run = (messages) => middleware.wrapModelCall({ messages, tools: middleware.tools }, () => assert.fail('unexpected inference'))
+  const selected = await run([human])
+  assert.deepEqual(selected.tool_calls.map(({ name, args }) => [name, args]), [['feedback_inbox', { purpose: 'lookup' }]])
+  const receipt = await middleware.tools[0].invoke(selected.tool_calls[0])
+  const reply = await run([human, selected, receipt])
+  assert.match(reply.content, /未单独记录提交语言/)
+  assert.match(reply.content, /读取的 2 条原文摘录中，有 1 条含汉字/)
+  assert.deepEqual(reply.tool_calls, [])
+  assert.equal((await service.list(scope)).tickets.find(({ id }) => id === own.id).status, 'draft')
+})
+
+test('prevents a read-only filter from running ticket analysis while preserving explicit follow-up analysis', async (t) => {
+  const { service } = await database(t)
+  const middleware = new TriageMiddleware(service).createMiddleware({}, scope)
+  const read = new HumanMessage('请筛选优先级较高的工单。')
+  const analyze = new HumanMessage('筛选这些工单，然后分析第一条。')
+  const model = async (messages) => {
+    let names
+    await middleware.wrapModelCall({ messages, tools: middleware.tools }, (request) => {
+      names = request.tools.map(({ name }) => name)
+      return new AIMessage('model response')
+    })
+    return names
+  }
+  assert.deepEqual(await model([analyze, read]), ['feedback_inbox'])
+  for (const prompt of [
+    '列出已确认的工单。',
+    'Show me the confirmed tickets.',
+    '只看最近的工单，重试就先不用了。',
+    '列出我的已确认工单，不要重试。',
+    'List the confirmed tickets; do not analyze them.',
+    '筛选这些工单，翻译“然后分析第一条”这句话。',
+    'Analyze the reasons for collecting customer feedback.',
+  ]) assert.deepEqual(await model([new HumanMessage(prompt)]), ['feedback_inbox'])
+  assert.deepEqual(await model([read, analyze]), ['feedback_inbox', 'feedback_analyze'])
+  for (const prompt of [
+    '只看上周的工单，能否分析第一条？',
+    '筛选后请对第一条工单进行分析。',
+    'Show only my tickets and then analyze the first one.',
+  ]) assert.deepEqual(await model([new HumanMessage(prompt)]), ['feedback_inbox', 'feedback_analyze'])
+  const call = (messages) => ({ state: { messages }, toolCall: { name: 'feedback_analyze', id: 'filter-call' } })
+  const denied = await middleware.wrapToolCall(call([analyze, read]), () => assert.fail('business write attempted'))
+  assert.equal(denied.status, 'error')
+  assert.equal(denied.tool_call_id, 'filter-call')
+  assert.deepEqual(JSON.parse(denied.content), { error: 'analysis_requires_request' })
+  assert.equal(await middleware.wrapToolCall(call([read, analyze]), () => 'allowed'), 'allowed')
+})

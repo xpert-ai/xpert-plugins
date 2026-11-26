@@ -1,3 +1,4 @@
+import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { Injectable } from '@nestjs/common'
 import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
@@ -10,7 +11,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { ANALYZE_TOOL, FEATURE, ICON, LIST_TOOL, MIDDLEWARE, title } from './constants.js'
 import { requireScope, TicketError, ticketIdSchema } from './domain.js'
-import { inboxInput, inboxReceipt, inboxTurn } from './inbox.js'
+import { allowsTicketAnalysis, inboxInput, inboxReceipt, inboxTurn } from './inbox.js'
 import { TicketService } from './service.js'
 
 @Injectable()
@@ -44,12 +45,27 @@ export class TriageMiddleware implements IAgentMiddlewareStrategy<Record<string,
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): AgentMiddleware {
     const scope = requireScope(context)
+    const eventRun = 'eventReceiptId' in context && Boolean(context.eventReceiptId)
     return {
       name: MIDDLEWARE,
       wrapModelCall: (request, next) => {
-        if ('eventReceiptId' in context && context.eventReceiptId) return next(request)
+        if (eventRun) return next(request)
         const locale = RequestContext.currentUser()?.preferredLanguage ?? RequestContext.getLanguageCode()
-        return inboxTurn(request, locale) ?? next(request)
+        const direct = inboxTurn(request, locale)
+        if (direct) return direct
+        if ((!request.toolChoice || request.toolChoice === 'auto') && !allowsTicketAnalysis(request.messages)) {
+          return next({ ...request, tools: request.tools.filter((item) => item.name !== ANALYZE_TOOL) })
+        }
+        return next(request)
+      },
+      wrapToolCall: (request, next) => {
+        if (!eventRun && request.toolCall.name === ANALYZE_TOOL && !allowsTicketAnalysis(request.state.messages)) {
+          return new ToolMessage({
+            name: ANALYZE_TOOL, tool_call_id: request.toolCall.id ?? '', status: 'error',
+            content: JSON.stringify({ error: 'analysis_requires_request' }),
+          })
+        }
+        return next(request)
       },
       tools: [
         tool(
