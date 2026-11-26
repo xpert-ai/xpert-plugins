@@ -2,8 +2,6 @@ import { ClientOptions, OpenAIBaseInput } from '@langchain/openai'
 import { CommonChatModelParameters } from '@xpert-ai/plugin-sdk'
 
 export const Hunyuan = 'hunyuan'
-export const HunyuanOpenAIBaseUrl = 'https://api.hunyuan.cloud.tencent.com/v1'
-
 export const HunyuanTokenHubBaseUrl = 'https://tokenhub.tencentmaas.com/v1'
 
 export interface HunyuanCredentials {
@@ -19,9 +17,8 @@ export type HunyuanModelCredentials = HunyuanCredentials &
   max_tokens?: number
 }
 
-export function getBaseUrlFromCredentials(credentials: HunyuanCredentials, model = credentials.endpoint_model_name): string {
-  return credentials.endpoint_url?.replace(/\/$/, '') ||
-    (model === 'hy4' || model === 'hy4-flash' ? HunyuanTokenHubBaseUrl : HunyuanOpenAIBaseUrl)
+export function getBaseUrlFromCredentials(credentials: HunyuanCredentials): string {
+  return credentials.endpoint_url?.replace(/\/+$/, '') || HunyuanTokenHubBaseUrl
 }
 
 export function toCredentialKwargs(
@@ -37,7 +34,7 @@ export function toCredentialKwargs(
   } as OpenAIBaseInput
 
   const configuration: ClientOptions = {
-    baseURL: getBaseUrlFromCredentials(credentials, credentials.endpoint_model_name || model),
+    baseURL: getBaseUrlFromCredentials(credentials),
   }
 
   return {
