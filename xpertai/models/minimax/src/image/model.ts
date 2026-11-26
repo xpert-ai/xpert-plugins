@@ -6,17 +6,49 @@ import { z } from 'zod'
 import { MiniMaxProviderStrategy } from '../provider.strategy.js'
 import { toCredentialKwargs, type MiniMaxCredentials } from '../types.js'
 
+const outputSize = z.string().refine(value => {
+  if (value === 'auto') return true
+  const match = /^(\d+)x(\d+)$/.exec(value)
+  if (!match) return false
+  const width = Number(match[1])
+  const height = Number(match[2])
+  const pixels = width * height
+  return pixels >= 655_360 && pixels <= 20_000_000 && width <= 3 * height && height <= 3 * width
+}, 'MiniMax image size is outside the supported dimensions')
+
+const aspectRatio = z.string().refine(value => {
+  if (value === 'auto') return true
+  const match = /^(\d{1,3}):(\d{1,3})$/.exec(value)
+  if (!match) return false
+  const width = Number(match[1])
+  const height = Number(match[2])
+  return width >= 1 && height >= 1 && width <= 300 && height <= 300 && width <= 3 * height && height <= 3 * width
+}, 'MiniMax image aspect ratio is outside the supported range')
+
 const reference = z.object({ image_url: z.string().min(1) })
 const request = z.object({
-  prompt: z.string().trim().min(1),
+  prompt: z.string().trim().min(1).refine(value => [...value].length <= 32_000, 'MiniMax prompt exceeds 32000 characters'),
   images: z.array(reference).min(1).max(16).optional(),
   n: z.number().int().min(1).max(10).optional(),
   area: z.enum(['1K', '2K', '4K']).optional(),
-  aspect_ratio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).optional()
-}).strict()
+  aspect_ratio: aspectRatio.optional(),
+  size: outputSize.optional(),
+  stream: z.literal(false).optional(),
+  disable_prompt_enhanced: z.boolean().optional(),
+  response_format: z.enum(['url', 'b64_json']).optional(),
+  output_format: z.enum(['png', 'jpeg', 'jpg', 'webp']).optional(),
+  output_compression: z.number().int().min(0).max(100).optional()
+}).strict().refine(fields => !fields.size || fields.size === 'auto' || (!fields.area && !fields.aspect_ratio),
+  'Set either an explicit image size or an area and aspect ratio')
+  .refine(fields => !fields.images || fields.disable_prompt_enhanced === undefined,
+    'MiniMax image edits always enhance the prompt')
+  .refine(fields => !fields.disable_prompt_enhanced ||
+    Boolean((fields.size && fields.size !== 'auto') || (fields.aspect_ratio && fields.aspect_ratio !== 'auto')),
+    'MiniMax requires an explicit size or aspect ratio when prompt enhancement is disabled')
 const result = z.object({
   data: z.array(z.union([
     z.object({ url: z.string().url(), size: z.string().optional() }).passthrough(),
+    z.object({ b64_json: z.string().min(1), size: z.string().optional() }).passthrough(),
     z.object({ error: z.object({ code: z.string(), message: z.string() }) })
   ])).nonempty(),
   request_id: z.string().optional(),
@@ -41,7 +73,6 @@ export class MiniMaxImageModel extends ImageGenerationModel {
     return {
       async invoke(input: z.input<typeof request>) {
         const fields = request.parse(input)
-        if (fields.images && fields.n !== undefined) throw new Error('MiniMax image editing does not accept n')
         const operation = fields.images ? 'image_to_image' : 'text_to_image'
         const path = fields.images ? '/images/edits' : '/images/generations'
         const startedAt = new Date().toISOString()
@@ -51,7 +82,7 @@ export class MiniMaxImageModel extends ImageGenerationModel {
         })
         if (!response.ok) throw new Error('MiniMax image request failed with HTTP ' + response.status)
         const data = result.parse(await response.json())
-        const images = data.data.filter(item => 'url' in item)
+        const images = data.data.filter(item => 'url' in item || 'b64_json' in item)
         if (!images.length) throw new Error('MiniMax returned no successful images')
         const tiers = new Set(images.map(image => {
           const size = 'size' in image && typeof image.size === 'string' && /^(\d+)x(\d+)$/.exec(image.size)
@@ -59,7 +90,7 @@ export class MiniMaxImageModel extends ImageGenerationModel {
           return Number(size[1]) * Number(size[2]) >= 16_600_000 ? '4k-promotion' : 'standard'
         }))
         const resolution = tiers.size === 1 ? [...tiers][0] : 'unknown'
-        const market = configuration.baseURL === 'https://api.minimaxi.com/v1' ? 'cn'
+        const market = ['https://api.minimaxi.com/v1', 'https://api.minimax.cn/v1'].includes(configuration.baseURL) ? 'cn'
           : configuration.baseURL === 'https://api.minimax.io/v1' ? 'global' : 'custom'
         const metrics: ModelUsageMetric[] = []
         if (data.usage) {

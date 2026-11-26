@@ -12,7 +12,7 @@ pricing:
   rules:
     - id: minimax-h3-image-cn-text-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 15
@@ -26,7 +26,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-cn-text-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 7.5
@@ -40,7 +40,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-cn-reference-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 10
@@ -54,7 +54,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-cn-reference-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 5.0
@@ -68,7 +68,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-cn-image-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 25
@@ -82,7 +82,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-cn-image-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 12.5
@@ -96,7 +96,7 @@ pricing:
       source_url: https://platform.minimaxi.com/docs/pricing/overview
     - id: minimax-h3-image-global-text-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 2.3
@@ -110,7 +110,7 @@ pricing:
       source_url: https://platform.minimax.io/docs/pricing/overview
     - id: minimax-h3-image-global-text-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 1.15
@@ -124,7 +124,7 @@ pricing:
       source_url: https://platform.minimax.io/docs/pricing/overview
     - id: minimax-h3-image-global-reference-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 1.5
@@ -138,7 +138,7 @@ pricing:
       source_url: https://platform.minimax.io/docs/pricing/overview
     - id: minimax-h3-image-global-reference-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 0.75
@@ -152,7 +152,7 @@ pricing:
       source_url: https://platform.minimax.io/docs/pricing/overview
     - id: minimax-h3-image-global-image-standard
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 3.8
@@ -166,7 +166,7 @@ pricing:
       source_url: https://platform.minimax.io/docs/pricing/overview
     - id: minimax-h3-image-global-image-4k-promotion
       version: 2026-11
-      effective_from: '2026-11-01T00:00:00Z'
+      effective_from: '2026-11-10T00:00:00+08:00'
       unit: token
       unit_size: 1000000
       unit_price: 1.9

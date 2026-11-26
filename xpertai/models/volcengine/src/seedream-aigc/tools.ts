@@ -1,6 +1,6 @@
 import { getSeedreamImagePricingDimensions } from './image-pricing-context.js'
 export { getSeedreamImagePricingDimensions } from './image-pricing-context.js'
-import { getSeedreamImageCapabilities, SEEDREAM_55_MODEL, SEEDREAM_MODEL_OPTIONS, validateImageSize } from './image-models.js'
+import { getSeedreamImageCapabilities, IMAGE_SIZE_OPTIONS, SEEDREAM_55_MODEL, SEEDREAM_MODEL_OPTIONS, validateImageSize } from './image-models.js'
 import { randomUUID } from 'node:crypto'
 import { tool } from '@langchain/core/tools'
 import {
@@ -504,47 +504,6 @@ function buildVideoQueryTool(deps: SeedreamToolDependencies) {
   )
 }
 
-const IMAGE_SIZE_OPTIONS = [
-  ['2048x2048', '1:1 (2048x2048)'],
-  ['2304x1728', '4:3 (2304x1728)'],
-  ['1728x2304', '3:4 (1728x2304)'],
-  ['2848x1600', '16:9 (2848x1600)'],
-  ['1600x2848', '9:16 (1600x2848)'],
-  ['2496x1664', '3:2 (2496x1664)'],
-  ['1664x2496', '2:3 (1664x2496)'],
-  ['3136x1344', '21:9 (3136x1344)'],
-  ['4096x4096', '1:1 (4096x4096)'],
-  ['4704x3520', '4:3 (4704x3520)'],
-  ['3520x4704', '3:4 (3520x4704)'],
-  ['5504x3040', '16:9 (5504x3040)'],
-  ['3040x5504', '9:16 (3040x5504)'],
-  ['4992x3328', '3:2 (4992x3328)'],
-  ['3328x4992', '2:3 (3328x4992)'],
-  ['6240x2656', '21:9 (6240x2656)'],
-  ['3072x3072', '5.0 Lite 3K · 1:1 (3072x3072)'],
-  ['3456x2592', '5.0 Lite 3K · 4:3 (3456x2592)'],
-  ['2592x3456', '5.0 Lite 3K · 3:4 (2592x3456)'],
-  ['4096x2304', '5.0 Lite 3K · 16:9 (4096x2304)'],
-  ['2304x4096', '5.0 Lite 3K · 9:16 (2304x4096)'],
-  ['3744x2496', '5.0 Lite 3K · 3:2 (3744x2496)'],
-  ['2496x3744', '5.0 Lite 3K · 2:3 (2496x3744)'],
-  ['4704x2016', '5.0 Lite 3K · 21:9 (4704x2016)'],
-  ['2368x1776', '5.0 Pro 2K · 4:3 (2368x1776)'],
-  ['1776x2368', '5.0 Pro 2K · 3:4 (1776x2368)'],
-  ['2816x1584', '5.0 Pro 2K · 16:9 (2816x1584)'],
-  ['1584x2816', '5.0 Pro 2K · 9:16 (1584x2816)'],
-  ['1024x1024', '5.0 Pro/4.0 1K · 1:1 (1024x1024)'],
-  ['1152x864', '5.0 Pro/4.0 1K · 4:3 (1152x864)'],
-  ['864x1152', '5.0 Pro/4.0 1K · 3:4 (864x1152)'],
-  ['1424x800', '5.0 Pro 1K · 16:9 (1424x800)'],
-  ['800x1424', '5.0 Pro 1K · 9:16 (800x1424)'],
-  ['1568x672', '5.0 Pro 1K · 21:9 (1568x672)'],
-  ['1280x720', '4.0 1K · 16:9 (1280x720)'],
-  ['720x1280', '4.0 1K · 9:16 (720x1280)'],
-  ['1512x648', '4.0 1K · 21:9 (1512x648)']
-] as const
-
-
 const SEQUENTIAL_SEEDREAM_MODEL_OPTIONS = SEEDREAM_MODEL_OPTIONS.filter(
   ([value]) => getSeedreamImageCapabilities(value).supportsSequential
 )
@@ -669,12 +628,12 @@ const referenceImagesProperty = {
 const sizeProperty = {
   type: 'string',
   title: 'Image size',
-  description: 'Generated image size.',
-  enum: IMAGE_SIZE_OPTIONS.map(([value]) => value),
+  description: 'Select a suggested size. Seedream 5.5 also supports custom WIDTHxHEIGHT.',
+  examples: IMAGE_SIZE_OPTIONS.map(([value]) => value),
   default: '2048x2048',
   'x-ui': {
     title: i18n('Image size', '图像尺寸'),
-    description: i18n('Generated image size.', '生成图片的尺寸。'),
+    description: i18n('Use a suggested size such as 2048x2048. Seedream 5.5 also accepts 1K, 1.5K, 2K, or custom WIDTHxHEIGHT.', '可填写 2048x2048 等推荐尺寸。Seedream 5.5 另支持 1K、1.5K、2K 或自定义宽x高。'),
     enumLabels: enumLabels(IMAGE_SIZE_OPTIONS)
   }
 } as const
@@ -808,7 +767,7 @@ const multiImagesToMultiImagesSchema = imageSchema(
   {
     prompt: promptProperty,
     input_image_files: referenceImagesProperty,
-    size: sizeProperty,
+    size: { ...sizeProperty, enum: sizeProperty.examples },
     output_format: imageOutputFormatProperty,
     max_images: maxImagesProperty,
     watermark: watermarkProperty,
