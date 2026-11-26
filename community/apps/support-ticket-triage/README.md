@@ -43,11 +43,12 @@ corepack pnpm --filter @community/apps-support-ticket-triage test
 corepack pnpm --filter @community/apps-support-ticket-triage build
 ```
 
-按 [Xpert 本地源代码指南](https://docs.xpertai.cn/zh-Hans/ai/getting-started/community/local-source-code) 启动宿主。将插件仓库加入宿主的本地工作区允许列表，使用有对应安装权限的测试账号。下面是宿主和部署 CLI 的环境变量示例。真实凭证放在本地忽略文件或平台凭证库。
+按 [Xpert 本地源代码指南](https://docs.xpertai.cn/zh-Hans/ai/getting-started/community/local-source-code) 启动宿主。确保 API 进程的 PATH 包含 npm，并将宿主自带插件和本插件工作区加入路径允许列表。下面是本地验收和部署 CLI 的环境变量示例。真实凭证放在本地忽略文件或平台凭证库。
 
 ```dotenv
 # Xpert host
-PLUGIN_WORKSPACE_ROOTS=/absolute/path/to/xpert-plugins
+PLUGIN_WORKSPACE_ROOTS="/absolute/path/to/xpert/packages/plugins;/absolute/path/to/xpert-plugins/community"
+PLUGINS=@xpert-ai/plugin-deepseek
 # Local deployment CLI
 XPERT_API_URL=http://localhost:3000
 XPERT_TENANT_ID=<test-tenant-id>
@@ -86,10 +87,11 @@ node plugin-dev-harness/dist/index.js --workspace ./community \
 | 工单业务测试 | 6 项通过 |
 | 插件构建和打包 | 通过，包含服务入口、助手 YAML 和工作台 JS/CSS |
 | 官方生命周期工具 | 通过，使用工具提供的数据库和平台模拟对象 |
-| Xpert 实际工作台、DeepSeek 调用和运行截图 | 待平台联调 |
+| Xpert 开源版安装、重启和模板发现 | 通过。分诊插件 0.1.0 和 DeepSeek 插件 0.1.5 均为已加载状态，助手目录返回了客服工单分诊模板 |
+| Xpert 实际工作台、DeepSeek 调用和运行截图 | 待配置 DeepSeek 凭证。平台创建助手前会验证可用模型 |
 
 ## 复用与 AI 协作
 
 插件采用 AGPL-3.0。参考同仓库 Dockyard 的助手模板、租户工作台、表命名和中间件注册方式，以及 EV Motor Lifecycle 的远程 React 接入方式。界面复用仓库的 `@xpert-ai/plugin-shadcn-ui` 组件及主题适配。工单状态、处理尝试、引用校验和人工确认流程为本插件实现。
 
-开发使用 Codex 阅读 SDK 和相邻插件、生成实现并运行检查。设计选择包括用平台原生对话发送分诊请求、用记录版本拦截竞争写入，以及保留模型建议作为人工复核依据。
+开发使用 Codex（GPT-6）阅读 SDK 和相邻插件、生成实现并运行检查。我选择用平台原生对话发起分诊，用记录版本拦截重复和过期写入，并保留模型建议作为人工复核依据。联调时根据宿主日志定位到插件安装子进程找不到 npm，补齐命令后重新部署，再通过重启后的插件列表和助手模板目录验证加载结果。
