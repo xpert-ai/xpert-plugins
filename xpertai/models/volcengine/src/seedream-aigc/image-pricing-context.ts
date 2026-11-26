@@ -1,3 +1,4 @@
+import { SEEDREAM_55_MODEL } from './image-models.js'
 import { normalizeString } from './rules.js'
 
 const SEEDREAM_5_PRO_MODEL = 'doubao-seedream-5-0-pro-260628'
@@ -8,7 +9,7 @@ export function getSeedreamImagePricingDimensions(
   payload: Record<string, unknown>
 ): { resolution?: string; mode?: string } {
   const size = normalizeString(payload.size)
-  if (model === SEEDREAM_5_PRO_MODEL) {
+  if (model === SEEDREAM_5_PRO_MODEL || model === SEEDREAM_55_MODEL) {
     const pixels = size?.match(/^(\d+)x(\d+)$/)
     return {
       ...(pixels

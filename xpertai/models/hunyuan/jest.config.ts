@@ -1,4 +1,4 @@
-/* eslint-disable */
+/** @jest-config-loader-options {"project":"tsconfig.jest.json"} */
 import { readFileSync } from 'fs';
 
 // Reading the SWC compilation config for the spec files
@@ -10,7 +10,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 export default {
-  displayName: '@xpert-ai/plugin-moonshot',
+  displayName: '@xpert-ai/plugin-hunyuan',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {

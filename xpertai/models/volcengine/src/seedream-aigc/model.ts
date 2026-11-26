@@ -20,13 +20,14 @@ import { normalizeSeedanceVideoObservation, normalizeSeedreamImageObservation } 
 export class SeedreamImageModelClient
   implements AIGCModelClient<Record<string, unknown>, SeedreamImageResponse>
 {
-  constructor(private readonly client: SeedreamArkClient) {}
+  constructor(private readonly client: SeedreamArkClient, private readonly model?: string) {}
 
   async invoke(input: Record<string, unknown>): Promise<AIGCModelResult<SeedreamImageResponse>> {
-    const response = await this.client.generateImages(input)
+    const payload = { ...input, model: this.model ?? input.model }
+    const response = await this.client.generateImages(payload)
     return {
       data: response,
-      observation: normalizeSeedreamImageObservation(response)
+      observation: normalizeSeedreamImageObservation(response, payload)
     }
   }
 }
@@ -34,10 +35,10 @@ export class SeedreamImageModelClient
 export class SeedanceVideoModelClient
   implements AsyncAIGCModelClient<Record<string, unknown>, SeedanceVideoTask>
 {
-  constructor(private readonly client: SeedreamArkClient) {}
+  constructor(private readonly client: SeedreamArkClient, private readonly model?: string) {}
 
   async submit(input: Record<string, unknown>): Promise<AsyncAIGCModelSubmission<SeedanceVideoTask>> {
-    const task = await this.client.createVideoTask(input)
+    const task = await this.client.createVideoTask({ ...input, model: this.model ?? input.model })
     const providerRequestId = task.id?.trim()
     if (!providerRequestId) throw new Error('Ark API did not return a video task ID')
     return { providerRequestId, data: task }
@@ -76,7 +77,7 @@ export class VolcengineImageGenerationModel extends ImageGenerationModel {
       api_endpoint_host:
         typeof rawCredentials?.api_endpoint_host === 'string' ? rawCredentials.api_endpoint_host : undefined
     }
-    return new SeedreamImageModelClient(new SeedreamArkClient(credentials))
+    return new SeedreamImageModelClient(new SeedreamArkClient(credentials), model)
   }
 }
 
@@ -97,7 +98,7 @@ export class VolcengineVideoGenerationModel extends VideoGenerationModel {
     const copilot = copilotModel.copilot
     if (!copilot) throw new Error('Volcengine model provider context is missing')
     const credentials = readCredentials(copilot.modelProvider?.credentials)
-    return new SeedanceVideoModelClient(new SeedreamArkClient(credentials))
+    return new SeedanceVideoModelClient(new SeedreamArkClient(credentials), copilotModel.model)
   }
 }
 

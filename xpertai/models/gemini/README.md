@@ -2,7 +2,7 @@
 
 ## Overview
 
-`@xpert-ai/plugin-gemini` connects [Google Gemini](https://ai.google.dev/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates Google's Generative AI SDK so XpertAI agents can call the latest Gemini models (e.g., Gemini 1.5 Pro, Gemini 1.5 Flash) with support for multimodal inputs and function calling.
+`@xpert-ai/plugin-gemini` connects [Google Gemini](https://ai.google.dev/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates Google's Generative AI SDK so XpertAI agents can call Gemini models including Gemini 4 Carbon and Hydrogen with support for multimodal inputs and function calling.
 
 ## Core Features
 
@@ -36,11 +36,11 @@ The `gemini.yaml` schema backs the form fields you see in the console:
 | `google_base_url` | Optional. Base URL if you need to route requests through a proxy or custom endpoint. |
 | `file_url`        | Optional. Local FILES URL prefix to optimize upload performance.                     |
 
-During validation, the plugin instantiates the Google Generative AI client against the provided credentials to ensure connectivity and permissions.
+During validation, the plugin instantiates the Google Generative AI client against the provided credentials and the `gemini-flash-lite-latest` alias to check connectivity and model access.
 
 ## Model Capabilities
 
-- **Conversational Models**: `GeminiLargeLanguageModel` merges provider credentials with per-model overrides, turns on streaming, and registers token usage callbacks so agent telemetry stays accurate. It supports the full range of Gemini models including `gemini-1.5-pro`, `gemini-1.5-flash`, and their experimental variants.
+- **Conversational Models**: `GeminiLargeLanguageModel` merges provider credentials with per-model overrides, turns on streaming, and registers token usage callbacks so agent telemetry stays accurate. Gemini 4 preserves signed content and pairs parallel tool responses with their original calls.
 
 ## Development & Debugging
 

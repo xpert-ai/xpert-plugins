@@ -5,16 +5,20 @@ interface ModelControls {
   thinking: 'always' | 'toggle' | 'effort'
   efforts?: readonly string[]
   search?: boolean
+  jsonSchema?: boolean
   jsonObject?: boolean
   toolChoice?: 'auto' | 'unsupported'
 }
 
 const DEEPSEEK_CONTROLS: ModelControls = {
-  thinking: 'toggle', efforts: ['low', 'high', 'max'], search: true, jsonObject: true
+  thinking: 'toggle', efforts: ['low', 'high', 'max'], search: true, jsonObject: true, jsonSchema: true
 }
 
 // Explicit provider contracts, not model-name pattern matching. Unlisted custom models retain existing behavior.
 const MODEL_CONTROLS: Readonly<Record<string, ModelControls>> = {
+  'qwen4-max': {
+    thinking: 'effort', efforts: ['none', 'low', 'high', 'xhigh'], search: true, jsonObject: true, jsonSchema: true
+  },
   'deepseek-v4.1-flash': DEEPSEEK_CONTROLS,
   'deepseek-v4.1-flash-1017': DEEPSEEK_CONTROLS,
   'MiniMax/MiniMax-M3.1-Flash': {
@@ -54,6 +58,7 @@ export function resolveTongyiModelOptions(model: string, options: Partial<Tongyi
     throw new Error(`${model}: reasoning_effort must be one of ${controls.efforts.join(', ')}`)
   }
   if (options.response_format && options.response_format !== 'text' &&
+    !(options.response_format === 'json_schema' && controls.jsonSchema) &&
     !(options.response_format === 'json_object' && controls.jsonObject)) {
     throw new Error(`${model}: unsupported response_format ${options.response_format}`)
   }

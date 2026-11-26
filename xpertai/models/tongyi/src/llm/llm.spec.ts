@@ -67,8 +67,30 @@ describe('Tongyi DeepSeek V4.1 Flash', () => {
     expect(model.invocationParams()).toEqual(expect.objectContaining({
       reasoning_effort: 'high', enable_thinking: true, max_tokens: 65536, response_format: { type: 'json_object' }
     }))
+    const schemaBody = { name: 'receipt', schema: { type: 'object', properties: { id: { type: 'string' } } } }
+    for (const id of ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-1017']) {
+      const chat = manager.getChatModel(createCopilotModel(id, { response_format: 'json_schema', json_schema: JSON.stringify(schemaBody) }))
+      expect(chat.invocationParams().response_format).toEqual({ type: 'json_schema', json_schema: schemaBody })
+    }
+    const qwen = manager.getChatModel(createCopilotModel('qwen4-max', { enable_thinking: false, reasoning_effort: 'high' }))
+    expect(qwen.invocationParams()['reasoning_effort']).toBe('none')
     expect(() => manager.getChatModel(createCopilotModel('deepseek-v4.1-flash', { reasoning_effort: 25 })))
       .toThrow('reasoning_effort must be one of')
+  })
+})
+
+describe('Qwen4-Max regional pricing', () => {
+  it.each([
+    ['cn', 35.25], ['international', 38.5555]
+  ])('applies the %s tariff to cached input, uncached input and output', (region, expected) => {
+    const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+    const schema = manager.predefinedModels().find(entry => entry.model === 'qwen4-max')
+    if (!schema?.pricing || !('input' in schema.pricing)) throw new Error('Missing Qwen4-Max pricing')
+    const charge = calculateLLMUsagePrice(schema.pricing, {
+      promptTokens: 1000000, completionTokens: 1000000, totalTokens: 2000000, cacheReadInputTokens: 500000
+    }, { region: String(region) })
+    expect(charge.pricingStatus).toBe('priced')
+    expect(charge.totalAmount).toBeCloseTo(Number(expected), 8)
   })
 })
 

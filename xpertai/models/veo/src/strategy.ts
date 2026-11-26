@@ -27,8 +27,8 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
     },
     description: {
       en_US:
-        'Generate videos with Google Veo 3.1 through the Gemini Developer API.',
-      zh_Hans: '通过 Gemini Developer API 使用 Google Veo 3.1 生成视频。'
+        'Generate videos with Gemini Omni 1.2 Flash through the Gemini Developer API.',
+      zh_Hans: '通过 Gemini Developer API 使用 Gemini Omni 1.2 Flash 生成视频。'
     },
     icon: {
       type: 'svg' as const,
@@ -54,8 +54,8 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
       },
       models: [
         {
-          id: 'veo-3.1-generate-preview',
-          label: 'Veo 3.1',
+          id: 'gemini-omni-1.2-flash',
+          label: 'Gemini Omni 1.2 Flash',
           modes: [
             'text_to_video',
             'image_to_video',
@@ -63,31 +63,16 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
             'reference_to_video'
           ] as const,
           inputs: {
-            referenceImages: { maxItems: 3 },
-            initialFrame: true,
-            lastFrame: true
-          }
-        },
-        {
-          id: 'veo-3.1-fast-generate-preview',
-          label: 'Veo 3.1 Fast',
-          modes: [
-            'text_to_video',
-            'image_to_video',
-            'first_last_frame_to_video',
-            'reference_to_video'
-          ] as const,
-          inputs: {
-            referenceImages: { maxItems: 3 },
+            referenceImages: { maxItems: 6 },
             initialFrame: true,
             lastFrame: true
           }
         }
       ],
-      defaultModel: 'veo-3.1-generate-preview',
-      resolutions: ['720p', '1080p', '4k'] as const,
+      defaultModel: 'gemini-omni-1.2-flash',
+      resolutions: ['360p', '720p', '1080p', '4k'] as const,
       aspectRatios: ['16:9', '9:16'] as const,
-      durationSeconds: { min: 4, max: 8, default: 8 },
+      durationSeconds: { min: 3, max: 15, default: 8 },
       supportsAudio: true
     },
     configSchema: {

@@ -1,0 +1,180 @@
+# https://platform.minimax.io/docs/api-reference/image-generation-h3-generations
+model: MiniMax-H3-Image
+label:
+  en_US: MiniMax H3 Image
+model_type: image
+features: []
+model_properties:
+  mode: image
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: minimax-h3-image-cn-text-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 15
+      currency: CNY
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: cn-text
+        resolution: standard
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-cn-text-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 7.5
+      currency: CNY
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: cn-text
+        resolution: 4k-promotion
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-cn-reference-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 10
+      currency: CNY
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: cn-reference
+        resolution: standard
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-cn-reference-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 5.0
+      currency: CNY
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: cn-reference
+        resolution: 4k-promotion
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-cn-image-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 25
+      currency: CNY
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: cn-image
+        resolution: standard
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-cn-image-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 12.5
+      currency: CNY
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: cn-image
+        resolution: 4k-promotion
+      source_url: https://platform.minimaxi.com/docs/pricing/overview
+    - id: minimax-h3-image-global-text-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 2.3
+      currency: USD
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: global-text
+        resolution: standard
+      source_url: https://platform.minimax.io/docs/pricing/overview
+    - id: minimax-h3-image-global-text-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 1.15
+      currency: USD
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: global-text
+        resolution: 4k-promotion
+      source_url: https://platform.minimax.io/docs/pricing/overview
+    - id: minimax-h3-image-global-reference-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 1.5
+      currency: USD
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: global-reference
+        resolution: standard
+      source_url: https://platform.minimax.io/docs/pricing/overview
+    - id: minimax-h3-image-global-reference-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 0.75
+      currency: USD
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: global-reference
+        resolution: 4k-promotion
+      source_url: https://platform.minimax.io/docs/pricing/overview
+    - id: minimax-h3-image-global-image-standard
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 3.8
+      currency: USD
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: global-image
+        resolution: standard
+      source_url: https://platform.minimax.io/docs/pricing/overview
+    - id: minimax-h3-image-global-image-4k-promotion
+      version: 2026-11
+      effective_from: '2026-11-10T00:00:00+08:00'
+      unit: token
+      unit_size: 1000000
+      unit_price: 1.9
+      currency: USD
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: global-image
+        resolution: 4k-promotion
+      source_url: https://platform.minimax.io/docs/pricing/overview

@@ -28,7 +28,7 @@ export class GeminiProviderStrategy extends ModelProvider {
     try {
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM);
 
-      await modelInstance.validateCredentials('gemini-2.5-flash', credentials);
+      await modelInstance.validateCredentials('gemini-flash-lite-latest', credentials);
     } catch (ex: unknown) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex;

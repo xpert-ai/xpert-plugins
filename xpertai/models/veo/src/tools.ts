@@ -137,7 +137,7 @@ function buildReferenceToVideoTool(deps: VeoToolDependencies) {
     {
       name: 'veo_reference_to_video',
       description:
-        'Submit one paid Google Veo 8-second task guided by one to three asset reference images. Call only when the user explicitly requests generation.',
+        'Submit one paid Google Veo task guided by one to six asset reference images. Call only when the user explicitly requests generation.',
       schema: referenceToVideoSchema,
       responseFormat: 'content_and_artifact'
     }
@@ -187,14 +187,22 @@ async function submitGeneration(
 ): Promise<VeoToolResult> {
   const options = normalizeSubmissionOptions(input, mode)
   const instance = await createInstance(options)
+  const frames = [instance.image, instance.lastFrame, ...(instance.referenceImages ?? []).map(ref => ref.image)]
+  const images = frames.flatMap(frame => frame ? [{
+    type: 'image', mime_type: frame.inlineData.mimeType, data: frame.inlineData.data
+  }] : [])
+  const prompt = mode === 'first_last_frame_to_video'
+    ? 'Use the first image as the first frame and the second image as the last frame. ' + instance.prompt
+    : instance.prompt
   const payload = {
-    instances: [instance],
-    parameters: {
-      aspectRatio: options.aspectRatio,
-      durationSeconds: String(options.durationSeconds),
-      resolution: options.resolution,
-      personGeneration: options.personGeneration
-    }
+    model: options.model,
+    background: true,
+    input: [...images, { type: 'text', text: prompt }],
+    response_format: {
+      type: 'video', delivery: 'uri', duration: String(options.durationSeconds) + 's',
+      aspect_ratio: options.aspectRatio, resolution: options.resolution
+    },
+    ...(mode === 'reference_to_video' ? { generation_config: { video_config: { task: 'reference_to_video' } } } : {})
   }
   assertInlineRequestLimit(payload)
   const invocationKey = getToolCallIdFromConfig(config) ?? randomUUID()
@@ -223,8 +231,7 @@ async function submitGeneration(
       pricingDimensions: {
         durationSeconds: options.durationSeconds,
         resolution: options.resolution,
-        audio: true,
-        mode
+        audio: true
       },
       input: { model: options.model, payload },
       phase: 'queued',

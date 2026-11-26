@@ -8,8 +8,8 @@
 
 - Ships `OpenRouterModule`, which registers the NestJS provider strategy, model managers, lifecycle hooks, and configuration schema required by the plugin runtime.
 - Implements `OpenRouterLargeLanguageModel`, including OpenRouter reasoning streams, provider routing, verbosity, structured output, runtime sampling controls, and provider-reported pricing.
-- Supports OpenRouter text embedding and text rerank endpoints in addition to chat models.
-- Synchronizes the predefined LLM, embedding, and rerank catalogs from Dify's official OpenRouter plugin.
+- Supports text embedding, reranking, MP3 speech synthesis, and audio transcription.
+- Uses Dify and OpenRouter as catalog sources. The packaged chat catalog includes aliases with an active provider route.
 - Supports configuring API key, endpoint URL, model capabilities, and runtime parameters via the XpertAI console.
 
 ## Installation
@@ -38,4 +38,13 @@ From the repo root, run Nx commands for this package:
 cd xpertai
 npx nx build @xpert-ai/plugin-openrouter
 npx nx test @xpert-ai/plugin-openrouter
+```
+
+## Verify the packaged catalog
+
+After building the plugin, run the following commands from this directory. The check reads the packaged model definitions and the public OpenRouter catalog. It resolves missing chat aliases through their provider endpoints and verifies that each default speech voice supports MP3.
+
+```sh
+node scripts/copy-assets.mjs
+node scripts/check-model-catalog.mjs
 ```

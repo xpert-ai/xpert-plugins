@@ -38,8 +38,8 @@ export class SiliconflowVideoStrategy implements IToolsetStrategy<SiliconflowVid
       zh_Hans: '硅基流动视频生成'
     },
     description: {
-      en_US: 'Generate videos from text or images with SiliconFlow Wan2.2 models.',
-      zh_Hans: '使用硅基流动 Wan2.2 模型根据文本或图片生成视频。'
+      en_US: 'Generate videos from text or images with SiliconFlow MiniMax H3 models.',
+      zh_Hans: '使用硅基流动 MiniMax H3 模型根据文本或图片生成视频。'
     },
     icon: {
       type: 'svg',

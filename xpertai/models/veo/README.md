@@ -1,51 +1,14 @@
-# Xpert Veo Plugin
+# Xpert Google Video Plugin
 
-This package provides Google Veo video generation as an Xpert built-in Toolset.
-It implements Xpert video generation protocol v2 and stores completed videos in
-Workspace Files.
+This package runs Google video generation through the Xpert video toolset and saves completed videos to Workspace Files. Configure a Gemini Developer API key.
 
-## API decision
+## Generating with Gemini Omni
 
-The plugin uses the Gemini Developer API rather than Vertex AI:
+New jobs use `gemini-omni-1.2-flash`. The tool enqueues the job, submits a background request to `POST /v1beta/interactions`, and polls the interaction and its output file before downloading the video. The tool names and job handles remain compatible with existing workflows. Workflows that explicitly selected a retired Veo 3.1 model must select Gemini Omni for new jobs. Existing Veo operation names can still be queried.
 
-- submit: `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:predictLongRunning`
-- query: `GET https://generativelanguage.googleapis.com/v1beta/{operationName}`
-- authentication: `x-goog-api-key`
-- completed video: download the returned Gemini video URI with the same API key,
-  then immediately persist it to Workspace Files
+The tool accepts text, an initial image, a first and last frame, or up to six reference images. Choose an integer duration of 3–15 seconds. First/last-frame interpolation supports up to 10 seconds. Supported resolutions are 360p, 720p, 1080p, and 4K in landscape or portrait. Audio is generated with the video.
 
-This surface was selected because it has an official REST contract for text,
-initial-image, first/final-frame, and asset-reference generation and uses one API
-key credential. The package boundary remains Veo-specific so a future Vertex AI
-adapter can be added without changing the Xpert video generation protocol.
-
-Official documentation:
-
-- https://ai.google.dev/gemini-api/docs/veo?hl=en
-- https://ai.google.dev/gemini-api/docs/image-understanding?hl=en
-
-## Supported models and modes
-
-| Model | Text | Initial image | First + final frame | Asset reference images |
-| --- | --- | --- | --- | --- |
-| `veo-3.1-generate-preview` | Yes | Yes | Yes | 1-3 images |
-| `veo-3.1-fast-generate-preview` | Yes | Yes | Yes | 1-3 images |
-
-The plugin does not declare cancellation because the selected Gemini REST API
-does not document a Veo cancellation operation. Video extension is also omitted:
-the platform's `reference_to_video` mode represents independent reference media,
-whereas Gemini extension accepts only a previously generated Veo video.
-
-Provider constraints are checked before submission:
-
-- duration is exactly 4, 6, or 8 seconds
-- asset-reference generation requires 8 seconds
-- 1080p and 4k require 8 seconds
-- aspect ratio is 16:9 or 9:16
-- audio is always generated and cannot be disabled
-- inline request bodies are limited to 20 MB
-- prompts are limited to 1,024 characters by this integration, conservatively
-  below the provider's 1,024-token prompt limit for normal prose
+Omni usage comes from the interaction. Input, video output, and text or thinking output have separate token rates. See the [Gemini Omni API guide](https://ai.google.dev/gemini-api/docs/omni) and [Google pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-omni-1.2-flash).
 
 ## Development
 

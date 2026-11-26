@@ -2,9 +2,8 @@ background: '#F6F7F7'
 configurate_methods:
 - predefined-model
 description:
-  en_US: Models provided by Tencent Hunyuan, such as hunyuan-standard, hunyuan-standard-256k,
-    hunyuan-pro and hunyuan-lite.
-  zh_Hans: 腾讯混元提供的模型，例如 hunyuan-standard、 hunyuan-standard-256k, hunyuan-pro 和 hunyuan-lite。
+  en_US: Tencent Hunyuan models on TokenHub, including Hy4 and Hy4 Flash.
+  zh_Hans: 腾讯混元通过 TokenHub 提供的 Hy4 和 Hy4 Flash 等模型。
 extra:
   python:
     model_sources:
@@ -16,7 +15,7 @@ help:
     en_US: Get your API Key from Tencent Hunyuan
     zh_Hans: 从腾讯混元获取 API Key
   url:
-    en_US: https://api.hunyuan.cloud.tencent.com/
+    en_US: https://console.cloud.tencent.com/tokenhub/apikey
 icon_large:
   en_US: icon_l_en.png
 icon_small:
@@ -44,8 +43,8 @@ provider_credential_schema:
       en_US: API endpoint URL
       zh_Hans: API endpoint URL
     placeholder:
-      en_US: Base URL, e.g. https://api.hunyuan.cloud.tencent.com/v1
-      zh_Hans: Base URL，例如 https://api.hunyuan.cloud.tencent.com/v1
+      en_US: Base URL, e.g. https://tokenhub.tencentmaas.com/v1
+      zh_Hans: Base URL，例如 https://tokenhub.tencentmaas.com/v1
     required: false
     type: text-input
     variable: endpoint_url

@@ -3,6 +3,7 @@ import {
   type ModelProviderHttpResponse
 } from '@xpert-ai/plugin-sdk/model-provider-http-client'
 import {
+  OmniModel,
   VeoApiBaseUrl,
   type VeoCredentials,
   type VeoModel,
@@ -36,22 +37,27 @@ export class GeminiVeoClient extends ModelProviderHttpClient {
     model: VeoModel,
     payload: Record<string, unknown>
   ): Promise<VeoOperation> {
-    return this.requestJson(
-      `/models/${encodeURIComponent(model)}:predictLongRunning`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      },
-      parseVeoOperation
-    )
+    if (model !== OmniModel) throw new Error('Veo 3.1 has retired. Select Gemini Omni for new tasks.')
+    return this.requestJson('/interactions', { method: 'POST', body: JSON.stringify(payload) }, parseOmniInteraction)
   }
 
   async getOperation(operationName: string): Promise<VeoOperation> {
-    return this.requestJson(
-      `/${validateVeoOperationName(operationName)}`,
-      { method: 'GET' },
-      parseVeoOperation
-    )
+    const name = validateVeoOperationName(operationName)
+    if (!name.startsWith('interactions/')) {
+      return this.requestJson('/' + name, { method: 'GET' }, parseVeoOperation)
+    }
+
+    const operation = await this.requestJson('/' + name, { method: 'GET' }, parseOmniInteraction)
+    const uri = operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
+    if (!uri) return operation
+
+    const state = await this.requestJson(uri.replace(/:download\?alt=media$/, ''), { method: 'GET' }, value => {
+      if (!isRecord(value) || typeof value.state !== 'string') throw new Error('Invalid Gemini file response')
+      return value.state
+    })
+    if (state === 'PROCESSING') return { name, done: false }
+    if (state !== 'ACTIVE') return { name, done: true, error: { message: 'Gemini video file processing failed' } }
+    return operation
   }
 
   async downloadVideo(uri: string): Promise<{ buffer: Buffer; mimeType: string }> {
@@ -92,6 +98,25 @@ export class GeminiVeoClient extends ModelProviderHttpClient {
   }
 }
 
+function parseOmniInteraction(value: unknown): VeoOperation {
+  if (!isRecord(value) || typeof value.id !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value.id)) {
+    throw new Error('Gemini returned an invalid interaction ID')
+  }
+  const name = 'interactions/' + value.id
+  if (value.status === 'in_progress' || value.status === 'queued') return { name, done: false }
+  if (value.status !== 'completed') return { name, done: true, error: { message: 'Gemini interaction failed' } }
+  const steps = Array.isArray(value.steps) ? value.steps : []
+  const video = steps.filter(step => step?.type === 'model_output' && Array.isArray(step.content))
+    .flatMap(step => step.content).find(part => part?.type === 'video')
+  const uri = video?.uri
+  const file = typeof uri === 'string' && /^(?:https:\/\/generativelanguage\.googleapis\.com\/v1beta\/)?files\/([A-Za-z0-9_-]+)(?::download\?alt=media)?$/.exec(uri)
+  if (!file) return { name, done: true, error: { message: 'Gemini did not return a downloadable video file' } }
+  const download = VeoApiBaseUrl + '/files/' + file[1] + ':download?alt=media'
+  return { name, done: true, metadata: { usage: value.usage }, response: {
+    generateVideoResponse: { generatedSamples: [{ video: { uri: download, mimeType: 'video/mp4' } }] }
+  } }
+}
+
 function parseVeoOperation(value: unknown): VeoOperation {
   if (!isVeoOperation(value)) {
     throw new Error('Gemini Veo API returned an invalid operation response')
@@ -120,6 +145,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function validateVeoOperationName(value: string) {
   const name = value.trim()
+  if (/^interactions\/[A-Za-z0-9_-]+$/.test(name)) return name
   const segment = '[A-Za-z0-9._~-]+'
   const operationPattern = new RegExp(
     `^(?:operations/${segment}|${segment}(?:/${segment})*/operations/${segment})$`

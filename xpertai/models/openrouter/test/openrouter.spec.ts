@@ -9,43 +9,36 @@ import { ChatGenerationChunk } from '@langchain/core/outputs';
 
 config();
 
-describe('OpenRouter Integration Test', () => {
+const apiKey = process.env.OPENROUTER_API_KEY;
+const describeLive = apiKey ? describe : describe.skip;
+const testModel = 'openrouter/free';
+
+describeLive('OpenRouter Integration Test', () => {
   let provider: OpenRouterProviderStrategy;
   let llm: OpenRouterLargeLanguageModel;
-  const apiKey = process.env.OPENROUTER_API_KEY;
 
   beforeAll(() => {
-    if (!apiKey) {
-      console.warn(
-        'Skipping OpenRouter integration tests: OPENROUTER_API_KEY not found in environment'
-      );
-    }
     provider = new OpenRouterProviderStrategy();
     llm = new OpenRouterLargeLanguageModel(provider);
   });
 
   it('should validate credentials', async () => {
-    if (!apiKey) return;
-
     const credentials: OpenRouterModelCredentials = {
       api_key: apiKey,
     };
 
-    // Use a free model for validation if possible
     await expect(
-      llm.validateCredentials('tngtech/deepseek-r1t2-chimera:free', credentials)
+      llm.validateCredentials(testModel, credentials)
     ).resolves.not.toThrow();
   }, 10000);
 
   it('should chat with the model', async () => {
-    if (!apiKey) return;
-
     const credentials: OpenRouterModelCredentials = {
       api_key: apiKey,
     };
 
     const copilotModel: ICopilotModel = {
-      model: 'google/gemma-3-4b-it:free',
+      model: testModel,
       copilot: {
         modelProvider: {
           credentials,

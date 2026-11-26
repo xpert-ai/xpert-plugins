@@ -318,16 +318,18 @@ describe('Seedream AIGC tools', () => {
     expect(textToImageSchema.properties.prompt['x-ui'].title.zh_Hans).toBe('提示词')
     expect(textToImageSchema.properties.prompt['x-ui'].component).toBeUndefined()
     expect(textToImageSchema.properties.size.default).toBe('2048x2048')
-    expect(textToImageSchema.properties.size.enum).toEqual(
+    expect(textToImageSchema.properties.size.enum).toBeUndefined()
+    expect(textToImageSchema.properties.size.examples).toEqual(
       expect.arrayContaining(['2048x2048', '4096x4096', '3072x3072', '2368x1776', '1024x1024', '1280x720'])
     )
-    expect(textToImageSchema.properties.size.enum).not.toContain('2560x1440')
+    expect(textToImageSchema.properties.size.examples).not.toContain('2560x1440')
     expect(textToImageSchema.properties.size['x-ui'].enumLabels['2048x2048']).toBe('1:1 (2048x2048)')
     expect(textToImageSchema.properties.watermark.default).toBe('true')
     expect(textToImageSchema.properties.watermark.enum).toEqual(['true', 'false'])
     expect(textToImageSchema.properties.watermark['x-ui'].enumLabels['true'].zh_Hans).toBe('启用')
     expect(textToImageSchema.properties.model.default).toBe('doubao-seedream-4-5-251128')
     expect(textToImageSchema.properties.model.enum).toEqual([
+      'doubao-seedream-5-5-261028',
       'doubao-seedream-4-0-250828',
       'doubao-seedream-4-5-251128',
       'doubao-seedream-5-0-260128',
@@ -398,6 +400,7 @@ describe('Seedream AIGC tools', () => {
     expect(textToVideoSchema.properties.prompt['x-ui'].title.zh_Hans).toBe('提示词')
     expect(textToVideoSchema.properties.model.default).toBe('doubao-seedance-1-5-pro-251215')
     expect(textToVideoSchema.properties.model.enum).toEqual([
+      'doubao-seedance-2-5-flash-261115',
       'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
       'doubao-seedance-2-0-fast-260128',
@@ -425,6 +428,7 @@ describe('Seedream AIGC tools', () => {
 
     expect(multimodalSchema.properties.model.default).toBe('doubao-seedance-2-0-260128')
     expect(multimodalSchema.properties.model.enum).toEqual([
+      'doubao-seedance-2-5-flash-261115',
       'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
       'doubao-seedance-2-0-fast-260128',
@@ -1173,6 +1177,27 @@ describe('Seedream AIGC tools', () => {
         isSeedance2: true
       })
     )
+  })
+
+  it.each(['1280x720', '1.5K', '2880x1440', '1600x1200'])('submits the Seedream 5.5 size %s', async (size) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ b64_json: 'aW1hZ2U=', size: '1280x720' }] }))
+    const imageTool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock })
+      .find(({ name }) => name === 'seedream_image_to_image')!
+    await imageTool.invoke({
+      type: 'tool_call', id: 'resize', name: imageTool.name,
+      args: { model: 'doubao-seedream-5-5-261028', prompt: 'paint', size, input_image_file: 'data:image/png;base64,aW1hZ2U=' }
+    })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ model: 'doubao-seedream-5-5-261028', size })
+  })
+
+  it('retains the older Seedream model size restrictions', async () => {
+    const imageTool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock })
+      .find(({ name }) => name === 'seedream_text_to_image')!
+    await expect(imageTool.invoke({
+      type: 'tool_call', id: 'resize-old', name: imageTool.name,
+      args: { model: 'doubao-seedream-4-5-251128', prompt: 'paint', size: '1600x1200' }
+    })).rejects.toThrow()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it.each(['doubao-seedream-5-0-pro-260628', 'doubao-seedream-5-0-flash-260915'])('uses %s image parameters without unsupported sequential fields', async (model) => {

@@ -6,7 +6,7 @@ import { AiModelTypeEnum, AiProviderRole } from '@xpert-ai/contracts'
 describe('OpenAI current model catalog', () => {
   const llm = new OpenAILargeLanguageModel(new OpenAIProviderStrategy())
   const models = llm.predefinedModels()
-  const currentModels = ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-sol']
+  const currentModels = ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-sol']
   const removedModels = ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5', 'gpt-5.2-chat', 'gpt-5.2-codex']
 
   it('loads current models and the retained GPT-5 models without removed entries or duplicates', () => {
@@ -46,7 +46,7 @@ describe('OpenAI current model catalog', () => {
   })
 
   it.each([
-    ['gpt-6-astra', 10, 50, 1], ['gpt-6.1-sol', 2, 10, 0.1],
+    ['gpt-6.2-astra', 8, 40, 0.4], ['gpt-6.2-sol', 2, 10, 0.1], ['gpt-6-astra', 10, 50, 1], ['gpt-6.1-sol', 2, 10, 0.1],
     ['gpt-6.1-terra', 1, 5, 0.05], ['gpt-6-luna', 0.1, 0.5, 0.01], ['gpt-6-sol', 2, 10, 0.2]
   ] as const)('prices %s on both sides of the 272K input boundary', (name, input, output, cache) => {
     const model = models.find((item) => item.model === name)

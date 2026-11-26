@@ -27,4 +27,24 @@ function copyYamlFiles(sourceDirectory, targetDirectory) {
 }
 
 const sourceRoot = path.join(packageRoot, 'src')
-if (existsSync(sourceRoot)) copyYamlFiles(sourceRoot, path.join(packageRoot, 'dist'))
+function removeStaleYamlFiles(srcDir, destDir) {
+  if (!existsSync(destDir)) return
+
+  for (const entry of readdirSync(destDir)) {
+    const srcPath = path.join(srcDir, entry)
+    const destPath = path.join(destDir, entry)
+    const stats = statSync(destPath)
+
+    if (stats.isDirectory()) {
+      removeStaleYamlFiles(srcPath, destPath)
+    } else if ((entry.endsWith('.yaml') || entry.endsWith('.yml')) && !existsSync(srcPath)) {
+      rmSync(destPath)
+    }
+  }
+}
+
+const targetRoot = path.join(packageRoot, 'dist')
+if (existsSync(sourceRoot)) {
+  removeStaleYamlFiles(sourceRoot, targetRoot)
+  copyYamlFiles(sourceRoot, targetRoot)
+}

@@ -1,513 +1,118 @@
-jest.mock('@xpert-ai/plugin-sdk', () => ({
-  ...jest.requireActual('@xpert-ai/plugin-sdk'),
-  BuiltinToolset: class {
-    tools: unknown[] = []
-    protected toolset?: { credentials?: unknown }
-
-    constructor(public providerName: string, toolset?: { credentials?: unknown }, protected params?: any) {
-      this.toolset = toolset
-    }
-
-    get xpertId() {
-      return undefined
-    }
-
-    getCredentials() {
-      return this.toolset?.credentials
-    }
-
-    get modelRuntime() {
-      return this.params?.modelRuntime
-    }
-
-    async validateCredentials(credentials: unknown) {
-      return this._validateCredentials(credentials)
-    }
-
-    async _validateCredentials(credentials: unknown) {
-      void credentials
-    }
-  },
-  ToolsetStrategy: () => (target: unknown) => target,
-  XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES'
-}))
-
-import { SiliconflowVideoClient } from './client.js'
-import type { TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
-import { SiliconflowVideoStrategy } from './strategy.js'
-import { SiliconflowVideoToolset } from './toolset.js'
+import { SiliconflowVideoJobProcessor } from './job.js'
 import { buildSiliconflowVideoTools } from './tools.js'
-import type { SiliconflowVideoToolResult, WorkspaceFilesApi } from './types.js'
+import { SiliconflowVideoClient } from './client.js'
+import { SiliconflowVideoModelClient } from './model.js'
+import { SiliconflowVideoStrategy } from './strategy.js'
+import { SiliconflowH3, type SiliconflowVideoToolDependencies } from './types.js'
 
-type ToolInvocationResult =
-  | SiliconflowVideoToolResult
-  | {
-      content?: string | Array<{ text?: string }>
-      artifact?: SiliconflowVideoToolResult[1]
+function fixture() {
+  const enqueue = jest.fn()
+  const getJob = jest.fn()
+  const readRuntimeBuffer = jest.fn(async () => ({ buffer: Buffer.from('frame'), mimeType: 'image/png' }))
+  const tools = buildSiliconflowVideoTools({
+    managedQueue: { enqueue, getJob }, workspaceFiles: { readRuntimeBuffer }, runtimeScope: { userId: 'user', projectId: 'project' }
+  } as unknown as SiliconflowVideoToolDependencies)
+  const invoke = (name: string, args: Record<string, unknown>) => tools.find(t => t.name === name)!.invoke({
+    id: 'test-tool-call', type: 'tool_call', name, args
+  })
+  return { enqueue, getJob, readRuntimeBuffer, invoke }
+}
+
+describe('SiliconFlow H3 video', () => {
+  it('exposes the existing tool names with the new default model', () => {
+    const tools = new SiliconflowVideoStrategy().createTools()
+    expect(tools.map((t: { name: string }) => t.name)).toEqual(['siliconflow_video_submit', 'siliconflow_video_query'])
+    expect(tools[0].schema.properties.model).toMatchObject({ enum: [SiliconflowH3], default: SiliconflowH3 })
+  })
+
+  it.each([
+    [{ prompt: 'A bird in flight' }, []],
+    [{ input_image_file: { workspacePath: '/workspace/frame.png' } }, ['first_frame']],
+    [{ last_frame_file: 'https://example.test/last.jpg' }, ['last_frame']],
+    [{ input_image_file: 'https://example.test/first.jpg', last_frame_file: 'https://example.test/last.jpg' }, ['first_frame', 'last_frame']]
+  ] as const)('queues each H3 generation mode with the requested billable seconds', async (args, roles) => {
+    const { invoke, enqueue, readRuntimeBuffer } = fixture()
+    await invoke('siliconflow_video_submit', { ...args, resolution: '480p', duration: 12 })
+    const job = enqueue.mock.calls[0][0]
+    const payload = job.payload.input
+    expect(job).toMatchObject({ userId: 'user', payload: {
+      model: SiliconflowH3, pricingDimensions: { resolution: '480p', durationSeconds: 12 }, runtimeScope: { projectId: 'project' }
+    } })
+    expect(payload).toMatchObject({ model: SiliconflowH3, resolution: '480p', duration: 12 })
+    expect((payload.images ?? []).map((i: { role: string }) => i.role)).toEqual(roles)
+    if (readRuntimeBuffer.mock.calls.length) expect(payload.images[0].url).toBe('data:image/png;base64,ZnJhbWU=')
+    expect(payload).not.toHaveProperty('image_size')
+    expect(payload).not.toHaveProperty('negative_prompt')
+  })
+
+  it('rejects invalid requests before creating jobs', async () => {
+    const { invoke, enqueue } = fixture()
+    for (const args of [{ model: SiliconflowH3 }, { prompt: 'A', model: 'Wan-AI/Wan2.2-T2V-A14B' },
+      { prompt: 'A', duration: 16 }, { prompt: 'A', resolution: '4K' }]) {
+      await expect(invoke('siliconflow_video_submit', args)).rejects.toThrow()
     }
-
-describe('SiliconFlow video toolset', () => {
-  let fetchMock: jest.MockedFunction<typeof fetch>
-  let workspaceFiles: WorkspaceFilesApi
-
-  beforeEach(() => {
-    fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
-    workspaceFiles = {
-      uploadBuffer: jest.fn(async (input) => ({
-        name: input.fileName || input.originalName,
-        filePath: `${input.folder}/${input.fileName}`,
-        workspacePath: `${input.folder}/${input.fileName}`,
-        fileUrl: `https://workspace.example/${input.folder}/${input.fileName}`,
-        mimeType: input.mimeType,
-        size: input.buffer.length,
-        catalog: 'xperts' as const,
-        scopeId: input.scopeId
-      })),
-      readBuffer: jest.fn(async () => ({
-        name: 'reference.png',
-        filePath: 'files/reference.png',
-        workspacePath: 'files/reference.png',
-        mimeType: 'image/png',
-        size: 3,
-        catalog: 'xperts' as const,
-        buffer: Buffer.from('png')
-      })),
-      readRuntimeBuffer: jest.fn(async (input) => ({
-        name: input.originalName || input.name || 'reference.png',
-        filePath: input.filePath || input.workspacePath || input.path || 'files/reference.png',
-        workspacePath: input.workspacePath || input.filePath || input.path || 'files/reference.png',
-        mimeType: input.mimeType || input.mimetype || 'image/png',
-        size: 3,
-        catalog: 'xperts' as const,
-        buffer: Buffer.from('png')
-      }))
-    }
+    expect(enqueue).not.toHaveBeenCalled()
   })
 
-  it('submits a text-to-video request with SiliconFlow fields', async () => {
-    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-1' })
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-1',
-        status: 'InQueue'
-      })
-    )
-
-    const submit = getTool('siliconflow_video_submit', recordInvocation)
-    const result = await invokeTool(submit, {
-      prompt: 'A paper boat crossing a moonlit lake',
-      negative_prompt: 'text, logo, watermark',
-      image_size: '1280x720'
-    })
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.siliconflow.cn/v1/video/submit',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer test-key' })
-      })
-    )
-    const request = fetchMock.mock.calls[0]?.[1]
-    expect(JSON.parse(String(request?.body))).toEqual({
-      model: 'Wan-AI/Wan2.2-T2V-A14B',
-      prompt: 'A paper boat crossing a moonlit lake',
-      negative_prompt: 'text, logo, watermark',
-      image_size: '1280x720'
-    })
-    expect(normalizeToolResult(result).content).toContain('Task ID: request-1')
-    expect(recordInvocation).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        phase: 'start',
-        invocationKey: 'call-siliconflow_video_submit',
-        provider: 'siliconflow_video',
-        operation: 'text_to_video',
-        modality: 'video'
-      })
-    )
-    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
-      phase: 'bind',
-      invocationId: 'invocation-1',
-      providerRequestId: 'request-1'
-    })
+  it('uses stable queue IDs and reads processing, completed and failed jobs', async () => {
+    const { invoke, enqueue, getJob } = fixture()
+    for (let i = 0; i < 2; i++) await invoke('siliconflow_video_submit', { prompt: 'A' })
+    const id = enqueue.mock.calls[0][0].jobId
+    expect(enqueue.mock.calls[1][0].jobId).toBe(id)
+    getJob.mockResolvedValueOnce({ state: 'active', data: { phase: 'polling' } })
+    await expect(invoke('siliconflow_video_query', { request_id: id, wait_seconds: 0 })).resolves.toMatchObject({ artifact: { data: { status: 'polling' } } })
+    getJob.mockResolvedValueOnce({ state: 'completed', data: { result: ['Video ready', { files: [] }] } })
+    await expect(invoke('siliconflow_video_query', { task_id: id })).resolves.toMatchObject({ content: 'Video ready' })
+    getJob.mockResolvedValueOnce({ state: 'failed', data: {}, failedReason: 'Provider rejected task' })
+    await expect(invoke('siliconflow_video_query', { task_id: id })).rejects.toThrow('Provider rejected task')
+    await expect(invoke('siliconflow_video_query', {})).rejects.toThrow()
   })
 
-  it('closes the invocation when Provider submission fails', async () => {
-    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-failed-submit' })
-    fetchMock.mockRejectedValueOnce(new Error('SiliconFlow request failed before returning a task'))
-
-    await expect(
-      invokeTool(getTool('siliconflow_video_submit', recordInvocation), {
-        prompt: 'A paper boat crossing a moonlit lake'
-      })
-    ).rejects.toThrow('SiliconFlow request failed before returning a task')
-
-    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
-      phase: 'observe',
-      invocationId: 'invocation-failed-submit',
-      state: 'acceptance_unknown',
-      usageAvailability: 'unknown',
-      errorCode: 'provider_acceptance_unknown'
-    })
+  it('posts to the configured endpoint and accounts separately for new and legacy jobs', async () => {
+    const status = () => Response.json({ status: 'Succeed', results: { videos: [{ url: 'https://example.test/video.mp4' }] } })
+    const http = jest.fn().mockResolvedValueOnce(Response.json({ requestId: 'id' })).mockResolvedValueOnce(status())
+      .mockResolvedValueOnce(status()).mockResolvedValueOnce(Response.json({ status: 'Failed' }))
+    const client = new SiliconflowVideoModelClient(new SiliconflowVideoClient({ api_key: 'test', endpoint_url: 'https://example.test/v1' }, http))
+    await expect(client.submit({ model: 'Wan-AI/Wan2.2-T2V-A14B', prompt: 'A' })).rejects.toThrow('MiniMax H3')
+    expect(http).not.toHaveBeenCalled()
+    await client.submit({ model: SiliconflowH3, prompt: 'A', duration: 7 })
+    expect(http.mock.calls[0][0]).toBe('https://example.test/v1/video/submit')
+    expect(http.mock.calls[0][1].headers).toMatchObject({ Authorization: 'Bearer test' })
+    expect((await client.query('id', { pricingDimensions: { durationSeconds: 7 } })).observation.metrics)
+      .toEqual([{ unit: 'second', authority: 'request', quantity: 7 }])
+    expect((await client.query('legacy')).observation.metrics).toEqual([{ unit: 'generation', authority: 'contract', quantity: 1 }])
+    expect((await client.query('id')).observation.state).toBe('failed')
   })
-
-  it('selects the image-to-video model and encodes a Workspace image', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-image',
-        status: 'InQueue'
-      })
-    )
-
-    const submit = getTool('siliconflow_video_submit')
-    await invokeTool(submit, {
-      input_image_file: { filePath: 'files/reference.png' },
-      prompt: 'The subject moves naturally',
-      image_size: '720x1280'
-    })
-
-    const request = fetchMock.mock.calls[0]?.[1]
-    expect(JSON.parse(String(request?.body))).toEqual(
-      expect.objectContaining({
-        model: 'Wan-AI/Wan2.2-I2V-A14B',
-        prompt: 'The subject moves naturally',
-        image_size: '720x1280',
-        image: 'data:image/png;base64,cG5n'
-      })
-    )
-    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath: 'files/reference.png'
-      })
-    )
-  })
-
-  it('reuses a task already bound to the same tool call without submitting again', async () => {
-    const recordInvocation = jest.fn().mockResolvedValue({
-      invocationId: 'invocation-existing',
-      created: false,
-      providerRequestId: 'request-existing',
-      providerState: 'submitted'
-    })
-
-    const result = await invokeTool(getTool('siliconflow_video_submit', recordInvocation), {
-      prompt: 'A paper boat crossing a moonlit lake'
-    })
-
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(normalizeToolResult(result).artifact.data).toEqual(
-      expect.objectContaining({ task_id: 'request-existing', status: 'submitted' })
-    )
-  })
-
-  it('parses a JSON-encoded image descriptor and prefers its Workspace path', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-json-image',
-        status: 'InQueue'
-      })
-    )
-
-    const submit = getTool('siliconflow_video_submit')
-    await invokeTool(submit, {
-      input_image_file: JSON.stringify({
-        file_id: 'storage-1',
-        workspacePath: '/workspace/sessions/conversation-1/files/asset-1/reference.jpg',
-        url: 'https://example.com/reference.jpg',
-        mimeType: 'image/jpeg'
-      }),
-      prompt: 'The subject moves naturally'
-    })
-
-    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath: '/workspace/sessions/conversation-1/files/asset-1/reference.jpg',
-        mimeType: 'image/jpeg'
-      })
-    )
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const request = fetchMock.mock.calls[0]?.[1]
-    expect(JSON.parse(String(request?.body))).toEqual(
-      expect.objectContaining({
-        image: 'data:image/jpeg;base64,cG5n'
-      })
-    )
-  })
-
-  it('allows an image-only image-to-video request', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-image-only',
-        status: 'InQueue'
-      })
-    )
-
-    const submit = getTool('siliconflow_video_submit')
-    await invokeTool(submit, {
-      input_image_file: { filePath: 'files/reference.png' }
-    })
-
-    const request = fetchMock.mock.calls[0]?.[1]
-    expect(JSON.parse(String(request?.body))).toEqual(
-      expect.objectContaining({
-        model: 'Wan-AI/Wan2.2-I2V-A14B',
-        prompt: expect.any(String),
-        image: 'data:image/png;base64,cG5n'
-      })
-    )
-  })
-
-  it('rejects a text-to-video model when an image is supplied', async () => {
-    const submit = getTool('siliconflow_video_submit')
-    await expect(
-      invokeTool(submit, {
-        model: 'Wan-AI/Wan2.2-T2V-A14B',
-        input_image_file: { filePath: 'files/reference.png' },
-        prompt: 'The subject moves naturally'
-      })
-    ).rejects.toThrow('image-to-video model')
-  })
-
-  it('rejects a model-only submit call before running provider code', async () => {
-    const submit = getTool('siliconflow_video_submit')
-
-    await expect(
-      invokeTool(submit, {
-        model: 'Wan-AI/Wan2.2-T2V-A14B'
-      })
-    ).rejects.toThrow('Received tool input did not match expected schema')
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('rejects a query without a task ID before calling the provider', async () => {
-    const query = getTool('siliconflow_video_query')
-
-    await expect(invokeTool(query, { wait_seconds: 30 })).rejects.toThrow(
-      'Received tool input did not match expected schema'
-    )
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('polls a task and uploads completed MP4 artifacts', async () => {
-    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-2' })
-    fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse({
-          requestId: 'request-2',
-          status: 'InProgress'
-        })
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          requestId: 'request-2',
-          status: 'Succeed',
-          results: {
-            videos: [{ url: 'https://provider.example/video.mp4' }],
-            seed: 123,
-            timings: { inference: 7.5 }
-          }
-        })
-      )
-      .mockResolvedValueOnce(binaryResponse('video', 'video/mp4'))
-
-    const query = getTool('siliconflow_video_query', recordInvocation)
-    const result = await invokeTool(query, { task_id: 'request-2', wait_seconds: 5 })
-    const normalized = normalizeToolResult(result)
-
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.siliconflow.cn/v1/video/status')
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://api.siliconflow.cn/v1/video/status')
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('https://provider.example/video.mp4')
-    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
-    expect(normalized.artifact.files).toEqual([expect.objectContaining({ mimeType: 'video/mp4', extension: 'mp4' })])
-    expect(normalized.content).toContain('Generated files:')
-    expect(normalized.artifact.data).toEqual(
-      expect.objectContaining({
-        task_id: 'request-2',
-        status: 'Succeed',
-        seed: 123
-      })
-    )
-    expect(recordInvocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'observe',
-        providerRequestId: 'request-2',
-        state: 'succeeded',
-        usageAvailability: 'available',
-        metrics: [{ unit: 'generation', quantity: 1, authority: 'contract' }]
-      })
-    )
-    const succeededObservation = recordInvocation.mock.calls.findIndex(
-      ([event]) => event.phase === 'observe' && event.state === 'succeeded'
-    )
-    expect(recordInvocation.mock.invocationCallOrder[succeededObservation]).toBeLessThan(
-      (workspaceFiles.uploadBuffer as jest.Mock).mock.invocationCallOrder[0]
-    )
-  })
-
-  it('returns a durable processing status without waiting when wait_seconds is zero', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-3',
-        status: 'InProgress'
-      })
-    )
-
-    const query = getTool('siliconflow_video_query')
-    const result = await invokeTool(query, { task_id: 'request-3', wait_seconds: 0 })
-    const normalized = normalizeToolResult(result)
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(normalized.content).toContain('continues running')
-    expect(normalized.artifact.data).toEqual(
-      expect.objectContaining({
-        task_id: 'request-3',
-        status: 'InProgress'
-      })
-    )
-  })
-
-  it('accepts request_id as the query identifier alias', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-alias',
-        status: 'InProgress'
-      })
-    )
-
-    const query = getTool('siliconflow_video_query')
-    await invokeTool(query, { request_id: 'request-alias', wait_seconds: 0 })
-
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
-      requestId: 'request-alias'
-    })
-  })
-
-  it('throws a provider task error', async () => {
-    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-fail' })
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        requestId: 'request-fail',
-        status: 'Failed',
-        reason: 'content rejected'
-      })
-    )
-
-    const query = getTool('siliconflow_video_query', recordInvocation)
-    await expect(invokeTool(query, { task_id: 'request-fail', wait_seconds: 0 })).rejects.toThrow('content rejected')
-    expect(recordInvocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'observe',
-        providerRequestId: 'request-fail',
-        state: 'failed',
-        usageAvailability: 'unknown'
-      })
-    )
-  })
-
-  it('exposes the toolset metadata and both tools', () => {
-    const strategy = new SiliconflowVideoStrategy()
-    expect(strategy.meta.name).toBe('siliconflow_video')
-    expect(strategy.meta.configSchema.properties).toEqual({})
-    expect(strategy.meta.configSchema.required).toBeUndefined()
-    expect(strategy.createTools().map((item: { name: string }) => item.name)).toEqual([
-      'siliconflow_video_submit',
-      'siliconflow_video_query'
-    ])
-  })
-
-  it('uses the configured SiliconFlow model provider instead of Toolset credentials', async () => {
-    const getModelProvider = jest.fn().mockResolvedValue({
-      providerScopeId: 'siliconflow-provider-1',
-      provider: 'siliconflow',
-      baseURL: 'https://provider.siliconflow.example/v1',
-      authorization: 'Bearer provider-key'
-    })
-    const params: TBuiltinToolsetParams = {
-      tenantId: 'tenant-1',
-      env: {},
-      commandBus: {} as TBuiltinToolsetParams['commandBus'],
-      queryBus: {} as TBuiltinToolsetParams['queryBus'],
-      modelRuntime: { createModelClient: jest.fn(), getModelProvider }
-    }
-    const toolset = new SiliconflowVideoToolset(
-      { credentials: { api_key: 'stale-toolset-key' } },
-      { get: jest.fn().mockReturnValue(workspaceFiles) },
-      params
-    )
-
-    await toolset.validateCredentials({})
-    await toolset.initTools()
-
-    expect(getModelProvider).toHaveBeenCalledWith('siliconflow')
-    expect(getModelProvider).toHaveBeenCalledTimes(1)
-  })
-
-  it('uses a custom endpoint and bearer authentication', async () => {
-    const client = new SiliconflowVideoClient(
-      {
-        api_key: 'test-key',
-        endpoint_url: 'https://api.siliconflow.example/v1/'
-      },
-      fetchMock
-    )
-    fetchMock.mockResolvedValueOnce(jsonResponse({ requestId: 'request-client', status: 'InQueue' }))
-
-    await client.submitVideo({
-      model: 'Wan-AI/Wan2.2-T2V-A14B',
-      prompt: 'test'
-    })
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.siliconflow.example/v1/video/submit')
-    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer test-key' })
-      })
-    )
-  })
-
-  function getTool(name: string, recordInvocation?: jest.Mock) {
-    const found = buildSiliconflowVideoTools({
-      credentials: { api_key: 'test-key' },
-      workspaceFiles,
-      fetch: fetchMock,
-      sleep: jest.fn(async () => undefined),
-      recordInvocation
-    }).find((item) => item.name === name)
-    if (!found) throw new Error(`Tool ${name} was not built`)
-    return found
-  }
 })
 
-async function invokeTool(
-  toolInstance: { name: string; invoke: (input: unknown) => Promise<unknown> },
-  args: Record<string, unknown>
-) {
-  return toolInstance.invoke({
-    id: `call-${toolInstance.name}`,
-    name: toolInstance.name,
-    type: 'tool_call',
-    args
-  })
-}
-
-function normalizeToolResult(value: ToolInvocationResult) {
-  if (Array.isArray(value)) return { content: value[0], artifact: value[1] }
-  const content = Array.isArray(value.content)
-    ? value.content.map((item) => item.text || '').join('')
-    : value.content || ''
-  if (!value.artifact) throw new Error('Tool did not return an artifact')
-  return { content, artifact: value.artifact }
-}
-
-function jsonResponse(value: unknown, status = 200) {
-  return new Response(JSON.stringify(value), {
-    status,
-    headers: { 'content-type': 'application/json' }
-  })
-}
-
-function binaryResponse(value: string, mimeType: string) {
-  return new Response(Buffer.from(value), {
-    status: 200,
-    headers: { 'content-type': mimeType, 'content-length': String(value.length) }
-  })
-}
+it('resumes a retired model job using its original access and pricing snapshot', async () => {
+  const oldModel = 'Wan-AI/Wan2.2-T2V-A14B'
+  const previousPricing = { capturedAt: '2026-08-15T00:00:00Z', rules: [] }
+  const previousAccess = { source: 'internal' }
+  const provider = { copilotId: 'copilot', authorization: 'Bearer test', baseURL: 'https://api.siliconflow.cn/v1',
+    reportUsage: jest.fn(), resolveModelAccess: jest.fn(), resolvePricingSnapshot: jest.fn() }
+  const client = { submit: jest.fn(), query: jest.fn().mockResolvedValue({
+    data: { status: 'Succeed', results: { videos: [{ url: 'https://example.test/clip.mp4' }] } },
+    observation: { state: 'succeeded', metrics: [{ unit: 'generation', quantity: 1 }] }
+  }) }
+  const uploadBuffer = jest.fn().mockResolvedValue({ filePath: '/project/clip.mp4' })
+  const runtime = { getModelProvider: jest.fn().mockResolvedValue(provider),
+    createModelClient: jest.fn().mockResolvedValue(client), capabilities: { get: () => ({ uploadBuffer }) } }
+  const processor = new SiliconflowVideoJobProcessor({ createScopedApi: () => runtime } as unknown as ConstructorParameters<typeof SiliconflowVideoJobProcessor>[0])
+  const data = { model: oldModel, phase: 'submitted', providerRequestId: 'provider-task', requestId: 'request',
+    runtimeScope: { projectId: 'project' }, modelAccess: previousAccess, pricingSnapshot: previousPricing }
+  const job = { id: 'job', data, updateData: jest.fn() }
+  const http = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(Buffer.from('video'), { headers: { 'Content-Type': 'video/mp4' } }))
+  try {
+    await processor.handle(job as unknown as Parameters<typeof processor.handle>[0], {} as Parameters<typeof processor.handle>[1])
+  } finally {
+    http.mockRestore()
+  }
+  expect(runtime.createModelClient).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel }), { purpose: 'observe' })
+  expect(client.query).toHaveBeenCalledWith('provider-task', expect.anything())
+  expect(client.submit).not.toHaveBeenCalled()
+  expect(provider.resolvePricingSnapshot).not.toHaveBeenCalled()
+  expect(provider.resolveModelAccess).not.toHaveBeenCalled()
+  expect(provider.reportUsage).toHaveBeenCalledWith(expect.objectContaining({ model: oldModel, pricingSnapshot: previousPricing }), previousAccess)
+  expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project' }))
+})

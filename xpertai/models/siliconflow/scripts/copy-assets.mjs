@@ -38,7 +38,24 @@ function copyYamlFiles(srcDir, destDir) {
   }
 }
 
+function removeStaleYamlFiles(srcDir, destDir) {
+  if (!existsSync(destDir)) return
+
+  for (const entry of readdirSync(destDir)) {
+    const srcPath = path.join(srcDir, entry)
+    const destPath = path.join(destDir, entry)
+    const stats = statSync(destPath)
+
+    if (stats.isDirectory()) {
+      removeStaleYamlFiles(srcPath, destPath)
+    } else if ((entry.endsWith('.yaml') || entry.endsWith('.yml')) && !existsSync(srcPath)) {
+      rmSync(destPath)
+    }
+  }
+}
+
 if (existsSync(srcRoot)) {
+  removeStaleYamlFiles(srcRoot, distRoot)
   copyYamlFiles(srcRoot, distRoot)
   // console.info('Copied all .yaml files from src to dist.')
 } else {

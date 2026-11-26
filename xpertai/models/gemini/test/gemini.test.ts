@@ -6,17 +6,14 @@ import { GeminiLargeLanguageModel } from '../src/llm/llm.js';
 
 config();
 
-describe('Gemini Integration Test', () => {
+const apiKey = process.env.GOOGLE_API_KEY;
+const integration = apiKey ? describe : describe.skip;
+
+integration('Gemini Integration Test', () => {
   let provider: GeminiProviderStrategy;
   let llm: GeminiLargeLanguageModel;
-  const apiKey = process.env.GOOGLE_API_KEY;
 
   beforeAll(() => {
-    if (!apiKey) {
-      console.warn(
-        'Skipping Gemini integration tests: GOOGLE_API_KEY not found in environment'
-      );
-    }
     provider = new GeminiProviderStrategy();
     llm = new GeminiLargeLanguageModel(provider);
   });
@@ -24,28 +21,24 @@ describe('Gemini Integration Test', () => {
   it(
     'should validate credentials',
     async () => {
-      if (!apiKey) return;
-
       const credentials: GeminiModelCredentials = {
-        google_api_key: apiKey,
+        google_api_key: apiKey!,
       };
 
       await expect(
-        llm.validateCredentials('gemini-2.5-flash', credentials)
+        llm.validateCredentials('gemini-flash-lite-latest', credentials)
       ).resolves.not.toThrow();
     },
     10 * 1000
   );
 
   it('should chat with the model', async () => {
-    if (!apiKey) return;
-
     const credentials: GeminiModelCredentials = {
-      google_api_key: apiKey,
+      google_api_key: apiKey!,
     };
 
     const copilotModel: ICopilotModel = {
-      model: 'gemini-2.5-flash',
+      model: 'gemini-flash-lite-latest',
       copilot: {
         modelProvider: {
           credentials,

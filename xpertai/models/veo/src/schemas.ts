@@ -1,6 +1,5 @@
 const MODEL_OPTIONS = [
-  ['veo-3.1-generate-preview', 'Veo 3.1'],
-  ['veo-3.1-fast-generate-preview', 'Veo 3.1 Fast']
+  ['gemini-omni-1.2-flash', 'Gemini Omni 1.2 Flash']
 ] as const
 
 function i18n(en_US: string, zh_Hans: string) {
@@ -48,7 +47,7 @@ const promptProperty = {
 const modelProperty = {
   type: 'string',
   enum: MODEL_OPTIONS.map(([value]) => value),
-  default: 'veo-3.1-generate-preview',
+  default: 'gemini-omni-1.2-flash',
   title: 'Model',
   'x-ui': {
     title: i18n('Model', '生成模型'),
@@ -59,14 +58,14 @@ const modelProperty = {
 
 const resolutionProperty = {
   type: 'string',
-  enum: ['720p', '1080p', '4k'],
+  enum: ['360p', '720p', '1080p', '4k'],
   default: '720p',
   title: 'Resolution',
   'x-ui': {
     title: i18n('Resolution', '视频分辨率'),
     description: i18n(
-      '1080p and 4k require an 8-second duration.',
-      '1080p 与 4k 必须使用 8 秒时长。'
+      'Output video resolution.',
+      '输出视频分辨率。'
     )
   }
 } as const
@@ -84,14 +83,14 @@ const ratioProperty = {
 
 const durationProperty = {
   anyOf: [
-    { type: 'integer', enum: [4, 6, 8] },
-    { type: 'string', enum: ['4', '6', '8'] }
+    { type: 'integer', minimum: 3, maximum: 15 },
+    { type: 'string', pattern: '^(?:[3-9]|1[0-5])$' }
   ],
   default: 8,
   title: 'Duration',
   'x-ui': {
     title: i18n('Duration', '视频时长'),
-    description: i18n('Video duration: 4, 6, or 8 seconds.', '视频时长：4、6 或 8 秒。')
+    description: i18n('Video duration: 3 to 15 seconds, up to 10 for frame interpolation.', '视频时长：3 至 15 秒，首尾帧最多 10 秒。')
   }
 } as const
 
@@ -105,8 +104,8 @@ const generateAudioProperty = {
   'x-ui': {
     title: i18n('Generate audio', '生成音频'),
     description: i18n(
-      'Veo 3.1 always generates synchronized audio.',
-      'Veo 3.1 始终生成同步音频。'
+      'Gemini Omni always generates synchronized audio.',
+      'Gemini Omni 始终生成同步音频。'
     )
   }
 } as const
@@ -181,14 +180,14 @@ export const referenceToVideoSchema = objectSchema(
     reference_image_files: {
       type: 'array',
       minItems: 1,
-      maxItems: 3,
+      maxItems: 6,
       items: workspaceFileProperty,
       title: 'Asset reference images',
       'x-ui': {
         title: i18n('Asset reference images', '资产参考图片'),
         description: i18n(
-          'One to three person, character, or product reference images. Duration must be 8 seconds.',
-          '1 至 3 张人物、角色或产品参考图片；时长必须为 8 秒。'
+          'One to six reference images of people, characters or products.',
+          '1 至 6 张人物、角色或产品参考图片。'
         )
       }
     }

@@ -1,0 +1,51 @@
+# https://ai.google.dev/gemini-api/docs/omni
+model: gemini-omni-1.2-flash
+label:
+  en_US: Gemini Omni 1.2 Flash
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: gemini-omni-input
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00Z'
+      unit: token
+      unit_size: 1000000
+      unit_price: 1.5
+      currency: USD
+      charge_type: paid
+      token_type: prompt
+      component: input
+      dimensions:
+        mode: input
+      source_url: https://ai.google.dev/gemini-api/docs/pricing#gemini-omni-1.2-flash
+    - id: gemini-omni-video
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00Z'
+      unit: token
+      unit_size: 1000000
+      unit_price: 12
+      currency: USD
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: video
+      source_url: https://ai.google.dev/gemini-api/docs/pricing#gemini-omni-1.2-flash
+    - id: gemini-omni-text
+      version: 2026-11
+      effective_from: '2026-11-01T00:00:00Z'
+      unit: token
+      unit_size: 1000000
+      unit_price: 9
+      currency: USD
+      charge_type: paid
+      token_type: completion
+      component: output
+      dimensions:
+        mode: text
+      source_url: https://ai.google.dev/gemini-api/docs/pricing#gemini-omni-1.2-flash

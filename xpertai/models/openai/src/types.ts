@@ -27,6 +27,8 @@ const OpenAICurrentModelProfiles: readonly {
 	supported: readonly OpenAIReasoningEffort[]
 	defaultEffort: OpenAIReasoningEffort
 }[] = [
+	{ model: 'gpt-6.2-astra', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+	{ model: 'gpt-6.2-sol', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
 	{ model: 'gpt-6-astra', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
 	{ model: 'gpt-6.1-sol', supported: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
 	{ model: 'gpt-6.1-terra', supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },

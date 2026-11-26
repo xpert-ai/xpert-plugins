@@ -12,6 +12,7 @@ export type AnthropicCredentials = {
 
 export type AnthropicModelCredentials = AnthropicCredentials &
   CommonChatModelParameters & {
+    effort?: string
     thinking?: boolean
     thinking_budget?: number
     temperature?: number
