@@ -2,6 +2,7 @@
 model: gemini-2.5-flash
 label:
   en_US: Gemini 2.5 Flash
+deprecated: true
 model_type: llm
 features:
   - tool-call

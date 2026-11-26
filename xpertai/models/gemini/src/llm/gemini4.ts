@@ -7,7 +7,11 @@ import type { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager
 import { buildGeminiInvocationParams, type GeminiModelOptions } from './model-parameters.js'
 
 export const gemini4Models = new Set(['gemini-4-carbon', 'gemini-4-argon', 'gemini-4-hydrogen', 'gemini-4-neon'])
-type GeminiPart = Part & { thoughtSignature?: string; thought?: boolean }
+type GeminiPart = Part & {
+  functionCall?: { name: string; args: object; id?: string }
+  thoughtSignature?: string
+  thought?: boolean
+}
 
 function messageParts(message: BaseMessage): Part[] {
   if (typeof message.content === 'string') return message.content ? [{ text: message.content }] : []
@@ -16,8 +20,12 @@ function messageParts(message: BaseMessage): Part[] {
     if (block.type === 'image_url') {
       const url = typeof block.image_url === 'string' ? block.image_url : block.image_url.url
       const data = /^data:([^;,]+);base64,(.+)$/s.exec(url)
-      if (!data) throw new Error('Gemini images require a base64 data URL')
-      return { inlineData: { mimeType: data[1], data: data[2] } }
+      if (data) return { inlineData: { mimeType: data[1], data: data[2] } }
+      if (URL.canParse(url) && new URL(url).protocol === 'https:') {
+        // The v1beta FileData contract makes MIME optional for external HTTPS URLs.
+        return { fileData: { fileUri: url } } as Part
+      }
+      throw new Error('Gemini images require an HTTPS URL or a base64 data URL')
     }
     const mimeType = 'mime_type' in block ? block.mime_type : 'mimeType' in block ? block.mimeType : undefined
     if (typeof mimeType === 'string' && 'data' in block && typeof block.data === 'string') {
@@ -36,8 +44,9 @@ function messageParts(message: BaseMessage): Part[] {
 export function gemini4History(messages: BaseMessage[]) {
   const contents: Content[] = []
   const systemParts: Part[] = []
-  const names = new Map<string, string>()
-  for (const message of messages) {
+  const calls = new Map<string, { name: string; order: number; providerId?: string }>()
+  for (let index = 0; index < messages.length; index++) {
+    const message = messages[index]
     if (message._getType() === 'system') {
       systemParts.push(...messageParts(message))
       continue
@@ -45,16 +54,32 @@ export function gemini4History(messages: BaseMessage[]) {
     let parts: Part[]
     const role = isAIMessage(message) ? 'model' : 'user'
     if (isAIMessage(message)) {
-      for (const call of message.tool_calls ?? []) if (call.id) names.set(call.id, call.name)
       // Preserve the original order and placement of opaque signatures, including parallel calls.
       const original = message.additional_kwargs['gemini_parts']
       parts = Array.isArray(original) ? original : [
         ...messageParts(message), ...(message.tool_calls ?? []).map(call => ({ functionCall: { name: call.name, args: call.args } }))
       ]
+      calls.clear()
+      const nativeCalls = (parts as GeminiPart[]).flatMap(part => part.functionCall ? [part.functionCall] : [])
+      for (const [order, call] of (message.tool_calls ?? []).entries()) {
+        if (call.id) calls.set(call.id, { name: call.name, order, providerId: nativeCalls[order]?.id })
+      }
     } else if (isToolMessage(message)) {
-      const name = message.name || names.get(message.tool_call_id)
-      if (!name) throw new Error('Gemini tool result is missing its function name')
-      parts = [{ functionResponse: { name, response: { result: message.content } } }]
+      const results = [message]
+      while (index + 1 < messages.length && isToolMessage(messages[index + 1])) {
+        results.push(messages[++index] as typeof message)
+      }
+      // Parallel tools can finish in a different order, including multiple calls to the same function.
+      const order = (id: string) => calls.get(id)?.order ?? Number.MAX_SAFE_INTEGER
+      results.sort((a, b) => order(a.tool_call_id) - order(b.tool_call_id))
+      parts = results.map(result => {
+        const call = calls.get(result.tool_call_id)
+        const name = call?.name || result.name
+        if (!name) throw new Error('Gemini tool result is missing its function name')
+        return { functionResponse: {
+          ...(call?.providerId ? { id: call.providerId } : {}), name, response: { result: result.content }
+        } }
+      })
     } else {
       parts = messageParts(message)
     }
@@ -91,11 +116,16 @@ export class Gemini4ChatModel extends ChatGoogleGenerativeAI {
         ...(options.responseSchema ? { responseSchema: options.responseSchema, responseMimeType: 'application/json' } : {})
       }
     } as GenerateContentRequest
-    const { stream } = await this.caller.callWithOptions({ signal: options.signal },
+    const { stream, response } = await this.caller.callWithOptions({ signal: options.signal },
       () => client.generateContentStream(request, { signal: options.signal }))
+    // The SDK tees the response. Stream errors also reject its unused aggregate promise.
+    void response.catch(() => {})
     let index = 0
     let previous = { input: 0, output: 0, total: 0, cached: 0 }
     for await (const event of stream) {
+      if (event.promptFeedback?.blockReason) {
+        throw new Error('Gemini blocked the prompt: ' + event.promptFeedback.blockReason)
+      }
       const candidate = event.candidates?.[0]
       const parts: GeminiPart[] = candidate?.content?.parts ?? []
       const text = parts.filter(part => !part.thought).map(part => part.text ?? '').join('')
@@ -106,7 +136,7 @@ export class Gemini4ChatModel extends ChatGoogleGenerativeAI {
       const message = new AIMessageChunk({
         content: text,
         tool_call_chunks: parts.flatMap(part => part.functionCall ? [{
-          name: part.functionCall.name, args: JSON.stringify(part.functionCall.args), id: randomUUID(), index: index++, type: 'tool_call_chunk' as const
+          name: part.functionCall.name, args: JSON.stringify(part.functionCall.args), id: part.functionCall.id ?? randomUUID(), index: index++, type: 'tool_call_chunk' as const
         }] : []),
         additional_kwargs: { gemini_parts: parts, ...(reasoning ? { reasoning_content: reasoning } : {}) },
         response_metadata: candidate?.finishReason ? { finishReason: candidate.finishReason } : {},
