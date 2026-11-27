@@ -212,6 +212,8 @@ The standard viewer iframe allows scripts and browser file downloads. Its docume
 
 ## Build and validation
 
+The host supplies TypeORM (`^0.3.24`) and `@nestjs/typeorm` (`^11.0.0`) as peer dependencies so plugin entities and injected repositories share the host ORM instance. Development dependencies pin the minimum versions (`0.3.24` and `11.0.0`) for compilation and lifecycle checks. The PostgreSQL tests in `tests/library-*.postgres.cjs` cover transactions, row locks, upserts and query-builder operations. Keep the host compatibility check when changing these ranges.
+
 Use the xpertai workspace's declared Corepack/pnpm. The viewer and HTML preflight bundles are built with published `@xpert-ai/plugin-sdk` 3.38.0 and `@xpert-ai/contracts` 3.38.0. SDK 3.38.0 is the first release that applies `allowDownloads` while mounting an artifact document; 3.37.2 and earlier always set `sandbox="allow-scripts"`. Its type surface depends on contracts 3.38.0, so the dashboard build pins that same contracts version and does not keep a second 3.36.0 copy. Host peer ranges stay `^3.36.0`: the Nest plugin does not apply the document sandbox, and the browser bundles do. The interactive HTML viewer passes `allowDownloads: true`. HTML preflight calls the same mount without that option, so its sandbox stays script-only. The standard viewer sets `allow-scripts allow-downloads` on its own iframe and does not call the artifact-document mount. Development dependencies pin the Data Analytics renderer to 0.1.35. SDK 3.33.0 supplies the host-owned online resource policy, bounded query scheduler and grouped query runtime without a local SDK patch. Rebuild both the viewer and HTML preflight assets after changing the SDK; `verify:dist` checks their source fingerprints.
 
 ```sh
@@ -254,13 +256,6 @@ The owner can delete private Assistant dashboards; Project dashboards require th
 Manual acceptance after installing the updated plugin: cancel a deletion and confirm the entry remains; delete an unused saved dashboard and confirm it stays absent after reload; delete the selected dashboard and confirm the preview clears and its old shared link is unavailable.
 
 ## Quick start and examples
-
-The host provides the shared TypeORM and Nest TypeORM instances. The supported
-minimum is TypeORM 0.3.24 with `@nestjs/typeorm` 11.0.0; the library's transaction,
-row-lock, upsert and query-builder operations are covered by the PostgreSQL tests
-in `tests/library-*.postgres.cjs`. Development dependency versions do not define
-the minimum host version. Keep these packages in `peerDependencies`, and retain
-the host's compatibility check when changing the range.
 
 See [快速开始与样例](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant. Three versioned recipes bundle source, labeled synthetic data, previews and checks in [skills/live-dashboard/examples](skills/live-dashboard/examples/README.md). Existing dashboards remain independent of recipe upgrades.
 

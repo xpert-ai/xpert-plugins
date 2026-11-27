@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Textarea } from '@xpert-ai/plugin-shadcn-ui';
+import { Button } from '@xpert-ai/plugin-shadcn-ui';
 import type { PptxDeck, PptxShape, PptxSlide } from '../../src/core/pptx-file.utils';
 import {
   pptxShapeStyle,
@@ -7,6 +7,7 @@ import {
   pptxSelectionFrameStyle,
 } from '../../src/core/pptx-editor-view.utils';
 import { PptxShapeContent } from './PptxShapeContent';
+import { PptxTextEditor } from './PptxTextEditor';
 import {
   resizeShape,
   type ShapeBounds,
@@ -52,15 +53,7 @@ function SlideCanvas({
   const [preview, setPreview] = React.useState<
     (ShapeBounds & { id: string }) | null
   >(null);
-  const [editing, setEditing] = React.useState<{
-    id: string;
-    text: string;
-  } | null>(null);
-  const textArea = React.useRef<HTMLTextAreaElement>(null);
-  const editingId = editing?.id;
-  React.useEffect(() => {
-    if (editingId !== undefined) textArea.current?.focus();
-  }, [editingId]);
+  const [editing, setEditing] = React.useState<string | null>(null);
   function finishText() {
     setEditing(null);
     onTextEnd?.();
@@ -149,25 +142,25 @@ function SlideCanvas({
             return (
               <div
                 key={shape.id}
-                role={onSelect && shape.editable ? 'button' : undefined}
-                tabIndex={onSelect && shape.editable ? 0 : undefined}
+                role={onSelect && shape.editable && editing !== shape.id ? 'button' : undefined}
+                tabIndex={onSelect && shape.editable && editing !== shape.id ? 0 : undefined}
                 aria-label={shape.name}
                 aria-pressed={
-                  onSelect && shape.editable ? selected === shape.id : undefined
+                  onSelect && shape.editable && editing !== shape.id ? selected === shape.id : undefined
                 }
                 className="absolute border-solid"
                 style={{
                   ...pptxShapeStyle(shape, deck),
                   whiteSpace: shape.wrap ? 'pre-wrap' : 'pre',
-                  cursor: onSelect && shape.editable ? 'move' : undefined,
-                  touchAction: onSelect ? 'none' : undefined,
+                  cursor: editing === shape.id ? 'text' : onSelect && shape.editable ? 'move' : undefined,
+                  touchAction: onSelect && editing !== shape.id ? 'none' : undefined,
                 }}
                 onPointerDown={(event) => start(event, shape)}
                 onDoubleClick={(event) => {
                   if (shape.editable && shape.kind === 'shape' && onText) {
                     event.stopPropagation();
                     onSelect?.(shape.id);
-                    setEditing({ id: shape.id, text: shape.text });
+                    setEditing(shape.id);
                   }
                 }}
                 onKeyDown={(event) => {
@@ -179,14 +172,22 @@ function SlideCanvas({
                   ) {
                     event.preventDefault();
                     onSelect?.(shape.id);
-                    setEditing({ id: shape.id, text: shape.text });
+                    setEditing(shape.id);
                   } else if (event.key === ' ') {
                     event.preventDefault();
                     onSelect?.(shape.id);
                   }
                 }}
               >
-                <PptxShapeContent shape={shape} deck={deck} />
+                {editing === shape.id && onText ? (
+                  <PptxTextEditor
+                    shape={shape}
+                    deck={deck}
+                    label={t('workbench.files.text')}
+                    onText={(text) => onText(shape.id, text)}
+                    onEnd={finishText}
+                  />
+                ) : <PptxShapeContent shape={shape} deck={deck} />}
               </div>
             );
           })}
@@ -215,31 +216,6 @@ function SlideCanvas({
             />
           ))}
         </div>
-      )}
-      {editing && active && (
-        <Textarea
-          ref={textArea}
-          aria-label={t('workbench.files.text')}
-          value={editing.text}
-          className="absolute min-h-0 resize-none"
-          style={{
-            ...pptxSelectionFrameStyle(active, deck),
-            fontFamily: active.fontFamily ?? undefined,
-            fontSize: `${(active.fontSizePt * 12700 * 100) / deck.width}cqw`,
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) => {
-            setEditing({ ...editing, text: event.target.value });
-            onText?.(editing.id, event.target.value);
-          }}
-          onBlur={finishText}
-          onKeyDown={(event) => {
-            event.stopPropagation();
-            if (event.key === 'Escape') finishText();
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey))
-              finishText();
-          }}
-        />
       )}
     </div>
   );
