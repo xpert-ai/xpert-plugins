@@ -15,7 +15,8 @@ import { tool, type DynamicStructuredTool } from '@langchain/core/tools'
 import { getToolCallIdFromConfig, ModelFeature, type TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { BaseSandbox, type ModelRequest } from '@xpert-ai/plugin-sdk'
-import { z } from 'zod/v3'
+import { viewImageDisplay, viewImagePresentation } from './view-image.display.js'
+import { normalizeViewImageTargets } from './view-image.input.js'
 import {
   createViewImageToolOutputPresentation,
   type PreparedViewedImage,
@@ -109,7 +110,7 @@ export class ViewImageService {
 
         const toolCallId = getToolCallIdFromConfig(runConfig) ?? VIEW_IMAGE_TOOL_NAME
         const workspaceRoot = this.resolveVisibleWorkspaceRoot(runConfig?.configurable, backend)
-        const targets = normalizeTargets(input)
+        const targets = normalizeViewImageTargets(input)
         const preparedImages = await this.loadPreparedViewedImageItems(backend, targets, workspaceRoot, config)
         const items = preparedImages.map(({ item }) => item)
         const batch: ViewedImageBatch = {
@@ -140,6 +141,11 @@ export class ViewImageService {
         description:
           `Load one or more image files from the sandbox workspace root so the next model step can inspect them. Use this before answering questions about workspace image files by path. Accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step; load ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1}+ known images across separate model steps, not multiple same-step calls.`,
         schema: ViewImageToolInputSchema,
+        metadata: {
+          toolName: { en_US: 'View image', zh_Hans: '查看图像' },
+          toolDisplay: viewImageDisplay,
+          publicToolPresentation: viewImagePresentation
+        },
         verboseParsingErrors: true
       }
     )
@@ -439,59 +445,6 @@ function getSandboxBackendFromConfig(runConfig?: RunnableConfig) {
     return backend as BaseSandbox
   }
   return null
-}
-
-function normalizeTargets(input: z.infer<typeof ViewImageToolInputSchema>) {
-  const normalized = [
-    ...normalizeTargetValue(input.path),
-    ...normalizeTargetValue(input.paths)
-  ]
-  const uniqueTargets = Array.from(new Set(normalized))
-
-  if (uniqueTargets.length === 0) {
-    throw new Error('`view_image` requires at least one non-empty image path.')
-  }
-
-  if (uniqueTargets.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
-    throw new Error(
-      `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Load additional images in a later model step.`
-    )
-  }
-
-  return uniqueTargets
-}
-
-function normalizeTargetValue(value: z.infer<typeof ViewImageToolInputSchema>['path']) {
-  if (value === undefined) {
-    return []
-  }
-
-  const items = Array.isArray(value) ? value : [value]
-  return items.flatMap((item) => expandTargetString(item))
-}
-
-function expandTargetString(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return []
-  }
-
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(trimmed)
-    } catch {
-      throw new Error('`view_image` JSON array path input must be a valid JSON string array.')
-    }
-
-    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) {
-      throw new Error('`view_image` JSON array path input must contain only strings.')
-    }
-
-    return parsed.map((item) => item.trim()).filter(Boolean)
-  }
-
-  return [trimmed]
 }
 
 function resolveImageTarget(target: string, workspaceRoot: string): ResolvedImageTarget {
