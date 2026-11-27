@@ -63,6 +63,7 @@ describe("governed margin workflow", () => {
   });
   it("uses native route, two human gates and published assistant slots", () => {
     const f = configuration();
+    expect(f.binding.limits).not.toHaveProperty("runTimeoutMinutes");
     expect(f.template.executionAuthority).toBe("platform");
     expect(
       f.template.nodes.filter((n) => n.kind === "human_gate"),

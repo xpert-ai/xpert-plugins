@@ -92,6 +92,9 @@ describe("evidence-based business routes", () => {
         },
       }),
     ).toThrow());
+  it.each([false, true])("omits the run deadline for the order template (next order: %s)", (nextOrder) => {
+    expect(configuration({}, nextOrder).binding.limits).not.toHaveProperty("runTimeoutMinutes");
+  });
   it("keeps evidence failure local to its stage and retains every mandatory human gate", () => {
     const f = configuration().template;
     if (f.executionAuthority !== "platform") throw Error("managed required");

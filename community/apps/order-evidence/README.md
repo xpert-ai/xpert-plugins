@@ -18,6 +18,8 @@
 
 ## 构建与安装
 
+新版绑定需要支持省略 `binding.limits.runTimeoutMinutes` 的 Xpert 契约。先升级平台与开发环境的 `@xpert-ai/contracts`，再安装插件并生成新绑定。旧绑定中的 240 分钟时限继续生效。
+
 在 community 工作区使用其声明的 Corepack/pnpm 版本：
 
 ```sh
