@@ -26,6 +26,6 @@ export function createAnalysisSceneTool(query: (previewId: string) => Promise<An
       queriedAt: dataset.freshness.executedAt, sourceFetchedAt: dataset.freshness.sourceFetchedAt })
   }, { name: 'dashboard_present_analysis', schema: analysisSceneSchema, verboseParsingErrors: true,
     description: 'Display one verified analysis scene inline in chat (including groups) as a read-only Widget: bar, line, table or metrics. Requires a current-run previewId. Revalidates access and reruns that exact read-only binding. Never accepts rows/SQL/URLs/HTML; does not create or save a dashboard. Choose exact returned field IDs; charts require [dimension, measure] and unique categories. Table preserves exact decimal/int64 strings. A scene does not complete the request; continue analysis or send the final answer as appropriate.',
-    metadata: { toolName: { en_US: 'Show analysis result', zh_Hans: '展示本次分析结果' } }
+    metadata: { toolDisplay: { tool: 'dashboard_present_analysis', activity: { kind: 'content', action: 'create' } }, toolName: { en_US: 'Show analysis result', zh_Hans: '展示本次分析结果' } }
   })
 }

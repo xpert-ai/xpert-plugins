@@ -54,6 +54,6 @@ export function createFilterEvidence(service: DashboardService, scope: XpertReso
       checked.set(input.previewId, controls)
       return JSON.stringify({ previewId: input.previewId, passed: true, checkedControls: [...controls], remainingControls: required(binding, input.previewId).map(parameter => parameter.controlId), rows: dataset.rows.slice(0, 20), completeness: dataset.completeness })
     }, { name: 'dashboard_test_filter', description: 'Verify a previewed Binding with concrete filter values and expected field values. For a nullable dimension selector, test a real non-null value and expect every row of the matching field to equal it before saving. Does not change defaults. A failed check must be repaired before create/update.',
-      schema: filterTestSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify filter results', zh_Hans: '验证筛选结果' } } })
+      schema: filterTestSchema, verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_test_filter', activity: { kind: 'data', action: 'validate' } }, toolName: { en_US: 'Verify filter results', zh_Hans: '验证筛选结果' } } })
   }
 }

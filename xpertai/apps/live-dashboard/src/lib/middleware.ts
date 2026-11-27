@@ -252,11 +252,11 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       return result
     }, tools: dashboardProjectTools(context.projectId, [
       ...(this.evidenceSnapshots ? [tool(async input => JSON.stringify(await this.evidenceSnapshots!.capture(scope, input)), {
-        name: 'dashboard_capture_evidence', schema: captureEvidenceSchema,
+        name: 'dashboard_capture_evidence', metadata: { toolDisplay: { tool: 'dashboard_capture_evidence', activity: { kind: 'content', action: 'create' } }, toolName: { en_US: 'Capture dashboard evidence', zh_Hans: '捕获看板证据' } }, schema: captureEvidenceSchema,
         description: 'Capture immutable evidence from an explicitly selected published dashboard version and exact controls. Preserves data types, units, completeness, certification and cell citations. Use a UUID requestId; retry unknown outcomes with the same request. Changed sources require a new snapshot; never overwrite existing reports.'
       })] : []),
       ...(this.evidenceTransfers ? [tool(async input => JSON.stringify(await this.evidenceTransfers!.convert(scope, input)), {
-        name: 'dashboard_convert_evidence', schema: evidenceConvertSchema,
+        name: 'dashboard_convert_evidence', metadata: { toolDisplay: { tool: 'dashboard_convert_evidence', activity: { kind: 'content', action: 'create' } }, toolName: { en_US: 'Convert dashboard evidence', zh_Hans: '转换看板证据' } }, schema: evidenceConvertSchema,
         description: 'Create an independent native document or Motion video draft from saved evidence, only when the user requests it. Rechecks current source access. Reuse requestId on retry; existing manual edits are preserved. Motion includes fixed timed captions but no generated voiceover. Return the native resource receipt, never claim publication or video rendering.'
       })] : []),
       ...(this.libraryExecution ? [tool(async (input, config) => {
@@ -270,19 +270,19 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
           return JSON.stringify(result)
         }
         return JSON.stringify(result)
-      }, { name: 'dashboard_instantiate_template', description: 'Create a NEW dashboard draft from an explicitly selected V2 library template or task recipe. For an unchanged example, read task-recipe-v2.json and pass action.arguments verbatim: omit inputs unless those arguments include them. The task already binds its dataset and fields; never invent slots, mappings or replacement datasets. For explicitly requested replacement data, pin authorized dataset revisions and exact declared field mappings. Reuse the recipe requestId for retries; choose a new requestId only for a new creation intent. Returns a durable save request: wait/get it until succeeded before claiming a dashboard was saved. No publication.',
+      }, { name: 'dashboard_instantiate_template', metadata: { toolDisplay: { tool: 'dashboard_instantiate_template', activity: { kind: 'content', action: 'create' } }, toolName: { en_US: 'Create dashboard from template', zh_Hans: '从模板创建看板' } }, description: 'Create a NEW dashboard draft from an explicitly selected V2 library template or task recipe. For an unchanged example, read task-recipe-v2.json and pass action.arguments verbatim: omit inputs unless those arguments include them. The task already binds its dataset and fields; never invent slots, mappings or replacement datasets. For explicitly requested replacement data, pin authorized dataset revisions and exact declared field mappings. Reuse the recipe requestId for retries; choose a new requestId only for a new creation intent. Returns a durable save request: wait/get it until succeeded before claiming a dashboard was saved. No publication.',
         schema: instantiateSchema, verboseParsingErrors: true })] : []),
       ...(this.saveRequests ? [
         tool(async ({ requestId, cursor }, config) => observeRequest(await this.saveRequests!.wait(scope, requestId, cursor, config.signal), config), {
-          name: 'dashboard_wait_request', description: 'Wait up to 20 seconds for a durable save to change. Repeat with its returned cursor while nextAction=wait. A pending request is not a saved dashboard.', schema: waitSaveRequestSchema }),
+          name: 'dashboard_wait_request', metadata: { toolDisplay: { tool: 'dashboard_wait_request', activity: { kind: 'task', action: 'read' } }, toolName: { en_US: 'Wait for dashboard save', zh_Hans: '等待看板保存' } }, description: 'Wait up to 20 seconds for a durable save to change. Repeat with its returned cursor while nextAction=wait. A pending request is not a saved dashboard.', schema: waitSaveRequestSchema }),
         tool(async ({ requestId }, config) => observeRequest(await this.saveRequests!.get(scope, requestId), config), {
-          name: 'dashboard_get_request', description: 'Recover a prior durable save by its requestId. Do not submit duplicate work after reconnecting.', schema: saveRequestSchema })
+          name: 'dashboard_get_request', metadata: { toolDisplay: { tool: 'dashboard_get_request', activity: { kind: 'task', action: 'read' } }, toolName: { en_US: 'Check dashboard save', zh_Hans: '查看看板保存状态' } }, description: 'Recover a prior durable save by its requestId. Do not submit duplicate work after reconnecting.', schema: saveRequestSchema })
       ] : []),
       filterEvidence.tool,
       tool(async ({ items }: { items: Array<z.infer<typeof filterTestSchema>> }) => JSON.stringify({ results: await boundedMap(items, async (item, index) => {
         try { return { index, status: 'succeeded', result: await previewRetries.attempt('dashboard_test_filter', item, () => filterEvidence.tool.invoke(item)) } }
         catch (error) { return { index, status: 'failed', message: error instanceof Error ? error.message : 'DASHBOARD_FILTER_TEST_FAILED' } }
-      }) }), { name: 'dashboard_test_filter_batch', description: 'Run up to eight required filter checks with four workers. Preserves the exact per-preview filter evidence and retry limits.',
+      }) }), { name: 'dashboard_test_filter_batch', metadata: { toolDisplay: { tool: 'dashboard_test_filter_batch', activity: { kind: 'data', action: 'validate' } }, toolName: { en_US: 'Verify filter results in batch', zh_Hans: '批量验证筛选结果' } }, description: 'Run up to eight required filter checks with four workers. Preserves the exact per-preview filter evidence and retry limits.',
         schema: z.object({ items: z.array(filterTestSchema).min(1).max(8) }).strict(), verboseParsingErrors: true }),
       tool(async ({ items }: { items: Array<{ bindingJson: string }> }) => {
         const results = await boundedMap(items, async (item, index) => {
@@ -301,7 +301,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return JSON.stringify({ results, next: 'Keep every successful previewId. Complete each preview.validation.checks using dashboard_test_filter or dashboard_test_filter_batch. Repair only failed items; never invent a receipt.' })
       }, { name: 'dashboard_preview_batch', description: 'Preview up to eight complete canonical Bindings with at most four concurrent queries. Returns independent receipts and diagnostics; preserves retry and filter-evidence requirements.',
         schema: z.object({ items: z.array(z.object({ bindingJson: z.string().min(2).max(200000) }).strict()).min(1).max(8) }).strict(),
-        verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify a batch of sources', zh_Hans: '批量验证看板来源' } } }),
+        verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_preview_batch', activity: { kind: 'data', action: 'query' } }, toolName: { en_US: 'Verify a batch of sources', zh_Hans: '批量验证看板来源' } } }),
       createAnalysisSceneTool(async previewId => {
         const [binding] = resolvePreviews([previewId])
         const controls = Object.fromEntries(binding.parameters.map(parameter => [parameter.controlId, parameter.defaultValue ?? null]))
@@ -350,26 +350,26 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
           three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
         lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources must load successfully during preflight and viewing; they are not frozen with the Artifact.' }),
       { name: 'dashboard_libraries', description: 'Discover packaged libraries, themes, exact versions and the current unrestricted network policy. Tailwind CDN and other online dependencies are supported. Returns metadata, never library source.',
-        schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
+        schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_libraries', activity: { kind: 'content', action: 'list' } }, toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId), editing.resolve, this.saveRequests),
       tool(async () => {
         listedSources = await this.service.sources(scope)
         return JSON.stringify(listedSources)
       }, {
         name: 'dashboard_list_sources', description: 'List registered analytics sources and versioned providers. For an explicitly named bundled demo, call analytics_definition_register with exampleId first; these names do not identify skill recipes.',
-        schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
+        schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_list_sources', activity: { kind: 'data', action: 'discover' } }, toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
         const parsed = { source: input.source, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
         return JSON.stringify(await discover(parsed))
       }, { name: 'dashboard_discover', description: 'Discover provider-owned business metadata. Start requestJson="{}" then serialize inspectRequest/nextRequest. Inspect dataset fields, comments, measures and native query format before preview.',
-        schema: discoverToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Inspect business data', zh_Hans: '理解业务数据与指标' } } }),
+        schema: discoverToolSchema, verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_discover', activity: { kind: 'data', action: 'discover' } }, toolName: { en_US: 'Inspect business data', zh_Hans: '理解业务数据与指标' } } }),
       tool(async (input: z.infer<typeof previewToolSchema>) => {
         const contract = await ensureContract(input.binding)
         const binding = fromAgentBinding(input.binding, contract)
         return preview(binding)
       }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover to inspect business metadata or repair invalid queries. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
-        schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
+        schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolDisplay: { tool: 'dashboard_preview', activity: { kind: 'data', action: 'query' } }, toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
       tool(async ({ bindingJson, exampleQuery }) => {
         if (bindingJson !== undefined && exampleQuery === undefined)
           return preview(analyticsBindingSchema.parse(parseJsonInput(bindingJson, 'bindingJson')))
@@ -382,11 +382,11 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }, {
         name: 'dashboard_preview_binding', description: 'For a matching registered bundled sample query, use its exact previewRequest (exampleQuery only). Otherwise preview a complete canonical AnalyticsBinding returned by another tool. When editing an existing dashboard, copy dashboard_open.bindings[], preserve binding.id and existing parameters[].controlId, and change only the requested query/parameters. Binding ID is independent of output.datasetId. Serialize the complete Binding (also supported: discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input, which derives binding.id from output.datasetId. Automatically discovers the source/provider query contract when absent in this run. Returns a current-run previewId for dashboard_create or dashboard_update; include every intended changed/new Binding receipt and matching controls in the same save.',
         schema: z.object({ bindingJson: z.string().min(2).max(200000).optional(), exampleQuery: z.string().min(1).max(128).optional() }).strict(), verboseParsingErrors: true,
-        metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
+        metadata: { toolDisplay: { tool: 'dashboard_preview_binding', activity: { kind: 'data', action: 'query' } }, toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),
       tool(async (input: z.infer<typeof createToolSchema>, config) => save(input, config), { name: 'dashboard_create', description: 'Save a standard chart/table dashboard from previewId receipts. For custom HTML use dashboard_create_html. Fields and defaults must match previewed parameters. Returns a saved Artifact receipt after current access/data revalidation.',
         schema: createToolSchema, verboseParsingErrors: true,
-        metadata: { toolName: { en_US: 'Save live dashboard', zh_Hans: '生成并保存实时看板' } } }),
+        metadata: { toolDisplay: { tool: 'dashboard_create', activity: { kind: 'content', action: 'save' } }, toolName: { en_US: 'Save live dashboard', zh_Hans: '生成并保存实时看板' } } }),
       tool(async (input: z.infer<typeof createHtmlToolSchema>, config) => {
         if (input.supersedesPaths?.includes(input.path)) throw new Error('DASHBOARD_SUPERSEDE_INVALID: the saved path cannot supersede itself')
         const files = context.runtime?.capabilities?.require(WorkspaceFilesRuntimeCapability)
@@ -399,7 +399,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return JSON.stringify({ ...result, sourceFile: { path, sha256: createHash('sha256').update(file.buffer).digest('hex') } })
       }, { name: 'dashboard_create_html', description: 'Save custom HTML from a Workspace path together with run-local preview receipts and controls in one persistent draft (human publication is separate). Requires real data preview; does not accept query payloads or cached rows.',
         schema: createHtmlToolSchema, verboseParsingErrors: true,
-        metadata: { toolName: { en_US: 'Save HTML dashboard', zh_Hans: '保存自由样式看板' } } })
+        metadata: { toolDisplay: { tool: 'dashboard_create_html', activity: { kind: 'content', action: 'save' } }, toolName: { en_US: 'Save HTML dashboard', zh_Hans: '保存自由样式看板' } } })
     ]) }
   }
 }

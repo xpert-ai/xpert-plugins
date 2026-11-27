@@ -30,14 +30,14 @@ export function createDefinitionTools(context: IAgentMiddlewareContext, register
   return [
     tool(async () => { const { runtime, scope } = api(); return JSON.stringify(await runtime.catalog(scope)) }, {
       name: 'analytics_definition_connections', description: 'List authorized connections for generating a missing analytics source. Returns exact providerId/connectionKey selections; no credentials.',
-      schema: z.object({}).strict(), metadata: { toolName: { en_US: 'Find analytics inputs', zh_Hans: '发现分析输入' } }
+      schema: z.object({}).strict(), metadata: { toolDisplay: { tool: 'analytics_definition_connections', activity: { kind: 'data', action: 'discover' } }, toolName: { en_US: 'Find analytics inputs', zh_Hans: '发现分析输入' } }
     }),
     tool(async ({ inputJson, ...selection }) => {
       const { runtime, scope } = api()
       return JSON.stringify(await runtime.inspect(scope, selection, analyticsOptionsSchema.parse(JSON.parse(inputJson))))
     }, { name: 'analytics_definition_inspect', description: 'Inspect approved input metadata and provider authoring schemas. Start inputJson="{}". Follow inspectSchema for operation samples/file inspection. Input cannot override host scope.',
       schema: selection.extend({ inputJson: z.string().min(2).max(100000) }).strict(), verboseParsingErrors: true,
-      metadata: { toolName: { en_US: 'Inspect analytics input', zh_Hans: '检查分析输入' } }
+      metadata: { toolDisplay: { tool: 'analytics_definition_inspect', activity: { kind: 'data', action: 'discover' } }, toolName: { en_US: 'Inspect analytics input', zh_Hans: '检查分析输入' } }
     }),
     tool(async (input) => {
       const args = registrationInput.parse(input)
@@ -56,7 +56,7 @@ export function createDefinitionTools(context: IAgentMiddlewareContext, register
       return JSON.stringify(receipt)
     }, { name: 'analytics_definition_register', description: EXAMPLE_SOURCE_GUIDANCE + ' For a custom, Agent-authored definition use the separate providerId/connectionKey/requestId/name/definitionJson form. Only that form takes requestId. Returns an immutable source and discoveryRequest. Refresh sources, discover and preview it before saving a dashboard.',
       schema: registrationSchema, verboseParsingErrors: true,
-      metadata: { toolName: { en_US: 'Register analytics definition', zh_Hans: '生成分析定义' } }
+      metadata: { toolDisplay: { tool: 'analytics_definition_register', activity: { kind: 'data', action: 'register' } }, toolName: { en_US: 'Register analytics definition', zh_Hans: '生成分析定义' } }
     })
   ]
 }
