@@ -1,0 +1,13 @@
+{
+  "themeCheck": {
+    "border": "oklch(92% .004 286.32)",
+    "input": "oklch(92% .004 286.32)",
+    "mode": "light",
+    "ring": "oklch(70.5% .015 286.067)",
+    "xuiBorder": "oklch(92% .004 286.32)"
+  },
+  "inputStyle": {
+    "borderColor": "oklch(0.92 0.004 286.32)",
+    "borderWidth": "0.740741px"
+  }
+}
