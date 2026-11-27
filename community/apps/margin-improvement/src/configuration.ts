@@ -209,7 +209,6 @@ export function configuration(assistants: Record<string, string> = {}) {
       limits: {
         maxConcurrentExecutions: 1,
         maxTechnicalAttemptsPerNode: 2,
-        runTimeoutMinutes: 180,
       },
     },
   });

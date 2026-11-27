@@ -126,9 +126,20 @@ test('V2 template execution with PostgreSQL and real Dashboard save services', {
     assert.equal(result.canPrepareTask, false); assert.deepEqual(result.reasons, ['LIBRARY_RUNTIME_CAPABILITY_REQUIRED'])
   })
   await t.test('Agent tool passes final-provider policy and exposes pending work to the wait loop', async () => {
-    const f = await executionFixture(db)
+    const f = await executionFixture(db), projectId = randomUUID()
+    f.context.runtimeScope = { projectId }
+    const access = { projectId, role: 'owner', canManage: true, archived: false }
+    f.host.capabilities['platform.project.access'] = {
+      async assertAssistant(input) {
+        assert.equal(input.projectId, projectId)
+        assert.equal(input.assistantId, f.context.hostId)
+        return access
+      },
+      async listReadable(input) { assert.deepEqual(input.projectIds, [projectId]); return [access] },
+      async assertEdit(input) { assert.equal(input.projectId, projectId); return access }
+    }
     const middleware = new DashboardMiddleware(f.host.service, f.saves, f.execution).createMiddleware({ allowedFinalProviders: ['file.table'] },
-      { ...f.context, xpertId: f.context.hostId })
+      { ...f.context, xpertId: f.context.hostId, projectId })
     const tool = middleware.tools.find(item => item.name === 'dashboard_instantiate_template')
     assert.ok(tool)
     const result = JSON.parse(await tool.invoke(f.request()))

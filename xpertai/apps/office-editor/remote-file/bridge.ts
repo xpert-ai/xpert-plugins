@@ -70,8 +70,8 @@ export function connect(ready: (query: unknown) => void) {
     if (message.instanceId !== host?.instanceId || (message.scopeRevision !== host?.scopeRevision && message.type !== 'error')) return
     if (message.type === 'editorEvent') {
       const parsed = z.discriminatedUnion('kind', [
-        z.object({ kind: z.literal('prepareClose'), resourceId: z.string().uuid(), requestId: z.string().uuid() }),
-        z.object({ kind: z.literal('revealAnchor'), resourceId: z.string().uuid(), blockId: z.string().uuid() })
+        z.object({ kind: z.literal('prepareClose'), resourceId: z.string().min(1), requestId: z.string().uuid() }),
+        z.object({ kind: z.literal('revealAnchor'), resourceId: z.string().min(1), blockId: z.string().uuid() })
       ]).safeParse(message)
       if (parsed.success) editorListeners.forEach((listener) => listener(parsed.data))
       return

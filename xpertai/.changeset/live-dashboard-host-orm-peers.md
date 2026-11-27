@@ -2,4 +2,4 @@
 '@xpert-ai/plugin-live-dashboard': patch
 ---
 
-Support host-provided TypeORM 0.3.28 and @nestjs/typeorm 11.0.0 by lowering the peer dependency minimums. Pin development dependencies to these supported baselines and keep ORM packages out of production dependencies so the plugin shares the host ORM instance.
+Support host-provided TypeORM from 0.3.24 and `@nestjs/typeorm` from 11.0.0 within their existing compatible ranges. Pin development dependencies to the same minimum versions used in PostgreSQL integration tests.

@@ -4,6 +4,10 @@
 
 ## 演示流程
 
+新生成的绑定允许跨天等待人工批准或验收，整条运行默认无总时限。模板为每个业务实例保留 10 个业务轮次。旧绑定启动的运行继续执行其已保存的时限。
+
+新版绑定需要支持省略 `binding.limits.runTimeoutMinutes` 的 Xpert 契约。先升级平台与开发环境的 `@xpert-ai/contracts`，再安装插件并生成新绑定。旧绑定中的 180 分钟时限继续生效。
+
 ```mermaid
 flowchart LR
  A[财务 Assistant\n发现差异] --> R{Router\n是否达到阈值}

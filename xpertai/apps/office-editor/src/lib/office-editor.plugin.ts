@@ -5,6 +5,7 @@ import { OfficeWorkbookContent, OfficeWorkbookEditor } from './workbooks/content
 import { OfficeWorkbookView } from './workbooks/view.provider.js'
 import { OfficeFileService } from './office-file.service.js'
 import { OfficeFileView } from './office-file-view.provider.js'
+import { OfficeXlsFormat, OfficeCsvFormat, OfficeTsvFormat } from './spreadsheets/serialized-file-formats.js'
 import { OfficeSpreadsheetFormat } from './spreadsheet-format.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
@@ -35,7 +36,7 @@ export const OFFICE_EDITOR_ENTITIES = [
   providers: [
     OfficeDocumentContent, OfficeDocumentEditor,
     OfficeWorkbookCollaboration, OfficeWorkbookService, OfficeWorkbookContent, OfficeWorkbookEditor, OfficeWorkbookView,
-    OfficeSpreadsheetFormat,
+    OfficeSpreadsheetFormat, OfficeXlsFormat, OfficeCsvFormat, OfficeTsvFormat,
     OfficeFileService,
     OfficeFileView,
     OfficeEditorService,

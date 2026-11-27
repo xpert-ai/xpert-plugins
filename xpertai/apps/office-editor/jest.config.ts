@@ -12,8 +12,13 @@ export default {
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
+    '^.+\\.(?:[tj]s|mjs)$': ['@swc/jest', swcJestConfig]
   },
+  // Extend the shared ESM allowlist with the published XLSX package.
+  transformIgnorePatterns: [
+    'node_modules/(?!\\.pnpm(?:/|$)|@xpert-ai/(?:artifact-tool|chatkit-types)(?:/|$)|lodash-es(?:/|$))',
+    'node_modules/\\.pnpm/(?!@xpert-ai\\+(?:artifact-tool|chatkit-types)@|lodash-es@)'
+  ],
   testMatch: ['<rootDir>/src/**/*(*.)@(spec|test).ts'],
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'html'],

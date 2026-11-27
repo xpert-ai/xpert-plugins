@@ -117,11 +117,13 @@ pnpm -C plugin-dev-harness build
 npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./xpertai/apps/office-editor --plugin @xpert-ai/plugin-office-editor --verbose
 ```
 
-### Project file editor integration
+### Workspace spreadsheet files
 
-`OfficeSpreadsheetFormat` registers `office.xlsx` with the generic `ContentEditorRegistry`. It owns XLSX parsing, validation, grid operations and serialization. `OfficeFileView` provides an independent `office.files__office.file` Remote View, using shadcn components, host theme variables and English/Chinese catalogs.
+The plugin requires `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` 3.39.0 or later in the 3.x series for workspace file support. It registers `office.xlsx`, `office.xls`, `office.csv` and `office.tsv` with the generic Content Editor registry. Project files and standalone Assistant files open the same `office.files__office.file` Workbench view. The view reuses the native Office Univer engine and host theme, translations and dirty-close lifecycle.
 
-The platform routes authorized resource references and opaque versioned bytes through `platform.content.editors`; it does not expose spreadsheet-specific types. Spaces owns the library and file snapshots, not the editor. File mode preserves formulas without recalculation and uses compare-and-swap saves, not live CRDT merging. The existing native Office document engine remains separate.
+The host owns authorization, workspace scope, file ownership, download references and atomic compare-and-swap writes. A resource provider remains the sole writer for its owned paths; unmanaged files retain their original path. A rejected save keeps the local draft and its original revision. Native Office workbooks retain their existing version, CRDT, history and idempotency protocol.
+
+XLSX saves patch cell values, formulas and calculated results in the original package, preserving unrelated formatting, tables, validation and charts. Unsupported formatting and structural commands are blocked. CSV and TSV store one worksheet of values. Identifiers such as `00123`, long numeric codes and date-like text retain their spelling when another cell is edited. Formulas entered in the editor save as calculated values. XLS preserves visible, hidden and very hidden worksheet states. XLS workbooks with formulas open read-only because the SheetJS XLS writer cannot preserve their formulas. Read limits are 20 MiB and 100,000 populated cells.
 
 ### Local workbook drafts and offline saves
 

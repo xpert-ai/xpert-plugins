@@ -274,7 +274,6 @@ export function configuration(
       limits: {
         maxConcurrentExecutions: 1,
         maxTechnicalAttemptsPerNode: 2,
-        runTimeoutMinutes: 240,
       },
     },
   });

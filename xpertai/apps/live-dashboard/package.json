@@ -45,7 +45,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@xpert-ai/contracts": "^3.36.0",
     "@xpert-ai/plugin-sdk": "^3.36.0",
-    "typeorm": "^0.3.28",
+    "typeorm": "^0.3.24",
     "zod": "3.25.67"
   },
   "devDependencies": {
@@ -68,7 +68,7 @@
     "reflect-metadata": "^0.2.2",
     "tailwindcss": "^4.3.2",
     "three": "0.185.1",
-    "typeorm": "0.3.28",
+    "typeorm": "0.3.24",
     "typescript": "^5.9.2",
     "vite": "^7.3.0",
     "zod": "3.25.67"
