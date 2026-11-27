@@ -78,9 +78,8 @@ const univerLocaleBundles = {
 class OfficeSlideViewportPlugin extends Plugin {
   static override pluginName = 'office-slide-viewport'
   static override type = UniverInstanceType.UNIVER_SLIDE
-  constructor(_config: unknown, protected readonly _injector: Injector) { super() }
+  constructor(_config: unknown, protected readonly _injector: Injector, private readonly manager: IRenderManagerService) { super() }
   override onRendered() {
-    const manager = this._injector.get(IRenderManagerService)
     const wired = new Set<string>()
     const wire = (render: IRender) => {
       if (render.type !== UniverInstanceType.UNIVER_SLIDE || render.isThumbNail || wired.has(render.unitId)) return
@@ -104,15 +103,16 @@ class OfficeSlideViewportPlugin extends Plugin {
       this.disposeWithMe({ dispose: () => { cancelAnimationFrame(frame); resize.unsubscribe() } })
       schedule()
     }
-    manager.getRenderAll().forEach(wire)
-    const created = manager.created$.subscribe(wire)
+    this.manager.getRenderAll().forEach(wire)
+    const created = this.manager.created$.subscribe(wire)
     this.disposeWithMe({ dispose: () => created.unsubscribe() })
   }
 }
 
 Inject(Injector)(OfficeSlideViewportPlugin, undefined, 1)
+IRenderManagerService(OfficeSlideViewportPlugin, undefined, 2)
 
-export function createOfficeUniver(container: HTMLElement, locale: LocaleType, ui: Pick<IUniverUIConfig, 'toolbar'> = {}) {
+export function createOfficeUniver(container: HTMLElement, locale: LocaleType, ui: Pick<IUniverUIConfig, 'toolbar' | 'menu' | 'ribbonType'> = {}) {
   const univer = new Univer({ locale, locales: univerLocaleBundles, logLevel: LogLevel.ERROR })
     univer.registerPlugin(UniverRenderEnginePlugin)
     univer.registerPlugin(UniverFormulaEnginePlugin)

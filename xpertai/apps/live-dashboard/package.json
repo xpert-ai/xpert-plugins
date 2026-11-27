@@ -42,10 +42,10 @@
     "@langchain/langgraph": "^0.4.7",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@nestjs/typeorm": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
     "@xpert-ai/contracts": "^3.36.0",
     "@xpert-ai/plugin-sdk": "^3.36.0",
-    "typeorm": "^0.3.31",
+    "typeorm": "^0.3.24",
     "zod": "3.25.67"
   },
   "devDependencies": {

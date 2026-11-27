@@ -255,6 +255,13 @@ Manual acceptance after installing the updated plugin: cancel a deletion and con
 
 ## Quick start and examples
 
+The host provides the shared TypeORM and Nest TypeORM instances. The supported
+minimum is TypeORM 0.3.24 with `@nestjs/typeorm` 11.0.0; the library's transaction,
+row-lock, upsert and query-builder operations are covered by the PostgreSQL tests
+in `tests/library-*.postgres.cjs`. Development dependency versions do not define
+the minimum host version. Keep these packages in `peerDependencies`, and retain
+the host's compatibility check when changing the range.
+
 See [快速开始与样例](docs/quick-start.mdx). The App initializes the project-scoped authoring Assistant. Three versioned recipes bundle source, labeled synthetic data, previews and checks in [skills/live-dashboard/examples](skills/live-dashboard/examples/README.md). Existing dashboards remain independent of recipe upgrades.
 
 Superstore 企业 BI 样例的数据准备、三个页面和指标口径见 [Superstore](docs/superstore.mdx)。

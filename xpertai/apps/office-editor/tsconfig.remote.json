@@ -3,6 +3,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "react": ["./node_modules/@types/react"]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
