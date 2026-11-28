@@ -1,0 +1,1 @@
+{"$schema":"https://mintlify.com/docs.json","theme":"mint","name":"售后工单工作台","colors":{"primary":"#0F766E"},"navigation":{"tabs":[{"tab":"开发与验收","groups":[{"group":"工作台","pages":["index","verification"]}]}]}}
