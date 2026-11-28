@@ -92,7 +92,7 @@ node plugin-dev-harness/dist/index.js --workspace ./community \
 | 人工确认及恢复 | 编辑摘要并确认。整页刷新后，同一工单仍显示原模型建议与已确认的人工摘要 |
 | 失败与重试 | 使用插件的 `report_dispatch_failure` 动作模拟助手提交失败。点击 **重试分诊** 后，原工单自动更新为待确认，并显示 DeepSeek 生成的建议。记录 ID 保持一致 |
 
-复现异常时，先在测试助手创建独立的虚构工单，通过该视图的 `start_triage` 动作传入工单 `id` 和当前 `revision`，再将返回的 `id` 和 `attemptId` 传给 `report_dispatch_failure`。刷新视图查看 **可重试**，随后用界面发起实际分诊。跨用户和跨组织的隔离由业务测试覆盖。
+复现异常时，先在测试助手创建独立的虚构工单，通过该视图的 `start_triage` 动作传入工单 `id` 和当前 `revision`，再将返回的 `id` 和 `attemptId` 传给 `report_dispatch_failure`。刷新视图查看 **可重试**，随后用界面发起实际分诊。
 
 ### Xpert 运行截图
 
@@ -115,6 +115,10 @@ node plugin-dev-harness/dist/index.js --workspace ./community \
 助手画布展示 DeepSeek 模型及已连接的插件中间件。
 
 ![客服工单分诊助手画布与中间件](docs/canvas.jpg)
+
+### 已知限制与后续方向
+
+实机验收使用一个组织和一个测试账号。跨用户、跨组织的隔离由业务测试覆盖，尚未在 Xpert 上用多个账号和组织实测。若进一步推广给多个客服团队，优先补做跨组织和跨账号的读取、确认权限验收，再扩展团队队列。
 
 ## 复用与 AI 协作
 
