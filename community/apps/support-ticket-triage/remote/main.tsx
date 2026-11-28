@@ -21,7 +21,11 @@ function Review({ ticket, busy, confirm }: {
   busy: boolean
   confirm: (value: TicketDecision) => Promise<void>
 }) {
-  const [value, setValue] = useState<TicketDecision | null>(ticket.ai)
+  const [value, setValue] = useState<TicketDecision | null>(() => {
+    if (!ticket.ai) return null
+    const { category, priority, summary } = ticket.ai
+    return { category, priority, summary }
+  })
   if (!ticket.ai || !value) return null
   return (
     <section className="section">
@@ -32,6 +36,11 @@ function Review({ ticket, busy, confirm }: {
       </dl>
       {ticket.final ? (
         <div className="section">
+          <p>{ticket.ai.summary}</p>
+          <div className="controls">
+            <Badge variant="secondary">{t(ticket.ai.category)}</Badge>
+            <Badge variant="secondary">{t(ticket.ai.priority)}</Badge>
+          </div>
           <h3>{t('savedDecision')}</h3>
           <p>{ticket.final.summary}</p>
           <div className="controls">
@@ -82,6 +91,7 @@ function App() {
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<ErrorCode>()
+  const [readError, setReadError] = useState<ErrorCode>()
   const createId = useRef(crypto.randomUUID())
   const actionPending = useRef(false)
   const latestRead = useRef(0)
@@ -92,9 +102,10 @@ function App() {
       if (sequence === latestRead.current) {
         setTickets(items)
         setSelected((id) => items.some((item) => item.id === id) ? id : items[0]?.id)
+        setReadError(undefined)
       }
     } catch (failure) {
-      if (sequence === latestRead.current) setError(errorCode(failure))
+      if (sequence === latestRead.current) setReadError(errorCode(failure))
     }
   }, [])
 
@@ -144,6 +155,7 @@ function App() {
     void mutate(async () => {
       const attempt = await runAction<AttemptRef>(action.begin, { id: ticket.id, revision: ticket.revision })
       if (!attempt) throw new BridgeError('unavailable')
+      await refresh()
       try {
         await sendTriage(attempt)
       } catch (failure) {
@@ -156,6 +168,7 @@ function App() {
   }
 
   const ticket = tickets?.find(({ id }) => id === selected)
+  const visibleError = error ?? readError
   return (
     <main className="triage">
       <header className="heading">
@@ -165,7 +178,7 @@ function App() {
           void refresh()
         }}>{t('refresh')}</Button>
       </header>
-      {error && <p role="alert">{t(error)}</p>}
+      {visibleError && <p role="alert">{t(visibleError)}</p>}
       <div className="workspace">
         <aside className="section">
           <form className="section" onSubmit={saveTicket}>
@@ -180,7 +193,7 @@ function App() {
           </form>
           <section className="section ticket-list">
             <h2>{t('queue')}</h2>
-            {!tickets && !error && <p role="status">{t('loading')}</p>}
+            {!tickets && !visibleError && <p role="status">{t('loading')}</p>}
             {tickets?.length === 0 && <p>{t('empty')}</p>}
             {!!tickets?.length && <p>{t('queueHint')}</p>}
             <ul>

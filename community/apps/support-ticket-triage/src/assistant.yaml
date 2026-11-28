@@ -6,7 +6,7 @@ team:
   options:
     templateKey: support-ticket-triage
   agentConfig:
-    recursionLimit: 12
+    recursionLimit: 30
   version: '1'
   agent:
     key: Agent_Triage
